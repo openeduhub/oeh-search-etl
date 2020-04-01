@@ -1,0 +1,104 @@
+{
+	"settings": {
+	    "analysis": {
+	      "analyzer": {
+	        "std_german": { 
+		          "type":      "standard",
+		          "stopwords": "_german_"
+		        }
+			}
+		}
+	},
+	"dynamic_templates": [
+      {
+        "longs_as_strings": {
+          "match_mapping_type": "string",
+          "match":   "lom.*_de_DE",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      }
+    ],
+	"mappings" : {
+		"dynamic": "strict",
+        "properties" : {
+            "ranking" : { "type" : "rank_feature" },
+            "created_at" : { "type" : "date" },
+            "modified_at" : { "type" : "date" },
+            "license" : { "type" : "keyword" },
+            "url" : { "type" : "keyword" },
+            "fulltext" : { "type" : "text" },
+            "source": { 
+            	"properties" : {
+            		"id" : { "type" : "keyword" },
+            		"name" : { "type" : "search_as_you_type" },
+            		"ranking" : { "type" : "rank_feature" },
+            		"physical_location" : { "type" : "geo_shape" },
+            		"total_count" : { "type" : "long" }
+            	}
+            },
+            "lom": { 
+            	"properties" : {
+					"general":{
+						"properties": {
+							"identifier": { "type" : "keyword" },
+							"title" : { "type" : "search_as_you_type" },
+							"language" : { "type" : "keyword" },
+							"keyword" : { "type" : "keyword" },
+							"coverage" : { "type" : "keyword" },
+							"structure" : { "type" : "keyword" },
+							"aggregationLevel" : { "type" : "byte" }
+						}
+					},
+					"lifecycle":{
+						"properties": {
+							"version": { "type" : "keyword" },
+							"status": { "type" : "keyword" },
+							"contribute" : { 
+								"properties": {
+									"role": { "type" : "keyword" },
+									"firstName": { "type" : "keyword" },
+									"lastName": { "type" : "keyword" },
+									"organization": { "type" : "keyword" },
+									"uuid": { "type" : "keyword" }
+								}
+							}
+						}
+					},
+					"technical":{
+						"properties": {
+							"format": { "type" : "keyword" },
+							"size" : { "type" : "long" },
+							"location" : { "type" : "keyword" },
+							"requirement" : { "type" : "text" },
+							"installationRemarks" : { "type" : "text" },
+							"otherPlatformRequirements" : { "type" : "text" },
+							"duration": { "type" : "long" }
+						}
+					},
+					"educational":{
+						"properties": {
+							"interactivityType": { "type" : "keyword" },
+							"learningResourceType": { "type" : "keyword" },
+							"interactivityLevel": { "type" : "keyword" },
+							"semanticDensity": { "type" : "keyword" },
+							"intendedEndUserRole": { "type" : "keyword" },
+							"context" : { "type" : "search_as_you_type" },
+							"typicalAgeRange" : {
+								"properties":{
+									"from": {"type" : "byte" },
+									"to": {"type" : "byte" }
+								}
+							},
+							"difficulty" : { "type" : "keyword" },
+							"typicalLearningTime" : { "type" : "long" },
+							"description" : { "type" : "text" },
+							"language" : { "type" : "keyword" }
+						}
+					}
+            	}
+            }
+        }
+    }
+}

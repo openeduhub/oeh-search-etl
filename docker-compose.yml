@@ -1,0 +1,47 @@
+version: "3"
+
+services:
+  elasticsearch:
+    image: elasticsearch:7.4.2
+    environment:
+      - "discovery.type=single-node"
+      #- ELASTIC_PASSWORD=changethisinproduction
+      #- xpack.security.enabled=true
+      - http.port=9200
+      - http.cors.enabled=true
+      - http.cors.allow-origin=*
+      - http.cors.allow-headers=X-Requested-With,X-Auth-Token,Content-Type,Content-Length,Authorization,Access-Control-Allow-Headers,Accept
+      - http.cors.allow-credentials=true
+      - bootstrap.memory_lock=true
+      - 'ES_JAVA_OPTS=-Xms512m -Xmx512m'
+    networks:
+      - elasticnet
+    restart: on-failure
+    ports:
+    - "9200:9200" # exposte to host
+  postgres:
+    build:
+      context: ./postgres
+      dockerfile: postgres.Dockerfile
+    environment:
+      - "POSTGRES_USER=search"
+      - "POSTGRES_PASSWORD=admin"
+      - "POSTGRES_DB=search"
+    networks: 
+      - elasticnet
+    ports:
+      - "5432:5432" # exposte to host
+    restart: always
+  logstash:
+    build:
+      context: ./logstash
+      dockerfile: logstash_psql.Dockerfile
+    networks:
+      - elasticnet
+    depends_on:
+      - elasticsearch
+      - postgres
+    restart: on-failure
+
+networks:
+  elasticnet:
