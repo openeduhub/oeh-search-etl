@@ -8,13 +8,6 @@ class LomBase:
     main.add_value('lom', self.getLOM(response).load_item())
     return main.load_item()
     
-  def getBase(self, response):
-    base = BaseItemLoader()
-    base.add_value('sourceId', self.json['identifier'])
-    base.add_value('hash', self.json['version'])
-    base.add_value('fulltext', self.json['description'])
-    return base
-
   def getLOM(self, response):
     lom = LomBaseItemloader()
     lom.add_value('general', self.getLOMGeneral(response).load_item())

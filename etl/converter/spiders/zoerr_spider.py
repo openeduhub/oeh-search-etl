@@ -17,6 +17,13 @@ class ZoerrSpider(SitemapSpider, LomBase):
   def pre_parse(self, response):
     self.json = json.loads(response.xpath('//script[@type="application/ld+json"]//text()').extract_first())
 
+  def getBase(self, response):
+    base = BaseItemLoader()
+    base.add_value('sourceId', self.json['identifier'])
+    base.add_value('hash', self.json['version'])
+    base.add_value('fulltext', self.json['description'])
+    return base
+
   def getLOMGeneral(self, response):
     general = LomBase.getLOMGeneral(response)
     general.add_value('identifier', self.json['identifier'])
