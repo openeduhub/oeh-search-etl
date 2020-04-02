@@ -96,6 +96,21 @@
 							"description" : { "type" : "text" },
 							"language" : { "type" : "keyword" }
 						}
+					},
+					"rights":{
+						"properties": {
+							"cost": { "type" : "keyword" },
+							"copyrightAndOtherRestrictions": { "type" : "keyword" },
+							"description": { "type" : "text" }
+						}
+					},
+					"classification":{
+						"properties": {
+							"purpose": { "type" : "keyword" },
+							"taxonPath": { "type" : "keyword" },
+							"description": { "type" : "text" },
+							"keyword": { "type" : "keyword" }
+						}
 					}
             	}
             }
