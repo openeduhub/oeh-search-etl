@@ -12,7 +12,6 @@ from scrapy.loader.processors import Join, MapCompose, TakeFirst
 from w3lib.html import remove_tags, replace_escape_chars
 
 def replace_processor(value):
-    print(value)
     if value is not None:
         return replace_escape_chars(remove_tags(value)).strip()
     else:
@@ -43,16 +42,43 @@ class LomTechnicalItem(Item):
     otherPlatformRequirements = Field()
     duration = Field()
 
+class LomAgeRangeItem(Item):
+    fromRange = Field()
+    toRange = Field()
+
+class LomEducationalItem(Item):
+    interactivityType = Field()
+    learningResourceType = Field()
+    interactivityLevel = Field()
+    semanticDensity = Field()
+    intentedEndUserRole = Field()
+    context = Field()
+    typicalAgeRange = Field(serializer=LomAgeRangeItem)
+
+class LomRightsItem(Item):
+    cost = Field()
+    coyprightAndOtherRestrictions = Field()
+    description = Field()
+
+class LomClassificationItem(Item):
+    cost = Field()
+    purpose = Field()
+    taxonPath = Field()
+    description = Field()
+    keyword = Field()
+
 class LomBaseItem(Item):
     general = Field(serializer=LomGeneralItem)
     lifecycle = Field(serializer=LomLifecycleItem)
     technical = Field(serializer=LomTechnicalItem)
+    educational = Field(serializer=LomEducationalItem)
+    rights = Field(serializer=LomRightsItem)
+    classification = Field(serializer=LomRightsItem)
 
 class BaseItem(Item):
     sourceId = Field()
     hash = Field()
     ranking = Field()
-    license = Field()
     fulltext = Field()
     lom = Field(serializer=LomBaseItem)
 
@@ -72,4 +98,16 @@ class LomLifecycleItemloader(ItemLoader):
     default_output_processor = TakeFirst()
 class LomTechnicalItemLoader(ItemLoader):
     default_item_class = LomTechnicalItem
+    default_output_processor = TakeFirst()
+class LomAgeRangeItemLoader(ItemLoader):
+    default_item_class = LomAgeRangeItem
+    default_output_processor = TakeFirst()
+class LomEducationalItemLoader(ItemLoader):
+    default_item_class = LomEducationalItem
+    default_output_processor = TakeFirst()
+class LomRightsItemLoader(ItemLoader):
+    default_item_class = LomRightsItem
+    default_output_processor = TakeFirst()
+class LomClassificationItemLoader(ItemLoader):
+    default_item_class = LomClassificationItem
     default_output_processor = TakeFirst()

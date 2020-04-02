@@ -66,8 +66,9 @@ EXTENSIONS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
+    'converter.pipelines.PostgresCheckPipeline': 0,
     #'converter.pipelines.NormLicensePipeline': 100,
-    'converter.pipelines.PostgresPipeline': 300,
+    'converter.pipelines.PostgresStorePipeline': 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -81,7 +82,7 @@ AUTOTHROTTLE_MAX_DELAY = 60
 # each remote server
 #AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
 # Enable showing throttling stats for every response received:
-AUTOTHROTTLE_DEBUG = True
+AUTOTHROTTLE_DEBUG = False
 
 # Enable and configure HTTP caching (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings

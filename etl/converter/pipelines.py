@@ -13,6 +13,7 @@ import psycopg2
 from scrapy.exporters import JsonItemExporter
 import io
 from datetime import date
+from pprint import pprint
 
 class ScrapyPipeline(object):
     def process_item(self, item, spider):
@@ -74,15 +75,10 @@ class NormLicensePipeline(object):
             else:
                 raise DropItem("Missing or unknown license in %s" % item)
 
-
 class PostgresPipeline(object):
 
     def __init__(self):
         self.create_connection()
-
-    def open_spider(self, spider):
-        spider_name = spider.name
-        print(spider_name)
 
     def create_connection(self):
         self.conn = psycopg2.connect(
@@ -93,18 +89,34 @@ class PostgresPipeline(object):
         )
         self.curr = self.conn.cursor()
 
+class PostgresCheckPipeline(PostgresPipeline):
     def process_item(self, item, spider):
-        self.store_db(item, spider)
+        self.curr.execute("""SELECT uuid, hash FROM "references" WHERE source = %s AND source_id = %s""", (
+            spider.name,
+            item['sourceId']
+        ))
+        data = self.curr.fetchall()
+        if(len(data)):
+            if(item['hash'] != data[0][1]):
+                print("hash has changed, continuing pipelines")
+            else:
+                self.update(data[0][0])
+                raise DropItem()
         return item
+    def update(self, uuid):
+        self.curr.execute("""UPDATE "references" SET last_fetched = now() WHERE uuid = %s""", (
+            uuid,
+        ))
+        self.conn.commit()
 
-    def store_db(self, item, spider):
+class PostgresStorePipeline(PostgresPipeline):
+    def process_item(self, item, spider):
         output = io.BytesIO()
         exporter = JsonItemExporter(output)
         exporter.export_item(item)
         #todo build up uuid
         uuid = spider.name+'_'+item['sourceId']
-        print(output.getvalue().decode('UTF-8'))
-        self.curr.execute("""insert into "references" values (%s,%s,%s,now(),now(),now(),%s,%s)""", (
+        self.curr.execute("""INSERT INTO "references" VALUES (%s,%s,%s,now(),now(),now(),%s,%s)""", (
             uuid,
             spider.name, # source name
             item['sourceId'], # source item identifier
@@ -116,4 +128,5 @@ class PostgresPipeline(object):
         ))
         output.close()
         self.conn.commit()
+        return item
 

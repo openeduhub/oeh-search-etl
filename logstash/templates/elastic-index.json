@@ -26,7 +26,6 @@
             "ranking" : { "type" : "rank_feature" },
             "created_at" : { "type" : "date" },
             "modified_at" : { "type" : "date" },
-            "license" : { "type" : "keyword" },
             "url" : { "type" : "keyword" },
             "fulltext" : { "type" : "text" },
             "source": { 
