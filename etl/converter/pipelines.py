@@ -88,20 +88,27 @@ class PostgresPipeline(object):
             database = 'search'
         )
         self.curr = self.conn.cursor()
-
-class PostgresCheckPipeline(PostgresPipeline):
-    def process_item(self, item, spider):
+    def findItem(self, item, spider):
         self.curr.execute("""SELECT uuid, hash FROM "references" WHERE source = %s AND source_id = %s""", (
             spider.name,
             item['sourceId']
         ))
         data = self.curr.fetchall()
         if(len(data)):
-            if(item['hash'] != data[0][1]):
+            return data[0]
+        else:
+            return None
+class PostgresCheckPipeline(PostgresPipeline):
+    def process_item(self, item, spider):
+        dbItem = self.findItem(item, spider)
+        if dbItem:
+            if(item['hash'] != dbItem[1]):
                 print("hash has changed, continuing pipelines")
             else:
-                self.update(data[0][0])
-                raise DropItem()
+                self.update(dbItem[0])
+                # for tests, we update everything for now
+                # activate this later
+                #raise DropItem()
         return item
     def update(self, uuid):
         self.curr.execute("""UPDATE "references" SET last_fetched = now() WHERE uuid = %s""", (
@@ -114,18 +121,30 @@ class PostgresStorePipeline(PostgresPipeline):
         output = io.BytesIO()
         exporter = JsonItemExporter(output)
         exporter.export_item(item)
-        #todo build up uuid
-        uuid = spider.name+'_'+item['sourceId']
-        self.curr.execute("""INSERT INTO "references" VALUES (%s,%s,%s,now(),now(),now(),%s,%s)""", (
-            uuid,
-            spider.name, # source name
-            item['sourceId'], # source item identifier
-            #date.today(), # first fetched
-            #date.today(), # last fetched
-            #date.today(), # last modified
-            item['hash'], # hash
-            output.getvalue().decode('UTF-8') # json
-        ))
+        dbItem = self.findItem(item, spider)
+        if dbItem:
+            uuid = spider.name+'_'+item['sourceId']
+            self.curr.execute("""UPDATE "references" SET source = %s, source_id = %s, last_fetched = now(), last_modified = now(), hash = %s, data = %s WHERE uuid = %s""", (
+                spider.name, # source name
+                item['sourceId'], # source item identifier
+                #date.today(), # last modified
+                item['hash'], # hash
+                output.getvalue().decode('UTF-8'), # json
+                uuid
+            ))
+        else:
+            #todo build up uuid
+            uuid = spider.name+'_'+item['sourceId']
+            self.curr.execute("""INSERT INTO "references" VALUES (%s,%s,%s,now(),now(),now(),%s,%s)""", (
+                uuid,
+                spider.name, # source name
+                item['sourceId'], # source item identifier
+                #date.today(), # first fetched
+                #date.today(), # last fetched
+                #date.today(), # last modified
+                item['hash'], # hash
+                output.getvalue().decode('UTF-8') # json
+            ))
         output.close()
         self.conn.commit()
         return item
