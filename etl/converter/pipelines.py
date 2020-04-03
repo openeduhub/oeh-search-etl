@@ -128,7 +128,7 @@ class PostgresStorePipeline(PostgresPipeline):
         exporter.export_item(item)
         dbItem = self.findItem(item, spider)
         if dbItem:
-            uuid = spider.name+'_'+item['sourceId']
+            uuid = dbItem[0][0]
             self.curr.execute("""UPDATE "references" SET source = %s, source_id = %s, last_fetched = now(), last_modified = now(), hash = %s, data = %s WHERE uuid = %s""", (
                 spider.name, # source name
                 item['sourceId'], # source item identifier
