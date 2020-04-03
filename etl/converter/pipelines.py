@@ -29,6 +29,11 @@ class JoinLongWhiteSpaceStringsPipeline(object):
             item['author'] = re.sub('  +', ', ', item['author'])
             item['tags'] = " ".join(item['tags'].split())
             return item
+class LOMFillupPipeline:
+    def process_item(self, item, spider):
+        if item['fulltext'] == None:
+            item['fulltext'] = item['response']['body']
+        return item
 
 class TagPipeline(object):
     def process_item(self, item, spider):
@@ -119,7 +124,7 @@ class PostgresCheckPipeline(PostgresPipeline):
 class PostgresStorePipeline(PostgresPipeline):
     def process_item(self, item, spider):
         output = io.BytesIO()
-        exporter = JsonItemExporter(output)
+        exporter = JsonItemExporter(output, fields_to_export = ['lom','fulltext','ranking'])
         exporter.export_item(item)
         dbItem = self.findItem(item, spider)
         if dbItem:

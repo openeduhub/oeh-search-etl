@@ -75,9 +75,16 @@ class LomBaseItem(Item):
     rights = Field(serializer=LomRightsItem)
     classification = Field(serializer=LomRightsItem)
 
+class ResponseItem(Item):
+    status = Field()
+    url = Field()
+    body = Field()
+    headers = Field()
+
 class BaseItem(Item):
     sourceId = Field()
     hash = Field()
+    response = Field(serializer=ResponseItem)
     ranking = Field()
     fulltext = Field()
     lom = Field(serializer=LomBaseItem)
@@ -89,6 +96,9 @@ class BaseItemLoader(ItemLoader):
 
 class LomBaseItemloader(ItemLoader):
     default_item_class = LomBaseItem
+    default_output_processor = TakeFirst()
+class ResponseItemLoader(ItemLoader):
+    default_item_class = ResponseItem
     default_output_processor = TakeFirst()
 class LomGeneralItemloader(ItemLoader):
     default_item_class = LomGeneralItem

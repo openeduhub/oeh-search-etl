@@ -1,13 +1,23 @@
 from converter.items import *
+from pprint import pprint
 
 class LomBase:
 
   def parse(self, response):
     self.pre_parse(response)
     main = self.getBase(response)
+    #main.add_value('response', self.mapResponse(response).load_item())
     main.add_value('lom', self.getLOM(response).load_item())
     return main.load_item()
-    
+
+  def mapResponse(self, response):
+    r = ResponseItemLoader()
+    r.add_value('status',response.status)
+    r.add_value('body',response.body.decode('utf-8'))
+    r.add_value('headers',response.headers)
+    r.add_value('url',response.url)
+    return r
+
   def getLOM(self, response):
     lom = LomBaseItemloader()
     lom.add_value('general', self.getLOMGeneral(response).load_item())

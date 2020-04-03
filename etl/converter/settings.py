@@ -67,6 +67,7 @@ EXTENSIONS = {
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
     'converter.pipelines.PostgresCheckPipeline': 0,
+    'converter.pipelines.LOMFillupPipeline': 100,
     #'converter.pipelines.NormLicensePipeline': 100,
     'converter.pipelines.PostgresStorePipeline': 300,
 }
