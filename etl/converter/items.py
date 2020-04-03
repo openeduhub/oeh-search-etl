@@ -54,6 +54,10 @@ class LomEducationalItem(Item):
     intentedEndUserRole = Field()
     context = Field()
     typicalAgeRange = Field(serializer=LomAgeRangeItem)
+    difficulty = Field()
+    typicallearningTime = Field()
+    description = Field()
+    language = Field()
 
 class LomRightsItem(Item):
     cost = Field()

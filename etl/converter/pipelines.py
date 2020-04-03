@@ -31,7 +31,7 @@ class JoinLongWhiteSpaceStringsPipeline(object):
             return item
 class LOMFillupPipeline:
     def process_item(self, item, spider):
-        if item['fulltext'] == None:
+        if not 'fulltext' in item:
             item['fulltext'] = item['response']['body']
         return item
 

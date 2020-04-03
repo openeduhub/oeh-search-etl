@@ -6,7 +6,7 @@ class LomBase:
   def parse(self, response):
     self.pre_parse(response)
     main = self.getBase(response)
-    #main.add_value('response', self.mapResponse(response).load_item())
+    main.add_value('response', self.mapResponse(response).load_item())
     main.add_value('lom', self.getLOM(response).load_item())
     return main.load_item()
 
@@ -35,7 +35,7 @@ class LomBase:
     return LomLifecycleItemloader()
 
   def getLOMTechnical(self, response = None):
-    return LomLifecycleItemloader()
+    return LomTechnicalItemLoader()
 
   def getLOMEducational(self, response = None):
     return LomEducationalItemLoader()
