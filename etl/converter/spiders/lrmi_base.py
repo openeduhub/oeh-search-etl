@@ -17,6 +17,8 @@ class LrmiBase(SitemapSpider, LomBase):
     for param in params:
       value=self.json
       for key in param.split('.'):
+        if value is None:
+          continue
         value=value.get(key)
       if value != None:
         return value
