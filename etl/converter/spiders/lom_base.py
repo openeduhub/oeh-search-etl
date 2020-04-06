@@ -1,12 +1,15 @@
 from converter.items import *
 from pprint import pprint
+import logging
 
 class LomBase:
-
+  friendlyName = 'LOM Based spider'
+  ranking = 1
   def parse(self, response):
     main = self.getBase(response)
-    main.add_value('response', self.mapResponse(response).load_item())
     main.add_value('lom', self.getLOM(response).load_item())
+    logging.info(main.load_item())
+    main.add_value('response', self.mapResponse(response).load_item())
     return main.load_item()
 
   def mapResponse(self, response):

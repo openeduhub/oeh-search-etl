@@ -14,6 +14,7 @@ BOT_NAME = 'converter_search_idx'
 SPIDER_MODULES = ['converter.spiders']
 NEWSPIDER_MODULE = 'converter.spiders'
 
+LOG_LEVEL = 'INFO'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'converter_search_idx (+http://www.yourdomain.com)'

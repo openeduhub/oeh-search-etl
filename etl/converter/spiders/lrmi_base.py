@@ -8,6 +8,7 @@ import json
 # base spider mapping data via LRMI inside the html pages
 # Please override the lrmi_path if necessary and add your sitemap_urls 
 class LrmiBase(SitemapSpider, LomBase):
+  friendlyName = 'LRMI-Header Based spider'
   lrmi_path = '//script[@type="application/ld+json"]//text()'
   sitemap_urls = []
 

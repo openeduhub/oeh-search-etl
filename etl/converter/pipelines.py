@@ -13,6 +13,7 @@ import psycopg2
 from scrapy.exporters import JsonItemExporter
 import io
 from datetime import date
+import logging
 from pprint import pprint
 
 class ScrapyPipeline(object):
@@ -43,7 +44,6 @@ class TagPipeline(object):
 
 class NormLinksPipeline(object):
     def process_item(self, item, spider):
-        print("Items is: ", item)
         if spider.name == "zoerr_spider":
             return item
         elif item['url']:
@@ -103,18 +103,43 @@ class PostgresPipeline(object):
             return data[0]
         else:
             return None
+    def findSource(self, spider):
+        self.curr.execute("""SELECT * FROM "sources" WHERE id = %s""", (
+            spider.name,
+        ))
+        data = self.curr.fetchall()
+        if(len(data)):
+            return data[0]
+        else:
+            return None
 class PostgresCheckPipeline(PostgresPipeline):
     def process_item(self, item, spider):
+        if(not 'hash' in item):
+            raise ValueError('The spider did not provide a hash on the base object. The hash is required to detect changes on an element. May use the last modified date or something similar')
+        
+        # @TODO: May this can be done only once?
+        if self.findSource(spider) == None:
+            logging.info("create new source "+spider.name)
+            self.createSource(spider)
+
         dbItem = self.findItem(item, spider)
         if dbItem:
             if(item['hash'] != dbItem[1]):
-                print("hash has changed, continuing pipelines")
+                logging.info("hash has changed, continuing pipelines")
             else:
+                logging.info("hash unchanged, skip item")
                 self.update(dbItem[0])
                 # for tests, we update everything for now
                 # activate this later
                 #raise DropItem()
         return item
+    def createSource(self, spider):
+        self.curr.execute("""INSERT INTO "sources" VALUES(%s,%s,%s)""", (
+            spider.name,
+            spider.friendlyName,
+            spider.ranking
+        ))
+        self.conn.commit()
     def update(self, uuid):
         self.curr.execute("""UPDATE "references" SET last_fetched = now() WHERE uuid = %s""", (
             uuid,
@@ -128,7 +153,8 @@ class PostgresStorePipeline(PostgresPipeline):
         exporter.export_item(item)
         dbItem = self.findItem(item, spider)
         if dbItem:
-            uuid = dbItem[0][0]
+            uuid = dbItem[0]
+            logging.info("Updating item "+uuid)
             self.curr.execute("""UPDATE "references" SET source = %s, source_id = %s, last_fetched = now(), last_modified = now(), hash = %s, data = %s WHERE uuid = %s""", (
                 spider.name, # source name
                 item['sourceId'], # source item identifier
@@ -140,6 +166,7 @@ class PostgresStorePipeline(PostgresPipeline):
         else:
             #todo build up uuid
             uuid = spider.name+'_'+item['sourceId']
+            logging.info("creating item "+uuid)
             self.curr.execute("""INSERT INTO "references" VALUES (%s,%s,%s,now(),now(),now(),%s,%s)""", (
                 uuid,
                 spider.name, # source name
