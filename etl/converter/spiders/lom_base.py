@@ -4,7 +4,6 @@ from pprint import pprint
 class LomBase:
 
   def parse(self, response):
-    self.pre_parse(response)
     main = self.getBase(response)
     main.add_value('response', self.mapResponse(response).load_item())
     main.add_value('lom', self.getLOM(response).load_item())

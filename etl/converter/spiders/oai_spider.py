@@ -34,9 +34,6 @@ class OAISpider(scrapy.Spider, LomBase):
         self.logger.info(lom)
         return lom
 
-    def pre_parse(self, response):
-        self.logger.info('will do nothing')
-
     def getBase(self, response):
         base = BaseItemLoader()
         base.add_value('sourceId', response.xpath('header/identifier//text()').extract_first())

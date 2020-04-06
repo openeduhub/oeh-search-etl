@@ -12,10 +12,8 @@ class LrmiBase(SitemapSpider, LomBase):
   sitemap_urls = []
 
   def parse(self, response):
-    return LomBase.parse(self, response)
-
-  def pre_parse(self, response):
     self.json = json.loads(response.xpath(self.lrmi_path).extract_first())
+    return LomBase.parse(self, response)
 
   def getBase(self, response):
     base = BaseItemLoader()
