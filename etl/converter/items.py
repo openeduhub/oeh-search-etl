@@ -55,7 +55,7 @@ class LomEducationalItem(Item):
     context = Field()
     typicalAgeRange = Field(serializer=LomAgeRangeItem)
     difficulty = Field()
-    typicallearningTime = Field()
+    typicalLearningTime = Field()
     description = Field()
     language = Field()
 
@@ -96,7 +96,7 @@ class BaseItem(Item):
 class BaseItemLoader(ItemLoader):
     default_item_class = BaseItem
     #default_input_processor = MapCompose(replace_processor)
-    default_output_processor = TakeFirst()
+    default_output_processor = Join()
 
 class LomBaseItemloader(ItemLoader):
     default_item_class = LomBaseItem
