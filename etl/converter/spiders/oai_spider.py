@@ -27,24 +27,29 @@ class OAISpider(scrapy.Spider, LomBase):
             yield scrapy.Request(url=nextUrl, callback=self.parse)
 
     def parseRecord(self, response):    
-        response.selector.remove_namespaces()
-        record = response.xpath('//OAI-PMH/GetRecord/record')
-        #self.logger.info(record.xpath('metadata/lom/general/title/string//text()').extract_first())
-        lom = LomBase.parse(self, record)
-        self.logger.info(lom)
+        lom = LomBase.parse(self, response)
         return lom
 
     def getBase(self, response):
+        response.selector.remove_namespaces()
+        record = response.xpath('//OAI-PMH/GetRecord/record')
+
         base = BaseItemLoader()
-        base.add_value('sourceId', response.xpath('header/identifier//text()').extract_first())
-        base.add_value('hash', response.xpath('header/identifier//text()').extract_first())
-        base.add_value('fulltext', response.xpath('metadata/lom/general/description/string//text()').extract_first())
+        base.add_value('sourceId', record.xpath('header/identifier//text()').extract_first())
+        base.add_value('hash', record.xpath('header/identifier//text()').extract_first())
+        base.add_value('fulltext', record.xpath('metadata/lom/general/description/string//text()').extract_first())
         return base
 
     def getLOMGeneral(self, response):
+        response.selector.remove_namespaces()
+        record = response.xpath('//OAI-PMH/GetRecord/record')
+
         general = LomBase.getLOMGeneral(response)
-        general.add_value('identifier', response.xpath('header/identifier//text()').extract_first())
-        general.add_value('title', response.xpath('metadata/lom/general/title/string//text()').extract_first())
-        general.add_value('keyword', response.xpath('metadata/lom/general/keyword/string//text()').extract_first())
+        general.add_value('identifier', record.xpath('header/identifier//text()').extract_first())
+        general.add_value('title', record.xpath('metadata/lom/general/title/string//text()').extract_first())
+        keywords = record.xpath('metadata/lom/general/keyword/string//text()').getall()
+        self.logger.info(keywords)
+        general.add_value('keyword', keywords )
+        #general.add_value('keyword', response.xpath('metadata/lom/general/keyword/string//text()').extract_first())
         return general
 
