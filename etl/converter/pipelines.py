@@ -35,24 +35,6 @@ class LOMFillupPipeline:
         if not 'fulltext' in item:
             item['fulltext'] = item['response']['body']
         return item
-
-class TagPipeline(object):
-    def process_item(self, item, spider):
-        if item['tags']:
-            item['tags'] = item['tags'].replace(" ", ",")
-            return item
-
-class NormLinksPipeline(object):
-    def process_item(self, item, spider):
-        if spider.name == "zoerr_spider":
-            return item
-        elif item['url']:
-            if not any(x in item['url'] for x in ["http://", "https://"]):
-                item['url'] = "https://" + item['url']
-                return item
-            else:
-                return item
-
 class NormLicensePipeline(object):
     def process_item(self, item, spider):
         if item['license']:
@@ -79,9 +61,19 @@ class NormLicensePipeline(object):
                 return item
             else:
                 raise DropItem("Missing or unknown license in %s" % item)
-
-class PostgresPipeline(object):
-
+class ConvertTimePipeline:
+    def process_item(self, item, spider):
+        if 'typicalLearningTime' in item['lom']['educational']:
+            time = item['lom']['educational']['typicalLearningTime']
+            mapped = None
+            splitted = time.split(':')
+            if len(splitted) == 3:
+                mapped = int(splitted[0])*60*60 + int(splitted[1])*60 + int(splitted[2])
+            if mapped == None:
+                logging.warn('Unable to map given typicalLearningTime '+time+' to numeric value')
+            item['lom']['educational']['typicalLearningTime'] = mapped
+        return item
+class PostgresPipeline:
     def __init__(self):
         self.create_connection()
 
