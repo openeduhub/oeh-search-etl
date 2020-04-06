@@ -50,6 +50,5 @@ class OAISpider(scrapy.Spider, LomBase):
         keywords = record.xpath('metadata/lom/general/keyword/string//text()').getall()
         self.logger.info(keywords)
         general.add_value('keyword', keywords )
-        #general.add_value('keyword', response.xpath('metadata/lom/general/keyword/string//text()').extract_first())
         return general
 
