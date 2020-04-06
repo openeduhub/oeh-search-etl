@@ -69,8 +69,9 @@ EXTENSIONS = {
 ITEM_PIPELINES = {
     'converter.pipelines.PostgresCheckPipeline': 0,
     'converter.pipelines.LOMFillupPipeline': 100,
+    'converter.pipelines.ConvertTimePipeline': 200,
     #'converter.pipelines.NormLicensePipeline': 100,
-    'converter.pipelines.PostgresStorePipeline': 300,
+    'converter.pipelines.PostgresStorePipeline': 1000,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

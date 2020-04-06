@@ -51,7 +51,7 @@ class LomEducationalItem(Item):
     learningResourceType = Field()
     interactivityLevel = Field()
     semanticDensity = Field()
-    intentedEndUserRole = Field()
+    intendedEndUserRole = Field()
     context = Field()
     typicalAgeRange = Field(serializer=LomAgeRangeItem)
     difficulty = Field()
