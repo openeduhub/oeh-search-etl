@@ -13,11 +13,15 @@ class LrmiBase(SitemapSpider, LomBase):
   lrmi_path = '//script[@type="application/ld+json"]//text()'
   sitemap_urls = []
 
+
   def get(self, *params,mode = 'first'):
     for param in params:
       value=self.json
       for key in param.split('.'):
-        value=value.get(key)
+        if value:
+          value=value.get(key)
+        else:
+          return None
       if value != None:
         return value
     return None
