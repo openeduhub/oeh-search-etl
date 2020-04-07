@@ -10,6 +10,7 @@ from scrapy.item import Item, BaseItem, Field
 from scrapy.loader import ItemLoader
 from scrapy.loader.processors import Join, MapCompose, TakeFirst
 from w3lib.html import remove_tags, replace_escape_chars
+import logging
 
 def replace_processor(value):
     if value is not None:
@@ -17,11 +18,21 @@ def replace_processor(value):
     else:
         return value
 
+
+class JoinMultivalues(object):
+
+    def __init__(self, separator=u' '):
+        self.separator = separator
+
+    def __call__(self, values):
+        return values
+
+
 class LomGeneralItem(Item):
     identifier = Field()
     title = Field()
     language = Field()
-    keyword = Field()
+    keyword = Field(output_processor=JoinMultivalues())
     coverage = Field()
     structure = Field()
     aggregationLevel = Field()
