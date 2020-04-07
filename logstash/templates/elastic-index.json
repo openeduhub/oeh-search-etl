@@ -9,19 +9,19 @@
 			}
 		}
 	},
-	"dynamic_templates": [
-      {
-        "longs_as_strings": {
-          "match_mapping_type": "string",
-          "match":   "lom.*_de_DE",
-          "mapping": {
-            "type": "keyword"
-          }
-        }
-      }
-    ],
 	"mappings" : {
 		"dynamic": "strict",
+		"dynamic_templates": [
+			{
+			  "longs_as_strings": {
+				"match_mapping_type": "string",
+				"match":   "lom.*_de_DE",
+				"mapping": {
+				  "type": "keyword"
+				}
+			  }
+			}
+		  ],
         "properties" : {
             "ranking" : { "type" : "rank_feature" },
             "created_at" : { "type" : "date" },
@@ -36,7 +36,14 @@
             		"physical_location" : { "type" : "geo_shape" },
             		"total_count" : { "type" : "long" }
             	}
-            },
+			},
+			"collection": { "type" : "keyword" },			
+			"thumbnail": {
+				"properties" : {
+            		"small" : { "type" : "binary" },
+            		"large" : { "type" : "binary" }
+            	}
+			},
             "lom": { 
             	"properties" : {
 					"general":{
