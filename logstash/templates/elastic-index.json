@@ -13,9 +13,16 @@
 		"dynamic": "true",
 		"dynamic_templates": [
 			{
-			  "longs_as_strings": {
+			  "i18n_key": {
 				"match_mapping_type": "string",
-				"match":   "lom.*de_DE",
+				"match":   "lom.*.key",
+				"mapping": {
+				  "type": "keyword"
+				}
+			  },
+			  "i18n_de_DE": {
+				"match_mapping_type": "string",
+				"match":   "lom.*.de_DE",
 				"mapping": {
 				  "type": "keyword"
 				}
