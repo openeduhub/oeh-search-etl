@@ -1,7 +1,7 @@
 from converter.items import *
 from converter.spiders.lom_base import LomBase;
 
-class OAISpider(scrapy.Spider, LomBase):
+class OAIBase(scrapy.Spider, LomBase):
     name = "OAI"
     verb="listIdentifiers"
     baseUrl = None
