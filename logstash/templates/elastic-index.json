@@ -10,12 +10,12 @@
 		}
 	},
 	"mappings" : {
-		"dynamic": "strict",
+		"dynamic": "true",
 		"dynamic_templates": [
 			{
 			  "longs_as_strings": {
 				"match_mapping_type": "string",
-				"match":   "lom.*_de_DE",
+				"match":   "lom.*de_DE",
 				"mapping": {
 				  "type": "keyword"
 				}

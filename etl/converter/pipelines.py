@@ -22,25 +22,13 @@ import base64
 import html2text
 
 THUMBNAIL_SMALL_SIZE = 250*250
-THUMBNAIL_SMALL_QUALITY = 25
 THUMBNAIL_SMALL_QUALITY = 40
 THUMBNAIL_LARGE_SIZE = 800*800
 THUMBNAIL_LARGE_QUALITY = 60
 
-class ScrapyPipeline(object):
-    def process_item(self, item, spider):
-        return item
+VALUESPACE_API = 'http://localhost:5000/'
 
-class JoinLongWhiteSpaceStringsPipeline(object):
-    def process_item(self, item, spider):
-        if spider.name == "zoerr_spider":
-            return item
-        if spider.name == "hhu_spider":
-            return item
-        if item['author']:
-            item['author'] = re.sub('  +', ', ', item['author'])
-            item['tags'] = " ".join(item['tags'].split())
-            return item
+# fillup missing props by "guessing" or loading them if possible
 class LOMFillupPipeline:
     def process_item(self, item, spider):
         if not 'fulltext' in item:
@@ -75,6 +63,7 @@ class NormLicensePipeline(object):
                 return item
             else:
                 raise DropItem("Missing or unknown license in %s" % item)
+# convert typicalLearningTime into a integer representing seconds
 class ConvertTimePipeline:
     def process_item(self, item, spider):
         if 'typicalLearningTime' in item['lom']['educational']:
@@ -87,6 +76,40 @@ class ConvertTimePipeline:
                 logging.warn('Unable to map given typicalLearningTime '+time+' to numeric value')
             item['lom']['educational']['typicalLearningTime'] = mapped
         return item
+# generate de_DE / i18n strings for valuespace fields
+class ProcessValuespacePipeline:
+    ids = ['educationalRole']
+    valuespaces = {}
+    def __init__(self):
+        for v in self.ids:
+            r=requests.get(VALUESPACE_API+'vocab/'+v)
+            self.valuespaces[v] = r.json()
+    def process(self, item, main, child):
+        if child in item['lom'][main]:
+            # remap to new i18n layout
+            mapped = []
+            for key in item['lom'][main][child]:
+                i18n = {}
+                i18n['key'] = key
+                mapping = None
+                if child == 'intendedEndUserRole':
+                    mapping = 'educationalRole'
+                if mapping != None:
+                    valuespace = self.valuespaces[mapping]
+                    for v in valuespace['vocabs']:
+                        if v['id'].endswith(key):
+                            logging.info('translating ' + child + ': ' + key + ' => ' + v['label'])
+                            i18n['de_DE'] = v['label']
+                            break
+                mapped.append(i18n)
+            item['lom'][main][child] = mapped
+        return item
+    def process_item(self, item, spider):
+        name = None
+        entry = None
+        item = self.process(item, 'educational', 'intendedEndUserRole')
+        return item
+# generate thumbnails
 class ProcessThumbnailPipeline:
     def scaleImage(self, img, maxSize):
         w=float(img.width)

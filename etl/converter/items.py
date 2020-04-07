@@ -28,6 +28,9 @@ class JoinMultivalues(object):
         return values
 
 
+class MutlilangItem(Item):
+    key = Field()
+    de_DE = Field()
 class LomGeneralItem(Item):
     identifier = Field()
     title = Field()
@@ -62,7 +65,7 @@ class LomEducationalItem(Item):
     learningResourceType = Field()
     interactivityLevel = Field()
     semanticDensity = Field()
-    intendedEndUserRole = Field()
+    intendedEndUserRole = Field(serializer=MutlilangItem, output_processor=JoinMultivalues())
     context = Field()
     typicalAgeRange = Field(serializer=LomAgeRangeItem)
     difficulty = Field()
@@ -110,6 +113,9 @@ class BaseItemLoader(ItemLoader):
     #default_input_processor = MapCompose(replace_processor)
     default_output_processor = TakeFirst()
 
+class MutlilangItemLoader(ItemLoader):
+    default_item_class = MutlilangItem
+    default_output_processor = TakeFirst()
 class LomBaseItemloader(ItemLoader):
     default_item_class = LomBaseItem
     default_output_processor = TakeFirst()

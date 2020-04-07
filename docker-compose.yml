@@ -32,16 +32,12 @@ services:
     ports:
       - "5432:5432" # exposte to host
     restart: always
-  logstash:
-    build:
-      context: ./logstash
-      dockerfile: logstash_psql.Dockerfile
+  valuespaces:
+    image: laocoon667/oer-flask-api:latest
     networks:
       - elasticnet
-    depends_on:
-      - elasticsearch
-      - postgres
+    ports:
+      - "5000:5000" # exposte to host
     restart: on-failure
-
 networks:
   elasticnet:

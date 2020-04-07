@@ -1,15 +1,16 @@
 from converter.items import *
 from converter.spiders.lom_base import LomBase;
-
+import logging
 class OAIBase(scrapy.Spider, LomBase):
     name = "OAI"
-    verb="listIdentifiers"
+    verb="ListIdentifiers"
     baseUrl = None
     metadataPrefix = None
     set = None
 
     def start_requests(self):
         listIdentifiersUrl = self.baseUrl + "?verb=" + self.verb + "&set=" + self.set +"&metadataPrefix=" + self.metadataPrefix
+        logging.info('OAI starting at ' + listIdentifiersUrl)
         yield scrapy.Request(url=listIdentifiersUrl, callback=self.parse)
 
     def parse(self, response):
@@ -17,7 +18,7 @@ class OAIBase(scrapy.Spider, LomBase):
         for header in response.xpath('//OAI-PMH/ListIdentifiers/header'):
 
             identifier = header.xpath('identifier//text()').extract_first()
-            getrecordUrl = self.baseUrl +"?verb=getRecord&identifier=" +identifier+"&metadataPrefix="+self.metadataPrefix
+            getrecordUrl = self.baseUrl +"?verb=GetRecord&identifier=" +identifier+"&metadataPrefix="+self.metadataPrefix
             yield scrapy.Request(url=getrecordUrl, callback=self.parseRecord)
 
         resumptionToken = response.xpath('//OAI-PMH/ListIdentifiers/resumptionToken//text()').extract_first()
@@ -33,10 +34,9 @@ class OAIBase(scrapy.Spider, LomBase):
     def getBase(self, response):
         response.selector.remove_namespaces()
         record = response.xpath('//OAI-PMH/GetRecord/record')
-
         base = BaseItemLoader()
         base.add_value('sourceId', record.xpath('header/identifier//text()').extract_first())
-        base.add_value('hash', record.xpath('header/identifier//text()').extract_first())
+        base.add_value('hash', record.xpath('header/identifier//text()').extract_first()+record.xpath('header/datestamp//text()').extract_first())
         base.add_value('fulltext', record.xpath('metadata/lom/general/description/string//text()').extract_first())
         return base
 

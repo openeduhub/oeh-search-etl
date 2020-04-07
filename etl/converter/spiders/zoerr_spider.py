@@ -1,5 +1,11 @@
 from converter.spiders.lrmi_base import LrmiBase
+from converter.spiders.oai_base import OAIBase
 
 class ZoerrSpider(LrmiBase):
   name = 'zoerr_spider'
-  sitemap_urls = ['https://uni-tuebingen.oerbw.de/edu-sharing/eduservlet/sitemap']
+  baseUrl = 'https://www.oerbw.de/edu-sharing/eduservlet/oai/provider'
+  set = 'default'
+  metadataPrefix = 'lom'
+
+  # only for LRMI
+  sitemap_urls = ['https://www.oerbw.de/edu-sharing/eduservlet/sitemap']
