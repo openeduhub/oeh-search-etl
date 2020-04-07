@@ -102,6 +102,7 @@ class BaseItem(Item):
     response = Field(serializer=ResponseItem)
     ranking = Field()
     fulltext = Field()
+    thumbnail = Field()
     lom = Field(serializer=LomBaseItem)
 
 class BaseItemLoader(ItemLoader):

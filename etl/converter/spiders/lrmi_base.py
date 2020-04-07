@@ -34,6 +34,7 @@ class LrmiBase(SitemapSpider, LomBase):
   def getBase(self, response):
     base = BaseItemLoader()
     base.add_value('sourceId', self.get('identifier','url','name'))
+    base.add_value('thumbnail', self.get('thumbnailUrl'))
     if self.get('version') != None:
       base.add_value('hash', self.get('version'))
     else:

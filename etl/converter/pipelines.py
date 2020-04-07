@@ -15,6 +15,16 @@ import io
 from datetime import date
 import logging
 from pprint import pprint
+from PIL import Image
+from io import BytesIO
+import requests
+import base64
+import html2text
+
+THUMBNAIL_SMALL_SIZE = 250*250
+THUMBNAIL_SMALL_QUALITY = 25
+THUMBNAIL_LARGE_SIZE = 800*800
+THUMBNAIL_LARGE_QUALITY = 60
 
 class ScrapyPipeline(object):
     def process_item(self, item, spider):
@@ -33,7 +43,10 @@ class JoinLongWhiteSpaceStringsPipeline(object):
 class LOMFillupPipeline:
     def process_item(self, item, spider):
         if not 'fulltext' in item:
-            item['fulltext'] = item['response']['body']
+            h = html2text.HTML2Text()
+            h.ignore_links = True
+            h.ignore_images = True
+            item['fulltext'] = h.handle(item['response']['body'])
         return item
 class NormLicensePipeline(object):
     def process_item(self, item, spider):
@@ -72,6 +85,27 @@ class ConvertTimePipeline:
             if mapped == None:
                 logging.warn('Unable to map given typicalLearningTime '+time+' to numeric value')
             item['lom']['educational']['typicalLearningTime'] = mapped
+        return item
+class ProcessThumbnailPipeline:
+    def scaleImage(self, img, maxSize):
+        w=float(img.width)
+        h=float(img.height)
+        while(w*h>maxSize):
+            w*=0.9
+            h*=0.9
+        return img.resize((int(w),int(h)), Image.ANTIALIAS).convert("RGB")
+    def process_item(self, item, spider):
+        if 'thumbnail' in item:
+            response = requests.get(item['thumbnail'])
+            del item['thumbnail']
+            img = Image.open(BytesIO(response.content))
+            small = BytesIO()
+            self.scaleImage(img, THUMBNAIL_SMALL_SIZE).save(small, 'JPEG', mode = 'RGB', quality = THUMBNAIL_SMALL_QUALITY)
+            large = BytesIO()
+            self.scaleImage(img, THUMBNAIL_LARGE_SIZE).save(large, 'JPEG', mode = 'RGB', quality = THUMBNAIL_LARGE_QUALITY)
+            item['thumbnail']={}
+            item['thumbnail']['small'] = base64.b64encode(small.getvalue()).decode()
+            #item['thumbnail']['large'] = base64.b64encode(large.getvalue()).decode()
         return item
 class PostgresPipeline:
     def __init__(self):
@@ -141,9 +175,11 @@ class PostgresCheckPipeline(PostgresPipeline):
 class PostgresStorePipeline(PostgresPipeline):
     def process_item(self, item, spider):
         output = io.BytesIO()
-        exporter = JsonItemExporter(output, fields_to_export = ['lom','fulltext','ranking'])
+        exporter = JsonItemExporter(output, fields_to_export = ['lom','fulltext','ranking','thumbnail'])
         exporter.export_item(item)
+        json = output.getvalue().decode('UTF-8')
         dbItem = self.findItem(item, spider)
+        #logging.info(json)
         if dbItem:
             uuid = dbItem[0]
             logging.info("Updating item "+uuid)
@@ -152,7 +188,7 @@ class PostgresStorePipeline(PostgresPipeline):
                 item['sourceId'], # source item identifier
                 #date.today(), # last modified
                 item['hash'], # hash
-                output.getvalue().decode('UTF-8'), # json
+                json,
                 uuid
             ))
         else:
@@ -167,7 +203,7 @@ class PostgresStorePipeline(PostgresPipeline):
                 #date.today(), # last fetched
                 #date.today(), # last modified
                 item['hash'], # hash
-                output.getvalue().decode('UTF-8') # json
+                json
             ))
         output.close()
         self.conn.commit()
