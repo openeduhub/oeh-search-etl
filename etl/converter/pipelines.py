@@ -72,10 +72,9 @@ class ConvertTimePipeline:
             try:
                 item['lastModified'] = float(item['lastModified'])
             except:
-                date = None
                 try:
                     date = dateutil.parser.parse(item['lastModified'])
-                    item['lastModified'] = date.time()
+                    item['lastModified'] = int(date.timestamp())
                 except:
                     logging.warn('Unable to parse given lastModified date ' + item['lastModified'])
                     del item['lastModified']
@@ -135,13 +134,14 @@ class ProcessThumbnailPipeline:
     def process_item(self, item, spider):
         response = None
         settings = get_project_settings()
+        url = None
         if 'thumbnail' in item:
-            response = requests.get(item['thumbnail'])
+            url = item['thumbnail']
         elif 'location' in item['lom']['technical'] and 'format' in item['lom']['technical'] and item['lom']['technical']['format'] == 'text/html':
             url = settings.get('SPLASH_URL') + '/render.png?wait='  + str(settings.get('SPLASH_WAIT')) + '&url=' + urllib.parse.quote(item['lom']['technical']['location'], safe = '')
-            response = requests.get(url)
-        if response != None:
+        if url != None:
             try:
+                response = requests.get(url)
                 if response.headers['Content-Type'] == 'image/svg+xml':
                     if len(response.content) > settings.get('THUMBNAIL_MAX_SIZE'):
                         raise Exception('SVG images can\'t be converted, and the given image exceeds the maximum allowed size (' + str(len(response.content)) + ' > ' + str(settings.get('THUMBNAIL_MAX_SIZE')) + ')')
@@ -159,7 +159,7 @@ class ProcessThumbnailPipeline:
                     item['thumbnail']['small'] = base64.b64encode(small.getvalue()).decode()
                     item['thumbnail']['large'] = base64.b64encode(large.getvalue()).decode()
             except Exception as e:
-                logging.warn('Could not read thumbnail at ' + item['thumbnail'] + ': ' + str(e))
+                logging.warn('Could not read thumbnail at ' + url + ': ' + str(e))
                 item['thumbnail']={}
         return item
 
@@ -231,7 +231,7 @@ class PostgresCheckPipeline(PostgresPipeline):
 class PostgresStorePipeline(PostgresPipeline):
     def process_item(self, item, spider):
         output = io.BytesIO()
-        exporter = JsonItemExporter(output, fields_to_export = ['lom','fulltext','ranking','thumbnail'])
+        exporter = JsonItemExporter(output, fields_to_export = ['lom','fulltext','ranking','lastModified','thumbnail'])
         exporter.export_item(item)
         json = output.getvalue().decode('UTF-8')
         dbItem = self.findItem(item, spider)
