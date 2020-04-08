@@ -39,6 +39,7 @@ class LomGeneralItem(Item):
     coverage = Field()
     structure = Field()
     aggregationLevel = Field()
+    description = Field()
 
 class LomLifecycleItem(Item):
     role = Field()
