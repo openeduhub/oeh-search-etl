@@ -73,7 +73,17 @@
 					"general":{
 						"properties": {
 							"identifier": { "type" : "keyword" },
-							"title" : { "type" : "search_as_you_type" },
+							"title" : {
+								"type" : "text",
+								"fields": {
+									"keyword": { 
+									  "type":  "keyword"
+									},
+									"search_as_you_type": { 
+										"type":  "search_as_you_type"
+									  }
+								}  
+							},
 							"language" : { "type" : "keyword" },
 							"keyword" : { 
 								"type" : "text",
