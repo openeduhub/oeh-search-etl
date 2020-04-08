@@ -224,22 +224,22 @@ class PostgresStorePipeline(PostgresPipeline):
         title = item['lom']['general']['title']
         #logging.info(json)
         if dbItem:
-            uuid = dbItem[0]
-            logging.info('Updating item ' + title + ' (' + uuid + ')')
+            entryUUID = dbItem[0]
+            logging.info('Updating item ' + title + ' (' + entryUUID + ')')
             self.curr.execute("""UPDATE "references" SET source = %s, source_id = %s, last_fetched = now(), last_modified = now(), hash = %s, data = %s WHERE uuid = %s""", (
                 spider.name, # source name
                 item['sourceId'], # source item identifier
                 #date.today(), # last modified
                 item['hash'], # hash
                 json,
-                uuid
+                entryUUID
             ))
         else:
             #todo build up uuid
-            uuid = uuid.uuid1()
-            logging.info('Creating item ' + title + ' (' + uuid + ')')
+            entryUUID = str(uuid.uuid4())
+            logging.info('Creating item ' + title + ' (' + entryUUID + ')')
             self.curr.execute("""INSERT INTO "references" VALUES (%s,%s,%s,now(),now(),now(),%s,%s)""", (
-                uuid,
+                entryUUID,
                 spider.name, # source name
                 item['sourceId'], # source item identifier
                 #date.today(), # first fetched
