@@ -16,6 +16,19 @@ NEWSPIDER_MODULE = 'converter.spiders'
 
 LOG_LEVEL = 'INFO'
 
+# Splash (Web Thumbnailer)
+# Will be rolled out via docker-compose by default
+SPLASH_URL = 'http://localhost:8050'
+SPLASH_WAIT = 3 # seconds to let the page load
+
+# Thumbnail config
+THUMBNAIL_SMALL_SIZE = 250*250
+THUMBNAIL_SMALL_QUALITY = 40
+THUMBNAIL_LARGE_SIZE = 800*800
+THUMBNAIL_LARGE_QUALITY = 60
+THUMBNAIL_MAX_SIZE = 50*1024 # max size for images that can not be converted (e.g. svg)
+
+
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'converter_search_idx (+http://www.yourdomain.com)'
 

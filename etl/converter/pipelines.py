@@ -18,15 +18,13 @@ from pprint import pprint
 from PIL import Image
 from io import BytesIO
 import requests
+import urllib
 import base64
 import html2text
+import scrapy
 import sys
-
-THUMBNAIL_SMALL_SIZE = 250*250
-THUMBNAIL_SMALL_QUALITY = 40
-THUMBNAIL_LARGE_SIZE = 800*800
-THUMBNAIL_LARGE_QUALITY = 60
-THUMBNAIL_MAX_SIZE = 50*1024 # max size for images that can not be converted (e.g. svg)
+import uuid
+from scrapy.utils.project import get_project_settings
 
 VALUESPACE_API = 'http://localhost:5000/'
 
@@ -121,21 +119,27 @@ class ProcessThumbnailPipeline:
             h*=0.9
         return img.resize((int(w),int(h)), Image.ANTIALIAS).convert("RGB")
     def process_item(self, item, spider):
+        response = None
+        settings = get_project_settings()
         if 'thumbnail' in item:
+            response = requests.get(item['thumbnail'])
+        elif 'location' in item['lom']['technical']:
+            url = settings.get('SPLASH_URL') + '/render.png?wait='  + str(settings.get('SPLASH_WAIT')) + '&url=' + urllib.parse.quote(item['lom']['technical']['location'], safe = '')
+            response = requests.get(url)
+        if response != None:
             try:
-                response = requests.get(item['thumbnail'])
                 if response.headers['Content-Type'] == 'image/svg+xml':
-                    if len(response.content) > THUMBNAIL_MAX_SIZE:
-                        raise Exception('SVG images can\'t be converted, and the given image exceeds the maximum allowed size (' + str(len(response.content)) + ' > ' + str(THUMBNAIL_MAX_SIZE) + ')')
+                    if len(response.content) > settings.get('THUMBNAIL_MAX_SIZE'):
+                        raise Exception('SVG images can\'t be converted, and the given image exceeds the maximum allowed size (' + str(len(response.content)) + ' > ' + str(settings.get('THUMBNAIL_MAX_SIZE')) + ')')
                     item['thumbnail']={}
                     item['thumbnail']['mimetype'] = response.headers['Content-Type']
                     item['thumbnail']['small'] = base64.b64encode(response.content).decode()
                 else:
                     img = Image.open(BytesIO(response.content))
                     small = BytesIO()
-                    self.scaleImage(img, THUMBNAIL_SMALL_SIZE).save(small, 'JPEG', mode = 'RGB', quality = THUMBNAIL_SMALL_QUALITY)
+                    self.scaleImage(img, settings.get('THUMBNAIL_SMALL_SIZE')).save(small, 'JPEG', mode = 'RGB', quality = settings.get('THUMBNAIL_SMALL_QUALITY'))
                     large = BytesIO()
-                    self.scaleImage(img, THUMBNAIL_LARGE_SIZE).save(large, 'JPEG', mode = 'RGB', quality = THUMBNAIL_LARGE_QUALITY)
+                    self.scaleImage(img, settings.get('THUMBNAIL_LARGE_SIZE')).save(large, 'JPEG', mode = 'RGB', quality = settings.get('THUMBNAIL_LARGE_QUALITY'))
                     item['thumbnail']={}
                     item['thumbnail']['mimetype'] = 'image/jpeg'
                     item['thumbnail']['small'] = base64.b64encode(small.getvalue()).decode()
@@ -144,6 +148,7 @@ class ProcessThumbnailPipeline:
                 logging.warn('Could not read thumbnail at ' + item['thumbnail'] + ': ' + str(e))
                 item['thumbnail']={}
         return item
+
 class PostgresPipeline:
     def __init__(self):
         self.create_connection()
@@ -216,10 +221,11 @@ class PostgresStorePipeline(PostgresPipeline):
         exporter.export_item(item)
         json = output.getvalue().decode('UTF-8')
         dbItem = self.findItem(item, spider)
+        title = item['lom']['general']['title']
         #logging.info(json)
         if dbItem:
             uuid = dbItem[0]
-            logging.info("Updating item "+uuid)
+            logging.info('Updating item ' + title + ' (' + uuid + ')')
             self.curr.execute("""UPDATE "references" SET source = %s, source_id = %s, last_fetched = now(), last_modified = now(), hash = %s, data = %s WHERE uuid = %s""", (
                 spider.name, # source name
                 item['sourceId'], # source item identifier
@@ -230,8 +236,8 @@ class PostgresStorePipeline(PostgresPipeline):
             ))
         else:
             #todo build up uuid
-            uuid = spider.name+'_'+item['sourceId']
-            logging.info("creating item "+uuid)
+            uuid = uuid.uuid1()
+            logging.info('Creating item ' + title + ' (' + uuid + ')')
             self.curr.execute("""INSERT INTO "references" VALUES (%s,%s,%s,now(),now(),now(),%s,%s)""", (
                 uuid,
                 spider.name, # source name
