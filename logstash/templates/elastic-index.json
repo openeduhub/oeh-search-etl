@@ -65,7 +65,14 @@
 							"identifier": { "type" : "keyword" },
 							"title" : { "type" : "search_as_you_type" },
 							"language" : { "type" : "keyword" },
-							"keyword" : { "type" : "keyword" },
+							"keyword" : { 
+								"type" : "text",
+								"fields": {
+									"keyword": { 
+									  "type":  "keyword"
+									}
+								} 
+							},
 							"coverage" : { "type" : "keyword" },
 							"structure" : { "type" : "keyword" },
 							"aggregationLevel" : { "type" : "byte" }
