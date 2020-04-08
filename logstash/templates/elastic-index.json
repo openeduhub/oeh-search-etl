@@ -40,7 +40,17 @@
             "source": { 
             	"properties" : {
             		"id" : { "type" : "keyword" },
-            		"name" : { "type" : "search_as_you_type" },
+					"name" : {
+						"type" : "text",
+						"fields": {
+							"keyword": { 
+							  "type":  "keyword"
+							},
+							"search_as_you_type": { 
+								"type":  "search_as_you_type"
+							  }
+						}  
+					},
             		"ranking" : { "type" : "rank_feature" },
             		"physical_location" : { "type" : "geo_shape" },
             		"total_count" : { "type" : "long" }
