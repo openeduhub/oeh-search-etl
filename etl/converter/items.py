@@ -106,6 +106,7 @@ class BaseItem(Item):
     ranking = Field()
     fulltext = Field()
     thumbnail = Field()
+    lastModified = Field()
     lom = Field(serializer=LomBaseItem)
 
 class BaseItemLoader(ItemLoader):

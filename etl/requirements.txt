@@ -2,6 +2,7 @@ wheel
 image
 html2text
 scrapy-splash
+python-dateutil
 psycopg2==2.8.4 # postgres
 Scrapy==1.8.0
 requests==2.23.0

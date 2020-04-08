@@ -13,6 +13,7 @@ import psycopg2
 from scrapy.exporters import JsonItemExporter
 import io
 from datetime import date
+import dateutil.parser
 import logging
 from pprint import pprint
 from PIL import Image
@@ -66,6 +67,19 @@ class NormLicensePipeline(object):
 # convert typicalLearningTime into a integer representing seconds
 class ConvertTimePipeline:
     def process_item(self, item, spider):
+        # map lastModified
+        if 'lastModified' in item:
+            try:
+                item['lastModified'] = float(item['lastModified'])
+            except:
+                date = None
+                try:
+                    date = dateutil.parser.parse(item['lastModified'])
+                    item['lastModified'] = date.time()
+                except:
+                    logging.warn('Unable to parse given lastModified date ' + item['lastModified'])
+                    del item['lastModified']
+
         if 'typicalLearningTime' in item['lom']['educational']:
             time = item['lom']['educational']['typicalLearningTime']
             mapped = None
@@ -104,7 +118,7 @@ class ProcessValuespacePipeline:
                 mapped.append(i18n)
             item['lom'][main][child] = mapped
         return item
-    def process_item(self, item, spider):
+    def process_item(self,item, spider):
         name = None
         entry = None
         item = self.process(item, 'educational', 'intendedEndUserRole')
@@ -164,7 +178,7 @@ class PostgresPipeline:
     def findItem(self, item, spider):
         self.curr.execute("""SELECT uuid, hash FROM "references" WHERE source = %s AND source_id = %s""", (
             spider.name,
-            item['sourceId']
+            str(item['sourceId'])
         ))
         data = self.curr.fetchall()
         if(len(data)):
