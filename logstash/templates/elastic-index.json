@@ -13,20 +13,22 @@
 		"dynamic": "true",
 		"dynamic_templates": [
 			{
-			  "i18n_key": {
-				"match_mapping_type": "string",
-				"match":   "lom.*.key",
-				"mapping": {
-				  "type": "keyword"
+				"i18n_key": {
+					"match_mapping_type": "string",
+					"match":   "lom.*.key",
+					"mapping": {
+					"type": "keyword"
+					}
 				}
-			  },
-			  "i18n_de_DE": {
-				"match_mapping_type": "string",
-				"match":   "lom.*.de_DE",
-				"mapping": {
-				  "type": "keyword"
-				}
-			  }
+			},
+			{
+				"i18n_de_DE": {
+					"match_mapping_type": "string",
+					"match":   "lom.*.de_DE",
+					"mapping": {
+					  "type": "keyword"
+					}
+				  }
 			}
 		  ],
         "properties" : {
@@ -44,7 +46,11 @@
             		"total_count" : { "type" : "long" }
             	}
 			},
-			"collection": { "type" : "keyword" },			
+			"collection": {
+				"properties" : {
+					"uuid" : { "type" : "keyword" }
+				}
+			},
 			"thumbnail": {
 				"properties" : {
             		"small" : { "type" : "binary" },
