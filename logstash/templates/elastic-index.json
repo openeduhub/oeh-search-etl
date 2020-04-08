@@ -53,6 +53,7 @@
 			},
 			"thumbnail": {
 				"properties" : {
+            		"mimetype" : { "type" : "keyword" },
             		"small" : { "type" : "binary" },
             		"large" : { "type" : "binary" }
             	}

@@ -3,6 +3,7 @@ from converter.spiders.oai_base import OAIBase
 
 class ZoerrSpider(LrmiBase):
   name = 'zoerr_spider'
+  friendlyName = 'OER-Repositorium Baden-Württemberg (ZOERR)'
   baseUrl = 'https://www.oerbw.de/edu-sharing/eduservlet/oai/provider'
   set = 'default'
   metadataPrefix = 'lom'

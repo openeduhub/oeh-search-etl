@@ -20,11 +20,13 @@ from io import BytesIO
 import requests
 import base64
 import html2text
+import sys
 
 THUMBNAIL_SMALL_SIZE = 250*250
 THUMBNAIL_SMALL_QUALITY = 40
 THUMBNAIL_LARGE_SIZE = 800*800
 THUMBNAIL_LARGE_QUALITY = 60
+THUMBNAIL_MAX_SIZE = 50*1024 # max size for images that can not be converted (e.g. svg)
 
 VALUESPACE_API = 'http://localhost:5000/'
 
@@ -120,16 +122,27 @@ class ProcessThumbnailPipeline:
         return img.resize((int(w),int(h)), Image.ANTIALIAS).convert("RGB")
     def process_item(self, item, spider):
         if 'thumbnail' in item:
-            response = requests.get(item['thumbnail'])
-            del item['thumbnail']
-            img = Image.open(BytesIO(response.content))
-            small = BytesIO()
-            self.scaleImage(img, THUMBNAIL_SMALL_SIZE).save(small, 'JPEG', mode = 'RGB', quality = THUMBNAIL_SMALL_QUALITY)
-            large = BytesIO()
-            self.scaleImage(img, THUMBNAIL_LARGE_SIZE).save(large, 'JPEG', mode = 'RGB', quality = THUMBNAIL_LARGE_QUALITY)
-            item['thumbnail']={}
-            item['thumbnail']['small'] = base64.b64encode(small.getvalue()).decode()
-            #item['thumbnail']['large'] = base64.b64encode(large.getvalue()).decode()
+            try:
+                response = requests.get(item['thumbnail'])
+                if response.headers['Content-Type'] == 'image/svg+xml':
+                    if len(response.content) > THUMBNAIL_MAX_SIZE:
+                        raise Exception('SVG images can\'t be converted, and the given image exceeds the maximum allowed size (' + str(len(response.content)) + ' > ' + str(THUMBNAIL_MAX_SIZE) + ')')
+                    item['thumbnail']={}
+                    item['thumbnail']['mimetype'] = response.headers['Content-Type']
+                    item['thumbnail']['small'] = base64.b64encode(response.content).decode()
+                else:
+                    img = Image.open(BytesIO(response.content))
+                    small = BytesIO()
+                    self.scaleImage(img, THUMBNAIL_SMALL_SIZE).save(small, 'JPEG', mode = 'RGB', quality = THUMBNAIL_SMALL_QUALITY)
+                    large = BytesIO()
+                    self.scaleImage(img, THUMBNAIL_LARGE_SIZE).save(large, 'JPEG', mode = 'RGB', quality = THUMBNAIL_LARGE_QUALITY)
+                    item['thumbnail']={}
+                    item['thumbnail']['mimetype'] = 'image/jpeg'
+                    item['thumbnail']['small'] = base64.b64encode(small.getvalue()).decode()
+                    item['thumbnail']['large'] = base64.b64encode(large.getvalue()).decode()
+            except Exception as e:
+                logging.warn('Could not read thumbnail at ' + item['thumbnail'] + ': ' + str(e))
+                item['thumbnail']={}
         return item
 class PostgresPipeline:
     def __init__(self):
@@ -175,9 +188,9 @@ class PostgresCheckPipeline(PostgresPipeline):
         dbItem = self.findItem(item, spider)
         if dbItem:
             if(item['hash'] != dbItem[1]):
-                logging.info("hash has changed, continuing pipelines")
+                logging.debug("hash has changed, continuing pipelines")
             else:
-                logging.info("hash unchanged, skip item")
+                logging.debug("hash unchanged, skip item")
                 self.update(dbItem[0])
                 # for tests, we update everything for now
                 # activate this later
