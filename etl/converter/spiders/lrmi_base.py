@@ -3,28 +3,16 @@ from converter.items import *
 from datetime import datetime
 from w3lib.html import remove_tags, replace_escape_chars
 from converter.spiders.lom_base import LomBase;
+from converter.spiders.json_base import JSONBase;
 import json
 import time
 
 # base spider mapping data via LRMI inside the html pages
 # Please override the lrmi_path if necessary and add your sitemap_urls 
-class LrmiBase(SitemapSpider, LomBase):
+class LrmiBase(SitemapSpider, LomBase, JSONBase):
   friendlyName = 'LRMI-Header Based spider'
   lrmi_path = '//script[@type="application/ld+json"]//text()'
   sitemap_urls = []
-
-
-  def get(self, *params,mode = 'first'):
-    for param in params:
-      value=self.json
-      for key in param.split('.'):
-        if value:
-          value=value.get(key)
-        else:
-          return None
-      if value != None:
-        return value
-    return None
 
   def parse(self, response):
     self.json = json.loads(response.xpath(self.lrmi_path).extract_first())
