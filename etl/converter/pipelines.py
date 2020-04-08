@@ -123,7 +123,7 @@ class ProcessThumbnailPipeline:
         settings = get_project_settings()
         if 'thumbnail' in item:
             response = requests.get(item['thumbnail'])
-        elif 'location' in item['lom']['technical']:
+        elif 'location' in item['lom']['technical'] and 'format' in item['lom']['technical'] and item['lom']['technical']['format'] == 'text/html':
             url = settings.get('SPLASH_URL') + '/render.png?wait='  + str(settings.get('SPLASH_WAIT')) + '&url=' + urllib.parse.quote(item['lom']['technical']['location'], safe = '')
             response = requests.get(url)
         if response != None:
