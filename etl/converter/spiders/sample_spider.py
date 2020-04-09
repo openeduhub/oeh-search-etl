@@ -8,7 +8,8 @@ import json
 # Sample Spider, using a SitemapSpider to crawl your web page
 # Can be used as a template for your custom spider
 class SampleSpider(CrawlSpider, LomBase):
-  name='sample_spider'
+  name = 'sample_spider'
+  friendlyName = 'Sample Source' # name as shown in the search ui
   start_urls = ['https://edu-sharing.com']
 
   def parse(self, response):
