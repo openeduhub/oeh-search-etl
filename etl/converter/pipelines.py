@@ -26,13 +26,14 @@ import scrapy
 import sys
 import uuid
 from scrapy.utils.project import get_project_settings
+from converter.db_connector import Database
 
 VALUESPACE_API = 'http://localhost:5000/'
 
 # fillup missing props by "guessing" or loading them if possible
 class LOMFillupPipeline:
     def process_item(self, item, spider):
-        if not 'fulltext' in item:
+        if not 'fulltext' in item and 'body' in item['response']:
             h = html2text.HTML2Text()
             h.ignore_links = True
             h.ignore_images = True
@@ -163,38 +164,7 @@ class ProcessThumbnailPipeline:
                 item['thumbnail']={}
         return item
 
-class PostgresPipeline:
-    def __init__(self):
-        self.create_connection()
-
-    def create_connection(self):
-        self.conn = psycopg2.connect(
-            host = 'localhost',
-            user = 'search',
-            password = 'admin',
-            database = 'search'
-        )
-        self.curr = self.conn.cursor()
-    def findItem(self, item, spider):
-        self.curr.execute("""SELECT uuid, hash FROM "references" WHERE source = %s AND source_id = %s""", (
-            spider.name,
-            str(item['sourceId'])
-        ))
-        data = self.curr.fetchall()
-        if(len(data)):
-            return data[0]
-        else:
-            return None
-    def findSource(self, spider):
-        self.curr.execute("""SELECT * FROM "sources" WHERE id = %s""", (
-            spider.name,
-        ))
-        data = self.curr.fetchall()
-        if(len(data)):
-            return data[0]
-        else:
-            return None
-class PostgresCheckPipeline(PostgresPipeline):
+class PostgresCheckPipeline(Database):
     def process_item(self, item, spider):
         if(not 'hash' in item):
             raise ValueError('The spider did not provide a hash on the base object. The hash is required to detect changes on an element. May use the last modified date or something similar')
@@ -204,7 +174,7 @@ class PostgresCheckPipeline(PostgresPipeline):
             logging.info("create new source "+spider.name)
             self.createSource(spider)
 
-        dbItem = self.findItem(item, spider)
+        dbItem = self.findItem(item['sourceId'], spider)
         if dbItem:
             if(item['hash'] != dbItem[1]):
                 logging.debug("hash has changed, continuing pipelines")
@@ -228,13 +198,13 @@ class PostgresCheckPipeline(PostgresPipeline):
         ))
         self.conn.commit()
 
-class PostgresStorePipeline(PostgresPipeline):
+class PostgresStorePipeline(Database):
     def process_item(self, item, spider):
         output = io.BytesIO()
         exporter = JsonItemExporter(output, fields_to_export = ['lom','fulltext','ranking','lastModified','thumbnail'])
         exporter.export_item(item)
         json = output.getvalue().decode('UTF-8')
-        dbItem = self.findItem(item, spider)
+        dbItem = self.findItem(item['sourceId'], spider)
         title = item['lom']['general']['title']
         #logging.info(json)
         if dbItem:
