@@ -26,7 +26,11 @@
 					"match_mapping_type": "string",
 					"match":   "lom.*.de_DE",
 					"mapping": {
-					  "type": "keyword"
+					  "type": "text",
+					  "fields": {
+						"keyword": { 
+						  "type":  "keyword"
+						}
 					}
 				  }
 			}
