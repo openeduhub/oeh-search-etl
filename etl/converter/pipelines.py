@@ -113,9 +113,9 @@ class ProcessValuespacePipeline:
                     for v in valuespace['vocabs']:
                         if v['id'] == key or len(list(filter(lambda x: x['@value'].casefold() == key.casefold(), v['altId']))) > 0:
                             de = list(filter(lambda x: x['@language'] == 'de', v['label']))
-                            logging.info('translating ' + child + ': ' + key + ' => ' + str(de[0]))
                             i18n['key'] = v['id']
                             i18n['de_DE'] = de[0]['@value']
+                            logging.info('translating ' + child + ': ' + key + ' => ' + i18n['de_DE'])
                             break
                 mapped.append(i18n)
             item['lom'][main][child] = mapped

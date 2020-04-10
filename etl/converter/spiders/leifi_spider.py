@@ -9,7 +9,7 @@ from html.parser import HTMLParser
 class LeifiSpider(scrapy.Spider, LomBase):
   name='leifi_spider'
   friendlyName = 'LEIFIphysik'
-  rssUrl = 'http://localhost/leifi_feed_rss.xml'
+  rssUrl = 'http://localhost/sources/leifi_feed_rss.xml'
   def start_requests(self):
       yield scrapy.Request(url=self.rssUrl, callback=self.parseList)
   def parseList(self, response):
