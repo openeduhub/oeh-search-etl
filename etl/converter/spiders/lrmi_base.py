@@ -42,6 +42,7 @@ class LrmiBase(SitemapSpider, LomBase, JSONBase):
     educational = LomBase.getLOMEducational(response)
     educational.add_value('description', self.get('description','about'))
     educational.add_value('intendedEndUserRole', self.get('audience.educationalRole'))
+    educational.add_value('learningResourceType', self.get('learningResourceType'))
     educational.add_value('typicalLearningTime', self.get('timeRequired'))
     return educational
 

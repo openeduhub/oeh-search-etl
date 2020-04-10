@@ -92,7 +92,7 @@ class ConvertTimePipeline:
         return item
 # generate de_DE / i18n strings for valuespace fields
 class ProcessValuespacePipeline:
-    ids = ['educationalRole']
+    ids = ['intendedEndUserRole']
     valuespaces = {}
     def __init__(self):
         for v in self.ids:
@@ -106,21 +106,21 @@ class ProcessValuespacePipeline:
                 i18n = {}
                 i18n['key'] = key
                 mapping = None
-                if child == 'intendedEndUserRole':
-                    mapping = 'educationalRole'
+                if main == 'educational' and child == 'intendedEndUserRole':
+                    mapping = 'intendedEndUserRole'
                 if mapping != None:
                     valuespace = self.valuespaces[mapping]
                     for v in valuespace['vocabs']:
-                        if v['id'].endswith(key):
-                            logging.info('translating ' + child + ': ' + key + ' => ' + v['label'])
-                            i18n['de_DE'] = v['label']
+                        if v['id'] == key or len(list(filter(lambda x: x['@value'].casefold() == key.casefold(), v['altId']))) > 0:
+                            de = list(filter(lambda x: x['@language'] == 'de', v['label']))
+                            logging.info('translating ' + child + ': ' + key + ' => ' + str(de[0]))
+                            i18n['key'] = v['id']
+                            i18n['de_DE'] = de[0]['@value']
                             break
                 mapped.append(i18n)
             item['lom'][main][child] = mapped
         return item
-    def process_item(self,item, spider):
-        name = None
-        entry = None
+    def process_item(self, item, spider):
         item = self.process(item, 'educational', 'intendedEndUserRole')
         return item
 # generate thumbnails
