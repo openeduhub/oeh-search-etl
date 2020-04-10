@@ -54,5 +54,8 @@ class LrmiBase(SitemapSpider, LomBase, JSONBase):
     technical = LomBase.getLOMTechnical(response)
     technical.add_value('format', self.get('fileFormat'))
     technical.add_value('size', self.get('ContentSize'))
-    technical.add_value('location', self.get('url'))
+    url = self.get('url')
+    if not url:
+      url = response.url
+    technical.add_value('location', url)
     return technical

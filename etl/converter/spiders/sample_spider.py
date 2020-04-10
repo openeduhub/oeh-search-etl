@@ -15,22 +15,27 @@ class SampleSpider(CrawlSpider, LomBase):
   def parse(self, response):
     return LomBase.parse(self, response)
 
+  # return a (stable) id of the source
+  def getId(self, response):
+    return response.xpath('//title//text()').get()
+
+  # return a stable hash to detect content changes
+  # if there is no hash available, may use the current time as "always changing" info
+  def getHash(self, response):
+    return time
+
   def getBase(self, response):
-    base = BaseItemLoader()
-    base.add_value('sourceId', response.xpath('//title//text()').get())
-    # use a stable hash to detect content changes
-    # if there is no hash available, may use the current time as "always changing" info
-    base.add_value('hash', time.time())
+    base = LomBase.getBase(self, response)
     return base
 
   def getLOMGeneral(self, response):
-    general = LomBase.getLOMGeneral(response)
+    general = LomBase.getLOMGeneral(self, response)
     general.add_value('title', response.xpath('//title//text()').get())
     general.add_value('language', response.xpath('//meta[@property="og:locale"]/@content').get())
     return general
 
   def getLOMTechnical(self, response):
-    technical = LomBase.getLOMTechnical(response)
+    technical = LomBase.getLOMTechnical(self, response)
     technical.add_value('format', 'text/html')
     technical.add_value('size', len(response.body))
     return technical
