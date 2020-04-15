@@ -64,10 +64,10 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
     # manual mapping to Mathematik
     if text == 'Mathe':
       text = 'Mathematik'
-      
-    for entry in ProcessValuespacePipeline.valuespaces['discipline']:
-      if len(list(filter(lambda x:x['@value'].casefold() == text.casefold(), entry['label']))):
-        valuespaces.add_value('discipline',entry['id'])
+    valuespaces.add_value('discipline', text)
+    #for entry in ProcessValuespacePipeline.valuespaces['discipline']:
+    #  if len(list(filter(lambda x:x['@value'].casefold() == text.casefold(), entry['label']))):
+    #    valuespaces.add_value('discipline',entry['id'])
     return valuespaces
 
   def getLOMRights(self, response):

@@ -112,7 +112,7 @@ class ProcessValuespacePipeline:
                         de = list(filter(lambda x: x['@language'] == 'de', v['label']))
                         i18n['key'] = v['id']
                         i18n['de_DE'] = de[0]['@value']
-                        logging.info('translating ' + key + ': ' + entry + ' => ' + i18n['de_DE'])
+                        logging.info('transforming ' + key + ': ' + v['id'] + ' => ' + i18n['de_DE'])
                         found = True
                         break
                 if found:
