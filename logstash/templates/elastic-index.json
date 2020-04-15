@@ -28,9 +28,23 @@
 				}
 			},
 			{
-				"i18n_de_DE": {
+				"i18n_de": {
 					"match_mapping_type": "string",
-					"match":   "valuespaces.*.de_DE",
+					"match":   "valuespaces.*.de",
+					"mapping": {
+					  "type": "text",
+					  "fields": {
+						"keyword": { 
+						  "type":  "keyword"
+						}
+					}
+				  }
+				}
+			},
+			{
+				"i18n_en": {
+					"match_mapping_type": "string",
+					"match":   "valuespaces.*.en",
 					"mapping": {
 					  "type": "text",
 					  "fields": {

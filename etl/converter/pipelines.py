@@ -109,10 +109,13 @@ class ProcessValuespacePipeline:
                 found = False
                 for v in valuespace:
                     if v['id'] == entry or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['altId']))) > 0 or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['label']))) > 0:
-                        de = list(filter(lambda x: x['@language'] == 'de', v['label']))
                         i18n['key'] = v['id']
-                        i18n['de_DE'] = de[0]['@value']
-                        logging.info('transforming ' + key + ': ' + v['id'] + ' => ' + i18n['de_DE'])
+                        i18n['de'] = list(filter(lambda x: x['@language'] == 'de', v['label']))[0]['@value']
+                        try:
+                            i18n['en'] = list(filter(lambda x: x['@language'] == 'en', v['label']))[0]['@value']
+                        except:
+                            pass
+                        logging.info('transforming ' + key + ': ' + v['id'] + ' => ' + i18n['de'])
                         found = True
                         break
                 if found:
