@@ -82,7 +82,7 @@ class LomRightsItem(Item):
 class LomClassificationItem(Item):
     cost = Field()
     purpose = Field()
-    taxonPath = Field()
+    taxonPath = Field(output_processor=JoinMultivalues())
     description = Field()
     keyword = Field()
 
@@ -99,6 +99,9 @@ class ResponseItem(Item):
     url = Field()
     body = Field()
     headers = Field()
+class ValuespaceItem(Item):
+    intendedEndUserRole = Field(output_processor=JoinMultivalues())
+    discipline = Field(output_processor=JoinMultivalues())
 
 class BaseItem(Item):
     sourceId = Field()
@@ -109,6 +112,7 @@ class BaseItem(Item):
     thumbnail = Field()
     lastModified = Field()
     lom = Field(serializer=LomBaseItem)
+    valuespaces = Field(serializer=ValuespaceItem)
 
 class BaseItemLoader(ItemLoader):
     default_item_class = BaseItem
@@ -117,6 +121,9 @@ class BaseItemLoader(ItemLoader):
 
 class MutlilangItemLoader(ItemLoader):
     default_item_class = MutlilangItem
+    default_output_processor = TakeFirst()
+class ValuespaceItemLoader(ItemLoader):
+    default_item_class = ValuespaceItem
     default_output_processor = TakeFirst()
 class LomBaseItemloader(ItemLoader):
     default_item_class = LomBaseItem

@@ -29,6 +29,7 @@ class LomBase:
   
     main = self.getBase(response)
     main.add_value('lom', self.getLOM(response).load_item())
+    main.add_value('valuespaces', self.getValuespaces(response).load_item())
     logging.debug(main.load_item())
     main.add_value('response', self.mapResponse(response).load_item())
     return main.load_item()
@@ -40,6 +41,9 @@ class LomBase:
     r.add_value('headers',response.headers)
     r.add_value('url',response.url)
     return r
+
+  def getValuespaces(self, response):
+    return ValuespaceItemLoader()
 
   def getLOM(self, response):
     lom = LomBaseItemloader()

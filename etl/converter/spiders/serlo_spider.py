@@ -7,6 +7,7 @@ from converter.spiders.json_base import JSONBase;
 import json
 import logging
 from html.parser import HTMLParser
+from converter.pipelines import ProcessValuespacePipeline;
 
 # Spider to fetch API from Serlo
 class SerloSpider(scrapy.Spider, LomBase, JSONBase):
@@ -56,6 +57,18 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
     base.add_value('lastModified', self.get('lastModified.date'))
     base.add_value('ranking', 0.9 + (float(self.get('revisionsCount'))/2 + float(self.get('authorsCount')))/50)
     return base
+
+  def getValuespaces(self, item):
+    valuespaces = LomBase.getValuespaces(self, item)
+    text = self.get('categories')[0].split('/')[0]
+    # manual mapping to Mathematik
+    if text == 'Mathe':
+      text = 'Mathematik'
+      
+    for entry in ProcessValuespacePipeline.valuespaces['discipline']:
+      if len(list(filter(lambda x:x['@value'].casefold() == text.casefold(), entry['label']))):
+        valuespaces.add_value('discipline',entry['id'])
+    return valuespaces
 
   def getLOMRights(self, response):
     rights = LomBase.getLOMRights(self, response)

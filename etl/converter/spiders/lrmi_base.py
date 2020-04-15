@@ -37,22 +37,25 @@ class LrmiBase(SitemapSpider, LomBase, JSONBase):
     general.add_value('keyword', self.get('keywords'))
     general.add_value('language', self.get('inLanguage'))
     return general
+  def getValuespaces(self, response):
+    valuespaces = LomBase.getValuespaces(self, response)
+    valuespaces.add_value('intendedEndUserRole', self.get('audience.educationalRole'))
+    return valuespaces
 
   def getLOMEducational(self, response):
-    educational = LomBase.getLOMEducational(response)
+    educational = LomBase.getLOMEducational(self, response)
     educational.add_value('description', self.get('description','about'))
-    educational.add_value('intendedEndUserRole', self.get('audience.educationalRole'))
     educational.add_value('learningResourceType', self.get('learningResourceType'))
     educational.add_value('typicalLearningTime', self.get('timeRequired'))
     return educational
 
   def getLOMRights(self, response):
-    rights = LomBase.getLOMRights(response)
+    rights = LomBase.getLOMRights(self, response)
     rights.add_value('description', self.get('license'))
     return rights
 
   def getLOMTechnical(self, response):
-    technical = LomBase.getLOMTechnical(response)
+    technical = LomBase.getLOMTechnical(self, response)
     technical.add_value('format', self.get('fileFormat'))
     technical.add_value('size', self.get('ContentSize'))
     url = self.get('url')

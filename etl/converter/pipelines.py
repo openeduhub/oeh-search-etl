@@ -92,36 +92,38 @@ class ConvertTimePipeline:
         return item
 # generate de_DE / i18n strings for valuespace fields
 class ProcessValuespacePipeline:
-    ids = ['intendedEndUserRole']
+    ids = ['intendedEndUserRole', 'discipline']
     valuespaces = {}
     def __init__(self):
         for v in self.ids:
             r=requests.get(VALUESPACE_API+'vocab/'+v)
-            self.valuespaces[v] = r.json()
-    def process(self, item, main, child):
-        if child in item['lom'][main]:
+            ProcessValuespacePipeline.valuespaces[v] = r.json()['vocabs']
+    def process(self, item):
+        for key in item['valuespaces']:
             # remap to new i18n layout
             mapped = []
-            for key in item['lom'][main][child]:
+            for entry in item['valuespaces'][key]:
                 i18n = {}
-                i18n['key'] = key
-                mapping = None
-                if main == 'educational' and child == 'intendedEndUserRole':
-                    mapping = 'intendedEndUserRole'
-                if mapping != None:
-                    valuespace = self.valuespaces[mapping]
-                    for v in valuespace['vocabs']:
-                        if v['id'] == key or len(list(filter(lambda x: x['@value'].casefold() == key.casefold(), v['altId']))) > 0:
-                            de = list(filter(lambda x: x['@language'] == 'de', v['label']))
-                            i18n['key'] = v['id']
-                            i18n['de_DE'] = de[0]['@value']
-                            logging.info('translating ' + child + ': ' + key + ' => ' + i18n['de_DE'])
-                            break
-                mapped.append(i18n)
-            item['lom'][main][child] = mapped
+                i18n['key'] = entry            
+                valuespace = ProcessValuespacePipeline.valuespaces[key]
+                found = False
+                for v in valuespace:
+                    if v['id'] == entry or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['altId']))) > 0 or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['label']))) > 0:
+                        de = list(filter(lambda x: x['@language'] == 'de', v['label']))
+                        i18n['key'] = v['id']
+                        i18n['de_DE'] = de[0]['@value']
+                        logging.info('translating ' + key + ': ' + entry + ' => ' + i18n['de_DE'])
+                        found = True
+                        break
+                if found:
+                    mapped.append(i18n)
+                else:
+                    logging.warn('unknown value ' + entry + ' for valuespace ' + key)
+
+            item['valuespaces'][key] = mapped
         return item
     def process_item(self, item, spider):
-        item = self.process(item, 'educational', 'intendedEndUserRole')
+        item = self.process(item)
         return item
 # generate thumbnails
 class ProcessThumbnailPipeline:
@@ -201,7 +203,7 @@ class PostgresCheckPipeline(Database):
 class PostgresStorePipeline(Database):
     def process_item(self, item, spider):
         output = io.BytesIO()
-        exporter = JsonItemExporter(output, fields_to_export = ['lom','fulltext','ranking','lastModified','thumbnail'])
+        exporter = JsonItemExporter(output, fields_to_export = ['lom','valuespaces','fulltext','ranking','lastModified','thumbnail'])
         exporter.export_item(item)
         json = output.getvalue().decode('UTF-8')
         dbItem = self.findItem(item['sourceId'], spider)
@@ -219,8 +221,7 @@ class PostgresStorePipeline(Database):
                 entryUUID
             ))
         else:
-            #todo build up uuid
-            entryUUID = str(uuid.uuid4())
+            entryUUID = str(uuid.uuid5(uuid.NAMESPACE_URL, item['response']['url']))
             logging.info('Creating item ' + title + ' (' + entryUUID + ')')
             self.curr.execute("""INSERT INTO "references" VALUES (%s,%s,%s,now(),now(),now(),%s,%s)""", (
                 entryUUID,

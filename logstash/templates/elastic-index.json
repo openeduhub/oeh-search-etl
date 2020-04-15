@@ -6,7 +6,13 @@
 		          "type":      "standard",
 		          "stopwords": "_german_"
 		        }
-			}
+			},
+			"filter" : {
+                "german_stemmer" : {
+                    "type" : "stemmer",
+                    "name" : "german"
+                }
+            }
 		}
 	},
 	"mappings" : {
@@ -15,7 +21,7 @@
 			{
 				"i18n_key": {
 					"match_mapping_type": "string",
-					"match":   "lom.*.key",
+					"match":   "valuespaces.*.key",
 					"mapping": {
 					"type": "keyword"
 					}
@@ -24,7 +30,7 @@
 			{
 				"i18n_de_DE": {
 					"match_mapping_type": "string",
-					"match":   "lom.*.de_DE",
+					"match":   "valuespaces.*.de_DE",
 					"mapping": {
 					  "type": "text",
 					  "fields": {
@@ -72,6 +78,12 @@
             		"small" : { "type" : "binary" },
             		"large" : { "type" : "binary" }
             	}
+			},
+			
+            "valuespaces": { 
+            	"properties" : {
+					
+				}
 			},
             "lom": { 
             	"properties" : {
