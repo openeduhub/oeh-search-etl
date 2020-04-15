@@ -92,7 +92,7 @@ class ConvertTimePipeline:
         return item
 # generate de_DE / i18n strings for valuespace fields
 class ProcessValuespacePipeline:
-    ids = ['intendedEndUserRole', 'discipline']
+    ids = ['intendedEndUserRole', 'discipline', 'educationalContext']
     valuespaces = {}
     def __init__(self):
         for v in self.ids:

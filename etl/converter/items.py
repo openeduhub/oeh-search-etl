@@ -67,7 +67,8 @@ class LomEducationalItem(Item):
     interactivityLevel = Field()
     semanticDensity = Field()
     intendedEndUserRole = Field(serializer=MutlilangItem, output_processor=JoinMultivalues())
-    context = Field()
+    # Please use valuespaces.educationalContext
+    # context = Field()
     typicalAgeRange = Field(serializer=LomAgeRangeItem)
     difficulty = Field()
     typicalLearningTime = Field()
@@ -102,6 +103,7 @@ class ResponseItem(Item):
 class ValuespaceItem(Item):
     intendedEndUserRole = Field(output_processor=JoinMultivalues())
     discipline = Field(output_processor=JoinMultivalues())
+    educationalContext = Field(output_processor=JoinMultivalues())
 
 class BaseItem(Item):
     sourceId = Field()

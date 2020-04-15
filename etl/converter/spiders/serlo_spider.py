@@ -8,6 +8,7 @@ import json
 import logging
 from html.parser import HTMLParser
 from converter.pipelines import ProcessValuespacePipeline;
+import re
 
 # Spider to fetch API from Serlo
 class SerloSpider(scrapy.Spider, LomBase, JSONBase):
@@ -68,6 +69,15 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
     #for entry in ProcessValuespacePipeline.valuespaces['discipline']:
     #  if len(list(filter(lambda x:x['@value'].casefold() == text.casefold(), entry['label']))):
     #    valuespaces.add_value('discipline',entry['id'])
+    primarySchool = re.compile('Klasse\s[1-4]', re.IGNORECASE)
+    if len(list(filter(lambda x: primarySchool.match(x), self.getKeywords()))):
+      valuespaces.add_value('educationalContext', 'grundschule')
+    sek1 = re.compile('Klasse\s([5-9]|10)', re.IGNORECASE)
+    if len(list(filter(lambda x: sek1.match(x), self.getKeywords()))):
+      valuespaces.add_value('educationalContext', 'Sekundarstufe 1')
+    sek2 = re.compile('Klasse\s1[1-2]', re.IGNORECASE)
+    if len(list(filter(lambda x: sek2.match(x), self.getKeywords()))):
+      valuespaces.add_value('educationalContext', 'Sekundarstufe 2')
     return valuespaces
 
   def getLOMRights(self, response):
@@ -75,16 +85,19 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
     rights.add_value('description', 'https://creativecommons.org/licenses/by-sa/4.0/deed.de')
     return rights
 
-  def getLOMGeneral(self, response):
-    general = LomBase.getLOMGeneral(self, response)
-    general.add_value('title', self.get('title'))
+  def getKeywords(self):
     try:
       keywords = list(self.get('keywords').values())
     except:
       keywords = self.get('keywords')
     for c in self.get('categories'):
       keywords += c.split('/')
-    general.add_value('keyword', set(keywords))
+    return set(keywords)
+
+  def getLOMGeneral(self, response):
+    general = LomBase.getLOMGeneral(self, response)
+    general.add_value('title', self.get('title'))
+    general.add_value('keyword', self.getKeywords())
     return general
 
   def getLOMEducational(self, response):
