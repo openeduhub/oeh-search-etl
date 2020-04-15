@@ -1,6 +1,9 @@
 from converter.items import *
 from pprint import pprint
 import logging
+import requests
+import urllib
+from scrapy.utils.project import get_project_settings
 from converter.db_connector import Database
 class LomBase:
   friendlyName = 'LOM Based spider'
@@ -37,7 +40,11 @@ class LomBase:
   def mapResponse(self, response):
     r = ResponseItemLoader()
     r.add_value('status',response.status)
-    r.add_value('body',response.body.decode('utf-8'))
+    #r.add_value('body',response.body.decode('utf-8'))
+    # render via splash to also get the full javascript rendered content
+    settings = get_project_settings()
+    body = requests.get(settings.get('SPLASH_URL') + '/render.html?wait='  + str(settings.get('SPLASH_WAIT')) + '&url=' + urllib.parse.quote(response.url, safe = '')).content.decode('UTF-8')
+    r.add_value('body',body)
     r.add_value('headers',response.headers)
     r.add_value('url',response.url)
     return r

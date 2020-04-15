@@ -19,19 +19,23 @@ class LrmiBase(SitemapSpider, LomBase, JSONBase):
     #self.json = json.loads(self.dummy)
     return LomBase.parse(self, response)
 
+
+  def getId(self, item):
+      return self.get('identifier','url','name')
+
+  def getHash(self, item):
+    if self.get('version') != None:
+      return self.get('version')
+    return time.time()
+
   def getBase(self, response):
-    base = BaseItemLoader()
-    base.add_value('sourceId', self.get('identifier','url','name'))
+    base = LomBase.getBase(self, response)
     base.add_value('thumbnail', self.get('thumbnailUrl'))
     base.add_value('lastModified', self.get('dateModified','datePublished'))
-    if self.get('version') != None:
-      base.add_value('hash', self.get('version'))
-    else:
-      base.add_value('hash', time.time())
     return base
 
   def getLOMGeneral(self, response):
-    general = LomBase.getLOMGeneral(response)
+    general = LomBase.getLOMGeneral(self, response)
     general.add_value('identifier', self.get('identifier'))
     general.add_value('title', self.get('name'))
     general.add_value('keyword', self.get('keywords'))

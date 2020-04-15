@@ -69,9 +69,10 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
     #for entry in ProcessValuespacePipeline.valuespaces['discipline']:
     #  if len(list(filter(lambda x:x['@value'].casefold() == text.casefold(), entry['label']))):
     #    valuespaces.add_value('discipline',entry['id'])
+
     primarySchool = re.compile('Klasse\s[1-4]', re.IGNORECASE)
     if len(list(filter(lambda x: primarySchool.match(x), self.getKeywords()))):
-      valuespaces.add_value('educationalContext', 'grundschule')
+      valuespaces.add_value('educationalContext', 'Grundschule')
     sek1 = re.compile('Klasse\s([5-9]|10)', re.IGNORECASE)
     if len(list(filter(lambda x: sek1.match(x), self.getKeywords()))):
       valuespaces.add_value('educationalContext', 'Sekundarstufe 1')

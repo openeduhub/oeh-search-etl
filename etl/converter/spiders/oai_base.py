@@ -2,7 +2,6 @@ from converter.items import *
 from converter.spiders.lom_base import LomBase;
 import logging
 class OAIBase(scrapy.Spider, LomBase):
-    name = "OAI"
     verb="ListIdentifiers"
     baseUrl = None
     metadataPrefix = None
