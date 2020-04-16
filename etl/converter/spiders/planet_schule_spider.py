@@ -50,12 +50,7 @@ class PlanetSchuleSpider(RSSBase):
     try:
       range = self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Klassenstufe")]/parent::*/parent::*/div[last()]/p//text()').get()
       range = range.split(" - ")
-      if int(range[0])<=4:
-        valuespaces.add_value('educationalContext', 'Grundschule')
-      if int(range[1])>=4 and int(range[0])<=10:
-        valuespaces.add_value('educationalContext', 'Sekundarstufe 1')
-      if int(range[0])>=11 or int(range[1])>=11:
-        valuespaces.add_value('educationalContext', 'Sekundarstufe 2')
+      valuespaces.add_value('educationalContext', ValuespaceHelper.educationalContextByAgeRange(range))
     except:
       pass
     discipline = self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Fächer")]/parent::*/parent::*/div[last()]/p/a//text()').getall()
