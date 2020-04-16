@@ -44,7 +44,7 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
   def getBase(self, response):
     base = LomBase.getBase(self, response)
     base.add_value('lastModified', self.item['updatedAt'])
-    base.add_value('thumbnail', self.url + 'worksheet/' + self.item['id'] + '.jpg')
+    base.add_value('thumbnail', self.url + 'worksheet/' + self.item['id'] + '.jpg?width=1000')
     return base
 
   def getValuespaces(self, response):
