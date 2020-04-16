@@ -9,6 +9,7 @@ import json
 # Can be used as a template for your custom spider
 class SampleSpider(CrawlSpider, LomBase):
   name = 'sample_spider'
+  url = 'https://edu-sharing.com' # the url which will be linked as the primary link to your source (should be the main url of your site)
   friendlyName = 'Sample Source' # name as shown in the search ui
   start_urls = ['https://edu-sharing.com']
 

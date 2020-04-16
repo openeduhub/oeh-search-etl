@@ -10,11 +10,13 @@ from html.parser import HTMLParser
 from converter.pipelines import ProcessValuespacePipeline;
 import re
 from converter.valuespace_helper import ValuespaceHelper;
+from converter.constants import Constants;
 
 # Spider to fetch RSS from planet schule
 class PlanetSchuleSpider(RSSBase):
   name='planet_schule_spider'
   friendlyName='planet schule'
+  url = 'https://www.planet-schule.de'
   start_urls = ['https://www.planet-schule.de/data/planet-schule-vodcast-komplett.rss']
 
   response = None

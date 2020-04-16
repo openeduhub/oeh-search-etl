@@ -14,6 +14,7 @@ CREATE TABLE "references" (
 CREATE TABLE "sources" (
   "id" varchar PRIMARY KEY,
   "name" varchar,
+  "url" varchar,
   "ranking" float
 );
 

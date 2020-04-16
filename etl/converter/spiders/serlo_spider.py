@@ -13,11 +13,11 @@ from converter.constants import Constants;
 
 # Spider to fetch API from Serlo
 class SerloSpider(scrapy.Spider, LomBase, JSONBase):
-  name='serlo_spider'
-  friendlyName='Serlo'
-  baseUrl = 'https://de.serlo.org'
+  name = 'serlo_spider'
+  friendlyName = 'Serlo'
+  url = 'https://de.serlo.org'
   def start_requests(self):
-      url = self.baseUrl + '/entity/api/json/export/article'
+      url = self.url + '/entity/api/json/export/article'
       # current dummy fallback since the Serlo API is basically down
       url = 'http://localhost/sources/serlo.json'
       yield scrapy.Request(url=url, callback=self.parseList)

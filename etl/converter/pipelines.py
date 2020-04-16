@@ -172,7 +172,8 @@ class ProcessThumbnailPipeline:
 class PostgresCheckPipeline(Database):
     def process_item(self, item, spider):
         if(not 'hash' in item):
-            raise ValueError('The spider did not provide a hash on the base object. The hash is required to detect changes on an element. May use the last modified date or something similar')
+            logging.error('The spider did not provide a hash on the base object. The hash is required to detect changes on an element. May use the last modified date or something similar')
+            item['hash'] = time.time()
         
         # @TODO: May this can be done only once?
         if self.findSource(spider) == None:
@@ -191,9 +192,10 @@ class PostgresCheckPipeline(Database):
                 #raise DropItem()
         return item
     def createSource(self, spider):
-        self.curr.execute("""INSERT INTO "sources" VALUES(%s,%s,%s)""", (
+        self.curr.execute("""INSERT INTO "sources" VALUES(%s,%s,%s,%s)""", (
             spider.name,
             spider.friendlyName,
+            spider.url,
             spider.ranking
         ))
         self.conn.commit()
