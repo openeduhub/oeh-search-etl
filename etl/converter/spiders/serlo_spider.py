@@ -39,7 +39,7 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
   def parseList(self, response):
       data = json.loads(response.body)
       for j in data:
-        url = self.baseUrl + j['link'] + '?contentOnly'
+        url = self.url + j['link'] + '?contentOnly'
         self.json = j
         if self.hasChanged():
           yield scrapy.Request(url=url, callback=self.parse, meta = {'json': j, 'url': url})
@@ -81,11 +81,6 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
     if len(list(filter(lambda x: sek2.match(x), self.getKeywords()))):
       valuespaces.add_value('educationalContext', 'Sekundarstufe 2')
     return valuespaces
-
-  def getLOMRights(self, response):
-    rights = LomBase.getLOMRights(self, response)
-    rights.add_value('description', 'https://creativecommons.org/licenses/by-sa/4.0/deed.de')
-    return rights
 
   def getKeywords(self):
     try:
