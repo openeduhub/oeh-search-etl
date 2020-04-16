@@ -33,11 +33,8 @@ VALUESPACE_API = 'http://localhost:5000/'
 # fillup missing props by "guessing" or loading them if possible
 class LOMFillupPipeline:
     def process_item(self, item, spider):
-        if not 'fulltext' in item and 'body' in item['response']:
-            h = html2text.HTML2Text()
-            h.ignore_links = True
-            h.ignore_images = True
-            item['fulltext'] = h.handle(item['response']['body'])
+        if not 'fulltext' in item and 'text' in item['response']:
+            item['fulltext'] = item['response']['text']
         return item
 class NormLicensePipeline(object):
     def process_item(self, item, spider):
@@ -99,6 +96,7 @@ class ProcessValuespacePipeline:
             r=requests.get(VALUESPACE_API+'vocab/'+v)
             ProcessValuespacePipeline.valuespaces[v] = r.json()['vocabs']
     def process(self, item):
+        delete = []
         for key in item['valuespaces']:
             # remap to new i18n layout
             mapped = []
@@ -124,6 +122,10 @@ class ProcessValuespacePipeline:
                     logging.warn('unknown value ' + entry + ' for valuespace ' + key)
             if len(mapped):
                 item['valuespaces'][key] = mapped
+            else:
+                delete.append(key)
+        for key in delete:
+            del item['valuespaces'][key]
         return item
     def process_item(self, item, spider):
         item = self.process(item)

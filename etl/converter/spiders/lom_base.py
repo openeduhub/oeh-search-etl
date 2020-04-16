@@ -2,6 +2,7 @@ from converter.items import *
 from pprint import pprint
 import logging
 import requests
+import html2text
 import urllib
 from scrapy.utils.project import get_project_settings
 from converter.db_connector import Database
@@ -37,18 +38,28 @@ class LomBase:
     main.add_value('response', self.mapResponse(response).load_item())
     return main.load_item()
 
+  def getUrlData(self, url):
+    settings = get_project_settings()
+    html = requests.post(settings.get('SPLASH_URL')+'/render.html', json={
+                'url': url,
+                'wait': settings.get('SPLASH_WAIT'),
+                'headers': settings.get('SPLASH_HEADERS')
+            }).content.decode('UTF-8')
+    h = html2text.HTML2Text()
+    h.ignore_links = True
+    h.ignore_images = True
+    return { 
+      'html': html,
+      'text': h.handle(html)
+    }
   def mapResponse(self, response):
     r = ResponseItemLoader()
     r.add_value('status',response.status)
     #r.add_value('body',response.body.decode('utf-8'))
     # render via splash to also get the full javascript rendered content
-    settings = get_project_settings()
-    body = requests.post(settings.get('SPLASH_URL')+'/render.html', json={
-                'url': response.url,
-                'wait': settings.get('SPLASH_WAIT'),
-                'headers': settings.get('SPLASH_HEADERS')
-            }).content.decode('UTF-8')
-    r.add_value('body',body)
+    data = self.getUrlData(response.url)
+    r.add_value('html',data['html'])
+    r.add_value('text',data['text'])
     r.add_value('headers',response.headers)
     r.add_value('url',response.url)
     return r

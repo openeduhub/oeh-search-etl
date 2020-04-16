@@ -98,7 +98,8 @@ class LomBaseItem(Item):
 class ResponseItem(Item):
     status = Field()
     url = Field()
-    body = Field()
+    html = Field()
+    text = Field()
     headers = Field()
 class ValuespaceItem(Item):
     intendedEndUserRole = Field(output_processor=JoinMultivalues())
