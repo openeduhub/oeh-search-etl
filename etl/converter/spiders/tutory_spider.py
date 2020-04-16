@@ -85,5 +85,4 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
     technical.add_value('location', response.url)
     technical.add_value('format', 'text/html')
     technical.add_value('size', len(response.body))
-
     return technical

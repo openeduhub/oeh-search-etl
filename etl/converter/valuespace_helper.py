@@ -12,10 +12,15 @@ class ValuespaceHelper:
         return None
 
     # range must be an array [from, to]
+    @staticmethod
     def educationalContextByAgeRange(range):
+        context = []
         if int(range[0])<=4:
-            return 'Grundschule'
+            context.append('Grundschule')
         if int(range[1])>=4 and int(range[0])<=10:
-            return 'Sekundarstufe 1'
+            context.append('Sekundarstufe 1')
         if int(range[0])>=11 or int(range[1])>=11:
-            return 'Sekundarstufe 2'
+            context.append('Sekundarstufe 2')
+        if len(context):
+            return context
+        return None
