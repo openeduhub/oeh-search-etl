@@ -122,8 +122,8 @@ class ProcessValuespacePipeline:
                     mapped.append(i18n)
                 else:
                     logging.warn('unknown value ' + entry + ' for valuespace ' + key)
-
-            item['valuespaces'][key] = mapped
+            if len(mapped):
+                item['valuespaces'][key] = mapped
         return item
     def process_item(self, item, spider):
         item = self.process(item)
