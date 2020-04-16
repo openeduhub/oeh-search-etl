@@ -55,7 +55,8 @@ services:
     image: scrapinghub/splash
     networks:
       - elasticnet
-    restart: on-failure
+    command: --maxrss 4000
+    restart: always
     ports:
       - "8050:8050" # exposte to host
 networks:
