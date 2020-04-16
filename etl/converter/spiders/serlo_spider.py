@@ -9,6 +9,7 @@ import logging
 from html.parser import HTMLParser
 from converter.pipelines import ProcessValuespacePipeline;
 import re
+from converter.constants import Constants;
 
 # Spider to fetch API from Serlo
 class SerloSpider(scrapy.Spider, LomBase, JSONBase):
@@ -112,3 +113,8 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
     technical.add_value('format', 'text/html')
     technical.add_value('size', len(response.body))
     return technical
+    
+  def getLOMRights(self, response):
+    rights = LomBase.getLOMRights(self, response)
+    rights.add_value('description', Constants.LICENSE_CC_BY_SA_40)
+    return rights

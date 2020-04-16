@@ -70,3 +70,9 @@ class LeifiSpider(scrapy.Spider, LomBase):
     technical.add_value('format', 'text/html')
     technical.add_value('location', item.xpath('url_datensatz//text()').get())
     return technical
+    
+  def getLOMRights(self, response):
+    rights = LomBase.getLOMRights(self, response)
+    if item.xpath('rechte//text()').get() == 'Keine Angabe, es gilt die gesetzliche Regelung':
+      rights.add_value('description', Constants.LICENSE_COPYRIGHT_LAW)
+    return rights

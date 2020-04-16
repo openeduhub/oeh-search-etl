@@ -210,7 +210,7 @@ class PostgresStorePipeline(Database):
         exporter.export_item(item)
         json = output.getvalue().decode('UTF-8')
         dbItem = self.findItem(item['sourceId'], spider)
-        title = item['lom']['general']['title']
+        title = str(item['lom']['general']['title'])
         #logging.info(json)
         if dbItem:
             entryUUID = dbItem[0]
