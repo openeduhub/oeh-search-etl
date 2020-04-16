@@ -22,7 +22,8 @@ class PlanetSchuleSpider(RSSBase):
 
   def startHandler(self, response):
       for item in response.xpath('//rss/channel/item'):
-        yield scrapy.Request(url = item.xpath('link//text()').get(), callback = self.handleLink, meta = {'item': item})
+        if self.hasChanged(item):
+          yield scrapy.Request(url = item.xpath('link//text()').get(), callback = self.handleLink, meta = {'item': item})
 
   def handleLink(self, response):
     self.response = response
