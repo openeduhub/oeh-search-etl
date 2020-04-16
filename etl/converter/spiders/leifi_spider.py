@@ -5,6 +5,7 @@ from converter.spiders.lom_base import LomBase;
 from converter.pipelines import ProcessValuespacePipeline;
 import requests
 from html.parser import HTMLParser
+from converter.constants import Constants;
 
 # LEIFIphysik spider for xml data file
 class LeifiSpider(scrapy.Spider, LomBase):
@@ -36,7 +37,7 @@ class LeifiSpider(scrapy.Spider, LomBase):
   def mapResponse(self, item):
     r = ResponseItemLoader()
     r.add_value('url', requests.get(item.xpath('url_datensatz//text()').get()).content.decode('UTF-8'))
-    r.add_value('body', requests.get(item.xpath('url_datensatz//text()').get()).content.decode('UTF-8'))
+    r.add_value('text', requests.get(item.xpath('url_datensatz//text()').get()).content.decode('UTF-8'))
     return r
 
   def getId(self, item):
@@ -72,8 +73,8 @@ class LeifiSpider(scrapy.Spider, LomBase):
     technical.add_value('location', item.xpath('url_datensatz//text()').get())
     return technical
     
-  def getLOMRights(self, response):
-    rights = LomBase.getLOMRights(self, response)
+  def getLOMRights(self, item):
+    rights = LomBase.getLOMRights(self, item)
     if item.xpath('rechte//text()').get() == 'Keine Angabe, es gilt die gesetzliche Regelung':
       rights.add_value('description', Constants.LICENSE_COPYRIGHT_LAW)
     return rights
