@@ -20,6 +20,7 @@ LOG_LEVEL = 'INFO'
 # Will be rolled out via docker-compose by default
 SPLASH_URL = 'http://localhost:8050'
 SPLASH_WAIT = 3 # seconds to let the page load
+SPLASH_HEADERS = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'} # use chrome to not create warnings on pages
 
 # Thumbnail config
 THUMBNAIL_SMALL_SIZE = 250*250

@@ -140,14 +140,18 @@ class ProcessThumbnailPipeline:
     def process_item(self, item, spider):
         response = None
         settings = get_project_settings()
-        url = None
         if 'thumbnail' in item:
             url = item['thumbnail']
+            response = requests.get(url)
         elif 'location' in item['lom']['technical'] and 'format' in item['lom']['technical'] and item['lom']['technical']['format'] == 'text/html':
-            url = settings.get('SPLASH_URL') + '/render.png?wait='  + str(settings.get('SPLASH_WAIT')) + '&url=' + urllib.parse.quote(item['lom']['technical']['location'], safe = '')
-        if url != None:
+            response = requests.post(settings.get('SPLASH_URL')+'/render.png', json={
+                'url': item['lom']['technical']['location'],
+                'wait': settings.get('SPLASH_WAIT'),
+                'html5_media': 1,
+                'headers': settings.get('SPLASH_HEADERS')
+            })
+        if response != None:
             try:
-                response = requests.get(url)
                 if response.headers['Content-Type'] == 'image/svg+xml':
                     if len(response.content) > settings.get('THUMBNAIL_MAX_SIZE'):
                         raise Exception('SVG images can\'t be converted, and the given image exceeds the maximum allowed size (' + str(len(response.content)) + ' > ' + str(settings.get('THUMBNAIL_MAX_SIZE')) + ')')

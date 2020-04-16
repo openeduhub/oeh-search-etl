@@ -43,7 +43,11 @@ class LomBase:
     #r.add_value('body',response.body.decode('utf-8'))
     # render via splash to also get the full javascript rendered content
     settings = get_project_settings()
-    body = requests.get(settings.get('SPLASH_URL') + '/render.html?wait='  + str(settings.get('SPLASH_WAIT')) + '&url=' + urllib.parse.quote(response.url, safe = '')).content.decode('UTF-8')
+    body = requests.post(settings.get('SPLASH_URL')+'/render.html', json={
+                'url': response.url,
+                'wait': settings.get('SPLASH_WAIT'),
+                'headers': settings.get('SPLASH_HEADERS')
+            }).content.decode('UTF-8')
     r.add_value('body',body)
     r.add_value('headers',response.headers)
     r.add_value('url',response.url)
