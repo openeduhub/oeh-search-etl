@@ -51,15 +51,13 @@ class PlanetSchuleSpider(RSSBase):
       range = range.split(" - ")
       if int(range[0])<=4:
         valuespaces.add_value('educationalContext', 'Grundschule')
-      if int(range[0])>=4 and int(range[1])<=10:
+      if int(range[1])>=4 and int(range[0])<=10:
         valuespaces.add_value('educationalContext', 'Sekundarstufe 1')
       if int(range[0])>=11 or int(range[1])>=11:
         valuespaces.add_value('educationalContext', 'Sekundarstufe 2')
     except:
       pass
     discipline = self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Fächer")]/parent::*/parent::*/div[last()]/p/a//text()').getall()
-    for d in ProcessValuespacePipeline.valuespaces['discipline']:
-      if len(list(filter(lambda x:x['@value'] in discipline, d['label']))):
-        valuespaces.add_value('discipline',d['id'])
+    valuespaces.add_value('discipline',discipline)
     return valuespaces
 
