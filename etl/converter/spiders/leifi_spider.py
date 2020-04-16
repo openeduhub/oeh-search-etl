@@ -60,7 +60,7 @@ class LeifiSpider(scrapy.Spider, LomBase):
 
   def getLOMEducational(self, item):
     educational = LomBase.getLOMEducational(self, item)
-    desc = item.xpath('beschreibung//text()').get()
+    desc = item.xpath('beschreibung//text()').get().strip()
     # dirty cleaning of invalid descriptions
     # not perfect yet, these objects also appear inside the content
     if not desc.startswith('swiffyobject_'):
