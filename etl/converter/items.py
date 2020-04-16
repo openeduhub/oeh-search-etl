@@ -104,6 +104,7 @@ class ValuespaceItem(Item):
     intendedEndUserRole = Field(output_processor=JoinMultivalues())
     discipline = Field(output_processor=JoinMultivalues())
     educationalContext = Field(output_processor=JoinMultivalues())
+    learningResourceType = Field(output_processor=JoinMultivalues())
 
 class BaseItem(Item):
     sourceId = Field()

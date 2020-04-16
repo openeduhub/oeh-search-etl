@@ -9,6 +9,7 @@ import logging
 from html.parser import HTMLParser
 from converter.pipelines import ProcessValuespacePipeline;
 import re
+from converter.valuespace_helper import ValuespaceHelper;
 
 # Spider to fetch RSS from planet schule
 class PlanetSchuleSpider(RSSBase):
@@ -59,5 +60,8 @@ class PlanetSchuleSpider(RSSBase):
       pass
     discipline = self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Fächer")]/parent::*/parent::*/div[last()]/p/a//text()').getall()
     valuespaces.add_value('discipline',discipline)
+    lrt = ValuespaceHelper.mimetypeToLearningResourceType(item.xpath('enclosure/@type').get())
+    if lrt:
+      valuespaces.add_value('learningResourceType', lrt)
     return valuespaces
 
