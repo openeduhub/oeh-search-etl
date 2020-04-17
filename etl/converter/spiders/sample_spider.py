@@ -23,7 +23,7 @@ class SampleSpider(CrawlSpider, LomBase):
   # return a stable hash to detect content changes
   # if there is no hash available, may use the current time as "always changing" info
   def getHash(self, response):
-    return time
+    return time.time()
 
   def getBase(self, response):
     base = LomBase.getBase(self, response)
