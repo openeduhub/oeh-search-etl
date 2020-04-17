@@ -1,0 +1,48 @@
+url,learningResourceType,discipline,license,intendedEndUserRole,typicalAgeRangeFrom,typicalAgeRangeTo,language
+https://feeds.br.de/bon-courage-franzoesisch/feed.xml,video,20002,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,fr
+https://feeds.br.de/c-est-a-la-vie/feed.xml,video,20002,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,fr
+https://feeds.br.de/englisch-fuer-anfaenger/feed.xml,video,200,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,en
+https://feeds.br.de/grips-englisch/feed.xml,video,200,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/guide-for-refugees/feed.xml,video,240,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,en
+https://feeds.br.de/telekolleg-mathematik/feed.xml,video,380,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/pauk-mit-latein/feed.xml,video,200,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/grips-deutsch/feed.xml,video,120,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/hoerspiel-pool/feed.xml,audio,120,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/grips-mathe/feed.xml,video,380,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/grundkurs-mathematik/feed.xml,video,380,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/do-re-mikro-die-musiksendung-fuer-kinder/feed.xml,audio,420,COPYRIGHT_FREE_ACCESS,learner; teacher,6,18,de
+https://feeds.br.de/zoom-musikgeschichte-und-was-sonst-geschah/feed.xml,audio,420,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/die-entdeckungen-grosser-forscher/feed.xml,video,240,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/campus-talks/feed.xml,video,720,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/iq-das-magazin/feed.xml,audio,720,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/radiowissen/feed.xml,audio,720,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/faszination-wissen/feed.xml,video,720,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/lesezeichen/feed.xml,video,120,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/unkraut-ihr-umweltmagazin/feed.xml,video,640,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/vom-ahorn-bis-zur-zwiebel/feed.xml,video,80,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/einfach-logisch/feed.xml,video,120,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/mehr-wert/feed.xml,video,700,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+http://www.br-online.de/podcast/gmbh/cast.xml,video,480,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/ich-mach-s/feed.xml,video,020; 040,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/ich-mach-weiter/feed.xml,video,020; 040,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/koehlmeiers-maerchen/feed.xml,video,120,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/mythen-michael-koehlmeier-erzaehlt-sagen-des-klassischen-altertums/feed.xml,video,120,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/auf-ein-wort/feed.xml,audio,160; 450; 520,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/gedanken-zum-tag/feed.xml,audio,160; 450; 520,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/umweltkommissar/feed.xml,audio,640,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/breitengrad/feed.xml,audio,340,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/dossier-politik/feed.xml,audio,480,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/evangelische-perspektiven/feed.xml,audio,160; 450; 520,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/katholische-welt/feed.xml,audio,160; 450; 520,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/theo-logik/feed.xml,audio,160; 450; 520,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/geekweek/feed.xml,audio,400,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/klaro-nachrichten-fuer-kinder/feed.xml,audio,720,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/kulturjournal/feed.xml,audio,340,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/stichwort-lexikon-der-alten-musik/feed.xml,audio,420,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/das-kalenderblatt/feed.xml,audio,240,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/was-heute-geschah/feed.xml,audio,420,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/gut-zu-wissen/feed.xml,video,720,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/radiodoku/feed.xml,audio,720,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/respekt/feed.xml,video,060;480;520,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/so-geht-medien/feed.xml,video,400,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de
+https://feeds.br.de/das-computermagazin/feed.xml,video,320,COPYRIGHT_FREE_ACCESS,learner; teacher,10,18,de

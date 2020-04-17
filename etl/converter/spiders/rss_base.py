@@ -6,7 +6,7 @@ from w3lib.html import remove_tags, replace_escape_chars
 from converter.spiders.lom_base import LomBase;
 
 class RSSBase(CrawlSpider, LomBase):
-    start_urls = ['https://feeds.br.de/telekolleg-mathematik/feed.xml']
+    start_urls = []
     commonProperties = {}
     response = None
 
@@ -17,7 +17,6 @@ class RSSBase(CrawlSpider, LomBase):
         self.commonProperties['source'] = response.xpath('//rss/channel/generator//text()').get()
         self.commonProperties['publisher'] = response.xpath('//rss/channel/author//text()').get()
         self.commonProperties['thumbnail'] = response.xpath('//rss/channel/image/url//text()').get()
-
         self.response = response
         return self.startHandler(response)
                     
@@ -52,12 +51,17 @@ class RSSBase(CrawlSpider, LomBase):
         
     def getLOMEducational(self, item):
         educational = LomBase.getLOMEducational(self, item)
-        educational.add_value('description', item.xpath('description//text()').get())
+        description = item.xpath('description//text()').get()
+        if not description:
+            description = item.xpath('//*[name()="summary"]//text()').get()
+        educational.add_value('description', description)
         return educational
 
     def getLOMTechnical(self, item):
         technical = LomBase.getLOMTechnical(self, item)
-        technical.add_value('format', item.xpath('enclosure/@type').get())
-        technical.add_value('size', item.xpath('enclosure/@length').get())
-        technical.add_value('location', item.xpath('enclosure/@url').get())
+        #technical.add_value('format', item.xpath('enclosure/@type').get())
+        #technical.add_value('size', item.xpath('enclosure/@length').get())
+        #technical.add_value('location', item.xpath('enclosure/@url').get())
+        technical.add_value('format', 'text/html')
+        technical.add_value('location', item.xpath('link//text()').get())
         return technical

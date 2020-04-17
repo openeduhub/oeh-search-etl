@@ -102,11 +102,11 @@ class ProcessValuespacePipeline:
             mapped = []
             for entry in item['valuespaces'][key]:
                 i18n = {}
-                i18n['key'] = entry            
+                i18n['key'] = entry
                 valuespace = ProcessValuespacePipeline.valuespaces[key]
                 found = False
                 for v in valuespace:
-                    if v['id'] == entry or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['altId']))) > 0 or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['label']))) > 0:
+                    if v['id'].endswith(entry) or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['altId']))) > 0 or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['label']))) > 0:
                         i18n['key'] = v['id']
                         i18n['de'] = list(filter(lambda x: x['@language'] == 'de', v['label']))[0]['@value']
                         try:
