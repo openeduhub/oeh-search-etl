@@ -17,8 +17,6 @@ services:
     networks:
       - elasticnet
     restart: on-failure
-    ports:
-    - "9200:9200" # exposte to host
   postgres:
     build:
       context: ./postgres
@@ -59,5 +57,24 @@ services:
     restart: always
     ports:
       - "8050:8050" # exposte to host
+  frontend:
+    image: open-edu-hub-frontend
+    networks:
+      - elasticnet
+    ports:
+      - "127.0.0.1:8080:80" # expose locally
+    depends_on:
+      - elasticsearch-relay
+  elasticsearch-relay:
+    image: elasticsearch-relay
+    networks:
+      - elasticnet
+    environment:
+      - "ELASTICSEARCH_URL=http://elasticsearch:9200"
+    ports:
+      - "127.0.0.1:3000:80" # expose locally
+    depends_on:
+      - elasticsearch
+
 networks:
   elasticnet:
