@@ -21,8 +21,8 @@ class RSSListBase(RSSBase, LomBase):
     mappings = {}
     start_urls = []
     rows = {}
-    def getCSVValue(self, fieldName):
-        return list(map(lambda x: x.strip(),self.rows[self.response.url][self.mappings[fieldName]].split(";")))
+    def getCSVValue(self, response, fieldName):
+        return list(map(lambda x: x.strip(),response.meta['row'][self.mappings[fieldName]].split(";")))
     def __init__(self, file, delimiter = ','):
         dir = os.path.dirname(os.path.realpath(__file__))
         with open(dir + '/../' + file) as csvFile:
@@ -38,26 +38,31 @@ class RSSListBase(RSSBase, LomBase):
                     continue
                 url = row[self.mappings[RSSListBase.COLUMN_URL]]
                 self.rows[url] = row
-                self.start_urls.append(url)
+                #self.start_urls.append(url)
                 i += 1
+    def start_requests(self):
+        requests = []
+        for url in self.rows:
+            requests.append(scrapy.Request(url=url, callback=self.parse, meta = {'row': self.rows[url]}))
+        return requests
 
-    def getLOMGeneral(self, item):
-        general = RSSBase.getLOMGeneral(self, item)
-        general.replace_value('language', self.getCSVValue(RSSListBase.COLUMN_LANGUAGE))
+    def getLOMGeneral(self, response):
+        general = RSSBase.getLOMGeneral(self, response)
+        general.replace_value('language', self.getCSVValue(response, RSSListBase.COLUMN_LANGUAGE))
         return general
   
     def getLOMRights(self, response):
         rights = LomBase.getLOMRights(self, response)
-        rights.add_value('description', self.getCSVValue(RSSListBase.COLUMN_LICENSE))
+        rights.add_value('description', self.getCSVValue(response, RSSListBase.COLUMN_LICENSE))
         return rights
 
-    def getValuespaces(self, item):
-        valuespaces = RSSBase.getValuespaces(self, item)
+    def getValuespaces(self, response):
+        valuespaces = RSSBase.getValuespaces(self, response)
         valuespaces.add_value('educationalContext', ValuespaceHelper.educationalContextByAgeRange([
-            self.getCSVValue(RSSListBase.COLUMN_TYPICAL_AGE_RANGE_FROM)[0], 
-            self.getCSVValue(RSSListBase.COLUMN_TYPICAL_AGE_RANGE_TO)[0]
+            self.getCSVValue(response, RSSListBase.COLUMN_TYPICAL_AGE_RANGE_FROM)[0], 
+            self.getCSVValue(response, RSSListBase.COLUMN_TYPICAL_AGE_RANGE_TO)[0]
             ]))
         
-        valuespaces.add_value('discipline', self.getCSVValue(RSSListBase.COLUMN_TYPICAL_DISCIPLINE))
-        valuespaces.add_value('learningResourceType', self.getCSVValue(RSSListBase.COLUMN_LEARNING_RESOURCE_TYPE))
+        valuespaces.add_value('discipline', self.getCSVValue(response, RSSListBase.COLUMN_TYPICAL_DISCIPLINE))
+        valuespaces.add_value('learningResourceType', self.getCSVValue(response, RSSListBase.COLUMN_LEARNING_RESOURCE_TYPE))
         return valuespaces

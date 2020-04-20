@@ -57,7 +57,7 @@ class PlanetSchuleSpider(RSSBase):
     try:
       range = self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Klassenstufe")]/parent::*/parent::*/div[last()]/p//text()').get()
       range = range.split(" - ")
-      valuespaces.add_value('educationalContext', ValuespaceHelper.educationalContextByAgeRange(range))
+      valuespaces.add_value('educationalContext', ValuespaceHelper.educationalContextByGrade(range))
     except:
       pass
     discipline = self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Fächer")]/parent::*/parent::*/div[last()]/p/a//text()').getall()
