@@ -13,10 +13,11 @@ services:
       - http.cors.allow-headers=X-Requested-With,X-Auth-Token,Content-Type,Content-Length,Authorization,Access-Control-Allow-Headers,Accept
       - http.cors.allow-credentials=true
       - bootstrap.memory_lock=true
-      - 'ES_JAVA_OPTS=-Xms512m -Xmx512m'
       - 'ES_JAVA_OPTS=-Xms2g -Xmx4g'
     networks:
       - elasticnet
+    ports:
+      - "9200:9200" # exposte to host
     restart: on-failure
   postgres:
     build:
