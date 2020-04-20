@@ -25,7 +25,7 @@ class RSSBase(CrawlSpider, LomBase):
             yield LomBase.parse(self, item)
 
     def getId(self, item):
-        return item.xpath('guid//text()').get()
+        return item.xpath('link//text()').get()
 
     def getHash(self, item):
         return item.xpath('pubDate//text()').get()
