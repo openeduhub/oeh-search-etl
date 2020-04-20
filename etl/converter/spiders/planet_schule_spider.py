@@ -18,6 +18,7 @@ class PlanetSchuleSpider(RSSBase):
   friendlyName='planet schule'
   url = 'https://www.planet-schule.de'
   start_urls = ['https://www.planet-schule.de/data/planet-schule-vodcast-komplett.rss']
+  version = '0.1'
 
   def mapResponse(self, response):
       return LomBase.mapResponse(self, response)
@@ -38,13 +39,13 @@ class PlanetSchuleSpider(RSSBase):
 
   def getLOMGeneral(self, response):
     general = RSSBase.getLOMGeneral(self, response)
-    general.add_value('keyword', self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Schlagworte")]/parent::*/parent::*/div[last()]/p/a//text()').getall())
+    general.add_value('keyword', response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Schlagworte")]/parent::*/parent::*/div[last()]/p/a//text()').getall())
     return general
 
   def getLOMTechnical(self, response):
     technical = LomBase.getLOMTechnical(self, response)
     technical.add_value('format', 'text/html')
-    technical.add_value('location', self.response.url)
+    technical.add_value('location', response.url)
     return technical
  
   def getLOMRights(self, response):
@@ -55,12 +56,12 @@ class PlanetSchuleSpider(RSSBase):
   def getValuespaces(self, response):
     valuespaces = RSSBase.getValuespaces(self, response)
     try:
-      range = self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Klassenstufe")]/parent::*/parent::*/div[last()]/p//text()').get()
+      range = response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Klassenstufe")]/parent::*/parent::*/div[last()]/p//text()').get()
       range = range.split(" - ")
       valuespaces.add_value('educationalContext', ValuespaceHelper.educationalContextByGrade(range))
     except:
       pass
-    discipline = self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Fächer")]/parent::*/parent::*/div[last()]/p/a//text()').getall()
+    discipline = response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Fächer")]/parent::*/parent::*/div[last()]/p/a//text()').getall()
     valuespaces.add_value('discipline',discipline)
     lrt = ValuespaceHelper.mimetypeToLearningResourceType(response.meta['item'].xpath('enclosure/@type').get())
     if lrt:
