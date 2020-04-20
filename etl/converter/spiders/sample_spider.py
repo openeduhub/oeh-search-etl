@@ -12,6 +12,7 @@ class SampleSpider(CrawlSpider, LomBase):
   url = 'https://edu-sharing.com' # the url which will be linked as the primary link to your source (should be the main url of your site)
   friendlyName = 'Sample Source' # name as shown in the search ui
   start_urls = ['https://edu-sharing.com']
+  version = '0.1' # the version of your crawler, used to identify if a reimport is necessary
 
   def parse(self, response):
     return LomBase.parse(self, response)
@@ -22,8 +23,9 @@ class SampleSpider(CrawlSpider, LomBase):
 
   # return a stable hash to detect content changes
   # if there is no hash available, may use the current time as "always changing" info
+  # Please include your crawler version as well
   def getHash(self, response):
-    return time.time()
+    return self.version + time.time()
 
   def getBase(self, response):
     base = LomBase.getBase(self, response)
