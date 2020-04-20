@@ -9,7 +9,7 @@ from converter.db_connector import Database
 class LomBase:
   friendlyName = 'LOM Based spider'
   ranking = 1
-
+  version = '1.0' # you can override this locally and use it for your getHash() function
 
   # override to improve performance and automatically handling id
   def getId(self, response = None):

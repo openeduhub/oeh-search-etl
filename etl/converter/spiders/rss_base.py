@@ -30,7 +30,7 @@ class RSSBase(CrawlSpider, LomBase):
         return response.meta['item'].xpath('link//text()').get()
 
     def getHash(self, response):
-        return response.meta['item'].xpath('pubDate//text()').get()
+        return self.version + response.meta['item'].xpath('pubDate//text()').get()
 
     def mapResponse(self, response):
         r = ResponseItemLoader()

@@ -17,6 +17,7 @@ class BRRSSSpider(RSSListBase):
   name='zdf_rss_spider'
   friendlyName='ZDF'
   url = 'https://www.zdf.de/'
+  version = '0.1'
 
   def __init__(self):
     RSSListBase.__init__(self, 'csv/zdf_rss.csv')
