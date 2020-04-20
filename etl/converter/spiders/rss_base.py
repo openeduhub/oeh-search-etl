@@ -22,46 +22,48 @@ class RSSBase(CrawlSpider, LomBase):
                     
     def startHandler(self, response):
         for item in response.xpath('//rss/channel/item'):
-            yield LomBase.parse(self, item)
+            responseCopy = response.copy()
+            responseCopy.meta['item'] = item
+            yield LomBase.parse(self, response)
 
-    def getId(self, item):
-        return item.xpath('link//text()').get()
+    def getId(self, response):
+        return response.meta['item'].xpath('link//text()').get()
 
-    def getHash(self, item):
-        return item.xpath('pubDate//text()').get()
+    def getHash(self, response):
+        return response.meta['item'].xpath('pubDate//text()').get()
 
-    def mapResponse(self, item):
+    def mapResponse(self, response):
         r = ResponseItemLoader()
-        r.add_value('url', item.xpath('link//text()').get())
+        r.add_value('url', response.meta['item'].xpath('link//text()').get())
         return r
 
-    def getBase(self, item):
-        base = LomBase.getBase(self, item)
+    def getBase(self, response):
+        base = LomBase.getBase(self, response)
         thumbnail = self.commonProperties['thumbnail']
         if thumbnail:
             base.add_value('thumbnail', thumbnail)
         return base
 
-    def getLOMGeneral(self, item):
-        general = LomBase.getLOMGeneral(self, item)
-        general.add_value('identifier', item.xpath('guid//text()').get())
-        general.add_value('title', item.xpath('title//text()').get())  
+    def getLOMGeneral(self, response):
+        general = LomBase.getLOMGeneral(self, response)
+        general.add_value('identifier', response.meta['item'].xpath('guid//text()').get())
+        general.add_value('title', response.meta['item'].xpath('title//text()').get())  
         general.add_value('language', self.commonProperties['language'])
         return general
         
-    def getLOMEducational(self, item):
-        educational = LomBase.getLOMEducational(self, item)
-        description = item.xpath('description//text()').get()
+    def getLOMEducational(self, response):
+        educational = LomBase.getLOMEducational(self, response)
+        description = response.meta['item'].xpath('description//text()').get()
         if not description:
-            description = item.xpath('//*[name()="summary"]//text()').get()
+            description = response.meta['item'].xpath('//*[name()="summary"]//text()').get()
         educational.add_value('description', description)
         return educational
 
-    def getLOMTechnical(self, item):
-        technical = LomBase.getLOMTechnical(self, item)
+    def getLOMTechnical(self, response):
+        technical = LomBase.getLOMTechnical(self, response)
         #technical.add_value('format', item.xpath('enclosure/@type').get())
         #technical.add_value('size', item.xpath('enclosure/@length').get())
         #technical.add_value('location', item.xpath('enclosure/@url').get())
         technical.add_value('format', 'text/html')
-        technical.add_value('location', item.xpath('link//text()').get())
+        technical.add_value('location', response.meta['item'].xpath('link//text()').get())
         return technical
