@@ -19,30 +19,30 @@ class PlanetSchuleSpider(RSSBase):
   url = 'https://www.planet-schule.de'
   start_urls = ['https://www.planet-schule.de/data/planet-schule-vodcast-komplett.rss']
 
-  response = None
-  def mapResponse(self, item):
-      return LomBase.mapResponse(self, self.response)
+  def mapResponse(self, response):
+      return LomBase.mapResponse(self, response)
 
   def startHandler(self, response):
       for item in response.xpath('//rss/channel/item'):
-        if self.hasChanged(item):
+        copyResponse = response.copy()
+        copyResponse.meta['item'] = item
+        if self.hasChanged(copyResponse):
           yield scrapy.Request(url = item.xpath('link//text()').get(), callback = self.handleLink, meta = {'item': item})
 
   def handleLink(self, response):
-    self.response = response
-    return LomBase.parse(self, response.meta['item'])
+    return LomBase.parse(self, response)
 
   # thumbnail is always the same, do not use the one from rss
-  def getBase(self, item):
-    return LomBase.getBase(self, item)
+  def getBase(self, response):
+    return LomBase.getBase(self, response)
 
-  def getLOMGeneral(self, item):
-    general = RSSBase.getLOMGeneral(self, item)
+  def getLOMGeneral(self, response):
+    general = RSSBase.getLOMGeneral(self, response)
     general.add_value('keyword', self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Schlagworte")]/parent::*/parent::*/div[last()]/p/a//text()').getall())
     return general
 
-  def getLOMTechnical(self, item):
-    technical = LomBase.getLOMTechnical(self, item)
+  def getLOMTechnical(self, response):
+    technical = LomBase.getLOMTechnical(self, response)
     technical.add_value('format', 'text/html')
     technical.add_value('location', self.response.url)
     return technical
@@ -52,8 +52,8 @@ class PlanetSchuleSpider(RSSBase):
     rights.add_value('description', Constants.LICENSE_COPYRIGHT_LAW)
     return rights
     
-  def getValuespaces(self, item):
-    valuespaces = RSSBase.getValuespaces(self, item)
+  def getValuespaces(self, response):
+    valuespaces = RSSBase.getValuespaces(self, response)
     try:
       range = self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Klassenstufe")]/parent::*/parent::*/div[last()]/p//text()').get()
       range = range.split(" - ")
@@ -62,7 +62,7 @@ class PlanetSchuleSpider(RSSBase):
       pass
     discipline = self.response.xpath('//div[@class="sen_info_v2"]//p[contains(text(),"Fächer")]/parent::*/parent::*/div[last()]/p/a//text()').getall()
     valuespaces.add_value('discipline',discipline)
-    lrt = ValuespaceHelper.mimetypeToLearningResourceType(item.xpath('enclosure/@type').get())
+    lrt = ValuespaceHelper.mimetypeToLearningResourceType(response.meta['item'].xpath('enclosure/@type').get())
     if lrt:
       valuespaces.add_value('learningResourceType', lrt)
     return valuespaces
