@@ -63,7 +63,8 @@ class LomAgeRangeItem(Item):
 
 class LomEducationalItem(Item):
     interactivityType = Field()
-    learningResourceType = Field()
+    # Please use valuespaces.learningResourceType
+    # learningResourceType = Field()
     interactivityLevel = Field()
     semanticDensity = Field()
     intendedEndUserRole = Field(serializer=MutlilangItem, output_processor=JoinMultivalues())
