@@ -15,8 +15,11 @@ class ValuespaceHelper:
     @staticmethod
     def educationalContextByGrade(range):
         context = []
+        print(range)
+        print(list(range))
         if len(range)<2:
-            range[1] = range[0]
+            range = list(range)
+            range.append(range[0])
         if int(range[0])<=4:
             context.append('Grundschule')
         if int(range[1])>=4 and int(range[0])<=10:
@@ -31,7 +34,8 @@ class ValuespaceHelper:
     def educationalContextByAgeRange(range):
         context = []
         if len(range)<2:
-            range[1] = range[0]
+            range = list(range)
+            range.append(range[0])
         if int(range[0])<=10:
             context.append('Grundschule')
         if int(range[1])>=10 and int(range[0])<=16:
