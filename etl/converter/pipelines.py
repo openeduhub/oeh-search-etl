@@ -36,6 +36,17 @@ class LOMFillupPipeline:
         if not 'fulltext' in item and 'text' in item['response']:
             item['fulltext'] = item['response']['text']
         return item
+class FilterSparsePipeline:
+    def process_item(self, item, spider):
+        valid = True
+        try:
+            valid = item['lom']['general']['keyword'] or item['lom']['educational']['description']
+        except:
+            valid = False
+        if not valid:
+            raise DropItem('Entry ' + item['lom']['general']['title'] + ' has neither keywords nor description')            
+        return item
+        
 class NormLicensePipeline(object):
     def process_item(self, item, spider):
         if item['license']:
@@ -171,8 +182,12 @@ class ProcessThumbnailPipeline:
                     item['thumbnail']['small'] = base64.b64encode(small.getvalue()).decode()
                     item['thumbnail']['large'] = base64.b64encode(large.getvalue()).decode()
             except Exception as e:
-                logging.warn('Could not read thumbnail at ' + url + ': ' + str(e))
-                item['thumbnail']={}
+                logging.warn('Could not read thumbnail at ' + url + ': ' + str(e) + ' (falling back to screenshot)')
+                if 'thumbnail' in item:
+                    del item['thumbnail']
+                    return self.process_item(item, spider)
+                else:
+                    item['thumbnail']={}
         return item
 
 class PostgresCheckPipeline(Database):

@@ -53,7 +53,7 @@ class LomBase:
       'text': h.handle(html)
     }
   def mapResponse(self, response):
-    r = ResponseItemLoader()
+    r = ResponseItemLoader(response = response)
     r.add_value('status',response.status)
     #r.add_value('body',response.body.decode('utf-8'))
     # render via splash to also get the full javascript rendered content
@@ -65,10 +65,10 @@ class LomBase:
     return r
 
   def getValuespaces(self, response):
-    return ValuespaceItemLoader()
+    return ValuespaceItemLoader(response = response)
 
   def getLOM(self, response):
-    lom = LomBaseItemloader()
+    lom = LomBaseItemloader(response = response)
     lom.add_value('general', self.getLOMGeneral(response).load_item())
     lom.add_value('lifecycle', self.getLOMLifecycle(response).load_item())
     lom.add_value('technical', self.getLOMTechnical(response).load_item())
@@ -84,19 +84,19 @@ class LomBase:
     return base
 
   def getLOMGeneral(self, response = None):
-    return LomGeneralItemloader()
+    return LomGeneralItemloader(response = response)
 
   def getLOMLifecycle(self, response = None):
-    return LomLifecycleItemloader()
+    return LomLifecycleItemloader(response = response)
 
   def getLOMTechnical(self, response = None):
-    return LomTechnicalItemLoader()
+    return LomTechnicalItemLoader(response = response)
 
   def getLOMEducational(self, response = None):
-    return LomEducationalItemLoader()
+    return LomEducationalItemLoader(response = response)
 
   def getLOMRights(self, response = None):
-    return LomRightsItemLoader()
+    return LomRightsItemLoader(response = response)
 
   def getLOMClassification(self, response = None):
-    return LomClassificationItemLoader()
+    return LomClassificationItemLoader(response = response)

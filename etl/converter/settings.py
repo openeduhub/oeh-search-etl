@@ -15,6 +15,7 @@ SPIDER_MODULES = ['converter.spiders']
 NEWSPIDER_MODULE = 'converter.spiders'
 
 LOG_LEVEL = 'INFO'
+LOG_FORMATTER = 'converter.custom_log_formatter.CustomLogFormatter'
 
 # Splash (Web Thumbnailer)
 # Will be rolled out via docker-compose by default
@@ -82,6 +83,7 @@ EXTENSIONS = {
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
     'converter.pipelines.PostgresCheckPipeline': 0,
+    'converter.pipelines.FilterSparsePipeline': 25,
     'converter.pipelines.LOMFillupPipeline': 100,
     'converter.pipelines.ConvertTimePipeline': 200,
     'converter.pipelines.ProcessValuespacePipeline': 250,
