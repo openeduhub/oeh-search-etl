@@ -40,7 +40,11 @@ class FilterSparsePipeline:
     def process_item(self, item, spider):
         valid = True
         try:
-            valid = item['lom']['general']['keyword'] or item['lom']['educational']['description']
+            valid = item['lom']['general']['keyword']
+        except:
+            valid = False
+        try:
+            valid = valid or item['lom']['educational']['description']
         except:
             valid = False
         if not valid:

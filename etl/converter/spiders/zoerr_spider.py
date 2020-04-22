@@ -1,7 +1,8 @@
 from converter.spiders.lrmi_base import LrmiBase
 from converter.spiders.oai_base import OAIBase
+from scrapy.spiders import SitemapSpider
 
-class ZoerrSpider(LrmiBase):
+class ZoerrSpider(SitemapSpider, LrmiBase):
   name = 'zoerr_spider'
   friendlyName = 'OER-Repositorium Baden-Württemberg (ZOERR)'
   url = 'https://www.oerbw.de'
@@ -9,5 +10,4 @@ class ZoerrSpider(LrmiBase):
   set = 'default'
   metadataPrefix = 'lom'
 
-  # only for LRMI
   sitemap_urls = ['https://www.oerbw.de/edu-sharing/eduservlet/sitemap']

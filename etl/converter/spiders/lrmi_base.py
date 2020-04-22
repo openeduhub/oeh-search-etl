@@ -1,4 +1,3 @@
-from scrapy.spiders import SitemapSpider
 from converter.items import *
 from datetime import datetime
 from w3lib.html import remove_tags, replace_escape_chars
@@ -9,14 +8,20 @@ import time
 
 # base spider mapping data via LRMI inside the html pages
 # Please override the lrmi_path if necessary and add your sitemap_urls 
-class LrmiBase(SitemapSpider, LomBase, JSONBase):
+class LrmiBase(LomBase, JSONBase):
   friendlyName = 'LRMI-Header Based spider'
   lrmi_path = '//script[@type="application/ld+json"]//text()'
   sitemap_urls = []
 
+  def getLRMI(self, *params, response):
+    lrmi = list(map(lambda x: json.loads(x.replace('\n',' ')),response.xpath(self.lrmi_path).getall()))
+    for l in lrmi:
+      value = JSONBase.get(self, *params, json = l)
+      if value != None:
+        return value
+    return None
+   
   def parse(self, response):
-    self.json = json.loads(response.xpath(self.lrmi_path).extract_first())
-    #self.json = json.loads(self.dummy)
     return LomBase.parse(self, response)
 
 
@@ -30,39 +35,39 @@ class LrmiBase(SitemapSpider, LomBase, JSONBase):
 
   def getBase(self, response):
     base = LomBase.getBase(self, response)
-    base.add_value('thumbnail', self.get('thumbnailUrl'))
-    base.add_value('lastModified', self.get('dateModified','datePublished'))
+    base.add_value('thumbnail', self.getLRMI('thumbnailUrl', response = response))
+    base.add_value('lastModified', self.getLRMI('dateModified', 'datePublished', response = response))
     return base
 
   def getLOMGeneral(self, response):
     general = LomBase.getLOMGeneral(self, response)
-    general.add_value('identifier', self.get('identifier'))
-    general.add_value('title', self.get('name'))
-    general.add_value('keyword', self.get('keywords'))
-    general.add_value('language', self.get('inLanguage'))
+    general.add_value('identifier', self.getLRMI('identifier', response = response))
+    general.add_value('title', self.getLRMI('name', response = response))
+    general.add_value('keyword', self.getLRMI('keywords', response = response))
+    general.add_value('language', self.getLRMI('inLanguage', response = response))
     return general
   def getValuespaces(self, response):
     valuespaces = LomBase.getValuespaces(self, response)
-    valuespaces.add_value('intendedEndUserRole', self.get('audience.educationalRole'))
+    valuespaces.add_value('intendedEndUserRole', self.getLRMI('audience.educationalRole', response = response))
     return valuespaces
 
   def getLOMEducational(self, response):
     educational = LomBase.getLOMEducational(self, response)
-    educational.add_value('description', self.get('description','about'))
-    educational.add_value('learningResourceType', self.get('learningResourceType'))
-    educational.add_value('typicalLearningTime', self.get('timeRequired'))
+    educational.add_value('description', self.getLRMI('description','about', response = response))
+    educational.add_value('learningResourceType', self.getLRMI('learningResourceType', response = response))
+    educational.add_value('typicalLearningTime', self.getLRMI('timeRequired', response = response))
     return educational
 
   def getLOMRights(self, response):
     rights = LomBase.getLOMRights(self, response)
-    rights.add_value('description', self.get('license'))
+    rights.add_value('description', self.getLRMI('license', response = response))
     return rights
 
   def getLOMTechnical(self, response):
     technical = LomBase.getLOMTechnical(self, response)
-    technical.add_value('format', self.get('fileFormat'))
-    technical.add_value('size', self.get('ContentSize'))
-    url = self.get('url')
+    technical.add_value('format', self.getLRMI('fileFormat', response = response))
+    technical.add_value('size', self.getLRMI('ContentSize', response = response))
+    url = self.getLRMI('url', response = response)
     if not url:
       url = response.url
     technical.add_value('location', url)

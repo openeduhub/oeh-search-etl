@@ -13,7 +13,7 @@ class CustomLogFormatter(LogFormatter):
                 'msg': self.DROPPEDMSG,
                 'args': {
                     'exception': exception,
-                    'item': item['lom']['general'],
+                    'item': item['lom'],
                 }
             }
 
@@ -27,6 +27,6 @@ class CustomLogFormatter(LogFormatter):
                 'level': logging.ERROR,
                 'msg': self.ITEMERRORMSG,
                 'args': {
-                    'item': item['lom']['general'],
+                    'item': item['lom'],
                 }
             }
