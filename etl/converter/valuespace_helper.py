@@ -15,8 +15,6 @@ class ValuespaceHelper:
     @staticmethod
     def educationalContextByGrade(range):
         context = []
-        print(range)
-        print(list(range))
         if len(range)<2:
             range = list(range)
             range.append(range[0])
