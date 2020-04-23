@@ -135,7 +135,7 @@ class ProcessValuespacePipeline:
                         logging.info('transforming ' + key + ': ' + v['id'] + ' => ' + i18n['de'])
                         found = True
                         break
-                if found:
+                if found and len(list(filter(lambda x: x['key'] == i18n['key'], mapped))) == 0:
                     mapped.append(i18n)
                 else:
                     logging.warn('unknown value ' + entry + ' for valuespace ' + key)
