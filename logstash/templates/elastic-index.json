@@ -62,6 +62,7 @@
             "modified_at" : { "type" : "date" },
             "url" : { "type" : "keyword" },
             "fulltext" : { "type" : "text" },
+            "type" : { "type" : "keyword" },
             "source": { 
             	"properties" : {
             		"id" : { "type" : "keyword" },

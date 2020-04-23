@@ -1,6 +1,7 @@
 from converter.items import *
 from pprint import pprint
 import logging
+from converter.constants import Constants
 import requests
 import html2text
 import urllib
@@ -81,6 +82,8 @@ class LomBase:
     base = BaseItemLoader()
     base.add_value('sourceId', self.getId(response))
     base.add_value('hash', self.getHash(response))
+     # we assume that content is imported. Please use replace_value if you import something different
+    base.add_value('type', Constants.TYPE_MATERIAL)
     return base
 
   def getLOMGeneral(self, response = None):

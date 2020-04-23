@@ -237,7 +237,7 @@ class PostgresCheckPipeline(Database):
 class PostgresStorePipeline(Database):
     def process_item(self, item, spider):
         output = io.BytesIO()
-        exporter = JsonItemExporter(output, fields_to_export = ['lom','valuespaces','fulltext','ranking','lastModified','thumbnail'])
+        exporter = JsonItemExporter(output, fields_to_export = ['lom','valuespaces','type','fulltext','ranking','lastModified','thumbnail'])
         exporter.export_item(item)
         json = output.getvalue().decode('UTF-8')
         dbItem = self.findItem(item['sourceId'], spider)

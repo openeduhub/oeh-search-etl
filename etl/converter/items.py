@@ -111,6 +111,7 @@ class ValuespaceItem(Item):
 class BaseItem(Item):
     sourceId = Field()
     hash = Field()
+    type = Field()
     response = Field(serializer=ResponseItem)
     ranking = Field()
     fulltext = Field()
