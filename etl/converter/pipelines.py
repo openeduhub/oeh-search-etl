@@ -38,15 +38,19 @@ class LOMFillupPipeline:
         return item
 class FilterSparsePipeline:
     def process_item(self, item, spider):
-        valid = True
+        valid = False
         try:
             valid = item['lom']['general']['keyword']
         except:
-            valid = False
+            pass
         try:
             valid = valid or item['lom']['educational']['description']
         except:
-            valid = False
+            pass
+        try:
+            valid = valid or item['valuespaces']['learningResourceType']
+        except:
+            pass
         if not valid:
             raise DropItem('Entry ' + item['lom']['general']['title'] + ' has neither keywords nor description')            
         return item
