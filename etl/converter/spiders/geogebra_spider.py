@@ -15,7 +15,17 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
   url = 'https://www.geogebra.org'
   version = '0.1'
   start_urls = [
-    'https://www.geogebra.org/m-sitemap-1.xml'
+    'https://www.geogebra.org/m-sitemap-1.xml',
+    'https://www.geogebra.org/m-sitemap-2.xml',
+    'https://www.geogebra.org/m-sitemap-3.xml',
+    'https://www.geogebra.org/m-sitemap-4.xml',
+    'https://www.geogebra.org/m-sitemap-5.xml',
+    'https://www.geogebra.org/m-sitemap-6.xml',
+    'https://www.geogebra.org/m-sitemap-7.xml',
+    'https://www.geogebra.org/m-sitemap-8.xml',
+    'https://www.geogebra.org/m-sitemap-9.xml',
+    'https://www.geogebra.org/m-sitemap-10.xml',
+    'https://www.geogebra.org/m-sitemap-11.xml',
   ]
 
   apiUrl = 'https://api.geogebra.org/v1.0/materials/%id?scope=extended&embed=creator,tags,topics'
@@ -32,13 +42,11 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
       apiCall = self.apiUrl.replace('%id', id)
       yield scrapy.Request(url = apiCall, callback = self.parseEntry, meta = {'url': url})
       i += 1
-      if i>50:
-        return
-
-
+      
   def parseEntry(self, response):
     if self.get('language', response = response) == 'de':
       return LomBase.parse(self, response)
+    logging.info('Skpping entry with language ' + self.get('language', response = response))
     return None
   
   def getId(self, response):
@@ -52,7 +60,7 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
     #print(response.url)
     #print(self.get('thumbUrl', response = response))
     #print(self.get('thumbUrl', response = response).replace('$1', '@l'))
-    base.add_value('thumbnail', self.get('thumbUrl', response = response).replace('$1', '@l'))
+    base.add_value('thumbnail', str(self.get('thumbUrl', response = response)).replace('$1', '@l'))
     base.add_value('lastModified', self.get('date_modified', response = response))
     return base
 
