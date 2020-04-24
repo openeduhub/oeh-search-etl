@@ -112,9 +112,14 @@ class ProcessValuespacePipeline:
     valuespaces = {}
     def __init__(self):
         for v in self.ids:
-            r=requests.get(VALUESPACE_API+'vocab/'+v)
-            ProcessValuespacePipeline.valuespaces[v] = r.json()['vocabs']
-    def process(self, item):
+            url = VALUESPACE_API + 'vocab/' + v
+            r = requests.get(url)
+            try:
+                ProcessValuespacePipeline.valuespaces[v] = r.json()['vocabs']
+            except json.decoder.JSONDecodeError as e:
+                logging.error('Can not access the valuespace api at ' + url + ', exception: ' + str(e) + ' The system will continue, but valuespace mapping will not work!')
+                ProcessValuespacePipeline.valuespaces[v] = {}
+    def process_item(self, item, spider):
         delete = []
         for key in item['valuespaces']:
             # remap to new i18n layout
@@ -146,9 +151,7 @@ class ProcessValuespacePipeline:
         for key in delete:
             del item['valuespaces'][key]
         return item
-    def process_item(self, item, spider):
-        item = self.process(item)
-        return item
+
 # generate thumbnails
 class ProcessThumbnailPipeline:
     def scaleImage(self, img, maxSize):
@@ -195,7 +198,8 @@ class ProcessThumbnailPipeline:
                     del item['thumbnail']
                     return self.process_item(item, spider)
                 else:
-                    item['thumbnail']={}
+                    #item['thumbnail']={}
+                    raise DropItem('No thumbnail provided or ressource was unavailable for fetching')
         return item
 
 class PostgresCheckPipeline(Database):
