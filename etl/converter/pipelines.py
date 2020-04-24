@@ -6,6 +6,7 @@
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 
 from scrapy.exceptions import DropItem
+from converter.constants import Constants
 import json
 import re
 from w3lib.html import replace_escape_chars
@@ -225,11 +226,12 @@ class PostgresCheckPipeline(Database):
                 #raise DropItem()
         return item
     def createSource(self, spider):
-        self.curr.execute("""INSERT INTO "sources" VALUES(%s,%s,%s,%s)""", (
+        self.curr.execute("""INSERT INTO "sources" VALUES(%s,%s,%s,%s,%s)""", (
             spider.name,
+            Constants.SOURCE_TYPE_SPIDER,
             spider.friendlyName,
             spider.url,
-            spider.ranking
+            spider.ranking,
         ))
         self.conn.commit()
     def update(self, uuid):
@@ -250,26 +252,25 @@ class PostgresStorePipeline(Database):
         if dbItem:
             entryUUID = dbItem[0]
             logging.info('Updating item ' + title + ' (' + entryUUID + ')')
-            self.curr.execute("""UPDATE "references" SET source = %s, source_id = %s, last_fetched = now(), last_modified = now(), hash = %s, data = %s WHERE uuid = %s""", (
-                spider.name, # source name
+            self.curr.execute("""UPDATE "references_metadata" SET last_fetched = now(), last_modified = now(), hash = %s, data = %s WHERE source = %s AND source_id = %s""", (
                 item['sourceId'], # source item identifier
-                #date.today(), # last modified
                 item['hash'], # hash
                 json,
-                entryUUID
+                spider.name,
+                item['soruceId'],
             ))
         else:
             entryUUID = str(uuid.uuid5(uuid.NAMESPACE_URL, item['response']['url']))
             logging.info('Creating item ' + title + ' (' + entryUUID + ')')
-            self.curr.execute("""INSERT INTO "references" VALUES (%s,%s,%s,now(),now(),now(),%s,%s)""", (
+            self.curr.execute("""INSERT INTO "references" VALUES (%s)""", (
                 entryUUID,
+            ))
+            self.curr.execute("""INSERT INTO "references_metadata" VALUES (%s,%s,%s,%s,now(),now(),%s)""", (
                 spider.name, # source name
                 item['sourceId'], # source item identifier
-                #date.today(), # first fetched
-                #date.today(), # last fetched
-                #date.today(), # last modified
+                entryUUID,
                 item['hash'], # hash
-                json
+                json,
             ))
         output.close()
         self.conn.commit()

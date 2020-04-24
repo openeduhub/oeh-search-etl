@@ -16,9 +16,9 @@ class Database:
             )
             Database.curr = self.conn.cursor()
     def findItem(self, id, spider):
-        Database.curr.execute("""SELECT uuid, hash FROM "references" WHERE source = %s AND source_id = %s""", (
+        Database.curr.execute("""SELECT uuid, hash FROM "references_metadata" WHERE source = %s AND source_id = %s""", (
             spider.name,
-            str(id)
+            str(id),
         ))
         data = Database.curr.fetchall()
         if(len(data)):

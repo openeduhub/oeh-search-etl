@@ -84,7 +84,17 @@
 			},
 			"collection": {
 				"properties" : {
-					"uuid" : { "type" : "keyword" }
+					"uuid" : { "type" : "keyword" },
+					"name" : {
+						"type" : "text",
+						"fields": {
+							"keyword": { 
+							"type":  "keyword"
+							}
+						}
+					},
+					"created" : { "type": "date"},
+					"last_updated" : { "type": "date"}
 				}
 			},
 			"thumbnail": {
