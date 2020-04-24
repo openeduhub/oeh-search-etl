@@ -17,7 +17,7 @@ class DigitallearninglabSpider(scrapy.Spider, LrmiBase):
   name='digitallearninglab_spider'
   friendlyName='digital.learning.lab'
   url = 'https://digitallearninglab.de'
-  version = '0.1' + str(time.time())
+  version = '0.1'
   apiUrl = 'https://digitallearninglab.de/api/%type?q=&sorting=latest&page=%page'
   def mapResponse(self, response):
       return LrmiBase.mapResponse(self, response)
@@ -26,6 +26,10 @@ class DigitallearninglabSpider(scrapy.Spider, LrmiBase):
     return response.meta['item'].get('id')
 
   def getHash(self, response):
+    modified = self.getLRMI('dateModified', response = response)
+    if modified:
+      return modified + self.version
+    # fallback if lrmi was unparsable
     return time.time()
 
   def startRequest(self, type, page):
