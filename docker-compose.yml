@@ -19,6 +19,8 @@ services:
     ports:
       - "9200:9200" # exposte to host
     restart: on-failure
+    volumes: 
+      - es-data:/usr/share/elasticsearch/data
   postgres:
     build:
       context: ./postgres
@@ -32,6 +34,8 @@ services:
     ports:
       - "5432:5432" # exposte to host
     restart: always
+    volumes:
+      - pg-data:/var/lib/postgresql/data
   logstash:
     build:
       context: ./logstash
@@ -80,3 +84,11 @@ services:
 
 networks:
   elasticnet:
+
+volumes:
+  pg-data:
+      driver: local
+  es-data:
+      driver: local
+      
+      
