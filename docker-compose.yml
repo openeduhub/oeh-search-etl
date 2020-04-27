@@ -45,7 +45,7 @@ services:
       - postgres
     restart: on-failure
   valuespaces:
-    image: laocoon667/oer-flask-api:latest
+    image: laocoon667/oer-flask-api:dev
     networks:
       - elasticnet
     ports:
