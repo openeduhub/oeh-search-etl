@@ -18,7 +18,7 @@ class DigitallearninglabSpider(scrapy.Spider, LomBase, JSONBase):
   name='wirlernenonline_spider'
   friendlyName='WirLernenOnline'
   url = 'WirLernenOnline'
-  version = '0.1.0'
+  version = '0.1.2'
   apiUrl = 'https://wirlernenonline.de/wp-json/wp/v2/%type/?per_page=10&page=%page'
   keywords = {}
   def mapResponse(self, response):
@@ -78,12 +78,12 @@ class DigitallearninglabSpider(scrapy.Spider, LomBase, JSONBase):
     base.replace_value('thumbnail', self.get('acf.thumbnail.url', json = response.meta['item']))
     base.replace_value('type', self.getType(response))
     fulltext = self.get('acf.long_text', json = response.meta['item'])
-    base.replace_value('fulltext', fulltext)
+    base.replace_value('fulltext', HTMLParser().unescape(fulltext))
     return base
 
   def getLOMGeneral(self, response):
     general = LomBase.getLOMGeneral(self, response)
-    general.replace_value('title', self.get('title.rendered', json = response.meta['item']))
+    general.replace_value('title', HTMLParser().unescape(self.get('title.rendered', json = response.meta['item'])))
     keywords = self.get('tags', json = response.meta['item'])
     if keywords:
       keywords = list(map(lambda x: self.keywords[x], keywords))
@@ -93,13 +93,13 @@ class DigitallearninglabSpider(scrapy.Spider, LomBase, JSONBase):
 
   def getLOMEducational(self, response):
     educational = LomBase.getLOMEducational(self, response)
-    educational.add_value('description', self.get('acf.short_text', json = response.meta['item']))
+    educational.add_value('description', HTMLParser().unescape(self.get('acf.short_text', json = response.meta['item'])))
     return educational
 
   def getLOMTechnical(self, response):
     technical = LomBase.getLOMTechnical(self, response)
     technical.replace_value('format', 'text/html')
-    technical.replace_value('location', response.meta['item'].get('link'))
+    technical.replace_value('location', self.get('acf.url', json = response.meta['item']))
     return technical
  
   def getLicense(self, response):
