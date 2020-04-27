@@ -18,7 +18,7 @@ class DigitallearninglabSpider(scrapy.Spider, LomBase, JSONBase):
   name='wirlernenonline_spider'
   friendlyName='WirLernenOnline'
   url = 'WirLernenOnline'
-  version = '0.1' + str(time.time())
+  version = '0.1.0'
   apiUrl = 'https://wirlernenonline.de/wp-json/wp/v2/%type/?per_page=10&page=%page'
   keywords = {}
   def mapResponse(self, response):
