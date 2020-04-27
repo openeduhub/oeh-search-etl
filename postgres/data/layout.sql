@@ -1,6 +1,8 @@
 -- 
 CREATE TABLE "references" (
-  "uuid" varchar PRIMARY KEY
+  "uuid" varchar PRIMARY KEY,
+  "enabled" boolean,
+  "last_updated" timestamp
 );
 
 CREATE TABLE "sources" (

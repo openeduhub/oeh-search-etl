@@ -114,11 +114,11 @@ class ProcessValuespacePipeline:
     def __init__(self):
         for v in self.ids:
             url = VALUESPACE_API + 'vocab/' + v
-            r = requests.get(url)
             try:
+                r = requests.get(url)
                 ProcessValuespacePipeline.valuespaces[v] = r.json()['vocabs']
-            except json.decoder.JSONDecodeError as e:
-                logging.error('Can not access the valuespace api at ' + url + ', exception: ' + str(e) + ' The system will continue, but valuespace mapping will not work!')
+            except:
+                logging.error('Can not access the valuespace api at ' + url + ', exception: ' + str(sys.exc_info()[0]) + ' The system will continue, but valuespace mapping will not work!')
                 ProcessValuespacePipeline.valuespaces[v] = {}
     def process_item(self, item, spider):
         delete = []
@@ -262,7 +262,7 @@ class PostgresStorePipeline(Database):
         else:
             entryUUID = str(uuid.uuid5(uuid.NAMESPACE_URL, item['response']['url']))
             logging.info('Creating item ' + title + ' (' + entryUUID + ')')
-            self.curr.execute("""INSERT INTO "references" VALUES (%s)""", (
+            self.curr.execute("""INSERT INTO "references" VALUES (%s,true,now())""", (
                 entryUUID,
             ))
             self.curr.execute("""INSERT INTO "references_metadata" VALUES (%s,%s,%s,%s,now(),now(),%s)""", (
