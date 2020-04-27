@@ -104,13 +104,16 @@ class DigitallearninglabSpider(scrapy.Spider, LomBase, JSONBase):
  
   def getLicense(self, response):
     license = LomBase.getLicense(self, response)
-    licenseId = self.get('acf.licence', json = response.meta['item'])[0]['value']
-    if licenseId == '10':
-      license.add_value('oer', OerType.NONE)
-    elif licenseId == '11':
-      license.add_value('oer', OerType.MIXED)
-    elif licenseId == '12':
-      license.add_value('oer', OerType.ALL)
+    try:
+      licenseId = self.get('acf.licence', json = response.meta['item'])[0]['value']
+      if licenseId == '10':
+        license.add_value('oer', OerType.NONE)
+      elif licenseId == '11':
+        license.add_value('oer', OerType.MIXED)
+      elif licenseId == '12':
+        license.add_value('oer', OerType.ALL)
+    except:
+      pass
     return license
     
   def getValuespaces(self, response):
