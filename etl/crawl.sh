@@ -11,3 +11,4 @@ scrapy crawl zdf_rss_spider &
 scrapy crawl digitallearninglab_spider &
 scrapy crawl geogebra_spider &
 scrapy crawl memucho_spider &
+scrapy crawl wirlernenonline_spider &
