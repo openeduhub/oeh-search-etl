@@ -51,10 +51,10 @@ class RSSListBase(RSSBase, LomBase):
         general.replace_value('language', self.getCSVValue(response, RSSListBase.COLUMN_LANGUAGE))
         return general
   
-    def getLOMRights(self, response):
-        rights = LomBase.getLOMRights(self, response)
-        rights.add_value('description', self.getCSVValue(response, RSSListBase.COLUMN_LICENSE))
-        return rights
+    def getLicense(self, response):
+        license = LomBase.getLicense(self, response)
+        license.add_value('internal', self.getCSVValue(response, RSSListBase.COLUMN_LICENSE))
+        return license
 
     def getValuespaces(self, response):
         valuespaces = RSSBase.getValuespaces(self, response)

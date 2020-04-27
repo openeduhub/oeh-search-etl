@@ -63,10 +63,10 @@ class LrmiBase(LomBase, JSONBase):
     educational.add_value('typicalLearningTime', self.getLRMI('timeRequired', response = response))
     return educational
 
-  def getLOMRights(self, response):
-    rights = LomBase.getLOMRights(self, response)
-    rights.add_value('description', self.getLRMI('license', response = response))
-    return rights
+  def getLicense(self, response):
+    license = LomBase.getLicense(self, response)
+    license.add_value('url', self.getLRMI('license', response = response))
+    return license
 
   def getLOMTechnical(self, response):
     technical = LomBase.getLOMTechnical(self, response)

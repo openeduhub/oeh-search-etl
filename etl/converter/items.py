@@ -76,10 +76,11 @@ class LomEducationalItem(Item):
     description = Field()
     language = Field()
 
-class LomRightsItem(Item):
-    cost = Field()
-    coyprightAndOtherRestrictions = Field()
-    description = Field()
+#please use the seperate license data
+#class LomRightsItem(Item):
+    #cost = Field()
+    #coyprightAndOtherRestrictions = Field()
+    #description = Field()
 
 class LomClassificationItem(Item):
     cost = Field()
@@ -93,8 +94,8 @@ class LomBaseItem(Item):
     lifecycle = Field(serializer=LomLifecycleItem)
     technical = Field(serializer=LomTechnicalItem)
     educational = Field(serializer=LomEducationalItem)
-    rights = Field(serializer=LomRightsItem)
-    classification = Field(serializer=LomRightsItem)
+    #rights = Field(serializer=LomRightsItem)
+    classification = Field(serializer=LomClassificationItem)
 
 class ResponseItem(Item):
     status = Field()
@@ -107,6 +108,15 @@ class ValuespaceItem(Item):
     discipline = Field(output_processor=JoinMultivalues())
     educationalContext = Field(output_processor=JoinMultivalues())
     learningResourceType = Field(output_processor=JoinMultivalues())
+    sourceContentType = Field(output_processor=JoinMultivalues())
+
+class LicenseItem(Item):
+    # url to a license description
+    url = Field()
+    # a internal constants for this license
+    internal = Field()
+    # a value of OerType (if empty, will be mapped via the given url or internal value)
+    oer = Field()
 
 class BaseItem(Item):
     sourceId = Field()
@@ -119,6 +129,7 @@ class BaseItem(Item):
     lastModified = Field()
     lom = Field(serializer=LomBaseItem)
     valuespaces = Field(serializer=ValuespaceItem)
+    license = Field(serializer=LicenseItem)
 
 class BaseItemLoader(ItemLoader):
     default_item_class = BaseItem
@@ -130,6 +141,9 @@ class MutlilangItemLoader(ItemLoader):
     default_output_processor = TakeFirst()
 class ValuespaceItemLoader(ItemLoader):
     default_item_class = ValuespaceItem
+    default_output_processor = TakeFirst()
+class LicenseItemLoader(ItemLoader):
+    default_item_class = LicenseItem
     default_output_processor = TakeFirst()
 class LomBaseItemloader(ItemLoader):
     default_item_class = LomBaseItem
@@ -152,9 +166,9 @@ class LomAgeRangeItemLoader(ItemLoader):
 class LomEducationalItemLoader(ItemLoader):
     default_item_class = LomEducationalItem
     default_output_processor = TakeFirst()
-class LomRightsItemLoader(ItemLoader):
-    default_item_class = LomRightsItem
-    default_output_processor = TakeFirst()
+#class LomRightsItemLoader(ItemLoader):
+#    default_item_class = LomRightsItem
+#    default_output_processor = TakeFirst()
 class LomClassificationItemLoader(ItemLoader):
     default_item_class = LomClassificationItem
     default_output_processor = TakeFirst()

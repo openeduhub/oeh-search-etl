@@ -21,60 +21,62 @@ class LeifiSpider(scrapy.Spider, LomBase):
        id = item.xpath('id_local//text()').get()
        if not id in ids:
          ids.append(id)
-         yield self.parse(item)
+         copyResponse = response.copy()
+         copyResponse.meta['item'] = item
+         yield self.parse(copyResponse)
 
-  def parse(self, item):
-    return LomBase.parse(self, item)
+  def parse(self, response):
+    return LomBase.parse(self, response)
 
-  def getValuespaces(self, item):
-    valuespaces = LomBase.getValuespaces(self, item)
-    text = item.xpath('systematikpfad//text()').get()
+  def getValuespaces(self, response):
+    valuespaces = LomBase.getValuespaces(self, response)
+    text = response.meta['item'].xpath('systematikpfad//text()').get()
     for entry in ProcessValuespacePipeline.valuespaces['discipline']:
       if len(list(filter(lambda x:x['@value'].casefold() in text.casefold(), entry['label']))):
         valuespaces.add_value('discipline',entry['id'])
     return valuespaces
 
-  def mapResponse(self, item):
+  def mapResponse(self, response):
     r = ResponseItemLoader()
-    r.add_value('url', requests.get(item.xpath('url_datensatz//text()').get()).content.decode('UTF-8'))
-    r.add_value('text', requests.get(item.xpath('url_datensatz//text()').get()).content.decode('UTF-8'))
+    r.add_value('url', requests.get(response.meta['item'].xpath('url_datensatz//text()').get()).content.decode('UTF-8'))
+    r.add_value('text', requests.get(response.meta['item'].xpath('url_datensatz//text()').get()).content.decode('UTF-8'))
     return r
 
-  def getId(self, item):
-    return item.xpath('id_local//text()').get()
+  def getId(self, response):
+    return response.meta['item'].xpath('id_local//text()').get()
 
-  def getHash(self, item):
-    return item.xpath('letzte_aenderung//text()').get()
+  def getHash(self, response):
+    return response.meta['item'].xpath('letzte_aenderung//text()').get()
 
-  def getBase(self, item):
-    base = LomBase.getBase(self, item)
-    base.add_value('lastModified', item.xpath('letzte_aenderung//text()').get())
+  def getBase(self, response):
+    base = LomBase.getBase(self, response)
+    base.add_value('lastModified', response.meta['item'].xpath('letzte_aenderung//text()').get())
     return base
 
-  def getLOMGeneral(self, item):
-    general = LomBase.getLOMGeneral(self, item)
-    general.add_value('title', HTMLParser().unescape(item.xpath('titel//text()').get()))
-    general.add_value('language', item.xpath('sprache//text()').get())
-    general.add_value('keyword', HTMLParser().unescape(item.xpath('schlagwort//text()').get()).split('; '))
+  def getLOMGeneral(self, response):
+    general = LomBase.getLOMGeneral(self, response)
+    general.add_value('title', HTMLParser().unescape(response.meta['item'].xpath('titel//text()').get()))
+    general.add_value('language', response.meta['item'].xpath('sprache//text()').get())
+    general.add_value('keyword', HTMLParser().unescape(response.meta['item'].xpath('schlagwort//text()').get()).split('; '))
     return general
 
-  def getLOMEducational(self, item):
-    educational = LomBase.getLOMEducational(self, item)
-    desc = item.xpath('beschreibung//text()').get().strip()
+  def getLOMEducational(self, response):
+    educational = LomBase.getLOMEducational(self, response)
+    desc = response.meta['item'].xpath('beschreibung//text()').get().strip()
     # dirty cleaning of invalid descriptions
     # not perfect yet, these objects also appear inside the content
     if not desc.startswith('swiffyobject_'):
       educational.add_value('description', HTMLParser().unescape(desc))
     return educational
 
-  def getLOMTechnical(self, item):
-    technical = LomBase.getLOMTechnical(self, item)
+  def getLOMTechnical(self, response):
+    technical = LomBase.getLOMTechnical(self, response)
     technical.add_value('format', 'text/html')
-    technical.add_value('location', item.xpath('url_datensatz//text()').get())
+    technical.add_value('location', response.meta['item'].xpath('url_datensatz//text()').get())
     return technical
     
-  def getLOMRights(self, item):
-    rights = LomBase.getLOMRights(self, item)
-    if item.xpath('rechte//text()').get() == 'Keine Angabe, es gilt die gesetzliche Regelung':
-      rights.add_value('description', Constants.LICENSE_COPYRIGHT_LAW)
-    return rights
+  def getLicense(self, response):
+    license = LomBase.getLicense(self, response)
+    if response.meta['item'].xpath('rechte//text()').get() == 'Keine Angabe, es gilt die gesetzliche Regelung':
+      license.add_value('internal', Constants.LICENSE_COPYRIGHT_LAW)
+    return license

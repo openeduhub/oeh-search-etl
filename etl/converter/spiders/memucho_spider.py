@@ -69,10 +69,10 @@ class MemuchoSpider(CrawlSpider, LomBase, JSONBase):
     technical.add_value('location', response.url)
     return technical
  
-  def getLOMRights(self, response):
-    rights = LomBase.getLOMRights(self, response)
-    rights.add_value('description', Constants.LICENSE_CC_BY_40)
-    return rights
+  def getLicense(self, response):
+    license = LomBase.getLicense(self, response)
+    license.add_value('url', Constants.LICENSE_CC_BY_40)
+    return license
     
   def getValuespaces(self, response):
     valuespaces = LomBase.getValuespaces(self, response)

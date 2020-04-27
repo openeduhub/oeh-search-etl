@@ -35,6 +35,7 @@ class LomBase:
     main = self.getBase(response)
     main.add_value('lom', self.getLOM(response).load_item())
     main.add_value('valuespaces', self.getValuespaces(response).load_item())
+    main.add_value('license', self.getLicense(response).load_item())
     logging.debug(main.load_item())
     main.add_value('response', self.mapResponse(response).load_item())
     return main.load_item()
@@ -74,7 +75,6 @@ class LomBase:
     lom.add_value('lifecycle', self.getLOMLifecycle(response).load_item())
     lom.add_value('technical', self.getLOMTechnical(response).load_item())
     lom.add_value('educational', self.getLOMEducational(response).load_item())
-    lom.add_value('rights', self.getLOMRights(response).load_item())
     lom.add_value('classification', self.getLOMClassification(response).load_item())
     return lom
 
@@ -98,8 +98,8 @@ class LomBase:
   def getLOMEducational(self, response = None):
     return LomEducationalItemLoader(response = response)
 
-  def getLOMRights(self, response = None):
-    return LomRightsItemLoader(response = response)
+  def getLicense(self, response = None):
+    return LicenseItemLoader(response = response)
 
   def getLOMClassification(self, response = None):
     return LomClassificationItemLoader(response = response)

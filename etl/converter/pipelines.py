@@ -6,7 +6,7 @@
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 
 from scrapy.exceptions import DropItem
-from converter.constants import Constants
+from converter.constants import *
 import json
 import re
 from w3lib.html import replace_escape_chars
@@ -58,30 +58,18 @@ class FilterSparsePipeline:
         
 class NormLicensePipeline(object):
     def process_item(self, item, spider):
-        if item['license']:
-            if any(x in item["license"].lower() for x in ["cc_0", "cc 0" "cc0", "public domain", "publicdomain", "zero"]):
-                item["license"] = "CC 0"
-                return item
-            elif all(x in item['license'].lower() for x in ["sa", "by"]) and not "nc" in item["license"].lower():
-                item["license"] = "CC BY-SA"
-                return item
-            elif any(x in item['license'].lower() for x in ["sa", "nd", "nc"]) == False:
-                item["license"] = "CC BY"
-                return item
-            elif all(x in item["license"].lower() for x in ["by","sa","nc"]) == True:
-                item["license"] = "CC BY-SA-NC"
-                return item
-            elif all(x in item["license"].lower() for x in ["by", "nc", "nd"]) == True:
-                item["license"] = "CC BY-NC-ND"
-                return item
-            elif "nd" and not "nc" in item["license"].lower():
-                item["license"] = "CC BY-ND"
-                return item
-            elif "nc" in item['license'].lower() and (any(x in item['license'].lower() for x in ["nd", "sa"]) == False):
-                item["license"] = "CC BY-NC"
-                return item
-            else:
-                raise DropItem("Missing or unknown license in %s" % item)
+        if 'url' in item['license'] and not 'oer' in item['license']:
+            if(
+                item['license']['url'] == Constants.LICENSE_CC_BY_40 or 
+                item['license']['url'] == Constants.LICENSE_CC_BY_SA_30 or
+                item['license']['url'] == Constants.LICENSE_CC_BY_SA_40
+            ):
+                item['license']['oer'] = OerType.ALL
+
+        return item
+            
+
+            
 # convert typicalLearningTime into a integer representing seconds
 class ConvertTimePipeline:
     def process_item(self, item, spider):
@@ -109,7 +97,7 @@ class ConvertTimePipeline:
         return item
 # generate de_DE / i18n strings for valuespace fields
 class ProcessValuespacePipeline:
-    ids = ['intendedEndUserRole', 'discipline', 'educationalContext', 'learningResourceType']
+    ids = ['intendedEndUserRole', 'discipline', 'educationalContext', 'learningResourceType', 'sourceContentType']
     valuespaces = {}
     def __init__(self):
         for v in self.ids:
@@ -243,7 +231,7 @@ class PostgresCheckPipeline(Database):
 class PostgresStorePipeline(Database):
     def process_item(self, item, spider):
         output = io.BytesIO()
-        exporter = JsonItemExporter(output, fields_to_export = ['lom','valuespaces','type','fulltext','ranking','lastModified','thumbnail'])
+        exporter = JsonItemExporter(output, fields_to_export = ['lom','valuespaces','license','type','fulltext','ranking','lastModified','thumbnail'])
         exporter.export_item(item)
         json = output.getvalue().decode('UTF-8')
         dbItem = self.findItem(item['sourceId'], spider)
@@ -252,12 +240,11 @@ class PostgresStorePipeline(Database):
         if dbItem:
             entryUUID = dbItem[0]
             logging.info('Updating item ' + title + ' (' + entryUUID + ')')
-            self.curr.execute("""UPDATE "references_metadata" SET last_fetched = now(), last_modified = now(), hash = %s, data = %s WHERE source = %s AND source_id = %s""", (
-                item['sourceId'], # source item identifier
+            self.curr.execute("""UPDATE "references_metadata" SET last_seen = now(), last_updated = now(), hash = %s, data = %s WHERE source = %s AND source_id = %s""", (
                 item['hash'], # hash
                 json,
                 spider.name,
-                item['soruceId'],
+                str(item['sourceId']),
             ))
         else:
             entryUUID = str(uuid.uuid5(uuid.NAMESPACE_URL, item['response']['url']))
@@ -267,7 +254,7 @@ class PostgresStorePipeline(Database):
             ))
             self.curr.execute("""INSERT INTO "references_metadata" VALUES (%s,%s,%s,%s,now(),now(),%s)""", (
                 spider.name, # source name
-                item['sourceId'], # source item identifier
+                str(item['sourceId']), # source item identifier
                 entryUUID,
                 item['hash'], # hash
                 json,

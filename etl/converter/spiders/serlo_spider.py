@@ -110,7 +110,7 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
     technical.add_value('size', len(response.body))
     return technical
     
-  def getLOMRights(self, response):
-    rights = LomBase.getLOMRights(self, response)
-    rights.add_value('description', Constants.LICENSE_CC_BY_SA_40)
-    return rights
+  def getLicense(self, response):
+    license = LomBase.getLicense(self, response)
+    license.add_value('url', Constants.LICENSE_CC_BY_SA_40)
+    return license

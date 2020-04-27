@@ -97,6 +97,13 @@
 					"last_updated" : { "type": "date"}
 				}
 			},
+			"license": { 
+            	"properties" : {
+            		"url" : { "type" : "keyword" },
+            		"internal" : { "type" : "keyword" },
+            		"oer" : { "type" : "keyword" }
+				}
+			},
 			"thumbnail": {
 				"properties" : {
             		"mimetype" : { "type" : "keyword" },

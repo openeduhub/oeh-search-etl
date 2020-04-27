@@ -94,9 +94,9 @@ class DigitallearninglabSpider(scrapy.Spider, LrmiBase):
     technical.replace_value('location', response.url)
     return technical
  
-  def getLOMRights(self, response):
-    rights = LrmiBase.getLOMRights(self, response)
-    return rights
+  def getLicense(self, response):
+    license = LrmiBase.getLicense(self, response)
+    return license
     
   def getValuespaces(self, response):
     valuespaces = LrmiBase.getValuespaces(self, response)

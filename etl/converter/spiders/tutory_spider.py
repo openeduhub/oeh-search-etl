@@ -53,10 +53,10 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
     valuespaces.add_value('discipline', discipline)
     return valuespaces
 
-  def getLOMRights(self, response):
-    rights = LomBase.getLOMRights(self, response)
-    rights.add_value('description', Constants.LICENSE_COPYRIGHT_LAW)
-    return rights
+  def getLicense(self, response):
+    license = LomBase.getLicense(self, response)
+    license.add_value('internal', Constants.LICENSE_COPYRIGHT_LAW)
+    return license
 
   def getLOMGeneral(self, response):
     general = LomBase.getLOMGeneral(self, response)

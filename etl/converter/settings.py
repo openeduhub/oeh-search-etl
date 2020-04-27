@@ -85,6 +85,7 @@ ITEM_PIPELINES = {
     'converter.pipelines.PostgresCheckPipeline': 0,
     'converter.pipelines.FilterSparsePipeline': 25,
     'converter.pipelines.LOMFillupPipeline': 100,
+    'converter.pipelines.NormLicensePipeline': 125,
     'converter.pipelines.ConvertTimePipeline': 200,
     'converter.pipelines.ProcessValuespacePipeline': 250,
     'converter.pipelines.ProcessThumbnailPipeline': 300,

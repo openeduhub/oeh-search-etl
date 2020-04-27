@@ -48,10 +48,10 @@ class PlanetSchuleSpider(RSSBase):
     technical.add_value('location', response.url)
     return technical
  
-  def getLOMRights(self, response):
-    rights = LomBase.getLOMRights(self, response)
-    rights.add_value('description', Constants.LICENSE_COPYRIGHT_LAW)
-    return rights
+  def getLicense(self, response):
+    license = LomBase.getLicense(self, response)
+    license.add_value('internal', Constants.LICENSE_COPYRIGHT_LAW)
+    return license
     
   def getValuespaces(self, response):
     valuespaces = RSSBase.getValuespaces(self, response)
