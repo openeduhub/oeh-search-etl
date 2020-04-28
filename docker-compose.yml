@@ -81,6 +81,19 @@ services:
       - "127.0.0.1:3000:80" # expose locally
     depends_on:
       - elasticsearch
+  editor-backend:
+    image: editor-backend
+    networks:
+      - elasticnet
+    environment:
+      - "DB_HOST=postgres"
+      - "DB_USER=collections"
+      - "DB_PASSWORD=collections"
+      - "DB_DATABASE=search"
+    ports:
+      - "127.0.0.1:3001:80" # expose locally
+    depends_on:
+      - postgres
 
 networks:
   elasticnet:
