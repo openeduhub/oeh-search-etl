@@ -6,7 +6,7 @@ class OAISodis(OAIBase):
     metadataPrefix = "oai_lom-de"
     set = "oer_mebis_activated"
 
-    name="OAISodis"
+    name="oai_sodis_spider"
     friendlyName='OAI Sodis'
     url = baseUrl
     version = '0.1'
