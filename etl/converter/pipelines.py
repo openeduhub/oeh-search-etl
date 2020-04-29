@@ -14,6 +14,7 @@ import psycopg2
 from scrapy.exporters import JsonItemExporter
 import io
 from datetime import date
+import time
 import dateutil.parser
 import logging
 from pprint import pprint
