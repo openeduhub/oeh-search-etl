@@ -15,6 +15,12 @@ class Database:
                 database = 'search'
             )
             Database.curr = self.conn.cursor()
+    def uuidExists(self, uuid):
+        Database.curr.execute("""SELECT uuid FROM "references" WHERE uuid = %s""", (
+            uuid,
+        ))
+        data = Database.curr.fetchall()
+        return len(data) > 0
     def findItem(self, id, spider):
         Database.curr.execute("""SELECT uuid, hash FROM "references_metadata" WHERE source = %s AND source_id = %s""", (
             spider.name,

@@ -164,7 +164,9 @@ class ProcessThumbnailPipeline:
                 'html5_media': 1,
                 'headers': settings.get('SPLASH_HEADERS')
             })
-        if response != None:
+        if response == None:
+            logging.error('Neither thumbnail or technical.location provided! Please provie at least one of them')
+        else:
             try:
                 if response.headers['Content-Type'] == 'image/svg+xml':
                     if len(response.content) > settings.get('THUMBNAIL_MAX_SIZE'):
@@ -209,7 +211,7 @@ class PostgresCheckPipeline(Database):
                 logging.debug("hash has changed, continuing pipelines")
             else:
                 logging.debug("hash unchanged, skip item")
-                self.update(dbItem[0])
+                # self.update(item['sourceId'], spider)
                 # for tests, we update everything for now
                 # activate this later
                 #raise DropItem()
@@ -223,11 +225,6 @@ class PostgresCheckPipeline(Database):
             spider.ranking,
         ))
         self.conn.commit()
-    def update(self, uuid):
-        self.curr.execute("""UPDATE "references" SET last_fetched = now() WHERE uuid = %s""", (
-            uuid,
-        ))
-        self.conn.commit()
 
 class PostgresStorePipeline(Database):
     def process_item(self, item, spider):
@@ -236,7 +233,9 @@ class PostgresStorePipeline(Database):
         exporter.export_item(item)
         json = output.getvalue().decode('UTF-8')
         dbItem = self.findItem(item['sourceId'], spider)
-        title = str(item['lom']['general']['title'])
+        title = '<no title>'
+        if 'title' in item['lom']['general']:
+            title = str(item['lom']['general']['title'])
         #logging.info(json)
         if dbItem:
             entryUUID = dbItem[0]
@@ -250,6 +249,8 @@ class PostgresStorePipeline(Database):
         else:
             entryUUID = str(uuid.uuid5(uuid.NAMESPACE_URL, item['response']['url']))
             logging.info('Creating item ' + title + ' (' + entryUUID + ')')
+            if self.uuidExists(entryUUID):
+                logging.warn('Possible duplicate detected for ' + entryUUID)
             self.curr.execute("""INSERT INTO "references" VALUES (%s,true,now())""", (
                 entryUUID,
             ))
