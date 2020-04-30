@@ -23,6 +23,10 @@ class Database:
         ))
         data = Database.curr.fetchall()
         return len(data) > 0
+    def deleteAll(self, spider):
+        Database.curr.execute("""DELETE FROM "references_metadata" WHERE source = %s""", (
+            spider.name,
+        ))
     def findItem(self, id, spider):
         Database.curr.execute("""SELECT uuid, hash FROM "references_metadata" WHERE source = %s AND source_id = %s""", (
             spider.name,
