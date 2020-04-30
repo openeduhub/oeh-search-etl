@@ -13,6 +13,13 @@ class LeifiSpider(scrapy.Spider, LomBase):
   friendlyName = 'LEIFIphysik'
   url = 'https://www.leifiphysik.de/'
   rssUrl = 'http://localhost/sources/leifi_feed_rss.xml'
+
+  def __init__(self, **kwargs):
+    LomBase.__init__(self, **kwargs)
+
+  def getUri(self, response):
+    return response.meta['item'].xpath('url_datensatz//text()').get()
+
   def start_requests(self):
       yield scrapy.Request(url=self.rssUrl, callback=self.parseList)
   def parseList(self, response):
@@ -38,7 +45,7 @@ class LeifiSpider(scrapy.Spider, LomBase):
 
   def mapResponse(self, response):
     r = ResponseItemLoader()
-    r.add_value('url', requests.get(response.meta['item'].xpath('url_datensatz//text()').get()).content.decode('UTF-8'))
+    r.add_value('url', self.getUri(response))
     r.add_value('text', requests.get(response.meta['item'].xpath('url_datensatz//text()').get()).content.decode('UTF-8'))
     return r
 
