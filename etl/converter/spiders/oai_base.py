@@ -111,6 +111,7 @@ class OAIBase(scrapy.Spider, LomBase):
         valuespaces.add_value('intendedEndUserRole', ier)
         context = record.xpath('metadata/lom/educational/context/value//text()').getall()
         valuespaces.add_value('educationalContext',context)
-
+        taxonIds = record.xpath('metadata/lom/classification/taxonPath/taxon/id//text()').getall()
+        valuespaces.add_value('discipline', taxonIds)
         return valuespaces
 
