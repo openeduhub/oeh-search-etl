@@ -132,3 +132,14 @@ class OAIBase(scrapy.Spider, LomBase):
         valuespaces.add_value('discipline', taxonIds)
         return valuespaces
 
+    def getLicense(self, response = None):
+        license = LomBase.getLicense(self,response);
+        record = response.xpath('//OAI-PMH/GetRecord/record')
+        rightsDescriptions = record.xpath('metadata/lom/rights/description/string//text()').getall()
+        if rightsDescriptions:
+            separator = "; "
+            license.add_value('internal', separator.join(rightsDescriptions));
+        return license
+
+
+
