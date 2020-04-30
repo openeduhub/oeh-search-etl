@@ -41,6 +41,8 @@ class LOMFillupPipeline:
 class FilterSparsePipeline:
     def process_item(self, item, spider):
         valid = False
+        if not 'location' in item['lom']['technical']:
+            raise DropItem('Entry ' + item['lom']['general']['title'] + ' has no technical location')            
         # pass through explicit uuid elements
         if 'uuid' in item:
             return item
