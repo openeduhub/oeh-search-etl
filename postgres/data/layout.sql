@@ -40,13 +40,13 @@ CREATE TABLE "references_metadata" (
   PRIMARY KEY ("source", "source_id")
 );
 
-ALTER TABLE "sources" ADD FOREIGN KEY ("id") REFERENCES "references_metadata" ("source");
+-- ALTER TABLE "sources" ADD FOREIGN KEY ("id") REFERENCES "references_metadata" ("source");
 
-ALTER TABLE "references" ADD FOREIGN KEY ("uuid") REFERENCES "references_metadata" ("uuid");
+-- ALTER TABLE "references" ADD FOREIGN KEY ("uuid") REFERENCES "references_metadata" ("uuid");
 
-ALTER TABLE "collections" ADD FOREIGN KEY ("uuid") REFERENCES "collections_references" ("collection_uuid");
+-- ALTER TABLE "collections" ADD FOREIGN KEY ("uuid") REFERENCES "collections_references" ("collection_uuid");
 
-ALTER TABLE "references" ADD FOREIGN KEY ("uuid") REFERENCES "collections_references" ("reference_uuid");
+-- ALTER TABLE "references" ADD FOREIGN KEY ("uuid") REFERENCES "collections_references" ("reference_uuid");
 
 
 -- add test data
