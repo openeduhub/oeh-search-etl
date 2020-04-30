@@ -6,6 +6,7 @@ from converter.spiders.json_base import JSONBase;
 import json
 import time
 import logging
+from html.parser import HTMLParser
 
 # base spider mapping data via LRMI inside the html pages
 # Please override the lrmi_path if necessary and add your sitemap_urls 
@@ -13,6 +14,9 @@ class LrmiBase(LomBase, JSONBase):
   friendlyName = 'LRMI-Header Based spider'
   lrmi_path = '//script[@type="application/ld+json"]//text()'
   sitemap_urls = []
+
+  def __init__(self, **kwargs):
+    LomBase.__init__(self, **kwargs)
 
   def getLRMI(self, *params, response):
     try:
@@ -23,7 +27,7 @@ class LrmiBase(LomBase, JSONBase):
     for l in lrmi:
       value = JSONBase.get(self, *params, json = l)
       if value != None:
-        return value
+        return HTMLParser().unescape(value)
     return None
    
   def parse(self, response):
