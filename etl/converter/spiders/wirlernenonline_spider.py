@@ -17,7 +17,7 @@ from converter.constants import *;
 class DigitallearninglabSpider(scrapy.Spider, LomBase, JSONBase):
   name='wirlernenonline_spider'
   friendlyName='WirLernenOnline'
-  url = 'WirLernenOnline'
+  url = 'https://wirlernenonline.de/'
   version = '0.1.2'
   apiUrl = 'https://wirlernenonline.de/wp-json/wp/v2/%type/?per_page=50&page=%page'
   keywords = {}
