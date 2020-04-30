@@ -18,6 +18,9 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
   url = 'https://de.serlo.org'
   version = '0.1.0'
 
+  def __init__(self, **kwargs):
+    LomBase.__init__(self, **kwargs)
+
   def start_requests(self):
       url = self.url + '/entity/api/json/export/article'
       # current dummy fallback since the Serlo API is basically down
@@ -26,7 +29,7 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
 
   # some fields are having xml entities (for whatever reason), we will unescape them here
   def get(self, *params, response):
-    data = JSONBase.get(self, *params, json = response.meta['json'] if response else self.json)
+    data = JSONBase.get(self, *params, json = response.meta['json'])
     try:
       return HTMLParser().unescape(data)
     except:
@@ -41,10 +44,10 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
   def parseList(self, response):
       data = json.loads(response.body)
       for j in data:
-        url = self.url + j['link'] + '?contentOnly'
-        self.json = j
-        if self.hasChanged():
-          yield scrapy.Request(url=url, callback=self.parse, meta = {'json': j, 'url': url})
+        responseCopy = response.replace(url = self.url + j['link'] + '?contentOnly')
+        responseCopy.meta['json'] = j
+        if self.hasChanged(responseCopy):
+          yield scrapy.Request(url = responseCopy.url, callback = self.parse, meta = {'json': j, 'url': responseCopy.url})
 
   def getId(self, response = None):
     return self.get('guid', response = response)
@@ -53,6 +56,9 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
     return self.version + self.get('lastModified.date', response = response)
 
   def parse(self, response):
+    if not self.get('description', response = response):
+      logging.info('skipping empty entry in serlo')
+      return None
     return LomBase.parse(self, response)
 
   def getBase(self, response):
