@@ -256,9 +256,10 @@ class PostgresStorePipeline(Database):
             logging.info('Creating item ' + title + ' (' + entryUUID + ')')
             if self.uuidExists(entryUUID):
                 logging.warn('Possible duplicate detected for ' + entryUUID)
-            self.curr.execute("""INSERT INTO "references" VALUES (%s,true,now())""", (
-                entryUUID,
-            ))
+            else:
+                self.curr.execute("""INSERT INTO "references" VALUES (%s,true,now())""", (
+                    entryUUID,
+                ))
             self.curr.execute("""INSERT INTO "references_metadata" VALUES (%s,%s,%s,%s,now(),now(),%s)""", (
                 spider.name, # source name
                 str(item['sourceId']), # source item identifier
