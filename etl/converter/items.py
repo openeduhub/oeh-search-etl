@@ -131,6 +131,7 @@ class BaseItem(Item):
     lom = Field(serializer=LomBaseItem)
     valuespaces = Field(serializer=ValuespaceItem)
     license = Field(serializer=LicenseItem)
+    publisher = Field()
 
 class BaseItemLoader(ItemLoader):
     default_item_class = BaseItem
