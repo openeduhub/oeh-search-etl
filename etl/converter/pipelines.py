@@ -71,7 +71,14 @@ class NormLicensePipeline(object):
                 item['license']['url'] == Constants.LICENSE_CC_BY_SA_40
             ):
                 item['license']['oer'] = OerType.ALL
-
+       
+        if 'internal' in item['license'] and not 'oer' in item['license']:
+            internal = item['license']['internal'].lower()
+            if(
+                'cc-by-sa' in internal or
+                'cc-0' in internal
+            ):
+                item['license']['oer'] = OerType.ALL
         return item
             
 
