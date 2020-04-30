@@ -48,6 +48,15 @@ class OAIBase(scrapy.Spider, LomBase):
         response.selector.remove_namespaces()
         record = response.xpath('//OAI-PMH/GetRecord/record')
         base.add_value('fulltext', record.xpath('metadata/lom/general/description/string//text()').extract_first())
+        
+        #publisher
+        contributers = record.xpath('metadata/lom/lifeCycle/contribute')
+        for contributer in contributers:
+           role = contributer.xpath('role/value//text()').extract_first()
+           if role == 'publisher':
+               vcardStr = contributer.xpath('entity//text()').extract_first()
+               vcard = vobject.readOne(vcardStr)      
+               base.add_value('publisher',vcard.fn.value)
         return base
 
     def getLOMGeneral(self, response):
