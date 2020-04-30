@@ -16,6 +16,10 @@ class LomBase:
   def __init__(self, **kwargs):
     if 'uuid' in kwargs:
       self.uuid = kwargs['uuid']
+    if 'cleanrun' in kwargs and kwargs['cleanrun'] == 'true':
+      logging.info('cleanrun requested, will delete previously scrapped data for crawler ' + self.name)
+      Database().deleteAll(self)
+
 
   # override to improve performance and automatically handling id
   def getId(self, response = None):
