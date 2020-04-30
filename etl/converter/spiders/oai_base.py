@@ -9,6 +9,16 @@ class OAIBase(scrapy.Spider, LomBase):
     metadataPrefix = None
     set = None
 
+    def getId(self, response):
+        response.selector.remove_namespaces()
+        record = response.xpath('//OAI-PMH/GetRecord/record')
+        return record.xpath('header/identifier//text()').extract_first()
+
+    def getHash(self, response):
+        response.selector.remove_namespaces()
+        record = response.xpath('//OAI-PMH/GetRecord/record')
+        return record.xpath('header/datestamp//text()').extract_first() + self.version
+
     def start_requests(self):
         listIdentifiersUrl = self.baseUrl + "?verb=" + self.verb + "&set=" + self.set +"&metadataPrefix=" + self.metadataPrefix
         logging.info('OAI starting at ' + listIdentifiersUrl)
@@ -34,11 +44,9 @@ class OAIBase(scrapy.Spider, LomBase):
         return lom
 
     def getBase(self, response):
+        base = LomBase.getBase(self, response)
         response.selector.remove_namespaces()
         record = response.xpath('//OAI-PMH/GetRecord/record')
-        base = BaseItemLoader()
-        base.add_value('sourceId', record.xpath('header/identifier//text()').extract_first())
-        base.add_value('hash', record.xpath('header/identifier//text()').extract_first()+record.xpath('header/datestamp//text()').extract_first())
         base.add_value('fulltext', record.xpath('metadata/lom/general/description/string//text()').extract_first())
         return base
 
