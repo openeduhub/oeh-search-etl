@@ -20,3 +20,16 @@ class OAISodis(OAIBase):
                 thumbUrl = relation.xpath('resource/description/string//text()').extract_first()
                 base.add_value('thumbnail', thumbUrl)
         return base
+
+    def parseRecord(self, response):    
+        lom = OAIBase.parseRecord(self, response)
+
+        if 'publisher' in lom:
+            publisher = lom['publisher']
+            if publisher:
+                publisher = publisher.lower()
+                if 'siemens' in publisher:
+                    self.logger.info('PUBLISHER is siemens return None: %s',publisher);
+                    return None
+
+        return lom
