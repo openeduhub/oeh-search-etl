@@ -17,8 +17,12 @@ class DigitallearninglabSpider(scrapy.Spider, LrmiBase):
   name='digitallearninglab_spider'
   friendlyName='digital.learning.lab'
   url = 'https://digitallearninglab.de'
-  version = '0.1.0'
+  version = '0.1.1'
   apiUrl = 'https://digitallearninglab.de/api/%type?q=&sorting=latest&page=%page'
+
+  def __init__(self, **kwargs):
+    LrmiBase.__init__(self, **kwargs)
+
   def mapResponse(self, response):
       return LrmiBase.mapResponse(self, response)
 
@@ -50,10 +54,10 @@ class DigitallearninglabSpider(scrapy.Spider, LrmiBase):
     results = data.get('results')
     if results:
       for item in results:
-        copyResponse = response.copy()
+        copyResponse = response.replace(url = self.url + item.get('url'))
         copyResponse.meta['item'] = item
         if self.hasChanged(copyResponse):
-          yield scrapy.Request(url = self.url + item.get('url'), callback = self.handleEntry, meta = {
+          yield scrapy.Request(url = copyResponse.url, callback = self.handleEntry, meta = {
             'item': item,
             'type': response.meta['type']
           })
