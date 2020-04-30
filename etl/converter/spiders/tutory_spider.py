@@ -19,6 +19,11 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
   friendlyName = 'tutory'
   url = 'https://www.tutory.de/'
   baseUrl = 'https://www.tutory.de/api/v1/'
+  version = '0.1.0'
+
+  def __init__(self, **kwargs):
+    LomBase.__init__(self, **kwargs)
+
   def start_requests(self):
       url = self.baseUrl + 'worksheet?pageSize=999999'
       yield scrapy.Request(url=url, callback=self.parseList)
@@ -26,30 +31,30 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
   def parseList(self, response):
       data = json.loads(response.body)
       for j in data['worksheets']:
-        self.item = j
-        if self.hasChanged(j):
-          url = self.url+ 'worksheet/' + j['id']
-          yield scrapy.Request(url=url, callback=self.parse, meta = {'item': j})
+        responseCopy = response.replace(url = self.url+ 'worksheet/' + j['id'])
+        responseCopy.meta['item'] = j
+        if self.hasChanged(responseCopy):
+          yield scrapy.Request(url=responseCopy.url, callback=self.parse, meta = {'item': j})
 
   def getId(self, response):
-    return str(self.item['id'])
+    return str(response.meta['item']['id'])
 
   def getHash(self, response):
-    return self.item['updatedAt']
+    return response.meta['item']['updatedAt'] + self.version
 
   def parse(self, response):
-    self.item = response.meta['item']
+    print(response.url)
     return LomBase.parse(self, response)
 
   def getBase(self, response):
     base = LomBase.getBase(self, response)
-    base.add_value('lastModified', self.item['updatedAt'])
-    base.add_value('thumbnail', self.url + 'worksheet/' + self.item['id'] + '.jpg?width=1000')
+    base.add_value('lastModified', response.meta['item']['updatedAt'])
+    base.add_value('thumbnail', self.url + 'worksheet/' + response.meta['item']['id'] + '.jpg?width=1000')
     return base
 
   def getValuespaces(self, response):
     valuespaces = LomBase.getValuespaces(self, response)
-    discipline = list(map(lambda x: x['code'],filter(lambda x: x['type'] == 'subject', self.item['metaValues'])))
+    discipline = list(map(lambda x: x['code'],filter(lambda x: x['type'] == 'subject', response.meta['item']['metaValues'])))
     valuespaces.add_value('discipline', discipline)
     return valuespaces
 
@@ -60,13 +65,13 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
 
   def getLOMGeneral(self, response):
     general = LomBase.getLOMGeneral(self, response)
-    general.add_value('title', self.item['name'])
+    general.add_value('title', response.meta['item']['name'])
     return general
 
   def getLOMEducational(self, response):
     educational = LomBase.getLOMEducational(self, response)
-    if self.item['description'] != '':
-      educational.add_value('description', self.item['description'])
+    if response.meta['item']['description'] != '':
+      educational.add_value('description', response.meta['item']['description'])
     else:
       html = self.getUrlData(response.url)['html']
       data = Selector(text=html).xpath('//ul[contains(@class,"worksheet-pages")]//text()').getall()

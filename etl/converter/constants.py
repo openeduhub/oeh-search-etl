@@ -10,6 +10,7 @@ class Constants:
     TYPE_SOURCE = 'SOURCE'
 
     SOURCE_TYPE_SPIDER = 1
+    SOURCE_TYPE_EDITORIAL = 2
 
 class OerType:
     NONE = 'NONE'

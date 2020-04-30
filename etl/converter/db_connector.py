@@ -1,5 +1,5 @@
 import psycopg2
-
+import uuid
 class Database:
     conn = None
     curr = None
@@ -15,6 +15,8 @@ class Database:
                 database = 'search'
             )
             Database.curr = self.conn.cursor()
+    def buildUUID(self, url):
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, url))
     def uuidExists(self, uuid):
         Database.curr.execute("""SELECT uuid FROM "references" WHERE uuid = %s""", (
             uuid,

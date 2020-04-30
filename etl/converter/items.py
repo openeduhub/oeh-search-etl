@@ -120,6 +120,7 @@ class LicenseItem(Item):
 
 class BaseItem(Item):
     sourceId = Field()
+    uuid = Field() # explicit uuid of the target element, please only set this if you actually know the uuid of the internal document
     hash = Field()
     type = Field()
     response = Field(serializer=ResponseItem)

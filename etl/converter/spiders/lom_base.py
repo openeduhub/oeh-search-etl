@@ -12,6 +12,11 @@ class LomBase:
   ranking = 1
   version = '1.0' # you can override this locally and use it for your getHash() function
 
+  uuid = None
+  def __init__(self, **kwargs):
+    if 'uuid' in kwargs:
+      self.uuid = kwargs['uuid']
+
   # override to improve performance and automatically handling id
   def getId(self, response = None):
     return None
@@ -19,7 +24,19 @@ class LomBase:
   def getHash(self, response = None):
     return None
 
+  # return the unique uri for the entry
+  def getUri(self, response = None):
+    return response.url
+
+  def getUUID(self, response = None):
+    return Database().buildUUID(self.getUri(response))
+
   def hasChanged(self, response = None):
+    if self.uuid:
+      if  self.getUUID(response) == self.uuid:
+        logging.info('matching requested id: ' + self.uuid)
+        return True
+      return False
     db = Database().findItem(self.getId(response),self)
     changed = db == None or db[1] != self.getHash(response)
     if not changed:
@@ -63,7 +80,7 @@ class LomBase:
     r.add_value('html',data['html'])
     r.add_value('text',data['text'])
     r.add_value('headers',response.headers)
-    r.add_value('url',response.url)
+    r.add_value('url',self.getUri(response))
     return r
 
   def getValuespaces(self, response):

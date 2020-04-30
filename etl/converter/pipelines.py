@@ -41,6 +41,9 @@ class LOMFillupPipeline:
 class FilterSparsePipeline:
     def process_item(self, item, spider):
         valid = False
+        # pass through explicit uuid elements
+        if 'uuid' in item:
+            return item
         try:
             valid = item['lom']['general']['keyword']
         except:
@@ -236,7 +239,7 @@ class PostgresStorePipeline(Database):
         title = '<no title>'
         if 'title' in item['lom']['general']:
             title = str(item['lom']['general']['title'])
-        #logging.info(json)
+        #logging.info(item['lom'])
         if dbItem:
             entryUUID = dbItem[0]
             logging.info('Updating item ' + title + ' (' + entryUUID + ')')
@@ -247,7 +250,9 @@ class PostgresStorePipeline(Database):
                 str(item['sourceId']),
             ))
         else:
-            entryUUID = str(uuid.uuid5(uuid.NAMESPACE_URL, item['response']['url']))
+            entryUUID = self.buildUUID(item['response']['url'])
+            if 'uuid' in item:
+                entryUUID = item['uuid']
             logging.info('Creating item ' + title + ' (' + entryUUID + ')')
             if self.uuidExists(entryUUID):
                 logging.warn('Possible duplicate detected for ' + entryUUID)
