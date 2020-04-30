@@ -29,7 +29,8 @@ class OAISodis(OAIBase):
             if publisher:
                 publisher = publisher.lower()
                 if 'siemens' in publisher:
-                    self.logger.info('PUBLISHER is siemens return None: %s',publisher);
+                    id = lom['sourceId']
+                    self.logger.info('PUBLISHER contains siemens return None: %s',id);
                     return None
 
         return lom
