@@ -80,7 +80,7 @@ class OAIBase(scrapy.Spider, LomBase):
         technical = LomBase.getLOMTechnical(response)
         technical.add_value('format', record.xpath('metadata/lom/technical/format//text()').extract_first())
         technical.add_value('size', record.xpath('metadata/lom/technical/size//text()').extract_first())
-        technical.add_value('size', record.xpath('metadata/lom/technical/location//text()').extract_first())
+        technical.add_value('location', record.xpath('metadata/lom/technical/location//text()').extract_first())
         return technical
 
     def getLOMLifecycle(self, response):
