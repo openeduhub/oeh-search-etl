@@ -23,13 +23,14 @@ class OAIBase(scrapy.Spider, LomBase):
         listIdentifiersUrl = self.baseUrl + "?verb=" + self.verb + "&set=" + self.set +"&metadataPrefix=" + self.metadataPrefix
         logging.info('OAI starting at ' + listIdentifiersUrl)
         yield scrapy.Request(url=listIdentifiersUrl, callback=self.parse)
-
+    def getRecordUrl(self, identifier):
+        return self.baseUrl +"?verb=GetRecord&identifier=" +identifier+"&metadataPrefix="+self.metadataPrefix
     def parse(self, response):
         response.selector.remove_namespaces()
         for header in response.xpath('//OAI-PMH/ListIdentifiers/header'):
 
             identifier = header.xpath('identifier//text()').extract_first()
-            getrecordUrl = self.baseUrl +"?verb=GetRecord&identifier=" +identifier+"&metadataPrefix="+self.metadataPrefix
+            getrecordUrl = self.getRecordUrl(identifier)
             self.logger.info('getrecordUrl: %s', getrecordUrl)
             yield scrapy.Request(url=getrecordUrl, callback=self.parseRecord)
 
