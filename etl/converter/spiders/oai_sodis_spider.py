@@ -8,7 +8,7 @@ class OAISodis(OAIBase):
 
     name="oai_sodis_spider"
     friendlyName='FWU Sodis Contentpool'
-    url = baseUrl
+    url = "https://fwu.de/"
     version = '0.1'
 
     #def getRecordUrl(self, identifier):
