@@ -11,8 +11,8 @@ class OAISodis(OAIBase):
     url = baseUrl
     version = '0.1'
 
-    def getRecordUrl(self, identifier):
-        return self.baseUrl +"?verb=GetRecord&identifier=" +identifier+"&metadataPrefix="+self.metadataPrefix+"&set="+self.set
+    #def getRecordUrl(self, identifier):
+    #    return self.baseUrl +"?verb=GetRecord&identifier=" +identifier+"&metadataPrefix="+self.metadataPrefix+"&set="+self.set
 
     def getBase(self, response):
         base = OAIBase.getBase(self, response)
