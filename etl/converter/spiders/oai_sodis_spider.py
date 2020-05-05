@@ -26,14 +26,16 @@ class OAISodis(OAIBase):
 
     def parseRecord(self, response):    
         lom = OAIBase.parseRecord(self, response)
-
-        if 'publisher' in lom:
-            publisher = lom['publisher']
-            if publisher:
-                publisher = publisher.lower()
-                if 'siemens' in publisher:
-                    id = lom['sourceId']
-                    self.logger.info('PUBLISHER contains siemens return None: %s',id);
-                    return None
-
+        try:
+            if 'publisher' in lom:
+                publisher = lom['publisher']
+                if publisher:
+                    publisher = publisher.lower()
+                    if 'siemens' in publisher:
+                        id = lom['sourceId']
+                        self.logger.info('PUBLISHER contains siemens return None: %s',id);
+                        return None
+        except:
+            self.logger.info('PUBLISHER was not parsable, will skip entry')
+            return None
         return lom

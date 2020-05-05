@@ -11,13 +11,19 @@ class OAIBase(scrapy.Spider, LomBase):
 
     def getId(self, response):
         response.selector.remove_namespaces()
-        record = response.xpath('//OAI-PMH/GetRecord/record')
-        return record.xpath('header/identifier//text()').extract_first()
+        if 'header' in response.meta:
+            header = response.meta['header']
+        else:
+            header = response.xpath('//OAI-PMH/GetRecord/record/header')
+        return header.xpath('identifier//text()').extract_first()
 
     def getHash(self, response):
         response.selector.remove_namespaces()
-        record = response.xpath('//OAI-PMH/GetRecord/record')
-        return record.xpath('header/datestamp//text()').extract_first() + self.version
+        if 'header' in response.meta:
+            header = response.meta['header']
+        else:
+            header = response.xpath('//OAI-PMH/GetRecord/record/header')        
+        return header.xpath('datestamp//text()').extract_first() + self.version
 
     def start_requests(self):
         listIdentifiersUrl = self.baseUrl + "?verb=" + self.verb + "&set=" + self.set +"&metadataPrefix=" + self.metadataPrefix
@@ -28,10 +34,13 @@ class OAIBase(scrapy.Spider, LomBase):
     def parse(self, response):
         response.selector.remove_namespaces()
         for header in response.xpath('//OAI-PMH/ListIdentifiers/header'):
+            copyResponse = response.copy()
+            copyResponse.meta['header'] = header
+            if self.hasChanged(copyResponse):
+                identifier = header.xpath('identifier//text()').extract_first()
+                getrecordUrl = self.getRecordUrl(identifier)
+                self.logger.debug('getrecordUrl: %s', getrecordUrl)
 
-            identifier = header.xpath('identifier//text()').extract_first()
-            getrecordUrl = self.getRecordUrl(identifier)
-            self.logger.info('getrecordUrl: %s', getrecordUrl)
             yield scrapy.Request(url=getrecordUrl, callback=self.parseRecord)
 
         resumptionToken = response.xpath('//OAI-PMH/ListIdentifiers/resumptionToken//text()').extract_first()
