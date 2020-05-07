@@ -37,9 +37,9 @@ class ValuespaceHelper:
         if int(range[0])<=10:
             context.append('Grundschule')
         if int(range[1])>=10 and int(range[0])<=16:
-            context.append('Sekundarstufe 1')
+            context.append('Sekundarstufe I')
         if int(range[0])>=16 or int(range[1])>=18:
-            context.append('Sekundarstufe 2')
+            context.append('Sekundarstufe II')
         if len(context):
             return context
         return None
