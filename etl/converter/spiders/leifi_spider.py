@@ -65,16 +65,12 @@ class LeifiSpider(scrapy.Spider, LomBase):
     general.add_value('title', HTMLParser().unescape(response.meta['item'].xpath('titel//text()').get()))
     general.add_value('language', response.meta['item'].xpath('sprache//text()').get())
     general.add_value('keyword', HTMLParser().unescape(response.meta['item'].xpath('schlagwort//text()').get()).split('; '))
-    return general
-
-  def getLOMEducational(self, response):
-    educational = LomBase.getLOMEducational(self, response)
     desc = response.meta['item'].xpath('beschreibung//text()').get().strip()
     # dirty cleaning of invalid descriptions
     # not perfect yet, these objects also appear inside the content
     if not desc.startswith('swiffyobject_'):
-      educational.add_value('description', HTMLParser().unescape(desc))
-    return educational
+      general.add_value('description', HTMLParser().unescape(desc))
+    return general
 
   def getLOMTechnical(self, response):
     technical = LomBase.getLOMTechnical(self, response)

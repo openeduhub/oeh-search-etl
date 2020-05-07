@@ -102,12 +102,8 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
     general = LomBase.getLOMGeneral(self, response = response)
     general.add_value('title', self.get('title', response = response))
     general.add_value('keyword', self.getKeywords(response))
+    general.add_value('description', self.get('description', response = response))
     return general
-
-  def getLOMEducational(self, response):
-    educational = LomBase.getLOMEducational(self, response)
-    educational.add_value('description', self.get('description', response = response))
-    return educational
 
   def getLOMTechnical(self, response):
     technical = LomBase.getLOMTechnical(self, response)

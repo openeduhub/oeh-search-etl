@@ -83,14 +83,9 @@ class DigitallearninglabSpider(scrapy.Spider, LrmiBase):
   def getLOMGeneral(self, response):
     general = LrmiBase.getLOMGeneral(self, response)
     general.replace_value('title', HTMLParser().unescape(response.meta['item'].get('name').strip()))
+    general.add_value('description', HTMLParser().unescape(response.meta['item'].get('teaser')))
     #general.add_value('keyword', list(filter(lambda x: x,map(lambda x: x.strip(), response.xpath('//*[@id="ContentModuleApp"]//*[@class="topic-name"]//text()').getall()))))
     return general
-    
-
-  def getLOMEducational(self, response):
-    educational = LrmiBase.getLOMEducational(self, response)
-    educational.add_value('description', HTMLParser().unescape(response.meta['item'].get('teaser')))
-    return educational
 
   def getLOMTechnical(self, response):
     technical = LrmiBase.getLOMTechnical(self, response)
