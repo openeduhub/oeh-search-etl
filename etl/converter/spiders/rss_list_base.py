@@ -63,6 +63,6 @@ class RSSListBase(RSSBase, LomBase):
             self.getCSVValue(response, CSVBase.COLUMN_TYPICAL_AGE_RANGE_TO)[0]
             ]))
         
-        valuespaces.add_value('discipline', self.getCSVValue(response, CSVBase.COLUMN_TYPICAL_DISCIPLINE))
+        valuespaces.add_value('discipline', self.getCSVValue(response, CSVBase.COLUMN_DISCIPLINE))
         valuespaces.add_value('learningResourceType', self.getCSVValue(response, CSVBase.COLUMN_LEARNING_RESOURCE_TYPE))
         return valuespaces

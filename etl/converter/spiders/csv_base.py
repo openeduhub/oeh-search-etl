@@ -17,9 +17,10 @@ class CSVBase(LomBase):
     COLUMN_DESCRIPTION = 'description'
     COLUMN_THUMBNAIL = 'thumbnail'
     COLUMN_KEYWORD = 'keyword'
+    COLUMN_EDUCATIONAL_CONTEXT = 'educationalContext'
     COLUMN_TYPICAL_AGE_RANGE_FROM = 'typicalAgeRangeFrom'
     COLUMN_TYPICAL_AGE_RANGE_TO = 'typicalAgeRangeTo'
-    COLUMN_TYPICAL_DISCIPLINE = 'discipline'
+    COLUMN_DISCIPLINE = 'discipline'
     COLUMN_LEARNING_RESOURCE_TYPE = 'learningResourceType'
     COLUMN_LANGUAGE = 'language'
     COLUMN_LICENSE = 'license'
@@ -32,8 +33,8 @@ class CSVBase(LomBase):
                 'text': key.strip(),
                 'list': list(map(lambda x: x.strip(),key.split(";")))
             }
-            if len(list(filter(lambda x: x != '', transformed['list']))) == 0:
-                transformed['list'] = None
+            if len(list(filter(lambda x: x != '', transformed[self.mappings[i]]['list']))) == 0:
+                transformed[self.mappings[i]]['list'] = None
             i += 1
         return transformed
     def readCSV(self, csv, skipLines = 1):
@@ -74,6 +75,14 @@ class CSVBase(LomBase):
         license = LomBase.getLicense(self, response)
         license.add_value('internal', response.meta['row'][CSVBase.COLUMN_LICENSE]['text'])
         return license
+    def getLOMEducational(self, response):
+        educational = LomBase.getLOMEducational(self, response)
+        tar = LomAgeRangeItemLoader()
+        response.meta['row'][CSVBase.COLUMN_TYPICAL_AGE_RANGE_TO]['text']
+        tar.add_value('fromRange',response.meta['row'][CSVBase.COLUMN_TYPICAL_AGE_RANGE_FROM]['text'])
+        tar.add_value('toRange',response.meta['row'][CSVBase.COLUMN_TYPICAL_AGE_RANGE_TO]['text'])
+        educational.add_value('typicalAgeRange',tar.load_item())
+        return educational
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
@@ -83,13 +92,7 @@ class CSVBase(LomBase):
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
-        try:
-            valuespaces.add_value('educationalContext', ValuespaceHelper.educationalContextByAgeRange([
-                response.meta['row'][CSVBase.COLUMN_TYPICAL_AGE_RANGE_FROM]['text'], 
-                response.meta['row'][CSVBase.COLUMN_TYPICAL_AGE_RANGE_TO]['text']
-                ]))
-        except:
-            pass
-        valuespaces.add_value('discipline', response.meta['row'][CSVBase.COLUMN_TYPICAL_DISCIPLINE]['list'])
+        valuespaces.add_value('educationalContext', response.meta['row'][CSVBase.COLUMN_EDUCATIONAL_CONTEXT]['list'])
+        valuespaces.add_value('discipline', response.meta['row'][CSVBase.COLUMN_DISCIPLINE]['list'])
         valuespaces.add_value('learningResourceType', response.meta['row'][CSVBase.COLUMN_LEARNING_RESOURCE_TYPE]['list'])
         return valuespaces
