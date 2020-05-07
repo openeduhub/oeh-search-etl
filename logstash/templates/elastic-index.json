@@ -54,6 +54,20 @@
 					}
 				  }
 				}
+			},
+			{
+				"valuespaces_raw": {
+					"match_mapping_type": "string",
+					"match":   "valuespaces_raw.*",
+					"mapping": {
+					  "type": "text",
+					  "fields": {
+						"keyword": { 
+						  "type":  "keyword"
+						}
+					}
+				  }
+				}
 			}
 		  ],
         "properties" : {

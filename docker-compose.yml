@@ -36,6 +36,15 @@ services:
     restart: always
     volumes:
       - pg-data:/var/lib/postgresql/data
+  valuespace-converter:
+    build:
+      context: ./valuespace-converter
+      dockerfile: valuespace-converter.Dockerfile
+    networks:
+      - elasticnet
+    ports:
+      - "5010:5010" # exposte to host
+    restart: on-failure
   logstash:
     build:
       context: ./logstash
