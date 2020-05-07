@@ -49,15 +49,11 @@ class RSSBase(CrawlSpider, LomBase):
         general.add_value('identifier', response.meta['item'].xpath('guid//text()').get())
         general.add_value('title', response.meta['item'].xpath('title//text()').get())  
         general.add_value('language', self.commonProperties['language'])
-        return general
-        
-    def getLOMEducational(self, response):
-        educational = LomBase.getLOMEducational(self, response)
         description = response.meta['item'].xpath('description//text()').get()
         if not description:
             description = response.meta['item'].xpath('//*[name()="summary"]//text()').get()
-        educational.add_value('description', description)
-        return educational
+        general.add_value('description', description)
+        return general
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)

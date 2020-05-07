@@ -88,13 +88,9 @@ class DigitallearninglabSpider(scrapy.Spider, LomBase, JSONBase):
     if keywords:
       keywords = list(map(lambda x: self.keywords[x], keywords))
       general.add_value('keyword', keywords)
+    general.add_value('description', HTMLParser().unescape(self.get('acf.short_text', json = response.meta['item'])))
     return general
     
-
-  def getLOMEducational(self, response):
-    educational = LomBase.getLOMEducational(self, response)
-    educational.add_value('description', HTMLParser().unescape(self.get('acf.short_text', json = response.meta['item'])))
-    return educational
 
   def getLOMTechnical(self, response):
     technical = LomBase.getLOMTechnical(self, response)

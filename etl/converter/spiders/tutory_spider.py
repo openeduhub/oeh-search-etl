@@ -66,12 +66,8 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
   def getLOMGeneral(self, response):
     general = LomBase.getLOMGeneral(self, response)
     general.add_value('title', response.meta['item']['name'])
-    return general
-
-  def getLOMEducational(self, response):
-    educational = LomBase.getLOMEducational(self, response)
     if response.meta['item']['description'] != '':
-      educational.add_value('description', response.meta['item']['description'])
+      general.add_value('description', response.meta['item']['description'])
     else:
       html = self.getUrlData(response.url)['html']
       data = Selector(text=html).xpath('//ul[contains(@class,"worksheet-pages")]//text()').getall()
@@ -82,8 +78,9 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
 
       text = ' '.join(data)
       text = text[:1000]
-      educational.add_value('description', text)
-    return educational
+      general.add_value('description', text)
+    return general
+
 
   def getLOMTechnical(self, response):
     technical = LomBase.getLOMTechnical(self, response)

@@ -54,6 +54,7 @@ class LrmiBase(LomBase, JSONBase):
     general.add_value('title', self.getLRMI('name', response = response))
     general.add_value('keyword', self.getLRMI('keywords', response = response))
     general.add_value('language', self.getLRMI('inLanguage', response = response))
+    general.add_value('description', self.getLRMI('description','about', response = response))
     return general
   def getValuespaces(self, response):
     valuespaces = LomBase.getValuespaces(self, response)
@@ -62,7 +63,6 @@ class LrmiBase(LomBase, JSONBase):
 
   def getLOMEducational(self, response):
     educational = LomBase.getLOMEducational(self, response)
-    educational.add_value('description', self.getLRMI('description','about', response = response))
     educational.add_value('learningResourceType', self.getLRMI('learningResourceType', response = response))
     educational.add_value('typicalLearningTime', self.getLRMI('timeRequired', response = response))
     return educational

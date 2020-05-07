@@ -54,14 +54,10 @@ class MemuchoSpider(CrawlSpider, LomBase, JSONBase):
     general = LomBase.getLOMGeneral(self, response)
     general.add_value('title', response.meta['item'].get('Name').strip())
     general.add_value('keyword', list(filter(lambda x: x,map(lambda x: x.strip(), response.xpath('//*[@id="ContentModuleApp"]//*[@class="topic-name"]//text()').getall()))))
+    description = '\n'.join(list(filter(lambda x: x,map(lambda x: x.strip(), response.xpath('//*[@id="ContentModuleApp"]//*[@content-module-type="inlinetext"]//p//text()').getall())))).strip()
+    general.add_value('description', description)
     return general
     
-
-  def getLOMEducational(self, response):
-    educational = LomBase.getLOMEducational(self, response)
-    description = '\n'.join(list(filter(lambda x: x,map(lambda x: x.strip(), response.xpath('//*[@id="ContentModuleApp"]//*[@content-module-type="inlinetext"]//p//text()').getall())))).strip()
-    educational.add_value('description', description)
-    return educational
 
   def getLOMTechnical(self, response):
     technical = LomBase.getLOMTechnical(self, response)
