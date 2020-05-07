@@ -18,8 +18,11 @@ class Transform(Resource):
             valuespace = self.valuespaces.data[key]
             found = False
             for v in valuespace:
-                #if v['id'].endswith(entry) or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['altId']))) > 0 or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['label']))) > 0:
-                  if v['id'].endswith(entry) or len(list(filter(lambda x: x.casefold() == entry.casefold(), v['prefLabel'].values()))) > 0:
+                labels = list(v['prefLabel'].values())
+                if 'altLabel' in v:
+                    labels = labels + list(v['altLabel'].values())
+                labels = list(map(lambda x: x.casefold(), labels))
+                if v['id'].endswith(entry) or entry.casefold() in labels:
                     i18n['key'] = v['id']
                     i18n['de'] = v['prefLabel']['de']
                     try:
