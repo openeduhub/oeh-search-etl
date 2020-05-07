@@ -1,22 +1,13 @@
 from flask import request
 from flask_restful import Resource, reqparse
+from valuespaces import Valuespaces;
 import json
 import requests
 class Transform(Resource):
-  ids = ['intendedEndUserRole', 'discipline', 'educationalContext', 'learningResourceType', 'sourceContentType']
-  valuespaces = {}
-  #def __init__(self):
-     
+  def __init__(self):
+      self.valuespaces = Valuespaces()
 
   def post(self):
-    for v in self.ids:
-      url = 'https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/' + v + '/index.json'
-      #try:
-      r = requests.get(url)
-      self.valuespaces[v] = r.json()['hasTopConcept']
-      #except:
-      #    self.valuespaces[v] = {}
-
     json = request.get_json(force = True)
     delete = []
     for key in json:
@@ -24,7 +15,7 @@ class Transform(Resource):
         mapped = []
         for entry in json[key]:
             i18n = {}
-            valuespace = self.valuespaces[key]
+            valuespace = self.valuespaces.data[key]
             found = False
             for v in valuespace:
                 #if v['id'].endswith(entry) or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['altId']))) > 0 or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['label']))) > 0:

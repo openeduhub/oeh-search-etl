@@ -1,4 +1,5 @@
 from converter.pipelines import ProcessValuespacePipeline;
+from valuespace_converter.app.valuespaces import Valuespaces
 
 class ValuespaceHelper:
     @staticmethod

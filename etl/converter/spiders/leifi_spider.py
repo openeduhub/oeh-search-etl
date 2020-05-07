@@ -2,7 +2,7 @@ from converter.items import *
 import time
 from w3lib.html import remove_tags, replace_escape_chars
 from converter.spiders.lom_base import LomBase;
-from converter.pipelines import ProcessValuespacePipeline;
+from converter.valuespace_helper import Valuespaces;
 import requests
 from html.parser import HTMLParser
 from converter.constants import Constants;
@@ -16,6 +16,7 @@ class LeifiSpider(scrapy.Spider, LomBase):
 
   def __init__(self, **kwargs):
     LomBase.__init__(self, **kwargs)
+    self.valuespacesMapping = Valuespaces()
 
   def getUri(self, response):
     return response.meta['item'].xpath('url_datensatz//text()').get()
@@ -38,8 +39,8 @@ class LeifiSpider(scrapy.Spider, LomBase):
   def getValuespaces(self, response):
     valuespaces = LomBase.getValuespaces(self, response)
     text = response.meta['item'].xpath('systematikpfad//text()').get()
-    for entry in ProcessValuespacePipeline.valuespaces['discipline']:
-      if len(list(filter(lambda x:x['@value'].casefold() in text.casefold(), entry['label']))):
+    for entry in self.valuespacesMapping.data['discipline']:
+      if entry['prefLabel']['de'].casefold() in text.casefold():
         valuespaces.add_value('discipline',entry['id'])
     return valuespaces
 
