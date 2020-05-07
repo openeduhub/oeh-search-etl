@@ -51,7 +51,7 @@ class FilterSparsePipeline:
         except:
             pass
         try:
-            valid = valid or item['lom']['educational']['description']
+            valid = valid or item['lom']['general']['description']
         except:
             pass
         try:
