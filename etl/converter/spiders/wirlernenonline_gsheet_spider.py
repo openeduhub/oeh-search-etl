@@ -26,7 +26,7 @@ class WirLernenOnlineGSheetSpider(Spider, CSVBase, LomBase):
   def parse(self, response):
     rows = self.readCSV(csv.reader(StringIO(response.body.decode('UTF-8')), delimiter=','), 2)
     for row in rows:
-      copyResponse = response.copy()
+      copyResponse = response.replace(url = row['url']['text'])
       copyResponse.meta['row'] = row
       if self.getId(copyResponse):
         yield LomBase.parse(self, copyResponse)
