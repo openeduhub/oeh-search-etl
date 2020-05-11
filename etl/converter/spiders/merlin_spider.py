@@ -5,33 +5,34 @@ from scrapy.spiders import CrawlSpider
 from converter.items import *
 import time
 from w3lib.html import remove_tags, replace_escape_chars
-from converter.spiders.lom_base import LomBase;
+from converter.spiders.lom_base import LomBase
 import json
 
 
-# Sample Spider, using a SitemapSpider to crawl your web page
-# Can be used as a template for your custom spider
 class MerlinSpider(CrawlSpider, LomBase):
+    """
+    TODO description, add restricted content.
+    """
     name = 'merlin_spider'
     url = 'http://merlin.nibis.de/index.php'  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = 'Merlin'  # name as shown in the search ui
 
-    limit = 100
+    limit = 10
     page = 0
 
     def get_url(self, limit, page):
+        """ Generate paginated URL """
         return 'http://merlin.nibis.de/index.php?action=resultXml&start=' + str(page * limit) + \
                '&anzahl=' + str(limit) + \
                '&query[stichwort]=*'  # * as in Regular expressions, to represent all possible values.
 
     start_urls = [get_url(None, limit, page)]
-    # start_urls = ['https://edu-sharing.com']
 
     version = '0.1'  # the version of your crawler, used to identify if a reimport is necessary
 
     def parse(self, response: scrapy.http.Response):
-        # John: I think this parse has to be done for every single (individual) element.
-        #return LomBase.parse(self, response)
+        print("Parsing URL: " + response.url)
+
         # We would use .fromstring(response.text) if the response did not include the XML declaration:
         # <?xml version="1.0" encoding="utf-8"?>
         root = etree.XML(response.body)
@@ -43,115 +44,93 @@ class MerlinSpider(CrawlSpider, LomBase):
 
         # self.pbar.update(1)
 
-        if len(tree.xpath('/root/items/*')) > 0:
-            instances = self.xml_tree_to_instances_list(tree)
+        # If results were returned.
+        elements = tree.xpath('/root/items/*')
+        if len(elements) > 0:
+            for element in elements:
+                copyResponse = response.copy()
+                element_xml_str = etree.tostring(element, pretty_print=True, encoding='unicode')
+                element_dict = xmltodict.parse(element_xml_str)
 
-            # for instance in instances:
-            instance = instances[0]
+                # TODO: Ask Arne, as it's probably pointless.
+                #del element_dict["data"]["score"]
 
-            rsp = response.copy()
-            # rsp = rsp.replace("body", instance)
-            # rsp = rsp.replace("body", etree.tostring(instance, pretty_print=True, encoding='unicode'))
-            xml_str = etree.tostring(instance, pretty_print=True, encoding='unicode')
-            xml_str = xml_str.encode('utf-8')
-            rsp._set_body(xml_str)
-            return LomBase.parse(self, rsp)
+                # So, what's the point of passing this?
+                copyResponse.meta['item'] = element_dict["data"]
+                # copyResponse._set_body(json.dumps(copyResponse.meta['item'], indent=1, ensure_ascii=False))
+                copyResponse._set_body(element_xml_str)
 
-        # # We do not want to stress the Rest APIs.
-        # # time.sleep(0.1)
-        #
-        # # If the number of returned results is equal to the imposed limit, it means that there are more to be returned.
-        # if len(tree.xpath('/root/items/*')) == self.limit:
-        #     self.page += 1
-        #     url = self.get_url(self.limit, self.page)
-        #     print("new URL: " + url)
-        #
-        #     # If we have cached the following response, there is no need to redo the call.
-        #     next_tree = self.import_from_disk(url)
-        #     while next_tree is not None:
-        #         self.pbar.update(1)
-        #         self.page += 1
-        #         url = self.get_url(self.limit, self.page)
-        #         print("new URL: " + url)
-        #         next_tree = self.import_from_disk(url)
-        #     yield scrapy.Request(url=url, callback=self.parse)
+                if self.hasChanged(copyResponse):
+                    # TODO: What are exactly suppose to do if this has happened?
+                    yield self.handleEntry(copyResponse)
 
-    def xml_tree_to_instances_list(self, tree):
-        """
-        Converting an instance of XML tree to a list of tuples: [(ID:str, json representation:str)]
+                # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
+                return LomBase.parse(self, copyResponse)
 
-        :param tree:
-        :return:
-        """
-        instances = []
-        for item in tree.xpath('/root/items/*'):
-            """ 
-            Convert to JSON: XML -> XML string -> Python dictionary -> [Pretty printed] JSON string
-            """
-            # item_xml_str = etree.tostring(item, pretty_print=True, encoding='unicode')
+        # TODO: We do not want to stress the Rest APIs.
+        # time.sleep(0.1)
 
+        # If the number of returned results is equal to the imposed limit, it means that there are more to be returned.
+        if len(elements) == self.limit:
+            self.page += 1
+            url = self.get_url(self.limit, self.page)
+            yield scrapy.Request(url=url, callback=self.parse)
 
-            # item_dict = xmltodict.parse(item_xml_str)
-            # # TODO: Add further attributes? e.g., content_source, date_imported, and so on.
-            #
-            # # indent=1 for pretty printing, ensure_ascii=False to keep umlauts etc.
-            # item_json_str = json.dumps(item_dict, indent=1, ensure_ascii=False)
-            # id = item_dict["data"]["id_local"]
-
-            # instances.append((id, item_json_str))
-            instances.append(item)
-        return instances
-
-    # return a (stable) id of the source
     def getId(self, response):
-        return response.xpath('//data//id_local//text()').get()
-        # return response.xpath('//id_local//text()').get()
+        return response.xpath('/data/id_local/text()').get()
 
-    # return a stable hash to detect content changes
-    # if there is no hash available, may use the current time as "always changing" info
-    # Please include your crawler version as well
     def getHash(self, response):
+        """ Since we have no 'last_modified' date from the elements we cannot do something better. """
         return self.version + str(time.time())
+
+    def handleEntry(self, response):
+        # John: So if the Entry has changed we are just supposed to re-enter it? Why not ignore the "has_changed"
+        # altogether?
+        return LomBase.parse(self, response)
 
     def getBase(self, response):
         base = LomBase.getBase(self, response)
-        # optionlly provide thumbnail. If empty, it will tried to be generated from the getLOMTechnical 'location' (if format is 'text/html')
-        # base.add_value('thumbnail', 'https://url/to/thumbnail')
+
+        # There exists also an animated thumbnail.
+        base.replace_value('thumbnail', response.xpath('/data/thumbnail/text()').get())
+        # John: This is not information we have for Merlin.
+        #1.   base.replace_value('type', self.getType(response))
+        #2.   fulltext = self.get('acf.long_text', json = response.meta['item'])
+        #     base.replace_value('fulltext', HTMLParser().unescape(fulltext))  # Likewise.
+        #3.   base.add_value('lastModified', response.xpath('//thumbnail//text()').get())  # Likewise
         return base
 
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
-        general.add_value('title', response.xpath('//data//titel//text()').get())
-        general.add_value('language', response.xpath('//meta[@property="og:locale"]/@content').get())
+        general.add_value('title', response.xpath('/data/titel/text()').get())
+        # general.add_value('language', response.xpath('//meta[@property="og:locale"]/@content').get())
 
-        # general.add_value('description', response.xpath('//data//beschreibung//text()').get())
-        # general.add_value('keywords', 'TODO_REPLACE')
+        # John: Why is there a description in both general and educational?
+        # general.add_value('description', response.xpath('//beschreibung//text()').get())
+
+        if len(response.xpath('//fach//*')) > 0:
+            element_dict = response.meta["item"]
+            general.add_value('keywords', element_dict["fach"].values())
 
         return general
 
     def getLOMEducational(self, response):
         educational = LomBase.getLOMEducational(self, response)
-        educational.add_value('description', response.xpath('//data//beschreibung//text()').get())
+        educational.add_value('description', response.xpath('/data/beschreibung/text()').get())
+        # educational.add_value('description', "Example description")
         return educational
-    
 
-    # def getLOMTechnical(self, response):
-    #     technical = LomBase.getLOMTechnical(self, response)
-    #     technical.add_value('location', response.url)
-    #     technical.add_value('format', 'text/html')
-    #     technical.add_value('size', len(response.body))
-    #     return technical
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
-        technical.replace_value('format', 'text/html')
-        technical.replace_value('location', response.url)
-        return technical
 
-    # def getLOMGeneral(self, response):
-    #     general = LomBase.getLOMGeneral(self, response)
-    #     general.add_value('title', response.xpath('//data//titel//text()').get())
-    #     general.add_value('language', response.xpath('//meta[@property="og:locale"]/@content').get())
-    #     return general
+        # TODO: Why replace_value() and not add_value()?
+
+        # John: It is not HTML though. Am I wrong? Should we consider XML as HTML regardless?
+        technical.replace_value('format', 'text/html')
+
+        technical.replace_value('location', response.url)
+        technical.replace_value('size', len(response.body))
+        return technical
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
