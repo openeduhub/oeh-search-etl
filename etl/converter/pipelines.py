@@ -27,10 +27,9 @@ import html2text
 import scrapy
 import sys
 import uuid
+from valuespace_converter.app.valuespaces import Valuespaces
 from scrapy.utils.project import get_project_settings
 from converter.es_connector import EduSharing
-
-VALUESPACE_API = 'http://localhost:5000/'
 
 # fillup missing props by "guessing" or loading them if possible
 class LOMFillupPipeline:
@@ -110,48 +109,37 @@ class ConvertTimePipeline:
         return item
 # generate de_DE / i18n strings for valuespace fields
 class ProcessValuespacePipeline:
-    ids = ['intendedEndUserRole', 'discipline', 'educationalContext', 'learningResourceType', 'sourceContentType']
-    valuespaces = {}
+    valuespaces = None
     def __init__(self):
-        for v in self.ids:
-            url = VALUESPACE_API + 'vocab/' + v
-            try:
-                r = requests.get(url)
-                ProcessValuespacePipeline.valuespaces[v] = r.json()['vocabs']
-            except:
-                logging.error('Can not access the valuespace api at ' + url + ', exception: ' + str(sys.exc_info()[0]) + ' The system will continue, but valuespace mapping will not work!')
-                ProcessValuespacePipeline.valuespaces[v] = {}
+        self.valuespaces = Valuespaces()
     def process_item(self, item, spider):
+        json = item['valuespaces']
         delete = []
-        for key in item['valuespaces']:
+        for key in json:
             # remap to new i18n layout
             mapped = []
-            for entry in item['valuespaces'][key]:
-                i18n = {}
-                i18n['key'] = entry
-                valuespace = ProcessValuespacePipeline.valuespaces[key]
+            for entry in json[key]:
+                id = {}
+                valuespace = self.valuespaces.data[key]
                 found = False
                 for v in valuespace:
-                    if v['id'].endswith(entry) or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['altId']))) > 0 or len(list(filter(lambda x: x['@value'].casefold() == entry.casefold(), v['label']))) > 0:
-                        i18n['key'] = v['id']
-                        i18n['de'] = list(filter(lambda x: x['@language'] == 'de', v['label']))[0]['@value']
-                        try:
-                            i18n['en'] = list(filter(lambda x: x['@language'] == 'en', v['label']))[0]['@value']
-                        except:
-                            pass
-                        logging.info('transforming ' + key + ': ' + v['id'] + ' => ' + i18n['de'])
+                    labels = list(v['prefLabel'].values())
+                    if 'altLabel' in v:
+                        labels = labels + list([x for y in list(v['altLabel'].values()) for x in y])
+                    labels = list(map(lambda x: x.casefold(), labels))
+                    if v['id'].endswith(entry) or entry.casefold() in labels:
+                        id = v['id']
                         found = True
                         break
-                if found and len(list(filter(lambda x: x['key'] == i18n['key'], mapped))) == 0:
-                    mapped.append(i18n)
-                else:
-                    logging.warn('unknown value ' + entry + ' for valuespace ' + key)
+                if found and len(list(filter(lambda x: x == id, mapped))) == 0:
+                    mapped.append(id)
             if len(mapped):
-                item['valuespaces'][key] = mapped
+                json[key] = mapped
             else:
                 delete.append(key)
         for key in delete:
-            del item['valuespaces'][key]
+            del json[key]
+        item['valuespaces'] = json
         return item
 
 # generate thumbnails
