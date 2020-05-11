@@ -21,6 +21,14 @@ services:
     restart: on-failure
     volumes: 
       - es-data:/usr/share/elasticsearch/data
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.4.2
+    networks: 
+      - elasticnet
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601" # exposte to host
   postgres:
     build:
       context: ./postgres
@@ -36,10 +44,10 @@ services:
     restart: always
     volumes:
       - pg-data:/var/lib/postgresql/data
-  valuespace-converter:
+  valuespace_converter:
     build:
-      context: ./valuespace-converter
-      dockerfile: valuespace-converter.Dockerfile
+      context: ./etl/valuespace_converter
+      dockerfile: valuespace_converter.Dockerfile
     networks:
       - elasticnet
     ports:
