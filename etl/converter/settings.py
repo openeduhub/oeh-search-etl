@@ -23,6 +23,11 @@ SPLASH_URL = 'http://localhost:8050'
 SPLASH_WAIT = 1 # seconds to let the page load
 SPLASH_HEADERS = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'} # use chrome to not create warnings on pages
 
+#edu-sharing config
+EDU_SHARING_BASE_URL='http://localhost:8080/edu-sharing/'
+EDU_SHARING_USERNAME='admin'
+EDU_SHARING_PASSWORD='admin'
+
 # Thumbnail config
 THUMBNAIL_SMALL_SIZE = 250*250
 THUMBNAIL_SMALL_QUALITY = 40
@@ -82,15 +87,15 @@ EXTENSIONS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'converter.pipelines.PostgresCheckPipeline': 0,
+    'converter.pipelines.EduSharingCheckPipeline': 0,
     'converter.pipelines.FilterSparsePipeline': 25,
     'converter.pipelines.LOMFillupPipeline': 100,
     'converter.pipelines.NormLicensePipeline': 125,
     'converter.pipelines.ConvertTimePipeline': 200,
-    'converter.pipelines.ProcessValuespacePipeline': 250,
+    #'converter.pipelines.ProcessValuespacePipeline': 250,
     'converter.pipelines.ProcessThumbnailPipeline': 300,
     #'converter.pipelines.NormLicensePipeline': 100,
-    'converter.pipelines.PostgresStorePipeline': 1000,
+    'converter.pipelines.EduSharingStorePipeline': 1000,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

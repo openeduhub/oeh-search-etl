@@ -6,7 +6,7 @@ import requests
 import html2text
 import urllib
 from scrapy.utils.project import get_project_settings
-from converter.db_connector import Database
+from converter.es_connector import EduSharing
 class LomBase:
   friendlyName = 'LOM Based spider'
   ranking = 1
@@ -18,7 +18,7 @@ class LomBase:
       self.uuid = kwargs['uuid']
     if 'cleanrun' in kwargs and kwargs['cleanrun'] == 'true':
       logging.info('cleanrun requested, will delete previously scrapped data for crawler ' + self.name)
-      Database().deleteAll(self)
+      EduSharing().deleteAll(self)
 
 
   # override to improve performance and automatically handling id
@@ -33,7 +33,7 @@ class LomBase:
     return response.url
 
   def getUUID(self, response = None):
-    return Database().buildUUID(self.getUri(response))
+    return EduSharing().buildUUID(self.getUri(response))
 
   def hasChanged(self, response = None):
     if self.uuid:
@@ -41,7 +41,7 @@ class LomBase:
         logging.info('matching requested id: ' + self.uuid)
         return True
       return False
-    db = Database().findItem(self.getId(response),self)
+    db = EduSharing().findItem(self.getId(response),self)
     changed = db == None or db[1] != self.getHash(response)
     if not changed:
       logging.info('Item ' + db[0] + ' has not changed')
@@ -49,7 +49,7 @@ class LomBase:
 
   def parse(self, response):
     if self.getId(response) != None and self.getHash(response) != None:
-      db = Database().findItem(self.getId(response),self)
+      db = EduSharing().findItem(self.getId(response),self)
       if not self.hasChanged(response):
         return None
   
@@ -81,8 +81,8 @@ class LomBase:
     #r.add_value('body',response.body.decode('utf-8'))
     # render via splash to also get the full javascript rendered content
     data = self.getUrlData(response.url)
-    r.add_value('html',data['html'])
-    r.add_value('text',data['text'])
+    #r.add_value('html',data['html'])
+    #r.add_value('text',data['text'])
     r.add_value('headers',response.headers)
     r.add_value('url',self.getUri(response))
     return r

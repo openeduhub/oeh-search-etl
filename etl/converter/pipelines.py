@@ -28,7 +28,7 @@ import scrapy
 import sys
 import uuid
 from scrapy.utils.project import get_project_settings
-from converter.db_connector import Database
+from converter.es_connector import EduSharing
 
 VALUESPACE_API = 'http://localhost:5000/'
 
@@ -206,7 +206,7 @@ class ProcessThumbnailPipeline:
                     raise DropItem('No thumbnail provided or ressource was unavailable for fetching')
         return item
 
-class PostgresCheckPipeline(Database):
+class EduSharingCheckPipeline(EduSharing):
     def process_item(self, item, spider):
         if(not 'hash' in item):
             logging.error('The spider did not provide a hash on the base object. The hash is required to detect changes on an element. May use the last modified date or something similar')
@@ -228,55 +228,51 @@ class PostgresCheckPipeline(Database):
                 # activate this later
                 #raise DropItem()
         return item
-    def createSource(self, spider):
-        self.curr.execute("""INSERT INTO "sources" VALUES(%s,%s,%s,%s,%s)""", (
-            spider.name,
-            Constants.SOURCE_TYPE_SPIDER,
-            spider.friendlyName,
-            spider.url,
-            spider.ranking,
-        ))
-        self.conn.commit()
 
-class PostgresStorePipeline(Database):
+class EduSharingStorePipeline(EduSharing):
     def process_item(self, item, spider):
         output = io.BytesIO()
         exporter = JsonItemExporter(output, fields_to_export = ['lom','valuespaces','license','type','fulltext','ranking','lastModified','thumbnail'])
         exporter.export_item(item)
         json = output.getvalue().decode('UTF-8')
-        dbItem = self.findItem(item['sourceId'], spider)
+        esItem = self.findItem(item['sourceId'], spider)
         title = '<no title>'
         if 'title' in item['lom']['general']:
             title = str(item['lom']['general']['title'])
         #logging.info(item['lom'])
-        if dbItem:
+        if esItem:
             entryUUID = dbItem[0]
-            logging.info('Updating item ' + title + ' (' + entryUUID + ')')
-            self.curr.execute("""UPDATE "references_metadata" SET last_seen = now(), last_updated = now(), hash = %s, data = %s WHERE source = %s AND source_id = %s""", (
-                item['hash'], # hash
-                json,
-                spider.name,
-                str(item['sourceId']),
-            ))
+            self.updateItem(spider, entryUUID, item)
         else:
             entryUUID = self.buildUUID(item['response']['url'])
-            if 'uuid' in item:
-                entryUUID = item['uuid']
-            logging.info('Creating item ' + title + ' (' + entryUUID + ')')
-            if self.uuidExists(entryUUID):
-                logging.warn('Possible duplicate detected for ' + entryUUID)
-            else:
-                self.curr.execute("""INSERT INTO "references" VALUES (%s,true,now())""", (
-                    entryUUID,
-                ))
-            self.curr.execute("""INSERT INTO "references_metadata" VALUES (%s,%s,%s,%s,now(),now(),%s)""", (
-                spider.name, # source name
-                str(item['sourceId']), # source item identifier
-                entryUUID,
-                item['hash'], # hash
-                json,
-            ))
+            self.insertItem(spider, entryUUID, item)
+        # if dbItem:
+        #     entryUUID = dbItem[0]
+        #     logging.info('Updating item ' + title + ' (' + entryUUID + ')')
+        #     self.curr.execute("""UPDATE "references_metadata" SET last_seen = now(), last_updated = now(), hash = %s, data = %s WHERE source = %s AND source_id = %s""", (
+        #         item['hash'], # hash
+        #         json,
+        #         spider.name,
+        #         str(item['sourceId']),
+        #     ))
+        # else:
+        #     entryUUID = self.buildUUID(item['response']['url'])
+        #     if 'uuid' in item:
+        #         entryUUID = item['uuid']
+        #     logging.info('Creating item ' + title + ' (' + entryUUID + ')')
+        #     if self.uuidExists(entryUUID):
+        #         logging.warn('Possible duplicate detected for ' + entryUUID)
+        #     else:
+        #         self.curr.execute("""INSERT INTO "references" VALUES (%s,true,now())""", (
+        #             entryUUID,
+        #         ))
+        #     self.curr.execute("""INSERT INTO "references_metadata" VALUES (%s,%s,%s,%s,now(),now(),%s)""", (
+        #         spider.name, # source name
+        #         str(item['sourceId']), # source item identifier
+        #         entryUUID,
+        #         item['hash'], # hash
+        #         json,
+        #     ))
         output.close()
-        self.conn.commit()
         return item
 
