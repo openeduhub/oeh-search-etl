@@ -11,14 +11,11 @@ from converter.spiders.lom_base import LomBase
 import json
 
 
-class MerlinSpider(CrawlSpider, LomBase):
+class MerlinDebuggingSpider(CrawlSpider, LomBase):
     """
-    This crawler fetches data from the Merlin content source, which provides us paginated XML data. For every element
-    in the returned XML array we call LomBase.parse(), which in return calls methods, such as getId(), getBase() etc.
-
-    Author: Ioannis Koumarelas, Schul-Cloud, Content team.
+    TODO description, add restricted content.
     """
-    name = 'merlin_spider'
+    name = 'merlin_debugging_spider'
     url = 'http://merlin.nibis.de/index.php'  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = 'Merlin'  # name as shown in the search ui
     version = '0.1'  # the version of your crawler, used to identify if a reimport is necessary
@@ -53,9 +50,12 @@ class MerlinSpider(CrawlSpider, LomBase):
             for element in elements:
                 self.pbar.update(1)
 
+                start = time.time()
                 copyResponse = response.copy()
                 element_xml_str = etree.tostring(element, pretty_print=True, encoding='unicode')
                 element_dict = xmltodict.parse(element_xml_str)
+                finish = time.time()
+                print(finish-start, " to parse XML content.")
 
                 # TODO: Ask Arne, as it's probably a pointless attribute.
                 #del element_dict["data"]["score"]
@@ -82,7 +82,8 @@ class MerlinSpider(CrawlSpider, LomBase):
             yield scrapy.Request(url=url, callback=self.parse)
 
     def getId(self, response):
-        return response.xpath('/data/id_local/text()').get()
+        # return response.xpath('/data/id_local/text()').get()
+        return response.meta["item"]["id_local"]
 
     def getHash(self, response):
         """ Since we have no 'last_modified' date from the elements we cannot do something better. """
@@ -96,45 +97,66 @@ class MerlinSpider(CrawlSpider, LomBase):
 
     def getBase(self, response):
         base = LomBase.getBase(self, response)
-        base.add_value('thumbnail', response.xpath('/data/thumbnail/text()').get())
+
+        element_dict = response.meta["item"]
+        # thumbnail = response.xpath('/data/thumbnail/text()').get()
+        # base.add_value('thumbnail', thumbnail)
+        base.add_value('thumbnail', element_dict["thumbnail"])
 
         return base
 
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
-        general.add_value('title', response.xpath('/data/titel/text()').get())
+        element_dict = response.meta["item"]
+        general.add_value('title', element_dict["titel"])
+        # general.add_value('title', response.xpath('/data/titel/text()').get())
+        # general.add_value('language', response.xpath('//meta[@property="og:locale"]/@content').get())
 
-        if len(response.xpath('/data/fach/*')) > 0:
-            element_dict = response.meta["item"]
+        # John: Why is there a description in both general and educational?
+        # general.add_value('description', response.xpath('//beschreibung//text()').get())
+
+        # if len(response.xpath('/data/fach/*')) > 0:
+        if len(element_dict["fach"]) > 0:
+            # element_dict = response.meta["item"]
             general.add_value('keyword', element_dict["fach"].values())
 
         return general
 
     def getLOMEducational(self, response):
         educational = LomBase.getLOMEducational(self, response)
+        element_dict = response.meta["item"]
 
-        educational.add_value('description', response.xpath('/data/beschreibung/text()').get())
-        educational.add_value('intendedEndUserRole', response.xpath('/data/bildungsebene/text()').get().split(';'))
+        # educational.add_value('description', response.xpath('/data/beschreibung/text()').get())
+        # educational.add_value('intendedEndUserRole', response.xpath('/data/bildungsebene/text()').get().split(';'))
 
+        educational.add_value('description', element_dict["beschreibung"])
+        educational.add_value('intendedEndUserRole', element_dict["bildungsebene"].split(';'))
         return educational
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
 
-        technical.add_value('format', 'application/xml')
-        location = response.xpath('/data/media_url/text()').get()
-        technical.add_value('location', "http://merlin.nibis.de" + location)
-        technical.add_value('size', len(response.body))
+        element_dict = response.meta["item"]
 
+        # technical.add_value('format', 'application/xml')
+        # location = response.xpath('/data/media_url/text()').get()
+        # technical.add_value('location', location)
+        # technical.add_value('size', len(response.body))
+
+        technical.add_value('format', "application/xml")
+        technical.add_value('location', "http://merlin.nibis.de" + element_dict["media_url"])
+        technical.add_value('size', len(response.body))
         return technical
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
 
-        valuespaces.add_value('educationalContext', response.xpath('/data/bildungsebene/text()').get().split(';'))
+        element_dict = response.meta["item"]
+
+        # valuespaces.add_value('educationalContext', response.xpath('/data/bildungsebene/text()').get().split(';'))
+        valuespaces.add_value('educationalContext', element_dict["bildungsebene"].split(';'))
 
         # Consider https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/learningResourceType/index.html
-        element_dict = response.meta["item"]
         # if len(response.xpath('/data/ressource/*')) > 0:
         if len(element_dict["ressource"]) > 0:
             resource_types = element_dict["ressource"].values()
