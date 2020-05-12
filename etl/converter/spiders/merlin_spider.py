@@ -16,19 +16,19 @@ class MerlinSpider(CrawlSpider, LomBase):
     name = 'merlin_spider'
     url = 'http://merlin.nibis.de/index.php'  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = 'Merlin'  # name as shown in the search ui
+    version = '0.1'  # the version of your crawler, used to identify if a reimport is necessary
+    apiUrl = 'http://merlin.nibis.de/index.php?action=resultXml&start=%start&anzahl=%anzahl&query[stichwort]=*'     # * regular expression, to represent all possible values.
 
-    limit = 10
+    limit = 100
     page = 0
 
-    def get_url(self, limit, page):
-        """ Generate paginated URL """
-        return 'http://merlin.nibis.de/index.php?action=resultXml&start=' + str(page * limit) + \
-               '&anzahl=' + str(limit) + \
-               '&query[stichwort]=*'  # * as in Regular expressions, to represent all possible values.
-
-    start_urls = [get_url(None, limit, page)]
-
-    version = '0.1'  # the version of your crawler, used to identify if a reimport is necessary
+    def start_requests(self):
+        yield scrapy.Request(url=self.apiUrl.replace('%start', str(self.page * self.limit))
+                              .replace('%anzahl', str(self.limit)),
+                              callback=self.parse, headers={
+                'Accept': 'application/xml',
+                'Content-Type': 'application/xml'
+            })
 
     def parse(self, response: scrapy.http.Response):
         print("Parsing URL: " + response.url)
@@ -40,32 +40,32 @@ class MerlinSpider(CrawlSpider, LomBase):
 
         if self.page == 0:
             total_elements = int(tree.xpath('/root/sum')[0].text)
-            # self.pbar = tqdm(total=(total_elements / self.limit) + 1, desc="Downloading content: " + self.name)
-
-        # self.pbar.update(1)
+            self.pbar = tqdm(total=(total_elements), desc=self.name + " downloading progress: ")
 
         # If results were returned.
         elements = tree.xpath('/root/items/*')
         if len(elements) > 0:
             for element in elements:
+                self.pbar.update(1)
+
                 copyResponse = response.copy()
                 element_xml_str = etree.tostring(element, pretty_print=True, encoding='unicode')
                 element_dict = xmltodict.parse(element_xml_str)
 
-                # TODO: Ask Arne, as it's probably pointless.
+                # TODO: Ask Arne, as it's probably a pointless attribute.
                 #del element_dict["data"]["score"]
 
-                # So, what's the point of passing this?
-                copyResponse.meta['item'] = element_dict["data"]
+                copyResponse.meta['item'] = element_dict["data"]  # Passing the dictionary for easier access to attributes.
+                # In case JSON string representation is preferred:
                 # copyResponse._set_body(json.dumps(copyResponse.meta['item'], indent=1, ensure_ascii=False))
                 copyResponse._set_body(element_xml_str)
 
                 if self.hasChanged(copyResponse):
-                    # TODO: What are exactly suppose to do if this has happened?
+                    # TODO: What are we exactly supposed to do if this happens?
                     yield self.handleEntry(copyResponse)
 
                 # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
-                return LomBase.parse(self, copyResponse)
+                LomBase.parse(self, copyResponse)
 
         # TODO: We do not want to stress the Rest APIs.
         # time.sleep(0.1)
@@ -91,13 +91,9 @@ class MerlinSpider(CrawlSpider, LomBase):
     def getBase(self, response):
         base = LomBase.getBase(self, response)
 
-        # There exists also an animated thumbnail.
-        base.replace_value('thumbnail', response.xpath('/data/thumbnail/text()').get())
-        # John: This is not information we have for Merlin.
-        #1.   base.replace_value('type', self.getType(response))
-        #2.   fulltext = self.get('acf.long_text', json = response.meta['item'])
-        #     base.replace_value('fulltext', HTMLParser().unescape(fulltext))  # Likewise.
-        #3.   base.add_value('lastModified', response.xpath('//thumbnail//text()').get())  # Likewise
+        thumbnail = response.xpath('/data/thumbnail/text()').get()
+        base.add_value('thumbnail', thumbnail)
+
         return base
 
     def getLOMGeneral(self, response):
@@ -108,42 +104,44 @@ class MerlinSpider(CrawlSpider, LomBase):
         # John: Why is there a description in both general and educational?
         # general.add_value('description', response.xpath('//beschreibung//text()').get())
 
-        if len(response.xpath('//fach//*')) > 0:
+        if len(response.xpath('/data/fach/*')) > 0:
             element_dict = response.meta["item"]
-            general.add_value('keywords', element_dict["fach"].values())
+            general.add_value('keyword', element_dict["fach"].values())
 
         return general
 
     def getLOMEducational(self, response):
         educational = LomBase.getLOMEducational(self, response)
         educational.add_value('description', response.xpath('/data/beschreibung/text()').get())
-        # educational.add_value('description', "Example description")
+        educational.add_value('intendedEndUserRole', response.xpath('/data/bildungsebene/text()').get().split(';'))
         return educational
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
 
-        # TODO: Why replace_value() and not add_value()?
+        technical.add_value('format', 'application/xml')
 
-        # John: It is not HTML though. Am I wrong? Should we consider XML as HTML regardless?
-        technical.replace_value('format', 'text/html')
-
-        technical.replace_value('location', response.url)
-        technical.replace_value('size', len(response.body))
+        location = response.xpath('/data/media_url/text()').get()
+        technical.add_value('location', location)
+        technical.add_value('size', len(response.body))
         return technical
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
-        # Provide valuespace data. This data will later get automatically mapped
-        # Please take a look at the valuespaces here:
-        # https://vocabs.openeduhub.de/
-        # You can either use full identifiers or also labels. The system will auto-map them accordingly
 
-        # Please also checkout the ValuespaceHelper class which provides usefull mappers for common data
+        valuespaces.add_value('educationalContext', response.xpath('/data/bildungsebene/text()').get().split(';'))
 
-        # valuespaces.add_value('educationalContext', context)
-        # valuespaces.add_value('discipline',discipline)
-        # valuespaces.add_value('learningResourceType', lrt)
+        # Consider https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/learningResourceType/index.html
+        if len(response.xpath('/data/ressource/*')) > 0:
+            element_dict = response.meta["item"]
+            resource_types = element_dict["ressource"].values()
+
+            # Convert non-LOM (not known to OEH) resource types, to LOM resource types.
+            merlin_to_oeh_types = {
+                "Film": "video",
+                "Menü": "menu",
+            }
+            resource_types = [merlin_to_oeh_types[rt] if rt in merlin_to_oeh_types else rt.lower() for rt in resource_types]
+
+            valuespaces.add_value('learningResourceType', resource_types)
         return valuespaces
-
-    # You may override more functions here, please checkout LomBase class
