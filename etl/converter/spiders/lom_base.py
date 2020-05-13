@@ -41,7 +41,7 @@ class LomBase:
         logging.info('matching requested id: ' + self.uuid)
         return True
       return False
-    db = EduSharing().findItem(self.getId(response),self)
+    db = EduSharing().findItem(self.getId(response), self)
     changed = db == None or db[1] != self.getHash(response)
     if not changed:
       logging.info('Item ' + db[0] + ' has not changed')

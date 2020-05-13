@@ -229,7 +229,7 @@ class EduSharingStorePipeline(EduSharing):
             title = str(item['lom']['general']['title'])
         #logging.info(item['lom'])
         if esItem:
-            entryUUID = dbItem[0]
+            entryUUID = esItem[0]
             self.updateItem(spider, entryUUID, item)
         else:
             entryUUID = self.buildUUID(item['response']['url'])

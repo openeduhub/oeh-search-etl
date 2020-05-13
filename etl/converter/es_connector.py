@@ -8,15 +8,13 @@ from requests.auth import HTTPBasicAuth
 from io import BytesIO
 
 class EduSharing:
-    spiderNodes = {}
     cookie = None
-    etlFolder = None
     def __init__(self):
         self.loadSession()
     def getHeaders(self, contentType = 'application/json'):
         return { 'COOKIE' : EduSharing.cookie, 'Accept' : 'application/json', 'Content-Type' : contentType}
-    def createNode(self, parentUUID, type, properties):
-        response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + parentUUID + '/children?type=' + type + '&renameIfExists=true', 
+    def syncNode(self, spider, type, properties):
+        response = requests.put(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/bulk/v1/sync/' + spider.name + '?match=ccm:replicationsource&match=ccm:replicationsourceid&type=' + type, 
                     headers = self.getHeaders(),
                     data = json.dumps(properties))
         return json.loads(response.text)['node']
@@ -34,18 +32,14 @@ class EduSharing:
                     headers = self.getHeaders(None),
                     files = files)
         return response.status_code == 200
-    
-    def findNodeByName(self, parentUUID, name):
-        response = requests.get(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + parentUUID + '/children?maxItems=10000', 
-                    headers = self.getHeaders())
-        result = list(filter(lambda x: x['name'] == name, json.loads(response.text)['nodes']))
-        if len(result) == 1:
-            return result[0]
-        return None
-
-    def transformItem(self, uuid, item):
+ 
+    def transformItem(self, uuid, spider, item):
         spaces = {
-            'cm:name' : item['lom']['general']['title'] + '_' + uuid,
+            'ccm:replicationsource' : spider.name,
+            'ccm:replicationsourceid' : item['sourceId'],
+            'ccm:replicationsourcehash' : item['hash'],
+            'ccm:replicationsourceuuid' : uuid,
+            'cm:name' : item['lom']['general']['title'],
             'ccm:wwwurl' : item['lom']['technical']['location'],
             'cclom:location' : item['lom']['technical']['location'],
             'cclom:general_title' : item['lom']['general']['title'],
@@ -83,10 +77,13 @@ class EduSharing:
         return spaces
 
     def insertItem(self, spider, uuid, item):
-        node = self.createNode(EduSharing.spiderNodes[spider.name]['ref']['id'], 'ccm:io' ,self.transformItem(uuid, item))
+        node = self.syncNode(spider, 'ccm:io' ,self.transformItem(uuid, spider, item))
         self.setNodePreview(node['ref']['id'], item)
         self.setNodeText(node['ref']['id'], item)
 
+
+    def updateItem(self, spider, uuid, item):
+        self.insertItem(spider, uuid, item)
 
     def loadSession(self):
         if EduSharing.cookie == None:
@@ -98,10 +95,6 @@ class EduSharing:
             isAdmin = json.loads(auth.text)['isAdmin']
             if isAdmin:
                 EduSharing.cookie = auth.headers['SET-COOKIE'].split(';')[0]
-                sys = self.findNodeByName('-userhome-', 'Edu_Sharing_System')
-                EduSharing.etlFolder = self.findNodeByName(sys['ref']['id'], 'ETL')
-                if EduSharing.etlFolder == None:
-                    EduSharing.etlFolder = self.createNode(sys['ref']['id'], 'ccm:map' ,{ 'cm:name' : ['ETL']})
                 return
             raise Exception('Could not authentify as admin at edu-sharing. Please check your settings for repository ' + settings.get('EDU_SHARING_BASE_URL'))
             
@@ -112,13 +105,24 @@ class EduSharing:
         return False
 
     def findItem(self, id, spider):
+        properties = {
+            'ccm:replicationsource': [spider.name],
+            'ccm:replicationsourceid': [id],
+        }
+        response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/bulk/v1/find',
+                    headers = self.getHeaders(),
+                    data = json.dumps(properties))
+        if response.status_code == 200:
+            properties = json.loads(response.text)['node']['properties']
+            if 'ccm:replicationsourcehash' in properties and 'ccm:replicationsourceuuid' in properties:
+                return [properties['ccm:replicationsourceuuid'][0], properties['ccm:replicationsourcehash'][0]]
         return None
+
     def findSource(self, spider):
-        src = self.findNodeByName(EduSharing.etlFolder['ref']['id'], spider.name)
-        if src != None:
-            EduSharing.spiderNodes[spider.name] = src
-        return src
+        return True
+        
     def createSource(self, spider):
-        src = self.createNode(EduSharing.etlFolder['ref']['id'], 'ccm:map', {'cm:name' : [spider.name]})
-        EduSharing.spiderNodes[spider.name] = src
-        return src
+        #src = self.createNode(EduSharing.etlFolder['ref']['id'], 'ccm:map', {'cm:name' : [spider.name]})
+        #EduSharing.spiderNodes[spider.name] = src
+        #return src
+        return None
