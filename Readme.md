@@ -36,7 +36,7 @@ python3 -m venv .venv
 ## Frontend
 
 The frontend is started together with the backend via `docker-compose`. However, Docker images for
-the frontend are be built separately. See https://scm.edu-sharing.com/open-edu-hub/frontend.
+the frontend are be built separately. See https://github.com/openeduhub/oeh-search-frontend.
 
 ### Update Deployment
 
