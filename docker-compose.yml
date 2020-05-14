@@ -76,6 +76,7 @@ services:
     networks:
       - elasticnet
     environment:
+      - URL=${URL?See "Runtime Configuration" on Readme.md}/relay
       - "ELASTICSEARCH_URL=http://elasticsearch:9200"
     ports:
       - "127.0.0.1:3000:80" # expose locally
