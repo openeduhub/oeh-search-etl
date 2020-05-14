@@ -17,7 +17,7 @@ services:
     networks:
       - elasticnet
     ports:
-      - "9200:9200" # exposte to host
+      - "127.0.0.1:9200:9200"
     restart: on-failure
     volumes: 
       - es-data:/usr/share/elasticsearch/data
@@ -32,7 +32,7 @@ services:
     networks: 
       - elasticnet
     ports:
-      - "5432:5432" # exposte to host
+      - "127.0.0.1:5432:5432"
     restart: always
     volumes:
       - pg-data:/var/lib/postgresql/data
@@ -53,7 +53,7 @@ services:
     networks:
       - elasticnet
     ports:
-      - "5000:5000" # exposte to host
+      - "127.0.0.1:5000:5000"
     restart: on-failure
   splash:
     image: scrapinghub/splash
@@ -62,13 +62,13 @@ services:
     command: --maxrss 4000
     restart: always
     ports:
-      - "8050:8050" # exposte to host
+      - "127.0.0.1:8050:8050"
   frontend:
     image: open-edu-hub-frontend
     networks:
       - elasticnet
     ports:
-      - "127.0.0.1:8080:80" # expose locally
+      - "127.0.0.1:8080:80"
     depends_on:
       - elasticsearch-relay
   elasticsearch-relay:
@@ -79,7 +79,7 @@ services:
       - URL=${URL?See "Runtime Configuration" on Readme.md}/relay
       - "ELASTICSEARCH_URL=http://elasticsearch:9200"
     ports:
-      - "127.0.0.1:3000:80" # expose locally
+      - "127.0.0.1:3000:80"
     depends_on:
       - elasticsearch
   editor-backend:
@@ -92,7 +92,7 @@ services:
       - "DB_PASSWORD=collections"
       - "DB_DATABASE=search"
     ports:
-      - "127.0.0.1:3001:80" # expose locally
+      - "127.0.0.1:3001:80"
     depends_on:
       - postgres
 
