@@ -61,6 +61,12 @@ class LomBase:
     main.add_value('response', self.mapResponse(response).load_item())
     return main.load_item()
 
+  def html2Text(self, html):
+    h = html2text.HTML2Text()
+    h.ignore_links = True
+    h.ignore_images = True
+    return h.handle(html)
+
   def getUrlData(self, url):
     settings = get_project_settings()
     html = requests.post(settings.get('SPLASH_URL')+'/render.html', json={
@@ -68,12 +74,9 @@ class LomBase:
                 'wait': settings.get('SPLASH_WAIT'),
                 'headers': settings.get('SPLASH_HEADERS')
             }).content.decode('UTF-8')
-    h = html2text.HTML2Text()
-    h.ignore_links = True
-    h.ignore_images = True
     return { 
       'html': html,
-      'text': h.handle(html)
+      'text': self.html2Text(html)
     }
   def mapResponse(self, response):
     r = ResponseItemLoader(response = response)
