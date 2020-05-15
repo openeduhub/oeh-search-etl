@@ -276,6 +276,10 @@ class PostgresStorePipeline(Database):
                 item['hash'], # hash
                 json,
             ))
+        if 'collection' in item:
+            for collection in item['collection']:
+                logging.info('adding object ' + entryUUID + 'into collection ' + collection)
+                self.addCollectionReference(entryUUID, collection)
         output.close()
         self.conn.commit()
         return item

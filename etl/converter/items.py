@@ -122,6 +122,8 @@ class BaseItem(Item):
     sourceId = Field()
     uuid = Field() # explicit uuid of the target element, please only set this if you actually know the uuid of the internal document
     hash = Field()
+    # id of collections this material should be placed into
+    collection = Field(output_processor=JoinMultivalues())
     type = Field()
     response = Field(serializer=ResponseItem)
     ranking = Field()

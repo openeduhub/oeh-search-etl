@@ -23,6 +23,7 @@ class CSVBase(LomBase):
     COLUMN_DISCIPLINE = 'discipline'
     COLUMN_LEARNING_RESOURCE_TYPE = 'learningResourceType'
     COLUMN_LANGUAGE = 'language'
+    COLUMN_COLLECTION = 'collection'
     COLUMN_LICENSE = 'license'
     mappings = None
     def transform(self, row):
@@ -61,6 +62,7 @@ class CSVBase(LomBase):
     def getBase(self, response):
         base = LomBase.getBase(self, response)
         base.add_value('thumbnail', response.meta['row'][CSVBase.COLUMN_THUMBNAIL]['text'])
+        base.add_value('collection', response.meta['row'][CSVBase.COLUMN_COLLECTION]['list'])
         return base
   
     def getLOMGeneral(self, response):
