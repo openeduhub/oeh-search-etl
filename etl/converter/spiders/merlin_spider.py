@@ -5,10 +5,7 @@ from tqdm import tqdm
 from lxml import etree
 from scrapy.spiders import CrawlSpider
 from converter.items import *
-import time
-from w3lib.html import remove_tags, replace_escape_chars
 from converter.spiders.lom_base import LomBase
-import json
 
 
 class MerlinSpider(CrawlSpider, LomBase):
@@ -16,7 +13,7 @@ class MerlinSpider(CrawlSpider, LomBase):
     This crawler fetches data from the Merlin content source, which provides us paginated XML data. For every element
     in the returned XML array we call LomBase.parse(), which in return calls methods, such as getId(), getBase() etc.
 
-    Author: Ioannis Koumarelas, Schul-Cloud, Content team.
+    Author: Ioannis Koumarelas, ioannis.koumarelas@hpi.de, Schul-Cloud, Content team.
     """
     name = 'merlin_spider'
     url = 'http://merlin.nibis.de/index.php'  # the url which will be linked as the primary link to your source (should be the main url of your site)
@@ -26,6 +23,7 @@ class MerlinSpider(CrawlSpider, LomBase):
 
     limit = 100
     page = 0
+    pbar = None
 
     def start_requests(self):
         yield scrapy.Request(url=self.apiUrl.replace('%start', str(self.page * self.limit))
@@ -38,16 +36,22 @@ class MerlinSpider(CrawlSpider, LomBase):
     def parse(self, response: scrapy.http.Response):
         print("Parsing URL: " + response.url)
 
+        # Call Splash only once per page (that contains multiple XML elements).
+        data = self.getUrlData(response.url)
+        response.meta["rendered_data"] = data
+
         # We would use .fromstring(response.text) if the response did not include the XML declaration:
         # <?xml version="1.0" encoding="utf-8"?>
         root = etree.XML(response.body)
         tree = etree.ElementTree(root)
 
-        if self.page == 0:
+        # pbar works even with self.page > 0.
+        if self.pbar is None:
             total_elements = int(tree.xpath('/root/sum')[0].text)
-            self.pbar = tqdm(total=(total_elements), desc=self.name + " downloading progress: ")
+            remaining_elements = total_elements - self.page*self.limit
+            self.pbar = tqdm(total=(remaining_elements), desc=self.name + " downloading progress: ", initial=self.page*self.limit)
 
-        # If results were returned.
+        # If results are returned.
         elements = tree.xpath('/root/items/*')
         if len(elements) > 0:
             for element in elements:
@@ -57,41 +61,49 @@ class MerlinSpider(CrawlSpider, LomBase):
                 element_xml_str = etree.tostring(element, pretty_print=True, encoding='unicode')
                 element_dict = xmltodict.parse(element_xml_str)
 
-                # TODO: Ask Arne, as it's probably a pointless attribute.
+                # TODO: It's probably a pointless attribute.
                 #del element_dict["data"]["score"]
 
-                copyResponse.meta['item'] = element_dict["data"]  # Passing the dictionary for easier access to attributes.
+                # Passing the dictionary for easier access to attributes.
+                copyResponse.meta['item'] = element_dict["data"]
+
                 # In case JSON string representation is preferred:
                 # copyResponse._set_body(json.dumps(copyResponse.meta['item'], indent=1, ensure_ascii=False))
                 copyResponse._set_body(element_xml_str)
 
                 if self.hasChanged(copyResponse):
-                    # TODO: What are we exactly supposed to do if this happens?
                     yield self.handleEntry(copyResponse)
 
                 # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
                 LomBase.parse(self, copyResponse)
 
-        # TODO: We do not want to stress the Rest APIs.
+        # TODO: To not stress the Rest APIs.
         # time.sleep(0.1)
 
         # If the number of returned results is equal to the imposed limit, it means that there are more to be returned.
         if len(elements) == self.limit:
             self.page += 1
-            url = self.get_url(self.limit, self.page)
-            yield scrapy.Request(url=url, callback=self.parse)
+            url = self.apiUrl.replace('%start', str(self.page * self.limit)).replace('%anzahl', str(self.limit))
+            yield scrapy.Request(url=url, callback=self.parse, headers={
+                    'Accept': 'application/xml',
+                    'Content-Type': 'application/xml'
+                })
 
     def getId(self, response):
         return response.xpath('/data/id_local/text()').get()
 
     def getHash(self, response):
-        """ Since we have no 'last_modified' date from the elements we cannot do something better. """
-        # return self.version + str(time.time())
-        return self.version + str(datetime.date(datetime.now()))
+        """ Since we have no 'last_modified' date from the elements we cannot do something better.
+            Therefore, the current implementation takes into account (1) the code version, (2) the item's ID, and (3)
+            the date (day, month, year). """
+        return hash(self.version) + hash(self.getId(response)) + self._date_to_integer(datetime.date(datetime.now()))
+
+    def _date_to_integer(self, dt_time):
+        """ Converting the date to an integer, so it is useful in the getHash method
+            Using prime numbers for less collisions. """
+        return 9973 * dt_time.year + 97 * dt_time.month + dt_time.day
 
     def handleEntry(self, response):
-        # John: So if the Entry has changed we are just supposed to re-enter it? Why not ignore the "has_changed"
-        # altogether?
         return LomBase.parse(self, response)
 
     def getBase(self, response):
@@ -104,17 +116,16 @@ class MerlinSpider(CrawlSpider, LomBase):
         general = LomBase.getLOMGeneral(self, response)
         general.add_value('title', response.xpath('/data/titel/text()').get())
 
-        if len(response.xpath('/data/fach/*')) > 0:
-            element_dict = response.meta["item"]
-            general.add_value('keyword', element_dict["fach"].values())
-
         return general
 
     def getLOMEducational(self, response):
         educational = LomBase.getLOMEducational(self, response)
 
         educational.add_value('description', response.xpath('/data/beschreibung/text()').get())
-        educational.add_value('intendedEndUserRole', response.xpath('/data/bildungsebene/text()').get().split(';'))
+
+        bildungsebene = response.xpath('/data/bildungsebene/text()').get()
+        if bildungsebene is not None:
+            educational.add_value('intendedEndUserRole', bildungsebene.split(';'))
 
         return educational
 
@@ -131,18 +142,29 @@ class MerlinSpider(CrawlSpider, LomBase):
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
 
-        valuespaces.add_value('educationalContext', response.xpath('/data/bildungsebene/text()').get().split(';'))
+        # Use the dictionary when it is easier.
+        element_dict = response.meta["item"]
+
+        if len(response.xpath('/data/fach/*')) > 0:
+            element_dict = response.meta["item"]
+            valuespaces.add_value('educationalContext', element_dict["fach"].values())
 
         # Consider https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/learningResourceType/index.html
-        element_dict = response.meta["item"]
-        # if len(response.xpath('/data/ressource/*')) > 0:
-        if len(element_dict["ressource"]) > 0:
-            resource_types = element_dict["ressource"].values()
+        ressource = element_dict["ressource"] if "ressource" in element_dict else None
+        if ressource is not None and len(ressource) > 0:
+            if "data" in element_dict["ressource"]:
+                resource_types = element_dict["ressource"]["data"]
+                if isinstance(resource_types, str):
+                    resource_types = [resource_types]
+            else:
+                resource_types = element_dict["ressource"].values()
 
             # Convert non-LOM (not known to OEH) resource types, to LOM resource types.
             merlin_to_oeh_types = {
                 "Film": "video",
-                "Menü": "menu",
+                "Menü": "Menu",
+                "Weiteres_Material": "Anderes Material",
+                "Diagramm": "Veranschaulichung",
             }
             resource_types = [merlin_to_oeh_types[rt] if rt in merlin_to_oeh_types else rt.lower() for rt in resource_types]
 
