@@ -67,6 +67,7 @@ class LomEducationalItem(Item):
     # learningResourceType = Field()
     interactivityLevel = Field()
     semanticDensity = Field()
+    # Please use valuespaces.intendedEndUserRole
     intendedEndUserRole = Field(serializer=MutlilangItem, output_processor=JoinMultivalues())
     # Please use valuespaces.educationalContext
     # context = Field()
