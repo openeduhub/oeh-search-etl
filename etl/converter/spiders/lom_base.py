@@ -52,7 +52,7 @@ class LomBase:
       db = Database().findItem(self.getId(response),self)
       if not self.hasChanged(response):
         return None
-  
+
     main = self.getBase(response)
     main.add_value('lom', self.getLOM(response).load_item())
     main.add_value('valuespaces', self.getValuespaces(response).load_item())
@@ -82,8 +82,13 @@ class LomBase:
     r = ResponseItemLoader(response = response)
     r.add_value('status',response.status)
     #r.add_value('body',response.body.decode('utf-8'))
-    # render via splash to also get the full javascript rendered content
-    data = self.getUrlData(response.url)
+
+    # render via splash to also get the full javascript rendered content.
+    # In case of paginated Rest APIs, only do it once and cache it in "meta".
+    if "rendered_data" in response.meta:
+      data = response.meta["rendered_data"]
+    else:
+      data = self.getUrlData(response.url)
     r.add_value('html',data['html'])
     r.add_value('text',data['text'])
     r.add_value('headers',response.headers)
