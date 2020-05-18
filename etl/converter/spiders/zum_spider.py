@@ -96,7 +96,7 @@ class ZUMSpider(scrapy.Spider, LomBase, JSONBase):
  
   def getLicense(self, response):
     license = LomBase.getLicense(self, response)
-    #@TODO
+    license.add_value('url', Constants.LICENSE_CC_BY_SA_40)
     return license
     
   def getValuespaces(self, response):
