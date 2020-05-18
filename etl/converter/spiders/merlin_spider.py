@@ -138,7 +138,8 @@ class MerlinSpider(CrawlSpider, LomBase):
 
         if len(response.xpath('/data/fach/*')) > 0:
             element_dict = response.meta["item"]
-            valuespaces.add_value('educationalContext', element_dict["fach"].values())
+            discipline = list(element_dict["fach"].values())[0]
+            valuespaces.add_value('discipline', discipline)
 
         # Consider https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/learningResourceType/index.html
         ressource = element_dict["ressource"] if "ressource" in element_dict else None
