@@ -61,7 +61,7 @@ docker-compose up -d --no-deps elasticsearch-relay frontend
 - Run
 ```
 cd etl
-sudo apt install python3-dev python3-venv libpq-dev -y
+sudo apt install python3-dev python3-pip python3-venv libpq-dev -y
 python3 -m venv .venv
 ```
 
