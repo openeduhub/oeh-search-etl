@@ -197,7 +197,8 @@ class ProcessThumbnailPipeline:
                     item['thumbnail']['small'] = base64.b64encode(small.getvalue()).decode()
                     item['thumbnail']['large'] = base64.b64encode(large.getvalue()).decode()
             except Exception as e:
-                logging.warn('Could not read thumbnail at ' + url + ': ' + str(e) + ' (falling back to screenshot)')
+                if url:
+                    logging.warn('Could not read thumbnail at ' + url + ': ' + str(e) + ' (falling back to screenshot)')
                 if 'thumbnail' in item:
                     del item['thumbnail']
                     return self.process_item(item, spider)
