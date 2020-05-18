@@ -84,11 +84,7 @@ class LomBase:
     #r.add_value('body',response.body.decode('utf-8'))
 
     # render via splash to also get the full javascript rendered content.
-    # In case of paginated Rest APIs, only do it once and cache it in "meta".
-    if "rendered_data" in response.meta:
-      data = response.meta["rendered_data"]
-    else:
-      data = self.getUrlData(response.url)
+    data = self.getUrlData(response.url)
     r.add_value('html',data['html'])
     r.add_value('text',data['text'])
     r.add_value('headers',response.headers)

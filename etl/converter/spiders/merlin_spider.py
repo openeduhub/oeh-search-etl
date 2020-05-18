@@ -23,6 +23,9 @@ class MerlinSpider(CrawlSpider, LomBase):
     limit = 100
     page = 0
 
+    def __init__(self, **kwargs):
+        LomBase.__init__(self, **kwargs)
+
     def start_requests(self):
         yield scrapy.Request(url=self.apiUrl.replace('%start', str(self.page * self.limit))
                               .replace('%anzahl', str(self.limit)),
@@ -94,6 +97,13 @@ class MerlinSpider(CrawlSpider, LomBase):
             Using prime numbers for less collisions. """
         return 9973 * dt_time.year + 97 * dt_time.month + dt_time.day
 
+    def mapResponse(self, response):
+        r = ResponseItemLoader(response = response)
+        r.add_value('status',response.status)
+        r.add_value('headers',response.headers)
+        r.add_value('url', self.getUri(response))
+        return r
+
     def handleEntry(self, response):
         return LomBase.parse(self, response)
 
@@ -106,32 +116,29 @@ class MerlinSpider(CrawlSpider, LomBase):
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
         general.add_value('title', response.xpath('/data/titel/text()').get())
+        general.add_value('description', response.xpath('/data/beschreibung/text()').get())
 
         return general
 
-    def getLOMEducational(self, response):
-        educational = LomBase.getLOMEducational(self, response)
-
-        educational.add_value('description', response.xpath('/data/beschreibung/text()').get())
-
-        bildungsebene = response.xpath('/data/bildungsebene/text()').get()
-        if bildungsebene is not None:
-            educational.add_value('intendedEndUserRole', bildungsebene.split(';'))
-
-        return educational
+    def getUri(self, response):
+        location = response.xpath('/data/media_url/text()').get()
+        return "http://merlin.nibis.de" + location
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
 
-        technical.add_value('format', 'application/xml')
-        location = response.xpath('/data/media_url/text()').get()
-        technical.add_value('location', "http://merlin.nibis.de" + location)
+        technical.add_value('format', 'text/html')
+        technical.add_value('location', self.getUri(response))
         technical.add_value('size', len(response.body))
 
         return technical
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
+
+        bildungsebene = response.xpath('/data/bildungsebene/text()').get()
+        if bildungsebene is not None:
+            valuespaces.add_value('intendedEndUserRole', bildungsebene.split(';'))
 
         # Use the dictionary when it is easier.
         element_dict = response.meta["item"]
