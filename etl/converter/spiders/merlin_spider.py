@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import xmltodict as xmltodict
-from tqdm import tqdm
 from lxml import etree
 from scrapy.spiders import CrawlSpider
 from converter.items import *
@@ -23,7 +22,6 @@ class MerlinSpider(CrawlSpider, LomBase):
 
     limit = 100
     page = 0
-    pbar = None
 
     def start_requests(self):
         yield scrapy.Request(url=self.apiUrl.replace('%start', str(self.page * self.limit))
@@ -45,17 +43,10 @@ class MerlinSpider(CrawlSpider, LomBase):
         root = etree.XML(response.body)
         tree = etree.ElementTree(root)
 
-        # pbar works even with self.page > 0.
-        if self.pbar is None:
-            total_elements = int(tree.xpath('/root/sum')[0].text)
-            remaining_elements = total_elements - self.page*self.limit
-            self.pbar = tqdm(total=(remaining_elements), desc=self.name + " downloading progress: ", initial=self.page*self.limit)
-
         # If results are returned.
         elements = tree.xpath('/root/items/*')
         if len(elements) > 0:
             for element in elements:
-                self.pbar.update(1)
 
                 copyResponse = response.copy()
                 element_xml_str = etree.tostring(element, pretty_print=True, encoding='unicode')
