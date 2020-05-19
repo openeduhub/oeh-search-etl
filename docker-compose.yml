@@ -63,6 +63,12 @@ services:
     restart: always
     ports:
       - "8050:8050" # exposte to host
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8050/_ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
   frontend:
     image: open-edu-hub-frontend
     networks:
