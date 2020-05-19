@@ -28,9 +28,7 @@ class ZUMSpider(scrapy.Spider, LomBase, JSONBase):
     LomBase.__init__(self, **kwargs)
 
   def mapResponse(self, response):
-      r = LomBase.mapResponse(self, response)
-      r.replace_value('text', '')
-      r.replace_value('html', '')
+      r = LomBase.mapResponse(self, response, fetchData = False)
       r.replace_value('url', response.meta['item'].get('link'))
       return r
 

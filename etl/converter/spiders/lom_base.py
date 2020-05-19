@@ -78,15 +78,16 @@ class LomBase:
       'html': html,
       'text': self.html2Text(html)
     }
-  def mapResponse(self, response):
+  def mapResponse(self, response, fetchData = True):
     r = ResponseItemLoader(response = response)
     r.add_value('status',response.status)
     #r.add_value('body',response.body.decode('utf-8'))
 
     # render via splash to also get the full javascript rendered content.
-    data = self.getUrlData(response.url)
-    r.add_value('html',data['html'])
-    r.add_value('text',data['text'])
+    if fetchData:
+      data = self.getUrlData(response.url)
+      r.add_value('html',data['html'])
+      r.add_value('text',data['text'])
     r.add_value('headers',response.headers)
     r.add_value('url',self.getUri(response))
     return r
