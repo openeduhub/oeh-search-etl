@@ -15,6 +15,7 @@ class CSVBase(LomBase):
     COLUMN_URL = 'url'
     COLUMN_TITLE = 'title'
     COLUMN_DESCRIPTION = 'description'
+    COLUMN_TYPE = 'type'
     COLUMN_THUMBNAIL = 'thumbnail'
     COLUMN_KEYWORD = 'keyword'
     COLUMN_EDUCATIONAL_CONTEXT = 'educationalContext'
@@ -63,6 +64,7 @@ class CSVBase(LomBase):
         base = LomBase.getBase(self, response)
         base.add_value('thumbnail', response.meta['row'][CSVBase.COLUMN_THUMBNAIL]['text'])
         base.add_value('collection', response.meta['row'][CSVBase.COLUMN_COLLECTION]['list'])
+        base.replace_value('type', response.meta['row'][CSVBase.COLUMN_TYPE]['text'])
         return base
   
     def getLOMGeneral(self, response):
