@@ -51,7 +51,9 @@ class CSVBase(LomBase):
                 continue
             data.append(self.transform(row))
         return data
-    
+    def getUri(self, response):
+        return response.meta['row'][CSVBase.COLUMN_URL]['text']
+
     def getId(self, response):
         return response.meta['row'][CSVBase.COLUMN_URL]['text']
 
