@@ -1,4 +1,3 @@
-import psycopg2
 import uuid
 import requests
 import json
