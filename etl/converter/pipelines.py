@@ -10,7 +10,6 @@ from converter.constants import *
 import json
 import re
 from w3lib.html import replace_escape_chars
-import psycopg2
 from scrapy.exporters import JsonItemExporter
 import io
 from datetime import date
