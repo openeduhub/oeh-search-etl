@@ -6,3 +6,4 @@ python-dateutil
 Scrapy==1.8.0
 requests==2.23.0
 vobject
+xmltodict

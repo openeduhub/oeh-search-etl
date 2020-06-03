@@ -14,7 +14,7 @@ from converter.valuespace_helper import ValuespaceHelper;
 from converter.constants import *;
 
 # Spider to fetch RSS from planet schule
-class DigitallearninglabSpider(scrapy.Spider, LomBase, JSONBase):
+class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
   name='wirlernenonline_spider'
   friendlyName='WirLernenOnline'
   url = 'https://wirlernenonline.de/'

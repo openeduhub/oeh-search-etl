@@ -61,6 +61,12 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
       return None
     return LomBase.parse(self, response)
 
+  def mapResponse(self, response):
+    r = LomBase.mapResponse(self, response)
+    text = r.load_item()['text'].split('Dieses Werk steht unter der freien Lizenz CC BY-SA 4.0 Information')[0]
+    r.replace_value('text', text)
+    return r
+
   def getBase(self, response):
     base = LomBase.getBase(self, response)
     base.add_value('lastModified', self.get('lastModified.date', response = response))

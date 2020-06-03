@@ -15,6 +15,7 @@ class CSVBase(LomBase):
     COLUMN_URL = 'url'
     COLUMN_TITLE = 'title'
     COLUMN_DESCRIPTION = 'description'
+    COLUMN_TYPE = 'type'
     COLUMN_THUMBNAIL = 'thumbnail'
     COLUMN_KEYWORD = 'keyword'
     COLUMN_EDUCATIONAL_CONTEXT = 'educationalContext'
@@ -23,6 +24,7 @@ class CSVBase(LomBase):
     COLUMN_DISCIPLINE = 'discipline'
     COLUMN_LEARNING_RESOURCE_TYPE = 'learningResourceType'
     COLUMN_LANGUAGE = 'language'
+    COLUMN_COLLECTION = 'collection'
     COLUMN_LICENSE = 'license'
     mappings = None
     def transform(self, row):
@@ -49,7 +51,9 @@ class CSVBase(LomBase):
                 continue
             data.append(self.transform(row))
         return data
-    
+    def getUri(self, response):
+        return response.meta['row'][CSVBase.COLUMN_URL]['text']
+
     def getId(self, response):
         return response.meta['row'][CSVBase.COLUMN_URL]['text']
 
@@ -61,6 +65,8 @@ class CSVBase(LomBase):
     def getBase(self, response):
         base = LomBase.getBase(self, response)
         base.add_value('thumbnail', response.meta['row'][CSVBase.COLUMN_THUMBNAIL]['text'])
+        base.add_value('collection', response.meta['row'][CSVBase.COLUMN_COLLECTION]['list'])
+        base.replace_value('type', response.meta['row'][CSVBase.COLUMN_TYPE]['text'])
         return base
   
     def getLOMGeneral(self, response):

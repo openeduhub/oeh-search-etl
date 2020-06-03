@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /home/oeh/backend/etl/venv/bin/activate
+source .venv/bin/activate
 
 scrapy crawl serlo_spider &
 scrapy crawl leifi_spider &
