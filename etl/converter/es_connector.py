@@ -42,7 +42,7 @@ class EduSharing:
             'cm:name' : item['lom']['general']['title'],
             'ccm:wwwurl' : item['lom']['technical']['location'],
             'cclom:location' : item['lom']['technical']['location'],
-            'cclom:general_title' : item['lom']['general']['title'],
+            'cclom:title' : item['lom']['general']['title'],
             'cclom:general_description' : item['lom']['general']['description'],
         }
         if 'language' in item['lom']['general']:
