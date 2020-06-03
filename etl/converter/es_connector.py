@@ -43,8 +43,10 @@ class EduSharing:
             'ccm:wwwurl' : item['lom']['technical']['location'],
             'cclom:location' : item['lom']['technical']['location'],
             'cclom:title' : item['lom']['general']['title'],
-            'cclom:general_description' : item['lom']['general']['description'],
         }
+        if 'description' in item['lom']['general']:
+            spaces['cclom:general_description'] = item['lom']['general']['description']
+
         if 'language' in item['lom']['general']:
             spaces['cclom:general_language'] = item['lom']['general']['language']
 
@@ -60,7 +62,6 @@ class EduSharing:
         }
         for key in item['valuespaces']:
             spaces[valuespaceMapping[key]] = item['valuespaces'][key]
-            
         if 'typicalagerange' in item['lom']['educational']:
             spaces['ccm:educationaltypicalagerange_from'] = item['lom']['educational']['typicalagerange']['from']
             spaces['ccm:educationaltypicalagerange_to'] = item['lom']['educational']['typicalagerange']['to']
