@@ -61,6 +61,12 @@ class LomBase:
     main.add_value('response', self.mapResponse(response).load_item())
     return main.load_item()
 
+  def html2Text(self, html):
+    h = html2text.HTML2Text()
+    h.ignore_links = True
+    h.ignore_images = True
+    return h.handle(html)
+
   def getUrlData(self, url):
     settings = get_project_settings()
     html = requests.post(settings.get('SPLASH_URL')+'/render.html', json={
@@ -68,26 +74,20 @@ class LomBase:
                 'wait': settings.get('SPLASH_WAIT'),
                 'headers': settings.get('SPLASH_HEADERS')
             }).content.decode('UTF-8')
-    h = html2text.HTML2Text()
-    h.ignore_links = True
-    h.ignore_images = True
     return { 
       'html': html,
-      'text': h.handle(html)
+      'text': self.html2Text(html)
     }
-  def mapResponse(self, response):
+  def mapResponse(self, response, fetchData = True):
     r = ResponseItemLoader(response = response)
     r.add_value('status',response.status)
     #r.add_value('body',response.body.decode('utf-8'))
 
     # render via splash to also get the full javascript rendered content.
-    # In case of paginated Rest APIs, only do it once and cache it in "meta".
-    if "rendered_data" in response.meta:
-      data = response.meta["rendered_data"]
-    else:
+    if fetchData:
       data = self.getUrlData(response.url)
-    r.add_value('html',data['html'])
-    r.add_value('text',data['text'])
+      r.add_value('html',data['html'])
+      r.add_value('text',data['text'])
     r.add_value('headers',response.headers)
     r.add_value('url',self.getUri(response))
     return r

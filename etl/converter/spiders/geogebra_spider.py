@@ -70,6 +70,7 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
     general.add_value('title', self.get('title', response = response))
     general.add_value('keyword', self.get('keywords', response = response))
     general.add_value('language', self.get('language', response = response))
+    general.add_value('description', self.get('description', response = response))
     return general
   def getValuespaces(self, response):
     valuespaces = LomBase.getValuespaces(self, response)
@@ -88,7 +89,6 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
 
   def getLOMEducational(self, response):
     educational = LomBase.getLOMEducational(self, response)
-    educational.add_value('description', self.get('description', response = response))
     #educational.add_value('typicalLearningTime', self.get('timeRequired'))
     return educational
 

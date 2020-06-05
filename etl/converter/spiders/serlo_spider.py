@@ -61,6 +61,12 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
       return None
     return LomBase.parse(self, response)
 
+  def mapResponse(self, response):
+    r = LomBase.mapResponse(self, response)
+    text = r.load_item()['text'].split('Dieses Werk steht unter der freien Lizenz CC BY-SA 4.0 Information')[0]
+    r.replace_value('text', text)
+    return r
+
   def getBase(self, response):
     base = LomBase.getBase(self, response)
     base.add_value('lastModified', self.get('lastModified.date', response = response))
@@ -102,12 +108,8 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
     general = LomBase.getLOMGeneral(self, response = response)
     general.add_value('title', self.get('title', response = response))
     general.add_value('keyword', self.getKeywords(response))
+    general.add_value('description', self.get('description', response = response))
     return general
-
-  def getLOMEducational(self, response):
-    educational = LomBase.getLOMEducational(self, response)
-    educational.add_value('description', self.get('description', response = response))
-    return educational
 
   def getLOMTechnical(self, response):
     technical = LomBase.getLOMTechnical(self, response)

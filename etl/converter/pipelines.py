@@ -51,7 +51,7 @@ class FilterSparsePipeline:
         except:
             pass
         try:
-            valid = valid or item['lom']['educational']['description']
+            valid = valid or item['lom']['general']['description']
         except:
             pass
         try:
@@ -197,7 +197,8 @@ class ProcessThumbnailPipeline:
                     item['thumbnail']['small'] = base64.b64encode(small.getvalue()).decode()
                     item['thumbnail']['large'] = base64.b64encode(large.getvalue()).decode()
             except Exception as e:
-                logging.warn('Could not read thumbnail at ' + url + ': ' + str(e) + ' (falling back to screenshot)')
+                if url:
+                    logging.warn('Could not read thumbnail at ' + url + ': ' + str(e) + ' (falling back to screenshot)')
                 if 'thumbnail' in item:
                     del item['thumbnail']
                     return self.process_item(item, spider)
@@ -276,6 +277,10 @@ class PostgresStorePipeline(Database):
                 item['hash'], # hash
                 json,
             ))
+        if 'collection' in item:
+            for collection in item['collection']:
+                logging.info('adding object ' + entryUUID + 'into collection ' + collection)
+                self.addCollectionReference(entryUUID, collection)
         output.close()
         self.conn.commit()
         return item
