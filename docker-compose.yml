@@ -83,6 +83,7 @@ services:
       - elasticnet
     environment:
       - URL=${URL?See "Runtime Configuration" on Readme.md}/relay
+      - FRONTEND_URL=${URL}
       - "ELASTICSEARCH_URL=http://elasticsearch:9200"
     ports:
       - "127.0.0.1:3000:80"
