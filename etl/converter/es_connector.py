@@ -44,7 +44,10 @@ class EduSharing:
             if license['url'] == Constants.LICENSE_CC_BY_SA_40:
                 spaces['ccm:commonlicense_key'] = 'CC_BY_SA'
                 spaces['ccm:commonlicense_cc_version'] = '4.0'
-                
+            if license['url'] == Constants.LICENSE_CC_ZERO_10:
+                spaces['ccm:commonlicense_key'] = 'CC_0'
+                spaces['ccm:commonlicense_cc_version'] = '1.0'
+
     def transformItem(self, uuid, spider, item):
         spaces = {
             'ccm:replicationsource' : spider.name,
