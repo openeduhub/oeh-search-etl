@@ -75,6 +75,8 @@ class EduSharing:
                 spaces[key] = list([x for y in spaces[key] for x in y])
             if not type(spaces[key]) is list:
                 spaces[key] = [spaces[key]]
+
+        spaces['cm:edu_metadataset'] = 'mds_oeh'
         return spaces
 
     def insertItem(self, spider, uuid, item):
