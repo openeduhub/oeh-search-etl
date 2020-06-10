@@ -5,6 +5,7 @@ import base64
 from scrapy.utils.project import get_project_settings
 from requests.auth import HTTPBasicAuth
 from io import BytesIO
+from converter.constants import Constants
 
 class EduSharing:
     cookie = None
@@ -32,6 +33,18 @@ class EduSharing:
                     files = files)
         return response.status_code == 200
  
+    def mapLicense(self, spaces, license):
+        if 'url' in license:
+            if license['url'] == Constants.LICENSE_CC_BY_40:
+                spaces['ccm:commonlicense_key'] = 'CC_BY'
+                spaces['ccm:commonlicense_cc_version'] = '4.0'
+            if license['url'] == Constants.LICENSE_CC_BY_SA_30:
+                spaces['ccm:commonlicense_key'] = 'CC_BY_SA'
+                spaces['ccm:commonlicense_cc_version'] = '3.0'
+            if license['url'] == Constants.LICENSE_CC_BY_SA_40:
+                spaces['ccm:commonlicense_key'] = 'CC_BY_SA'
+                spaces['ccm:commonlicense_cc_version'] = '4.0'
+                
     def transformItem(self, uuid, spider, item):
         spaces = {
             'ccm:replicationsource' : spider.name,
@@ -44,6 +57,7 @@ class EduSharing:
             'cclom:location' : item['lom']['technical']['location'],
             'cclom:title' : item['lom']['general']['title'],
         }
+        self.mapLicense(spaces, item['license'])
         if 'description' in item['lom']['general']:
             spaces['cclom:general_description'] = item['lom']['general']['description']
 
