@@ -70,13 +70,14 @@ class EduSharing:
         # educationalContext = Field(output_processor=JoinMultivalues())
         # learningResourceType = Field(output_processor=JoinMultivalues())
         # sourceContentType = Field(output_processor=JoinMultivalues())
+        spaces['cm:edu_metadataset'] = 'mds_oeh'
+        
         for key in spaces:
             if type(spaces[key]) is tuple:
                 spaces[key] = list([x for y in spaces[key] for x in y])
             if not type(spaces[key]) is list:
                 spaces[key] = [spaces[key]]
 
-        spaces['cm:edu_metadataset'] = 'mds_oeh'
         return spaces
 
     def insertItem(self, spider, uuid, item):
