@@ -66,7 +66,8 @@ class NormLicensePipeline(object):
             if(
                 item['license']['url'] == Constants.LICENSE_CC_BY_40 or 
                 item['license']['url'] == Constants.LICENSE_CC_BY_SA_30 or
-                item['license']['url'] == Constants.LICENSE_CC_BY_SA_40
+                item['license']['url'] == Constants.LICENSE_CC_BY_SA_40 or
+                item['license']['url'] == Constants.LICENSE_CC_ZERO_10
             ):
                 item['license']['oer'] = OerType.ALL
        
