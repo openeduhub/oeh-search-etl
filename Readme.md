@@ -71,6 +71,8 @@ python3 -m venv .venv
 
 `pip3 install -r requirements.txt`
 
+As a last step, set up your config variables by copying the example and modify it if necessary `cp etl/converter/.env.example etl/converter/.env`
+
 - crawler can be run with `scrapy crawl <spider-name>`. It assumes that you have the postgres database running, so you should run the `docker-compose up` command from before.
 
 ## Building a Crawler

@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+import os
+from pathlib import Path  # python3 only
+from dotenv import load_dotenv
+load_dotenv()
 
 # Scrapy settings for project
 #
@@ -24,9 +28,9 @@ SPLASH_WAIT = 1 # seconds to let the page load
 SPLASH_HEADERS = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'} # use chrome to not create warnings on pages
 
 #edu-sharing config
-EDU_SHARING_BASE_URL='http://localhost:8080/edu-sharing/'
-EDU_SHARING_USERNAME='admin'
-EDU_SHARING_PASSWORD='admin'
+EDU_SHARING_BASE_URL=os.getenv("EDU_SHARING_BASE_URL")
+EDU_SHARING_USERNAME=os.getenv("EDU_SHARING_USERNAME")
+EDU_SHARING_PASSWORD=os.getenv("EDU_SHARING_PASSWORD")
 
 # Thumbnail config
 THUMBNAIL_SMALL_SIZE = 250*250
