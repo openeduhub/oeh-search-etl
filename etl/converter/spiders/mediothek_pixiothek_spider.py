@@ -5,6 +5,7 @@ from datetime import datetime
 from scrapy.spiders import CrawlSpider
 from converter.items import *
 from converter.spiders.lom_base import LomBase
+from converter.constants import *;
 
 
 class MediothekPixiothekSpider(CrawlSpider, LomBase):
@@ -23,18 +24,12 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         LomBase.__init__(self, **kwargs)
 
     def parse(self, response: scrapy.http.Response):
-        print("Parsing URL: " + response.url)
 
         # Call Splash only once per page (that contains multiple XML elements).
         data = self.getUrlData(response.url)
         response.meta["rendered_data"] = data
-
         elements = json.loads(response.body_as_unicode())
         for i, element in enumerate(elements):
-            # TODO: To not stress the Rest APIs.
-            time.sleep(1.5)
-
-            print("processing element: " + str(i/len(elements)))
             copyResponse = response.copy()
 
             # Passing the dictionary for easier access to attributes.
@@ -43,6 +38,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             # In case JSON string representation is preferred:
             json_str = json.dumps(element, indent=4, sort_keys=True, ensure_ascii=False)
             copyResponse._set_body(json_str)
+            print(json_str)
 
             if self.hasChanged(copyResponse):
                 yield self.handleEntry(copyResponse)
@@ -115,6 +111,15 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         element_dict = response.meta["item"]
 
         return element_dict['downloadUrl']
+
+    def getLicense(self, response):
+        license = LomBase.getLicense(self, response)
+
+        # Element response as a Python dict.
+        element_dict = response.meta["item"]
+
+        license.replace_value('internal', Constants.LICENSE_NONPUBLIC if element_dict['oeffentlich'] == '1' else Constants.LICENSE_COPYRIGHT_LAW)
+        return license
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
