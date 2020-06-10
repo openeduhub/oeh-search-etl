@@ -71,6 +71,7 @@ class EduSharing:
         # learningResourceType = Field(output_processor=JoinMultivalues())
         # sourceContentType = Field(output_processor=JoinMultivalues())
         spaces['cm:edu_metadataset'] = 'mds_oeh'
+        spaces['cm:edu_forcemetadataset'] = 'true'
         
         for key in spaces:
             if type(spaces[key]) is tuple:
