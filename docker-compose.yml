@@ -70,7 +70,7 @@ services:
       retries: 3
       start_period: 40s
   frontend:
-    image: open-edu-hub-frontend
+    image: openeduhub/frontend
     networks:
       - elasticnet
     ports:
@@ -78,7 +78,7 @@ services:
     depends_on:
       - elasticsearch-relay
   elasticsearch-relay:
-    image: elasticsearch-relay
+    image: openeduhub/elasticsearch-relay
     networks:
       - elasticnet
     environment:
