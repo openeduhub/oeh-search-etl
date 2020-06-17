@@ -48,7 +48,7 @@ class EduSharing:
                 spaces['ccm:commonlicense_key'] = 'CC_0'
                 spaces['ccm:commonlicense_cc_version'] = '1.0'
         if 'internal' in license:
-            if license['internal'] )) Constants.LICENSE_COPYRIGHT_LAW:
+            if license['internal'] == Constants.LICENSE_COPYRIGHT_LAW:
                 spaces['ccm:commonlicense_key'] = 'COPYRIGHT_FREE'
 
     def transformItem(self, uuid, spider, item):
