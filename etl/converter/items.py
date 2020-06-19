@@ -119,12 +119,20 @@ class LicenseItem(Item):
     # a value of OerType (if empty, will be mapped via the given url or internal value)
     oer = Field()
 
+class PermissionItem(Item):
+    public = Field()
+    "Should this item be public (accessible for anyone)"
+    groups = Field(output_processor=JoinMultivalues())
+    "Global Groups that should have access to this object"
+    mediacenters = Field(output_processor=JoinMultivalues())
+    "Mediacenters that should have access to this object"
 class BaseItem(Item):
     sourceId = Field()
-    uuid = Field() # explicit uuid of the target element, please only set this if you actually know the uuid of the internal document
+    uuid = Field()
+    "explicit uuid of the target element, please only set this if you actually know the uuid of the internal document"
     hash = Field()
-    # id of collections this material should be placed into
     collection = Field(output_processor=JoinMultivalues())
+    "id of collections this entry should be placed into"
     type = Field()
     response = Field(serializer=ResponseItem)
     ranking = Field()
@@ -133,6 +141,8 @@ class BaseItem(Item):
     lastModified = Field()
     lom = Field(serializer=LomBaseItem)
     valuespaces = Field(serializer=ValuespaceItem)
+    permissions = Field(serializer=PermissionItem)
+    "permissions (access rights) for this entry"
     license = Field(serializer=LicenseItem)
     publisher = Field()
 
@@ -176,4 +186,7 @@ class LomEducationalItemLoader(ItemLoader):
 #    default_output_processor = TakeFirst()
 class LomClassificationItemLoader(ItemLoader):
     default_item_class = LomClassificationItem
+    default_output_processor = TakeFirst()
+class PermissionItemLoader(ItemLoader):
+    default_item_class = PermissionItem
     default_output_processor = TakeFirst()

@@ -5,9 +5,19 @@ import base64
 from scrapy.utils.project import get_project_settings
 from requests.auth import HTTPBasicAuth
 from io import BytesIO
+import logging
 from converter.constants import Constants
 
+class EduSharingConstants:
+    GROUP_EVERYONE = 'GROUP_EVERYONE'
+    AUTHORITYTYPE_GROUP = 'GROUP'
+    AUTHORITYTYPE_EVERYONE = 'EVERYONE'
+    PERMISSION_CONSUMER = 'Consumer'
+    PERMISSION_CCPUBLISH = 'CCPublish'
+    GROUP_PREFIX = 'GROUP_'
+    MEDIACENTER_PROXY_PREFIX = 'MEDIA_CENTER_PROXY_'
 class EduSharing:
+
     cookie = None
     def __init__(self):
         self.loadSession()
@@ -24,6 +34,12 @@ class EduSharing:
                         headers = self.getHeaders(None),
                         data = item['fulltext'].encode('utf-8'))
             return response.status_code == 200
+
+    def setPermissions(self, uuid, permissions):
+        response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + uuid + '/permissions?sendMail=false', 
+                    headers = self.getHeaders(),
+                    data = json.dumps(permissions))
+        return response.status_code == 200
 
     def setNodePreview(self, uuid, item):
         key = 'large' if 'large' in item['thumbnail'] else 'small'
@@ -100,9 +116,48 @@ class EduSharing:
                 spaces[key] = [spaces[key]]
 
         return spaces
+    def setNodePermissions(self, uuid, item):
+        if 'permissions' in item:
+            permissions = {
+                "inherited": False,
+                "permissions": []
+            }
+            public = item['permissions']['public']
+            if public == True:
+                if 'groups' in item['permissions'] or 'mediacenters' in item['permissions']:
+                    logging.error('Invalid state detected: Permissions public is set to true but groups or mediacenters are also set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!')
+                    return
+                permissions['permissions'].append({
+                    "authority": {
+                        "authorityName": EduSharingConstants.GROUP_EVERYONE,
+                        "authorityType": EduSharingConstants.AUTHORITYTYPE_EVERYONE
+                    },
+                    "permissions": [ EduSharingConstants.PERMISSION_CONSUMER, EduSharingConstants.PERMISSION_CCPUBLISH ]
+                })
+            else:
+                if not 'groups' in item['permissions'] and not 'mediacenters' in item['permissions']:
+                    logging.error('Invalid state detected: Permissions public is set to false but neither groups or mediacenters are set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!')
+                    return
+                groups = []
+                if 'groups' in item['permissions']:
+                    groups = groups + list(map(lambda x: EduSharingConstants.GROUP_PREFIX + x, item['permissions']['groups']))
+                if 'mediacenters' in item['permissions']:
+                    groups = groups + list(map(lambda x: EduSharingConstants.GROUP_PREFIX + EduSharingConstants.MEDIACENTER_PROXY_PREFIX + x, item['permissions']['mediacenters']))
+                for group in groups:
+                    permissions['permissions'].append({
+                        "authority": {
+                            "authorityName": group,
+                            "authorityType": EduSharingConstants.AUTHORITYTYPE_GROUP
+                        },
+                        "permissions": [ EduSharingConstants.PERMISSION_CONSUMER, EduSharingConstants.PERMISSION_CCPUBLISH ]
+                    })
+            if not self.setPermissions(uuid, permissions):
+                logging.error('Failed to set permissions, please check that the given groups/mediacenters are existing in the repository ')
+                logging.error(item['permissions'])
 
     def insertItem(self, spider, uuid, item):
         node = self.syncNode(spider, 'ccm:io' ,self.transformItem(uuid, spider, item))
+        self.setNodePermissions(node['ref']['id'], item)
         self.setNodePreview(node['ref']['id'], item)
         self.setNodeText(node['ref']['id'], item)
 

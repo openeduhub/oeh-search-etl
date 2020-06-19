@@ -7,6 +7,8 @@ import html2text
 import urllib
 from scrapy.utils.project import get_project_settings
 from converter.es_connector import EduSharing
+
+
 class LomBase:
   friendlyName = 'LOM Based spider'
   ranking = 1
@@ -57,6 +59,7 @@ class LomBase:
     main.add_value('lom', self.getLOM(response).load_item())
     main.add_value('valuespaces', self.getValuespaces(response).load_item())
     main.add_value('license', self.getLicense(response).load_item())
+    main.add_value('permissions', self.getPermissions(response).load_item())
     logging.debug(main.load_item())
     main.add_value('response', self.mapResponse(response).load_item())
     return main.load_item()
@@ -129,3 +132,9 @@ class LomBase:
 
   def getLOMClassification(self, response = None):
     return LomClassificationItemLoader(response = response)
+
+  def getPermissions(self, response = None):
+    permissions = PermissionItemLoader(response = response)
+    # default all materials to public, needs to be changed depending on the spider!
+    permissions.add_value('public', True)
+    return permissions
