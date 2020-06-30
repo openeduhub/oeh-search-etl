@@ -129,3 +129,28 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         technical.add_value('size', len(response.body))
 
         return technical
+
+    def is_public(self, element_dict) -> bool:
+        """
+        Temporary solution to check whether the content is public and only save it if this holds.
+        """
+        return element_dict["oeffentlich"] == "1"
+
+    # TODO: This code snippet will be enabled in the next PR for licensed content, after clarifications are made.
+    #
+    # def getPermissions(self, response):
+    #     """
+    #     Licensing information is controlled via the 'oeffentlich' flag. When it is '1' it is available to the public,
+    #     otherwise only to Thuringia. Therefore, when the latter happens we set the public to private, and set the groups
+    #     and mediacenters accordingly.
+    #     """
+    #     permissions = LomBase.getPermissions(self, response)
+    #
+    #     element_dict = response.meta["item"]
+    #
+    #     if element_dict["oeffentlich"] == "0":  # private
+    #         permissions.replace_value('public', False)
+    #         permissions.add_value('groups', ['Thuringia'])
+    #         permissions.add_value('mediacenters', 'mediothek')  # only 1 mediacenter.
+    #
+    #     return permissions
