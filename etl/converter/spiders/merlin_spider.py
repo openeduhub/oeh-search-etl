@@ -15,10 +15,10 @@ class MerlinSpider(CrawlSpider, LomBase):
     Author: Ioannis Koumarelas, ioannis.koumarelas@hpi.de, Schul-Cloud, Content team.
     """
     name = 'merlin_spider'
-    url = 'http://merlin.nibis.de/index.php'  # the url which will be linked as the primary link to your source (should be the main url of your site)
+    url = 'https://merlin.nibis.de/index.php'  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = 'Merlin'  # name as shown in the search ui
     version = '0.1'  # the version of your crawler, used to identify if a reimport is necessary
-    apiUrl = 'http://merlin.nibis.de/index.php?action=resultXml&start=%start&anzahl=%anzahl&query[stichwort]=*'     # * regular expression, to represent all possible values.
+    apiUrl = 'https://merlin.nibis.de/index.php?action=resultXml&start=%start&anzahl=%anzahl&query[stichwort]=*'     # * regular expression, to represent all possible values.
 
     limit = 100
     page = 0
@@ -50,10 +50,14 @@ class MerlinSpider(CrawlSpider, LomBase):
         elements = tree.xpath('/root/items/*')
         if len(elements) > 0:
             for element in elements:
-
                 copyResponse = response.copy()
                 element_xml_str = etree.tostring(element, pretty_print=True, encoding='unicode')
                 element_dict = xmltodict.parse(element_xml_str)
+
+                # Temporary solution for public-only content.
+                # TODO: remove this when licensed content are enabled!
+                if not self.is_public(element_dict["data"]):
+                    continue
 
                 # TODO: It's probably a pointless attribute.
                 #del element_dict["data"]["score"]
@@ -169,3 +173,35 @@ class MerlinSpider(CrawlSpider, LomBase):
 
             valuespaces.add_value('learningResourceType', resource_types)
         return valuespaces
+
+    def is_public(self, element_dict) -> bool:
+        """
+        Temporary solution to check whether the content is public and only save it if this holds.
+        """
+        return not (element_dict["kreis_id"] is not None and len(element_dict["kreis_id"]) > 0)
+
+    # TODO: This code snippet will be enabled in the next PR for licensed content, after clarifications are made.
+    #
+    # def getPermissions(self, response):
+    #     """
+    #     In case license information, in the form of Kreis codes, is available. This changes the permissions from
+    #     public to private and sets accordingly the groups and mediacenters. For more information regarding the available
+    #     Merlin kreis codes please consult 'http://merlin.nibis.de/index.php?action=kreise'
+    #     """
+    #
+    #     permissions = LomBase.getPermissions(self, response)
+    #
+    #     element_dict = response.meta["item"]
+    #
+    #     if element_dict["kreis_id"] is not None and len(element_dict["kreis_id"]) > 0:  # private
+    #         kreis_ids = element_dict["kreis_id"]["data"]  # ... redundant extra nested dictionary "data"...
+    #         if not isinstance(kreis_ids, list):  # one element
+    #             kreis_ids = [kreis_ids]
+    #         kreis_ids = sorted(kreis_ids, key=lambda x: int(x))
+    #         kreis_ids = ["merlin_" + id for id in kreis_ids]  # add prefix
+    #
+    #         permissions.replace_value('public', False)
+    #         permissions.add_value('groups', ['Lower Saxony'])
+    #         permissions.add_value('mediacenters', kreis_ids)
+    #
+    #     return permissions

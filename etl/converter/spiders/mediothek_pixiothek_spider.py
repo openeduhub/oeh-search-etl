@@ -30,11 +30,6 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         response.meta["rendered_data"] = data
         elements = json.loads(response.body_as_unicode())
         for i, element in enumerate(elements):
-            # Temporary solution for public-only content.
-            # TODO: remove this when licensed content are enabled!
-            if not self.is_public(element):
-                continue
-
             copyResponse = response.copy()
 
             # Passing the dictionary for easier access to attributes.
@@ -123,7 +118,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         # Element response as a Python dict.
         element_dict = response.meta["item"]
 
-        # license.replace_value('internal', Constants.LICENSE_NONPUBLIC if element_dict['oeffentlich'] == '1' else Constants.LICENSE_COPYRIGHT_LAW)
+        license.replace_value('internal', Constants.LICENSE_NONPUBLIC if element_dict['oeffentlich'] == '1' else Constants.LICENSE_COPYRIGHT_LAW)
         return license
 
     def getLOMTechnical(self, response):
