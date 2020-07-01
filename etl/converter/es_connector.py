@@ -7,8 +7,16 @@ from requests.auth import HTTPBasicAuth
 from io import BytesIO
 import logging
 from converter.constants import Constants
+from edu_sharing_client.api_client import ApiClient
+from edu_sharing_client.configuration import Configuration
+from edu_sharing_client.api.bulk_v1_api import BULKV1Api
+from edu_sharing_client.api.iam_v1_api import IAMV1Api
+from edu_sharing_client.api.node_v1_api import NODEV1Api
+from edu_sharing_client.rest import ApiException
+
 
 class EduSharingConstants:
+    HOME = '-home-'
     GROUP_EVERYONE = 'GROUP_EVERYONE'
     AUTHORITYTYPE_GROUP = 'GROUP'
     AUTHORITYTYPE_EVERYONE = 'EVERYONE'
@@ -16,31 +24,65 @@ class EduSharingConstants:
     PERMISSION_CCPUBLISH = 'CCPublish'
     GROUP_PREFIX = 'GROUP_'
     MEDIACENTER_PROXY_PREFIX = 'MEDIA_CENTER_PROXY_'
+
+# creating the swagger client: java -jar swagger-codegen-cli-3.0.20.jar generate -l python -i http://localhost:8080/edu-sharing/rest/swagger.json -o edu_sharing_swagger -c edu-sharing-swagger.config.json
+class ESApiClient(ApiClient):
+    def deserialize(self, response, response_type):
+        """Deserializes response into an object.
+
+        :param response: RESTResponse object to be deserialized.
+        :param response_type: class literal for
+            deserialized object, or string of class name.
+
+        :return: deserialized object.
+        """
+        # handle file downloading
+        # save response body into a tmp file and return the instance
+        if response_type == "file":
+            return self.__deserialize_file(response)
+
+        # fetch data from response object
+        try:
+            data = json.loads(response.data)
+        except ValueError:
+            data = response.data
+        # workaround for es: simply return to prevent error throwing
+        #return self.__deserialize(data, response_type)
+        return data
 class EduSharing:
 
     cookie = None
+    apiClient = None
+    bulkApi = None
+    iamApi = None
+    nodeApi = None
     def __init__(self):
-        self.loadSession()
+        self.initApiClient()
     def getHeaders(self, contentType = 'application/json'):
         return { 'COOKIE' : EduSharing.cookie, 'Accept' : 'application/json', 'Content-Type' : contentType}
     def syncNode(self, spider, type, properties):
-        response = requests.put(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/bulk/v1/sync/' + spider.name + '?match=ccm:replicationsource&match=ccm:replicationsourceid&type=' + type, 
-                    headers = self.getHeaders(),
-                    data = json.dumps(properties))
-        return json.loads(response.text)['node']
+        response = EduSharing.bulkApi.sync(spider.name, ['ccm:replicationsource', 'ccm:replicationsourceid'], type, properties)
+        return response['node']
     def setNodeText(self, uuid, item):
         if 'fulltext' in item:
             response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + uuid + '/textContent?mimetype = text/plain', 
-                        headers = self.getHeaders(None),
-                        data = item['fulltext'].encode('utf-8'))
+                headers = self.getHeaders(None),
+                data = item['fulltext'].encode('utf-8'))
             return response.status_code == 200
+            # does currently not store data
+            # try:
+            #     EduSharing.nodeApi.change_content_as_text(EduSharingConstants.HOME, uuid, 'text/plain',item['fulltext'])
+            #     return True
+            # except ApiException as e:
+            #     print(e)
+            #     return False
 
     def setPermissions(self, uuid, permissions):
-        response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + uuid + '/permissions?sendMail=false', 
-                    headers = self.getHeaders(),
-                    data = json.dumps(permissions))
-        return response.status_code == 200
-
+        try:
+            EduSharing.nodeApi.set_permission(EduSharingConstants.HOME, uuid, permissions, False, False)
+            return True
+        except ApiException as e:
+            return False
     def setNodePreview(self, uuid, item):
         key = 'large' if 'large' in item['thumbnail'] else 'small'
         files = {'image': base64.b64decode(item['thumbnail'][key])}
@@ -165,7 +207,7 @@ class EduSharing:
     def updateItem(self, spider, uuid, item):
         self.insertItem(spider, uuid, item)
 
-    def loadSession(self):
+    def initApiClient(self):
         if EduSharing.cookie == None:
             settings = get_project_settings()
             auth = requests.get(settings.get('EDU_SHARING_BASE_URL') + 'rest/authentication/v1/validateSession', 
@@ -175,6 +217,12 @@ class EduSharing:
             isAdmin = json.loads(auth.text)['isAdmin']
             if isAdmin:
                 EduSharing.cookie = auth.headers['SET-COOKIE'].split(';')[0]
+                configuration = Configuration()
+                configuration.host = settings.get('EDU_SHARING_BASE_URL') + 'rest'
+                EduSharing.apiClient = ESApiClient(configuration, cookie = EduSharing.cookie, header_name = 'Accept', header_value = 'application/json')
+                EduSharing.bulkApi = BULKV1Api(EduSharing.apiClient)
+                EduSharing.iamApi = IAMV1Api(EduSharing.apiClient)
+                EduSharing.nodeApi = NODEV1Api(EduSharing.apiClient)
                 return
             raise Exception('Could not authentify as admin at edu-sharing. Please check your settings for repository ' + settings.get('EDU_SHARING_BASE_URL'))
             
@@ -189,13 +237,16 @@ class EduSharing:
             'ccm:replicationsource': [spider.name],
             'ccm:replicationsourceid': [id],
         }
-        response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/bulk/v1/find',
-                    headers = self.getHeaders(),
-                    data = json.dumps(properties))
-        if response.status_code == 200:
-            properties = json.loads(response.text)['node']['properties']
+        try:
+            response = EduSharing.bulkApi.find(properties)
+            properties = response['node']['properties']
             if 'ccm:replicationsourcehash' in properties and 'ccm:replicationsourceuuid' in properties:
                 return [properties['ccm:replicationsourceuuid'][0], properties['ccm:replicationsourcehash'][0]]
+        except ApiException as e:
+            if e.status == 404:
+                pass
+            else:
+                raise e
         return None
 
     def findSource(self, spider):
