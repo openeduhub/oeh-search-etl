@@ -76,7 +76,7 @@ class DigitallearninglabSpider(scrapy.Spider, LrmiBase):
   def getBase(self, response):
     base = LrmiBase.getBase(self, response)
     #base.replace_value('thumbnail', self.url + '/media/' + response.meta['item'].get('image'))
-    base.replace_value('thumbnail', self.url + response.xpath('//img[@class="content-info__image"]/@src').get())
+    base.replace_value('thumbnail', response.xpath('//img[@class="content-info__image"]/@src').get())
     base.replace_value('type', self.getType(response))
     return base
 
