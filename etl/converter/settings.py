@@ -21,6 +21,11 @@ NEWSPIDER_MODULE = 'converter.spiders'
 LOG_LEVEL = 'INFO'
 LOG_FORMATTER = 'converter.custom_log_formatter.CustomLogFormatter'
 
+# Default behaviour for regular crawlers of non-license-controlled content
+# When set True, every item will have GROUP_EVERYONE attached in edu-sharing
+# When set False, no permissions are set at all, which can be helpful if you want to control them later
+DEFAULT_PUBLIC_STATE = True
+
 # Splash (Web Thumbnailer)
 # Will be rolled out via docker-compose by default
 SPLASH_URL = 'http://localhost:8050'

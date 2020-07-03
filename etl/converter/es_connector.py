@@ -12,8 +12,11 @@ from edu_sharing_client.configuration import Configuration
 from edu_sharing_client.api.bulk_v1_api import BULKV1Api
 from edu_sharing_client.api.iam_v1_api import IAMV1Api
 from edu_sharing_client.api.node_v1_api import NODEV1Api
+from edu_sharing_client.api.mediacenter_v1_api import MEDIACENTERV1Api
 from edu_sharing_client.rest import ApiException
-
+from edu_sharing_client.models import GroupEntry
+from typing import List
+from enum import Enum
 
 class EduSharingConstants:
     HOME = '-home-'
@@ -23,6 +26,7 @@ class EduSharingConstants:
     PERMISSION_CONSUMER = 'Consumer'
     PERMISSION_CCPUBLISH = 'CCPublish'
     GROUP_PREFIX = 'GROUP_'
+    MEDIACENTER_PREFIX = 'MEDIA_CENTER_'
     MEDIACENTER_PROXY_PREFIX = 'MEDIA_CENTER_PROXY_'
 
 # creating the swagger client: java -jar swagger-codegen-cli-3.0.20.jar generate -l python -i http://localhost:8080/edu-sharing/rest/swagger.json -o edu_sharing_swagger -c edu-sharing-swagger.config.json
@@ -50,12 +54,16 @@ class ESApiClient(ApiClient):
         #return self.__deserialize(data, response_type)
         return data
 class EduSharing:
-
-    cookie = None
-    apiClient = None
-    bulkApi = None
-    iamApi = None
-    nodeApi = None
+    class CreateGroupType(Enum):
+        Regular = 1
+        MediaCenter = 2
+    cookie: str = None
+    apiClient: ESApiClient
+    bulkApi: BULKV1Api
+    iamApi: IAMV1Api
+    mediacenterApi: MEDIACENTERV1Api
+    nodeApi: NODEV1Api
+    groupCache: List[str]
     def __init__(self):
         self.initApiClient()
     def getHeaders(self, contentType = 'application/json'):
@@ -63,7 +71,7 @@ class EduSharing:
     def syncNode(self, spider, type, properties):
         response = EduSharing.bulkApi.sync(spider.name, ['ccm:replicationsource', 'ccm:replicationsourceid'], type, properties)
         return response['node']
-    def setNodeText(self, uuid, item):
+    def setNodeText(self, uuid, item) -> bool:
         if 'fulltext' in item:
             response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + uuid + '/textContent?mimetype = text/plain', 
                 headers = self.getHeaders(None),
@@ -77,13 +85,13 @@ class EduSharing:
             #     print(e)
             #     return False
 
-    def setPermissions(self, uuid, permissions):
+    def setPermissions(self, uuid, permissions) -> bool:
         try:
             EduSharing.nodeApi.set_permission(EduSharingConstants.HOME, uuid, permissions, False, False)
             return True
         except ApiException as e:
             return False
-    def setNodePreview(self, uuid, item):
+    def setNodePreview(self, uuid, item) -> bool:
         key = 'large' if 'large' in item['thumbnail'] else 'small'
         files = {'image': base64.b64decode(item['thumbnail'][key])}
         response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + uuid + '/preview?mimetype=' + item['thumbnail']['mimetype'], 
@@ -158,10 +166,38 @@ class EduSharing:
                 spaces[key] = [spaces[key]]
 
         return spaces
+    def createGroupsIfNotExists(self, groups, type: CreateGroupType):
+        for group in groups:
+            if type == EduSharing.CreateGroupType.MediaCenter:
+                uuid = EduSharingConstants.GROUP_PREFIX + EduSharingConstants.MEDIACENTER_PREFIX + group
+            else:
+                uuid = EduSharingConstants.GROUP_PREFIX + group
+            if uuid in EduSharing.groupCache:
+                logging.debug('Group ' + uuid + ' is existing in cache, no need to create')
+                continue
+            logging.debug('Group ' + uuid + ' is not in cache, checking consistency...')
+            try:
+                group = EduSharing.iamApi.get_group(EduSharingConstants.HOME, uuid)
+                logging.info('Group ' + uuid + ' was found in edu-sharing (cache inconsistency), no need to create')
+                EduSharing.groupCache.append(uuid)
+                continue
+            except ApiException as e:
+                logging.info('Group ' + uuid + ' was not found in edu-sharing, creating it')
+                pass
+
+            if type == EduSharing.CreateGroupType.MediaCenter:
+                result = EduSharing.mediacenterApi.create_mediacenter(EduSharingConstants.HOME, group, body = {
+                    'mediacenter': {}
+                })
+                EduSharing.groupCache.append(result['authorityName'])
+            else:
+                result = EduSharing.iamApi.create_group(EduSharingConstants.HOME, group, {})
+                EduSharing.groupCache.append(result['authorityName'])
+
     def setNodePermissions(self, uuid, item):
         if 'permissions' in item:
             permissions = {
-                "inherited": False,
+                "inherited": True, # let inherited = true to add additional permissions via edu-sharing
                 "permissions": []
             }
             public = item['permissions']['public']
@@ -177,15 +213,20 @@ class EduSharing:
                     "permissions": [ EduSharingConstants.PERMISSION_CONSUMER, EduSharingConstants.PERMISSION_CCPUBLISH ]
                 })
             else:
-                if not 'groups' in item['permissions'] and not 'mediacenters' in item['permissions']:
-                    logging.error('Invalid state detected: Permissions public is set to false but neither groups or mediacenters are set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!')
-                    return
-                groups = []
+                # Makes not much sense, may no permissions at all should be set
+                #if not 'groups' in item['permissions'] and not 'mediacenters' in item['permissions']:
+                #    logging.error('Invalid state detected: Permissions public is set to false but neither groups or mediacenters are set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!')
+                #    return
+                mergedGroups = []
                 if 'groups' in item['permissions']:
-                    groups = groups + list(map(lambda x: EduSharingConstants.GROUP_PREFIX + x, item['permissions']['groups']))
+                    if 'autoCreateGroups' in item['permissions'] and item['permissions']['autoCreateGroups'] == True:
+                        self.createGroupsIfNotExists(item['permissions']['groups'], EduSharing.CreateGroupType.Regular)
+                    mergedGroups = mergedGroups + list(map(lambda x: EduSharingConstants.GROUP_PREFIX + x, item['permissions']['groups']))
                 if 'mediacenters' in item['permissions']:
-                    groups = groups + list(map(lambda x: EduSharingConstants.GROUP_PREFIX + EduSharingConstants.MEDIACENTER_PROXY_PREFIX + x, item['permissions']['mediacenters']))
-                for group in groups:
+                    if 'autoCreateMediacenters' in item['permissions'] and item['permissions']['autoCreateMediacenters'] == True:
+                        self.createGroupsIfNotExists(item['permissions']['mediacenters'], EduSharing.CreateGroupType.MediaCenter)
+                    mergedGroups = mergedGroups + list(map(lambda x: EduSharingConstants.GROUP_PREFIX + EduSharingConstants.MEDIACENTER_PROXY_PREFIX + x, item['permissions']['mediacenters']))
+                for group in mergedGroups:
                     permissions['permissions'].append({
                         "authority": {
                             "authorityName": group,
@@ -194,7 +235,7 @@ class EduSharing:
                         "permissions": [ EduSharingConstants.PERMISSION_CONSUMER, EduSharingConstants.PERMISSION_CCPUBLISH ]
                     })
             if not self.setPermissions(uuid, permissions):
-                logging.error('Failed to set permissions, please check that the given groups/mediacenters are existing in the repository ')
+                logging.error('Failed to set permissions, please check that the given groups/mediacenters are existing in the repository or set the autoCreate mode to true')
                 logging.error(item['permissions'])
 
     def insertItem(self, spider, uuid, item):
@@ -222,7 +263,13 @@ class EduSharing:
                 EduSharing.apiClient = ESApiClient(configuration, cookie = EduSharing.cookie, header_name = 'Accept', header_value = 'application/json')
                 EduSharing.bulkApi = BULKV1Api(EduSharing.apiClient)
                 EduSharing.iamApi = IAMV1Api(EduSharing.apiClient)
+                EduSharing.mediacenterApi = MEDIACENTERV1Api(EduSharing.apiClient)
                 EduSharing.nodeApi = NODEV1Api(EduSharing.apiClient)
+                EduSharing.groupCache = list(
+                                            map(lambda x: x['authorityName'],
+                                            EduSharing.iamApi.search_groups(EduSharingConstants.HOME, '', max_items = 1000000)['groups']
+                                            ))
+                logging.info('Built up edu-sharing group cache', EduSharing.groupCache)
                 return
             raise Exception('Could not authentify as admin at edu-sharing. Please check your settings for repository ' + settings.get('EDU_SHARING_BASE_URL'))
             

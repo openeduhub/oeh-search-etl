@@ -126,6 +126,10 @@ class PermissionItem(Item):
     "Global Groups that should have access to this object"
     mediacenters = Field(output_processor=JoinMultivalues())
     "Mediacenters that should have access to this object"
+    autoCreateGroups = Field()
+    "Should global groups be created if they don't exist"
+    autoCreateMediacenters = Field()
+    "Should media centers be created  if they don't exist"
 class BaseItem(Item):
     sourceId = Field()
     uuid = Field()

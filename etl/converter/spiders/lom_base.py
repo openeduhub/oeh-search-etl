@@ -136,5 +136,6 @@ class LomBase:
   def getPermissions(self, response = None):
     permissions = PermissionItemLoader(response = response)
     # default all materials to public, needs to be changed depending on the spider!
-    permissions.add_value('public', True)
+    settings = get_project_settings()
+    permissions.add_value('public', settings.get('DEFAULT_PUBLIC_STATE'))
     return permissions
