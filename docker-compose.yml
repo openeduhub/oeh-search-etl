@@ -1,4 +1,4 @@
-version: "3"
+version: "3.4"
 
 services:
   elasticsearch:
@@ -90,7 +90,7 @@ services:
     depends_on:
       - elasticsearch
   editor-backend:
-    image: editor-backend
+    image: openeduhub/editor-backend
     networks:
       - elasticnet
     environment:
