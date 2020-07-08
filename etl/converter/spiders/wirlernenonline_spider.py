@@ -107,7 +107,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
     try:
       licenseId = self.get('acf.licence', json = response.meta['item'])[0]['value']
       if licenseId == '10':
-        license.add_value('oer', OerType.NONE)
+        license.add_value('oer', OerType.ALL)
       elif licenseId == '11':
         license.add_value('oer', OerType.MIXED)
       elif licenseId == '12':
