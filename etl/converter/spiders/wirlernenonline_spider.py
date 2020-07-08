@@ -21,6 +21,10 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
   version = '0.1.2'
   apiUrl = 'https://wirlernenonline.de/wp-json/wp/v2/%type/?per_page=50&page=%page'
   keywords = {}
+
+  def __init__(self, **kwargs):
+    LomBase.__init__(self, **kwargs)
+
   def mapResponse(self, response):
       r = LomBase.mapResponse(self, response)
       r.replace_value('text', '')
