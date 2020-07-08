@@ -107,7 +107,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
       elif licenseId == '11':
         license.add_value('oer', OerType.MIXED)
       elif licenseId == '12':
-        license.add_value('oer', OerType.ALL)
+        license.add_value('oer', OerType.NONE)
     except:
       pass
     return license
