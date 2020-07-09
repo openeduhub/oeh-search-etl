@@ -46,9 +46,6 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
             LomBase.parse(self, copyResponse)
 
-    # def _if_exists_add(self, edu_dict: dict, element_dict: dict, edu_attr: str, element_attr: str):
-    #     if element_attr in element_dict:
-    #         edu_dict[edu_attr] = element_dict[element_attr]
 
     def getId(self, response):
         # Element response as a Python dict.
@@ -130,27 +127,23 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
         return technical
 
-    def is_public(self, element_dict) -> bool:
+    def getPermissions(self, response):
         """
-        Temporary solution to check whether the content is public and only save it if this holds.
+        Licensing information is controlled via the 'oeffentlich' flag. When it is '1' it is available to the public,
+        otherwise only to Thuringia. Therefore, when the latter happens we set the public to private, and set the groups
+        and mediacenters accordingly.
         """
-        return element_dict["oeffentlich"] == "1"
+        permissions = LomBase.getPermissions(self, response)
 
-    # TODO: This code snippet will be enabled in the next PR for licensed content, after clarifications are made.
-    #
-    # def getPermissions(self, response):
-    #     """
-    #     Licensing information is controlled via the 'oeffentlich' flag. When it is '1' it is available to the public,
-    #     otherwise only to Thuringia. Therefore, when the latter happens we set the public to private, and set the groups
-    #     and mediacenters accordingly.
-    #     """
-    #     permissions = LomBase.getPermissions(self, response)
-    #
-    #     element_dict = response.meta["item"]
-    #
-    #     if element_dict["oeffentlich"] == "0":  # private
-    #         permissions.replace_value('public', False)
-    #         permissions.add_value('groups', ['Thuringia'])
-    #         permissions.add_value('mediacenters', 'mediothek')  # only 1 mediacenter.
-    #
-    #     return permissions
+        # Self-explained. Only 1 media center in this case.
+        permissions.add_value("autoCreateGroups", True)
+        permissions.add_value("autoCreateMediacenters", True)
+
+        element_dict = response.meta["item"]
+
+        if element_dict["oeffentlich"] == "0":  # private
+            permissions.replace_value('public', False)
+            permissions.add_value('groups', ['Thuringia'])
+            permissions.add_value('mediacenters', self.name)  # only 1 mediacenter.
+
+        return permissions
