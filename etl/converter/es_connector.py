@@ -121,9 +121,9 @@ class EduSharing:
         spaces = {
             'ccm:replicationsource' : spider.name,
             'ccm:replicationsourceid' : item['sourceId'],
-            'ccm:replicationsourcehash' : item['hash'], # @TODO create this field in edu-sharing
-            'ccm:io_type' : item['type'], # @TODO find suited field
-            'ccm:replicationsourceuuid' : uuid, # @TODO find suited field
+            'ccm:replicationsourcehash' : item['hash'],
+            'ccm:objecttype' : item['type'],
+            'ccm:replicationsourceuuid' : uuid,
             'cm:name' : item['lom']['general']['title'],
             'ccm:wwwurl' : item['lom']['technical']['location'],
             'cclom:location' : item['lom']['technical']['location'],
