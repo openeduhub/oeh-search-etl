@@ -84,7 +84,10 @@ services:
     environment:
       - URL=${URL?See "Runtime Configuration" on Readme.md}/relay
       - FRONTEND_URL=${URL}
-      - "ELASTICSEARCH_URL=http://elasticsearch:9200"
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_INDEX=workspace
+      - ELASTICSEARCH_MAPPING=edu-sharing
+      - EDUSHARING_URL=https://redaktion.openeduhub.net/edu-sharing
     ports:
       - "127.0.0.1:3000:80"
     depends_on:
