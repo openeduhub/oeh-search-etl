@@ -22,7 +22,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
   apiUrl = 'https://wirlernenonline.de/wp-json/wp/v2/%type/?per_page=50&page=%page'
   keywords = {}
 
-  
+
   def __init__(self, **kwargs):
     LomBase.__init__(self, **kwargs)
 
@@ -108,11 +108,11 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
     try:
       licenseId = self.get('acf.licence', json = response.meta['item'])[0]['value']
       if licenseId == '10':
-        license.add_value('oer', OerType.NONE)
+        license.add_value('oer', OerType.ALL)
       elif licenseId == '11':
         license.add_value('oer', OerType.MIXED)
       elif licenseId == '12':
-        license.add_value('oer', OerType.ALL)
+        license.add_value('oer', OerType.NONE)
     except:
       pass
     return license
