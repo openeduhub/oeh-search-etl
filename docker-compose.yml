@@ -87,7 +87,7 @@ services:
       retries: 3
       start_period: 40s
   frontend:
-    image: openeduhub/frontend
+    image: openeduhub/oeh-search-frontend:${RELEASE}
     networks:
       - elasticnet
     ports:
@@ -95,7 +95,7 @@ services:
     depends_on:
       - elasticsearch-relay
   elasticsearch-relay:
-    image: openeduhub/elasticsearch-relay
+    image: openeduhub/oeh-search-elasticsearch-relay:${RELEASE}
     networks:
       - elasticnet
     environment:
@@ -110,7 +110,7 @@ services:
     depends_on:
       - elasticsearch
   editor-backend:
-    image: openeduhub/editor-backend
+    image: openeduhub/oeh-search-editor-backend:${RELEASE}
     networks:
       - elasticnet
     environment:
