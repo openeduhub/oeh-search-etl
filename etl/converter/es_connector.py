@@ -187,7 +187,8 @@ class EduSharing:
 
             if type == EduSharing.CreateGroupType.MediaCenter:
                 result = EduSharing.mediacenterApi.create_mediacenter(EduSharingConstants.HOME, group, body = {
-                    'mediacenter': {}
+                    'mediacenter': {},
+                    'displayName': group
                 })
                 EduSharing.groupCache.append(result['authorityName'])
             else:
