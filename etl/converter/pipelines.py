@@ -232,9 +232,12 @@ class EduSharingStorePipeline(EduSharing):
         if esItem:
             entryUUID = esItem[0]
             self.updateItem(spider, entryUUID, item)
+            logging.info('item ' + entryUUID + ' updated')
         else:
             entryUUID = self.buildUUID(item['response']['url'])
             self.insertItem(spider, entryUUID, item)
+            logging.info('item ' + entryUUID + ' created')
+
         # @TODO: We may need to handle Collections
         #if 'collection' in item:
         #    for collection in item['collection']:
