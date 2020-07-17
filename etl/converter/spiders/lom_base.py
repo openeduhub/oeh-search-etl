@@ -15,12 +15,14 @@ class LomBase:
   version = '1.0' # you can override this locally and use it for your getHash() function
 
   uuid = None
+  forceUpdate = False
   def __init__(self, **kwargs):
     if 'uuid' in kwargs:
       self.uuid = kwargs['uuid']
     if 'cleanrun' in kwargs and kwargs['cleanrun'] == 'true':
-      logging.info('cleanrun requested, will delete previously scrapped data for crawler ' + self.name)
-      EduSharing().deleteAll(self)
+      logging.info('cleanrun requested, will force update for crawler ' + self.name)
+      #EduSharing().deleteAll(self)
+      self.forceUpdate = True
 
 
   # override to improve performance and automatically handling id
@@ -38,6 +40,8 @@ class LomBase:
     return EduSharing().buildUUID(self.getUri(response))
 
   def hasChanged(self, response = None):
+    if self.forceUpdate:
+      return True
     if self.uuid:
       if  self.getUUID(response) == self.uuid:
         logging.info('matching requested id: ' + self.uuid)
