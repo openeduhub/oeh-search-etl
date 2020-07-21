@@ -30,6 +30,9 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
 
   apiUrl = 'https://api.geogebra.org/v1.0/materials/%id?scope=extended&embed=creator,tags,topics'
 
+  def __init__(self, **kwargs):
+    LomBase.__init__(self, **kwargs)
+
   def get(self, *params, response):
     data = json.loads(response.body_as_unicode())
     return JSONBase.get(self, *params, json = data)

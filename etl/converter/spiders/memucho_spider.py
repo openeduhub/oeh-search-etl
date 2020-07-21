@@ -20,6 +20,10 @@ class MemuchoSpider(CrawlSpider, LomBase, JSONBase):
   start_urls = ['https://memucho.de/api/edusharing/search?pageSize=999999']
   version = '0.1'
 
+  def __init__(self, **kwargs):
+    LomBase.__init__(self, **kwargs)
+
+
   def mapResponse(self, response):
       return LomBase.mapResponse(self, response)
 

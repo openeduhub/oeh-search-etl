@@ -10,6 +10,9 @@ class RSSBase(CrawlSpider, LomBase):
     commonProperties = {}
     response = None
 
+    def __init__(self, **kwargs):
+        LomBase.__init__(self, **kwargs)
+
     def parse(self, response):
         response.selector.remove_namespaces()
         #common properties

@@ -23,6 +23,11 @@ class LomBase:
       logging.info('cleanrun requested, will force update for crawler ' + self.name)
       #EduSharing().deleteAll(self)
       self.forceUpdate = True
+    if 'resetVersion' in kwargs and kwargs['resetVersion'] == 'true':
+      logging.info('resetVersion requested, will force update + reset versions for crawler ' + self.name)
+      #EduSharing().deleteAll(self)
+      EduSharing.resetVersion = True
+      self.forceUpdate = True
 
 
   # override to improve performance and automatically handling id
