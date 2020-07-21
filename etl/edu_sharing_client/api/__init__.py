@@ -27,4 +27,5 @@ from edu_sharing_client.api.sharing_v1_api import SHARINGV1Api
 from edu_sharing_client.api.statistic_v1_api import STATISTICV1Api
 from edu_sharing_client.api.stream_v1_api import STREAMV1Api
 from edu_sharing_client.api.tool_v1_api import TOOLV1Api
+from edu_sharing_client.api.tracking_v1_api import TRACKINGV1Api
 from edu_sharing_client.api.usage_v1_api import USAGEV1Api
