@@ -15,10 +15,13 @@ class LomBase:
   version = '1.0' # you can override this locally and use it for your getHash() function
 
   uuid = None
+  remoteId = None
   forceUpdate = False
   def __init__(self, **kwargs):
     if 'uuid' in kwargs:
       self.uuid = kwargs['uuid']
+    if 'remoteId' in kwargs:
+      self.remoteId = kwargs['remoteId']
     if 'cleanrun' in kwargs and kwargs['cleanrun'] == 'true':
       logging.info('cleanrun requested, will force update for crawler ' + self.name)
       #EduSharing().deleteAll(self)
@@ -31,25 +34,30 @@ class LomBase:
 
 
   # override to improve performance and automatically handling id
-  def getId(self, response = None):
+  def getId(self, response = None) -> str:
     return None
   # override to improve performance and automatically handling hash
-  def getHash(self, response = None):
+  def getHash(self, response = None) -> str:
     return None
 
   # return the unique uri for the entry
-  def getUri(self, response = None):
+  def getUri(self, response = None) -> str:
     return response.url
 
-  def getUUID(self, response = None):
+  def getUUID(self, response = None) -> str:
     return EduSharing().buildUUID(self.getUri(response))
 
-  def hasChanged(self, response = None):
+  def hasChanged(self, response = None) -> bool:
     if self.forceUpdate:
       return True
     if self.uuid:
       if  self.getUUID(response) == self.uuid:
         logging.info('matching requested id: ' + self.uuid)
+        return True
+      return False
+    if self.remoteId:
+      if  self.getId(response) == self.remoteId:
+        logging.info('matching requested id: ' + self.remoteId)
         return True
       return False
     db = EduSharing().findItem(self.getId(response), self)
@@ -58,9 +66,15 @@ class LomBase:
       logging.info('Item ' + db[0] + ' has not changed')
     return changed
 
+  # you might override this method if you don't want to import specific entries
+  def shouldImport(self, response = None) -> bool:
+    return True
+
   def parse(self, response):
+    if self.shouldImport(response) == False:
+      logging.info('Skipping entry ' + str(self.getId(response)) + ' because shouldImport() returned false')
+      return None
     if self.getId(response) != None and self.getHash(response) != None:
-      db = EduSharing().findItem(self.getId(response),self)
       if not self.hasChanged(response):
         return None
 
