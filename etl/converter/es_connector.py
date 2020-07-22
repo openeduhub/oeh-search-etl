@@ -153,15 +153,17 @@ class EduSharing:
             for person in item['lom']['lifecycle']:
                 if not 'role' in person:
                     continue
-                if not person['role'] in lifecycleRolesMapping:
+                if not person['role'].lower() in lifecycleRolesMapping:
                     logging.warn('The lifecycle role ' + person['role'] + ' is currently not supported by the edu-sharing connector')
                     continue
-                mapping = lifecycleRolesMapping[person['role']]
+                mapping = lifecycleRolesMapping[person['role'].lower()]
                 # convert to a vcard string
+                firstName = person['firstName'] if 'firstName' in person else ''
+                lastName = person['lastName'] if 'lastName' in person else ''
                 vcard = vobject.vCard()
                 vcard.add('n')
-                vcard.n.value = vobject.vcard.Name(family = person['lastName'], given = person['firstName'])
-                vcard.add('fn').value = person['firstName'] + ' ' + person['lastName']
+                vcard.n.value = vobject.vcard.Name(family = lastName, given = firstName)
+                vcard.add('fn').value = (firstName + ' ' + lastName).strip()
                 spaces[mapping] = [vcard.serialize()]
 
                 
