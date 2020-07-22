@@ -149,6 +149,8 @@ class EduSharing:
         # TODO: this does currently not support multiple values per role
         if 'lifecycle' in item['lom']:
             for person in item['lom']['lifecycle']:
+                if not 'role' in person:
+                    continue
                 if not person['role'] in lifecycleRolesMapping:
                     logging.warn('The lifecycle role ' + person['role'] + ' is currently not supported by the edu-sharing connector')
                     continue
