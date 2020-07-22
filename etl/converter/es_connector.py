@@ -2,6 +2,7 @@ import uuid
 import requests
 import json
 import base64
+import vobject
 from scrapy.utils.project import get_project_settings
 from requests.auth import HTTPBasicAuth
 from io import BytesIO
@@ -140,6 +141,26 @@ class EduSharing:
         if 'keyword' in item['lom']['general']:
             spaces['cclom:general_keyword'] = item['lom']['general']['keyword'],
 
+        lifecycleRolesMapping = {
+            'publisher' : 'ccm:lifecyclecontributer_publisher',
+            'author' : 'ccm:lifecyclecontributer_author',
+            'editor' : 'ccm:lifecyclecontributer_editor',
+        }
+        # TODO: this does currently not support multiple values per role
+        if 'lifecycle' in item['lom']:
+            for person in item['lom']['lifecycle']:
+                if not person['role'] in lifecycleRolesMapping:
+                    logging.warn('The lifecycle role ' + person['role'] + ' is currently not supported by the edu-sharing connector')
+                    continue
+                mapping = lifecycleRolesMapping[person['role']]
+                # convert to a vcard string
+                vcard = vobject.vCard()
+                vcard.add('n')
+                vcard.n.value = vobject.vcard.Name(family = person['lastName'], given = person['firstName'])
+                vcard.add('fn').value = person['firstName'] + ' ' + person['lastName']
+                spaces[mapping] = [vcard.serialize()]
+
+                
         valuespaceMapping = {
             'discipline' : 'ccm:taxonid',
             'intendedEndUserRole' : 'ccm:educationalintendedenduserrole',
