@@ -12,3 +12,5 @@ scrapy crawl digitallearninglab_spider &
 scrapy crawl geogebra_spider &
 scrapy crawl memucho_spider &
 scrapy crawl wirlernenonline_spider &
+scrapy crawl irights_spider &
+scrapy crawl rlp_spider &
