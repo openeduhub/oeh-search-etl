@@ -35,3 +35,12 @@ class IRightsSpider(RSSBase):
     del name[0]
     lifecycle.add_value('lastName', ' '.join(name))
     return lifecycle
+
+  def getValuespaces(self, response):
+    valuespaces = LomBase.getValuespaces(self, response)
+    valuespaces.add_value('educationalContext', 'sekundarstufe_2')
+    valuespaces.add_value('educationalContext', 'berufliche_bildung')
+    valuespaces.add_value('educationalContext', 'erwachsenenbildung')
+    valuespaces.add_value('discipline', '700') # Wirtschaftskunde
+    valuespaces.add_value('discipline', '48005') # Gesellschaftskunde
+    return valuespaces
