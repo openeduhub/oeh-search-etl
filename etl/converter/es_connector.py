@@ -115,6 +115,8 @@ class EduSharing:
             if license['url'] == Constants.LICENSE_CC_ZERO_10:
                 spaces['ccm:commonlicense_key'] = 'CC_0'
                 spaces['ccm:commonlicense_cc_version'] = '1.0'
+            if license['url'] == Constants.LICENSE_PDM:
+                spaces['ccm:commonlicense_key'] = 'PDM'
         if 'internal' in license:
             if license['internal'] == Constants.LICENSE_COPYRIGHT_LAW:
                 spaces['ccm:commonlicense_key'] = 'COPYRIGHT_FREE'
