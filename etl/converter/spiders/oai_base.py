@@ -81,6 +81,7 @@ class OAIBase(scrapy.Spider, LomBase):
         general = LomBase.getLOMGeneral(response)
         general.add_value('identifier', record.xpath('header/identifier//text()').extract_first())
         general.add_value('title', record.xpath('metadata/lom/general/title/string//text()').extract_first())
+        general.add_value('description', record.xpath('metadata/lom/general/description/string//text()').extract_first())
         keywords = record.xpath('metadata/lom/general/keyword/string//text()').getall()
         general.add_value('keyword', keywords )
         return general
@@ -89,9 +90,6 @@ class OAIBase(scrapy.Spider, LomBase):
         response.selector.remove_namespaces()
         record = response.xpath('//OAI-PMH/GetRecord/record')
 
-        educational = LomBase.getLOMEducational(response)
-        #TODO put in general description
-        educational.add_value('description', record.xpath('metadata/lom/general/description/string//text()').extract_first())
         tarString = record.xpath('metadata/lom/educational/typicalAgeRange/string//text()').extract_first()
         if tarString:
             tar = LomAgeRangeItemLoader()
