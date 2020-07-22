@@ -9,5 +9,11 @@ class ZoerrSpider(SitemapSpider, LrmiBase):
   baseUrl = 'https://www.oerbw.de/edu-sharing/eduservlet/oai/provider'
   set = 'default'
   metadataPrefix = 'lom'
-
   sitemap_urls = ['https://www.oerbw.de/edu-sharing/eduservlet/sitemap']
+
+  def __init__(self, **kwargs):
+    SitemapSpider.__init__(self)
+    LrmiBase.__init__(self, **kwargs)
+
+  def parse(self, response):
+    return LrmiBase.parse(self, response)
