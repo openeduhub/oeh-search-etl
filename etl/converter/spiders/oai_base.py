@@ -90,6 +90,8 @@ class OAIBase(scrapy.Spider, LomBase):
         response.selector.remove_namespaces()
         record = response.xpath('//OAI-PMH/GetRecord/record')
 
+        educational = LomBase.getLOMEducational(response)
+
         tarString = record.xpath('metadata/lom/educational/typicalAgeRange/string//text()').extract_first()
         if tarString:
             tar = LomAgeRangeItemLoader()
