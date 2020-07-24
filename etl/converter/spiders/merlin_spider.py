@@ -3,6 +3,8 @@ from datetime import datetime
 import xmltodict as xmltodict
 from lxml import etree
 from scrapy.spiders import CrawlSpider
+
+from converter.constants import Constants
 from converter.items import *
 from converter.spiders.lom_base import LomBase
 
@@ -53,11 +55,6 @@ class MerlinSpider(CrawlSpider, LomBase):
                 copyResponse = response.copy()
                 element_xml_str = etree.tostring(element, pretty_print=True, encoding='unicode')
                 element_dict = xmltodict.parse(element_xml_str)
-
-                # Temporary solution for public-only content.
-                # TODO: remove this when licensed content are enabled!
-                if not self.is_public(element_dict["data"]):
-                    continue
 
                 # TODO: It's probably a pointless attribute.
                 #del element_dict["data"]["score"]
@@ -128,6 +125,19 @@ class MerlinSpider(CrawlSpider, LomBase):
         location = response.xpath('/data/media_url/text()').get()
         return "http://merlin.nibis.de" + location
 
+    def getLicense(self, response):
+        license = LomBase.getLicense(self, response)
+
+        # Element response as a Python dict.
+        element_dict = response.meta["item"]
+
+        if "kreis_id" in element_dict and element_dict["kreis_id"] is not None and len(element_dict["kreis_id"]) > 0:
+            license.replace_value('internal', Constants.LICENSE_NONPUBLIC) # private
+        else:
+            license.replace_value('internal', Constants.LICENSE_COPYRIGHT_LAW)  # public
+
+        return license
+
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
 
@@ -174,34 +184,33 @@ class MerlinSpider(CrawlSpider, LomBase):
             valuespaces.add_value('learningResourceType', resource_types)
         return valuespaces
 
-    def is_public(self, element_dict) -> bool:
+    def getPermissions(self, response):
         """
-        Temporary solution to check whether the content is public and only save it if this holds.
+        In case license information, in the form of Kreis codes, is available. This changes the permissions from
+        public to private and sets accordingly the groups and mediacenters. For more information regarding the available
+        Merlin kreis codes please consult 'http://merlin.nibis.de/index.php?action=kreise'
         """
-        return not (element_dict["kreis_id"] is not None and len(element_dict["kreis_id"]) > 0)
 
-    # TODO: This code snippet will be enabled in the next PR for licensed content, after clarifications are made.
-    #
-    # def getPermissions(self, response):
-    #     """
-    #     In case license information, in the form of Kreis codes, is available. This changes the permissions from
-    #     public to private and sets accordingly the groups and mediacenters. For more information regarding the available
-    #     Merlin kreis codes please consult 'http://merlin.nibis.de/index.php?action=kreise'
-    #     """
-    #
-    #     permissions = LomBase.getPermissions(self, response)
-    #
-    #     element_dict = response.meta["item"]
-    #
-    #     if element_dict["kreis_id"] is not None and len(element_dict["kreis_id"]) > 0:  # private
-    #         kreis_ids = element_dict["kreis_id"]["data"]  # ... redundant extra nested dictionary "data"...
-    #         if not isinstance(kreis_ids, list):  # one element
-    #             kreis_ids = [kreis_ids]
-    #         kreis_ids = sorted(kreis_ids, key=lambda x: int(x))
-    #         kreis_ids = ["merlin_" + id for id in kreis_ids]  # add prefix
-    #
-    #         permissions.replace_value('public', False)
-    #         permissions.add_value('groups', ['Lower Saxony'])
-    #         permissions.add_value('mediacenters', kreis_ids)
-    #
-    #     return permissions
+        permissions = LomBase.getPermissions(self, response)
+
+        element_dict = response.meta["item"]
+
+        permissions.replace_value('public', True)
+
+        # If the license is private.
+        if "kreis_id" in element_dict and element_dict["kreis_id"] is not None and len(element_dict["kreis_id"]) > 0:
+            # Self-explained. 1 media center per Kreis-code in this case.
+            permissions.add_value("autoCreateGroups", True)
+            # permissions.add_value("autoCreateMediacenters", True)
+
+            kreis_ids = element_dict["kreis_id"]["data"]  # ... redundant extra nested dictionary "data"...
+            if not isinstance(kreis_ids, list):  # one element
+                kreis_ids = [kreis_ids]
+            kreis_ids = sorted(kreis_ids, key=lambda x: int(x))
+            # kreis_ids = [self.name + "_" + id for id in kreis_ids]  # add prefix
+
+            permissions.replace_value('public', False)
+            permissions.add_value('groups', ['Lower Saxony'])
+            # permissions.add_value('mediacenters', kreis_ids)
+
+        return permissions
