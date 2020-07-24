@@ -11,6 +11,9 @@ class OAISodis(OAIBase):
     url = "https://fwu.de/"
     version = '0.1'
 
+    def __init__(self, **kwargs):
+        OAIBase.__init__(self, **kwargs)
+
     #def getRecordUrl(self, identifier):
     #    return self.baseUrl +"?verb=GetRecord&identifier=" +identifier+"&metadataPrefix="+self.metadataPrefix+"&set="+self.set
 

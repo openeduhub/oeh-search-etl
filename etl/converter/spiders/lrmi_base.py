@@ -34,12 +34,12 @@ class LrmiBase(LomBase, JSONBase):
     return LomBase.parse(self, response)
 
 
-  def getId(self, item):
-      return self.get('identifier','url','name')
+  def getId(self, response):
+      return self.getLRMI('identifier','url','name', response = response)
 
-  def getHash(self, item):
+  def getHash(self, response):
     if self.get('version') != None:
-      return self.get('version')
+      return self.getLRMI('version', response = response)
     return time.time()
 
   def getBase(self, response):
@@ -56,6 +56,7 @@ class LrmiBase(LomBase, JSONBase):
     general.add_value('language', self.getLRMI('inLanguage', response = response))
     general.add_value('description', self.getLRMI('description','about', response = response))
     return general
+    
   def getValuespaces(self, response):
     valuespaces = LomBase.getValuespaces(self, response)
     valuespaces.add_value('intendedEndUserRole', self.getLRMI('audience.educationalRole', response = response))
@@ -63,9 +64,13 @@ class LrmiBase(LomBase, JSONBase):
 
   def getLOMEducational(self, response):
     educational = LomBase.getLOMEducational(self, response)
-    educational.add_value('learningResourceType', self.getLRMI('learningResourceType', response = response))
     educational.add_value('typicalLearningTime', self.getLRMI('timeRequired', response = response))
     return educational
+
+  def getValuespaces(self, response):
+    valuespaces = LomBase.getValuespaces(self, response)
+    valuespaces.add_value('learningResourceType', self.getLRMI('learningResourceType', response = response))
+    return valuespaces
 
   def getLicense(self, response):
     license = LomBase.getLicense(self, response)

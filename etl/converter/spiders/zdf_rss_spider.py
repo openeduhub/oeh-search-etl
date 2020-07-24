@@ -13,7 +13,7 @@ from converter.valuespace_helper import ValuespaceHelper;
 from converter.constants import Constants;
 
 # Spider to fetch RSS from planet schule
-class BRRSSSpider(RSSListBase):
+class ZDFRSSSpider(RSSListBase):
   name='zdf_rss_spider'
   friendlyName='ZDF'
   url = 'https://www.zdf.de/'

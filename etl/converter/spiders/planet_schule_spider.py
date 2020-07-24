@@ -20,6 +20,9 @@ class PlanetSchuleSpider(RSSBase):
   start_urls = ['https://www.planet-schule.de/data/planet-schule-vodcast-komplett.rss']
   version = '0.1'
 
+  def __init__(self, **kwargs):
+    RSSBase.__init__(self, **kwargs)
+
   def mapResponse(self, response):
       return LomBase.mapResponse(self, response)
 

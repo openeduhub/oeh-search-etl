@@ -6,7 +6,6 @@ from w3lib.html import remove_tags, replace_escape_chars
 from converter.spiders.lom_base import LomBase;
 from converter.valuespace_helper import ValuespaceHelper;
 import csv
-import os
 import hashlib
 
 # rss crawler with a list of entries to crawl and map
@@ -79,6 +78,8 @@ class CSVBase(LomBase):
 
     def getLicense(self, response):
         license = LomBase.getLicense(self, response)
+        # add as url + internal to support both data formats
+        license.add_value('url', response.meta['row'][CSVBase.COLUMN_LICENSE]['text'])
         license.add_value('internal', response.meta['row'][CSVBase.COLUMN_LICENSE]['text'])
         return license
     def getLOMEducational(self, response):

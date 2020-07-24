@@ -92,7 +92,7 @@ class LomClassificationItem(Item):
 
 class LomBaseItem(Item):
     general = Field(serializer=LomGeneralItem)
-    lifecycle = Field(serializer=LomLifecycleItem)
+    lifecycle = Field(serializer=LomLifecycleItem, output_processor=JoinMultivalues())
     technical = Field(serializer=LomTechnicalItem)
     educational = Field(serializer=LomEducationalItem)
     #rights = Field(serializer=LomRightsItem)

@@ -22,7 +22,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
   apiUrl = 'https://wirlernenonline.de/wp-json/wp/v2/%type/?per_page=50&page=%page'
   keywords = {}
 
-  
+
   def __init__(self, **kwargs):
     LomBase.__init__(self, **kwargs)
 
@@ -108,11 +108,11 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
     try:
       licenseId = self.get('acf.licence', json = response.meta['item'])[0]['value']
       if licenseId == '10':
-        license.add_value('oer', OerType.NONE)
+        license.add_value('oer', OerType.ALL)
       elif licenseId == '11':
         license.add_value('oer', OerType.MIXED)
       elif licenseId == '12':
-        license.add_value('oer', OerType.ALL)
+        license.add_value('oer', OerType.NONE)
     except:
       pass
     return license
@@ -121,8 +121,11 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
     valuespaces = LomBase.getValuespaces(self, response)
     discipline = list(map(lambda x: x['value'], self.get('acf.fachgebiet', json = response.meta['item'])))
     valuespaces.add_value('discipline', discipline)
-    sourceContentType = list(map(lambda x: x['value'], self.get('acf.lernresourcentyp', json = response.meta['item'])))
-    valuespaces.add_value('sourceContentType', sourceContentType)
+    acf = self.get('acf.lernresourcentyp', json = response.meta['item'])
+    if acf:
+      sourceContentType = list(map(lambda x: x['value'], acf))
+      valuespaces.add_value('sourceContentType', sourceContentType)
+      
     context = list(map(lambda x: x['value'], self.get('acf.schulform', json = response.meta['item'])))
     valuespaces.add_value('educationalContext', context)
     role = list(map(lambda x: x['value'], self.get('acf.role', json = response.meta['item'])))

@@ -2,6 +2,7 @@ import uuid
 import requests
 import json
 import base64
+import vobject
 from scrapy.utils.project import get_project_settings
 from requests.auth import HTTPBasicAuth
 from io import BytesIO
@@ -58,6 +59,7 @@ class EduSharing:
         Regular = 1
         MediaCenter = 2
     cookie: str = None
+    resetVersion: bool = False
     apiClient: ESApiClient
     bulkApi: BULKV1Api
     iamApi: IAMV1Api
@@ -69,7 +71,7 @@ class EduSharing:
     def getHeaders(self, contentType = 'application/json'):
         return { 'COOKIE' : EduSharing.cookie, 'Accept' : 'application/json', 'Content-Type' : contentType}
     def syncNode(self, spider, type, properties):
-        response = EduSharing.bulkApi.sync(spider.name, ['ccm:replicationsource', 'ccm:replicationsourceid'], type, properties)
+        response = EduSharing.bulkApi.sync(body = properties, match = ['ccm:replicationsource', 'ccm:replicationsourceid'], type = type, group = spider.name, reset_version = EduSharing.resetVersion)
         return response['node']
     def setNodeText(self, uuid, item) -> bool:
         if 'fulltext' in item:
@@ -87,7 +89,7 @@ class EduSharing:
 
     def setPermissions(self, uuid, permissions) -> bool:
         try:
-            EduSharing.nodeApi.set_permission(EduSharingConstants.HOME, uuid, permissions, False, False)
+            EduSharing.nodeApi.set_permission(repository = EduSharingConstants.HOME, node = uuid, body = permissions, send_mail = False, send_copy = False)
             return True
         except ApiException as e:
             return False
@@ -113,6 +115,8 @@ class EduSharing:
             if license['url'] == Constants.LICENSE_CC_ZERO_10:
                 spaces['ccm:commonlicense_key'] = 'CC_0'
                 spaces['ccm:commonlicense_cc_version'] = '1.0'
+            if license['url'] == Constants.LICENSE_PDM:
+                spaces['ccm:commonlicense_key'] = 'PDM'
         if 'internal' in license:
             if license['internal'] == Constants.LICENSE_COPYRIGHT_LAW:
                 spaces['ccm:commonlicense_key'] = 'COPYRIGHT_FREE'
@@ -121,9 +125,9 @@ class EduSharing:
         spaces = {
             'ccm:replicationsource' : spider.name,
             'ccm:replicationsourceid' : item['sourceId'],
-            'ccm:replicationsourcehash' : item['hash'], # @TODO create this field in edu-sharing
-            'ccm:io_type' : item['type'], # @TODO find suited field
-            'ccm:replicationsourceuuid' : uuid, # @TODO find suited field
+            'ccm:replicationsourcehash' : item['hash'],
+            'ccm:objecttype' : item['type'],
+            'ccm:replicationsourceuuid' : uuid,
             'cm:name' : item['lom']['general']['title'],
             'ccm:wwwurl' : item['lom']['technical']['location'],
             'cclom:location' : item['lom']['technical']['location'],
@@ -139,6 +143,30 @@ class EduSharing:
         if 'keyword' in item['lom']['general']:
             spaces['cclom:general_keyword'] = item['lom']['general']['keyword'],
 
+        lifecycleRolesMapping = {
+            'publisher' : 'ccm:lifecyclecontributer_publisher',
+            'author' : 'ccm:lifecyclecontributer_author',
+            'editor' : 'ccm:lifecyclecontributer_editor',
+        }
+        # TODO: this does currently not support multiple values per role
+        if 'lifecycle' in item['lom']:
+            for person in item['lom']['lifecycle']:
+                if not 'role' in person:
+                    continue
+                if not person['role'].lower() in lifecycleRolesMapping:
+                    logging.warn('The lifecycle role ' + person['role'] + ' is currently not supported by the edu-sharing connector')
+                    continue
+                mapping = lifecycleRolesMapping[person['role'].lower()]
+                # convert to a vcard string
+                firstName = person['firstName'] if 'firstName' in person else ''
+                lastName = person['lastName'] if 'lastName' in person else ''
+                vcard = vobject.vCard()
+                vcard.add('n')
+                vcard.n.value = vobject.vcard.Name(family = lastName, given = firstName)
+                vcard.add('fn').value = (firstName + ' ' + lastName).strip()
+                spaces[mapping] = [vcard.serialize()]
+
+                
         valuespaceMapping = {
             'discipline' : 'ccm:taxonid',
             'intendedEndUserRole' : 'ccm:educationalintendedenduserrole',
@@ -186,12 +214,13 @@ class EduSharing:
                 pass
 
             if type == EduSharing.CreateGroupType.MediaCenter:
-                result = EduSharing.mediacenterApi.create_mediacenter(EduSharingConstants.HOME, group, body = {
-                    'mediacenter': {}
+                result = EduSharing.mediacenterApi.create_mediacenter(repository = EduSharingConstants.HOME, mediacenter = group, body = {
+                    'mediacenter': {},
+                    'displayName': group
                 })
                 EduSharing.groupCache.append(result['authorityName'])
             else:
-                result = EduSharing.iamApi.create_group(EduSharingConstants.HOME, group, {})
+                result = EduSharing.iamApi.create_group(repository = EduSharingConstants.HOME, group = group, body = {})
                 EduSharing.groupCache.append(result['authorityName'])
 
     def setNodePermissions(self, uuid, item):
@@ -269,7 +298,7 @@ class EduSharing:
                                             map(lambda x: x['authorityName'],
                                             EduSharing.iamApi.search_groups(EduSharingConstants.HOME, '', max_items = 1000000)['groups']
                                             ))
-                logging.info('Built up edu-sharing group cache', EduSharing.groupCache)
+                logging.debug('Built up edu-sharing group cache', EduSharing.groupCache)
                 return
             raise Exception('Could not authentify as admin at edu-sharing. Please check your settings for repository ' + settings.get('EDU_SHARING_BASE_URL'))
             

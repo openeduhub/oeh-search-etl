@@ -9,6 +9,9 @@ class OAIBase(scrapy.Spider, LomBase):
     metadataPrefix = None
     set = None
 
+    def __init__(self, **kwargs):
+        LomBase.__init__(self, **kwargs)
+
     def getId(self, response):
         response.selector.remove_namespaces()
         if 'header' in response.meta:
@@ -40,8 +43,7 @@ class OAIBase(scrapy.Spider, LomBase):
                 identifier = header.xpath('identifier//text()').extract_first()
                 getrecordUrl = self.getRecordUrl(identifier)
                 self.logger.debug('getrecordUrl: %s', getrecordUrl)
-
-            yield scrapy.Request(url=getrecordUrl, callback=self.parseRecord)
+                yield scrapy.Request(url=getrecordUrl, callback=self.parseRecord)
 
         resumptionToken = response.xpath('//OAI-PMH/ListIdentifiers/resumptionToken//text()').extract_first()
         if resumptionToken:
@@ -58,15 +60,18 @@ class OAIBase(scrapy.Spider, LomBase):
         response.selector.remove_namespaces()
         record = response.xpath('//OAI-PMH/GetRecord/record')
         base.add_value('fulltext', record.xpath('metadata/lom/general/description/string//text()').extract_first())
-        
+        thumbnail = record.xpath('metadata/lom/relation/kind/value[text()="hasthumbnail"]/parent::*/parent::*/resource/description/string//text()').get()
+        if thumbnail:
+            base.add_value('thumbnail', thumbnail)
         #publisher
         contributers = record.xpath('metadata/lom/lifeCycle/contribute')
         for contributer in contributers:
-           role = contributer.xpath('role/value//text()').extract_first()
-           if role == 'publisher':
-               vcardStr = contributer.xpath('entity//text()').extract_first()
-               vcard = vobject.readOne(vcardStr)      
-               base.add_value('publisher',vcard.fn.value)
+            role = contributer.xpath('role/value//text()').extract_first()
+            if role == 'publisher':
+                vcardStr = contributer.xpath('entity//text()').extract_first()
+                vcard = vobject.readOne(vcardStr)
+                if hasattr(vcard, 'fn'):
+                    base.add_value('publisher',vcard.fn.value)
         return base
 
     def getLOMGeneral(self, response):
@@ -76,6 +81,7 @@ class OAIBase(scrapy.Spider, LomBase):
         general = LomBase.getLOMGeneral(response)
         general.add_value('identifier', record.xpath('header/identifier//text()').extract_first())
         general.add_value('title', record.xpath('metadata/lom/general/title/string//text()').extract_first())
+        general.add_value('description', record.xpath('metadata/lom/general/description/string//text()').extract_first())
         keywords = record.xpath('metadata/lom/general/keyword/string//text()').getall()
         general.add_value('keyword', keywords )
         return general
@@ -85,8 +91,7 @@ class OAIBase(scrapy.Spider, LomBase):
         record = response.xpath('//OAI-PMH/GetRecord/record')
 
         educational = LomBase.getLOMEducational(response)
-        #TODO put in general description
-        educational.add_value('description', record.xpath('metadata/lom/general/description/string//text()').extract_first())
+
         tarString = record.xpath('metadata/lom/educational/typicalAgeRange/string//text()').extract_first()
         if tarString:
             tar = LomAgeRangeItemLoader()
@@ -105,9 +110,19 @@ class OAIBase(scrapy.Spider, LomBase):
         record = response.xpath('//OAI-PMH/GetRecord/record')
 
         technical = LomBase.getLOMTechnical(response)
-        technical.add_value('format', record.xpath('metadata/lom/technical/format//text()').extract_first())
-        technical.add_value('size', record.xpath('metadata/lom/technical/size//text()').extract_first())
-        technical.add_value('location', record.xpath('metadata/lom/technical/location//text()').extract_first())
+        technicalEntries = record.xpath('metadata/lom/technical')
+        found = False
+        for entry in technicalEntries:
+            format = entry.xpath('format//text()').extract_first()
+            if format == 'text/html':
+                found = True
+                technical.add_value('format', entry.xpath('format//text()').extract_first())
+                technical.add_value('size', entry.xpath('size//text()').extract_first())
+                technical.add_value('location', entry.xpath('location//text()').extract_first())
+        if not found:
+            technical.add_value('format', record.xpath('metadata/lom/technical/format//text()').extract_first())
+            technical.add_value('size', record.xpath('metadata/lom/technical/size//text()').extract_first())
+            technical.add_value('location', record.xpath('metadata/lom/technical/location//text()').extract_first())
         return technical
 
     def getLOMLifecycle(self, response):
@@ -120,10 +135,11 @@ class OAIBase(scrapy.Spider, LomBase):
         entity = record.xpath('metadata/lom/lifeCycle/contribute/entity//text()').extract_first()
         if entity:
             vcard = vobject.readOne(entity)
-            given = vcard.n.value.given
-            family = vcard.n.value.family
-            lifecycle.add_value('firstName',given)
-            lifecycle.add_value('lastName',family)
+            if hasattr(vcard, 'n'):
+                given = vcard.n.value.given
+                family = vcard.n.value.family
+                lifecycle.add_value('firstName',given)
+                lifecycle.add_value('lastName',family)
         return lifecycle
         
 
@@ -145,10 +161,12 @@ class OAIBase(scrapy.Spider, LomBase):
     def getLicense(self, response = None):
         license = LomBase.getLicense(self,response);
         record = response.xpath('//OAI-PMH/GetRecord/record')
-        rightsDescriptions = record.xpath('metadata/lom/rights/description/string//text()').getall()
-        if rightsDescriptions:
-            separator = "; "
-            license.add_value('internal', separator.join(rightsDescriptions));
+        for desc in record.xpath('metadata/lom/rights/description/string'):
+            id = desc.xpath('text()').get()
+            if id.startswith('http'):
+                license.add_value('url', id);
+            else:
+                license.add_value('internal', id);
         return license
 
 

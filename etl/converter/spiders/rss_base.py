@@ -10,6 +10,9 @@ class RSSBase(CrawlSpider, LomBase):
     commonProperties = {}
     response = None
 
+    def __init__(self, **kwargs):
+        LomBase.__init__(self, **kwargs)
+
     def parse(self, response):
         response.selector.remove_namespaces()
         #common properties
@@ -22,9 +25,9 @@ class RSSBase(CrawlSpider, LomBase):
                     
     def startHandler(self, response):
         for item in response.xpath('//rss/channel/item'):
-            responseCopy = response.copy()
+            responseCopy = response.replace(url = item.xpath('link//text()').get())
             responseCopy.meta['item'] = item
-            yield LomBase.parse(self, response)
+            yield LomBase.parse(self, responseCopy)
 
     def getId(self, response):
         return response.meta['item'].xpath('link//text()').get()
@@ -33,8 +36,7 @@ class RSSBase(CrawlSpider, LomBase):
         return self.version + response.meta['item'].xpath('pubDate//text()').get()
 
     def mapResponse(self, response):
-        r = ResponseItemLoader()
-        r.add_value('url', response.meta['item'].xpath('link//text()').get())
+        r = LomBase.mapResponse(self, response)
         return r
 
     def getBase(self, response):

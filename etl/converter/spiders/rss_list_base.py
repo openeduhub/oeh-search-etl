@@ -24,7 +24,7 @@ class RSSListBase(RSSBase, LomBase):
     def __init__(self, file, delimiter = ',', **kwargs):
         LomBase.__init__(self, **kwargs)
         dir = os.path.dirname(os.path.realpath(__file__))
-        with open(dir + '/../' + file) as csvFile:
+        with open(dir + '/../../' + file) as csvFile:
             csvReader = csv.reader(csvFile, delimiter=delimiter)
             i = 0
             for row in csvReader:

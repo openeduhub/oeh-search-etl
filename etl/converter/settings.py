@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
-import os
 from pathlib import Path  # python3 only
-from dotenv import load_dotenv
-load_dotenv()
-
+from converter.env import Env
 # Scrapy settings for project
 #
 # For simplicity, this file contains only settings considered important or
@@ -18,13 +15,14 @@ BOT_NAME = 'converter_search_idx'
 SPIDER_MODULES = ['converter.spiders']
 NEWSPIDER_MODULE = 'converter.spiders'
 
-LOG_LEVEL = 'INFO'
+LOG_FILE = Env.get("LOG_FILE", True)
+LOG_LEVEL = Env.get("LOG_LEVEL")
 LOG_FORMATTER = 'converter.custom_log_formatter.CustomLogFormatter'
 
 # Default behaviour for regular crawlers of non-license-controlled content
 # When set True, every item will have GROUP_EVERYONE attached in edu-sharing
-# When set False, no permissions are set at all, which can be helpful if you want to control them later
-DEFAULT_PUBLIC_STATE = True
+# When set False, no permissions are set at all, which can be helpful if you want to control them later (e.g. via inherition)
+DEFAULT_PUBLIC_STATE = False
 
 # Splash (Web Thumbnailer)
 # Will be rolled out via docker-compose by default
@@ -33,9 +31,9 @@ SPLASH_WAIT = 1 # seconds to let the page load
 SPLASH_HEADERS = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'} # use chrome to not create warnings on pages
 
 #edu-sharing config
-EDU_SHARING_BASE_URL=os.getenv("EDU_SHARING_BASE_URL")
-EDU_SHARING_USERNAME=os.getenv("EDU_SHARING_USERNAME")
-EDU_SHARING_PASSWORD=os.getenv("EDU_SHARING_PASSWORD")
+EDU_SHARING_BASE_URL=Env.get("EDU_SHARING_BASE_URL")
+EDU_SHARING_USERNAME=Env.get("EDU_SHARING_USERNAME")
+EDU_SHARING_PASSWORD=Env.get("EDU_SHARING_PASSWORD")
 
 # Thumbnail config
 THUMBNAIL_SMALL_SIZE = 250*250
