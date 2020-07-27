@@ -172,7 +172,8 @@ class EduSharing:
             'intendedEndUserRole' : 'ccm:educationalintendedenduserrole',
             'educationalContext' : 'ccm:educationalcontext',
             'learningResourceType' : 'ccm:educationallearningresourcetype',
-            'sourceContentType' : 'ccm:sourceContentType', # @TODO find suited data field
+            'sourceContentType' : 'ccm:sourceContentType',
+            'toolCategory' : 'ccm:toolCategory',
         }
         for key in item['valuespaces']:
             spaces[valuespaceMapping[key]] = item['valuespaces'][key]

@@ -110,6 +110,7 @@ class ValuespaceItem(Item):
     educationalContext = Field(output_processor=JoinMultivalues())
     learningResourceType = Field(output_processor=JoinMultivalues())
     sourceContentType = Field(output_processor=JoinMultivalues())
+    toolCategory = Field(output_processor=JoinMultivalues())
 
 class LicenseItem(Item):
     # url to a license description
