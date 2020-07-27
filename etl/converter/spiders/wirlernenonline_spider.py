@@ -121,11 +121,15 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
     valuespaces = LomBase.getValuespaces(self, response)
     discipline = list(map(lambda x: x['value'], self.get('acf.fachgebiet', json = response.meta['item'])))
     valuespaces.add_value('discipline', discipline)
-    acf = self.get('acf.lernresourcentyp', json = response.meta['item'])
-    if acf:
-      sourceContentType = list(map(lambda x: x['value'], acf))
-      valuespaces.add_value('sourceContentType', sourceContentType)
-      
+    lernresourcentyp = self.get('acf.lernresourcentyp', json = response.meta['item'])
+    if lernresourcentyp:
+      lernresourcentyp = list(map(lambda x: x['value'], lernresourcentyp))
+      valuespaces.add_value('sourceContentType', lernresourcentyp)
+    category = self.get('acf.category', json = response.meta['item'])
+    if category:
+      category = list(map(lambda x: x['value'], category))
+      valuespaces.add_value('toolCategory', category)
+
     context = list(map(lambda x: x['value'], self.get('acf.schulform', json = response.meta['item'])))
     valuespaces.add_value('educationalContext', context)
     role = list(map(lambda x: x['value'], self.get('acf.role', json = response.meta['item'])))

@@ -171,7 +171,7 @@ class EduSharing:
             'discipline' : 'ccm:taxonid',
             'intendedEndUserRole' : 'ccm:educationalintendedenduserrole',
             'educationalContext' : 'ccm:educationalcontext',
-            'learningResourceType' : 'ccm:learningResourceType',
+            'learningResourceType' : 'ccm:educationallearningresourcetype',
             'sourceContentType' : 'ccm:sourceContentType', # @TODO find suited data field
         }
         for key in item['valuespaces']:
