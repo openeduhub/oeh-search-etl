@@ -163,7 +163,6 @@ class ProcessThumbnailPipeline:
             response = requests.get(url)
         elif 'defaultThumbnail' in item:
             url = item['defaultThumbnail']
-            print(url)
             response = requests.get(url)
         elif 'location' in item['lom']['technical'] and 'format' in item['lom']['technical'] and item['lom']['technical']['format'] == 'text/html':
             response = requests.post(settings.get('SPLASH_URL')+'/render.png', json={
@@ -197,6 +196,9 @@ class ProcessThumbnailPipeline:
                     logging.warn('Could not read thumbnail at ' + url + ': ' + str(e) + ' (falling back to screenshot)')
                 if 'thumbnail' in item:
                     del item['thumbnail']
+                    return self.process_item(item, spider)
+                elif 'defaultThumbnail' in item:
+                    del item['defaultThumbnail']
                     return self.process_item(item, spider)
                 else:
                     #item['thumbnail']={}
