@@ -161,6 +161,10 @@ class ProcessThumbnailPipeline:
         if 'thumbnail' in item:
             url = item['thumbnail']
             response = requests.get(url)
+        elif 'defaultThumbnail' in item:
+            url = item['defaultThumbnail']
+            print(url)
+            response = requests.get(url)
         elif 'location' in item['lom']['technical'] and 'format' in item['lom']['technical'] and item['lom']['technical']['format'] == 'text/html':
             response = requests.post(settings.get('SPLASH_URL')+'/render.png', json={
                 'url': item['lom']['technical']['location'],
