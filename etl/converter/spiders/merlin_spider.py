@@ -17,6 +17,7 @@ class MerlinSpider(CrawlSpider, LomBase):
     Author: Ioannis Koumarelas, ioannis.koumarelas@hpi.de, Schul-Cloud, Content team.
     """
     name = 'merlin_spider'
+    domain = 'https://merlin.nibis.de'
     url = 'https://merlin.nibis.de/index.php'  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = 'Merlin'  # name as shown in the search ui
     version = '0.1'  # the version of your crawler, used to identify if a reimport is necessary
@@ -111,6 +112,10 @@ class MerlinSpider(CrawlSpider, LomBase):
     def getBase(self, response):
         base = LomBase.getBase(self, response)
         base.add_value('thumbnail', response.xpath('/data/thumbnail/text()').get())
+        if response.xpath('/data/srcLogoUrl/text()').get():
+            base.add_value('defaultThumbnail', self.domain + response.xpath('/data/srcLogoUrl/text()').get())
+        elif response.xpath('/data/logo/text()').get():
+            base.add_value('defaultThumbnail', self.domain + response.xpath('/data/logo/text()').get())
 
         return base
 
