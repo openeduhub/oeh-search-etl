@@ -1,3 +1,5 @@
+import time
+
 from converter.items import *
 from pprint import pprint
 import logging
@@ -77,6 +79,11 @@ class LomBase:
     if self.getId(response) != None and self.getHash(response) != None:
       if not self.hasChanged(response):
         return None
+
+    # Avoid stressing the servers across calls of this method.
+    settings = get_project_settings()
+    if 'PARSE_DELAY' in settings and float(settings.get('PARSE_DELAY')) > 0:
+        time.sleep(float(settings.get('PARSE_DELAY')))
 
     main = self.getBase(response)
     main.add_value('lom', self.getLOM(response).load_item())
