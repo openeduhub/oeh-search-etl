@@ -145,6 +145,7 @@ class BULKV1Api(object):
         :param list[str] match: The properties that must match to identify if this node exists. Multiple properties will be and combined and compared (required)
         :param str type: type of node. If the node already exists, this will not change the type afterwards (required)
         :param str group: The group to which this node belongs to. Used for internal structuring. Please use simple names only (required)
+        :param list[str] group_by: The properties on which the imported nodes should be grouped (for each value, a folder with the corresponding data is created)
         :param list[str] aspects: aspects of node
         :param bool reset_version: reset all versions (like a complete reimport), all data inside edu-sharing will be lost
         :return: NodeEntry
@@ -172,6 +173,7 @@ class BULKV1Api(object):
         :param list[str] match: The properties that must match to identify if this node exists. Multiple properties will be and combined and compared (required)
         :param str type: type of node. If the node already exists, this will not change the type afterwards (required)
         :param str group: The group to which this node belongs to. Used for internal structuring. Please use simple names only (required)
+        :param list[str] group_by: The properties on which the imported nodes should be grouped (for each value, a folder with the corresponding data is created)
         :param list[str] aspects: aspects of node
         :param bool reset_version: reset all versions (like a complete reimport), all data inside edu-sharing will be lost
         :return: NodeEntry
@@ -179,7 +181,7 @@ class BULKV1Api(object):
                  returns the request thread.
         """
 
-        all_params = ['body', 'match', 'type', 'group', 'aspects', 'reset_version']  # noqa: E501
+        all_params = ['body', 'match', 'type', 'group', 'group_by', 'aspects', 'reset_version']  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -221,6 +223,9 @@ class BULKV1Api(object):
         if 'match' in params:
             query_params.append(('match', params['match']))  # noqa: E501
             collection_formats['match'] = 'multi'  # noqa: E501
+        if 'group_by' in params:
+            query_params.append(('groupBy', params['group_by']))  # noqa: E501
+            collection_formats['groupBy'] = 'multi'  # noqa: E501
         if 'type' in params:
             query_params.append(('type', params['type']))  # noqa: E501
         if 'aspects' in params:

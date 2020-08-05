@@ -60,13 +60,22 @@ class FilterSparsePipeline:
             raise DropItem('Entry ' + item['lom']['general']['title'] + ' has neither keywords nor description')            
         return item
         
-class NormLicensePipeline(object):
+class NormLicensePipeline:
     def process_item(self, item, spider):
-        if 'url' in item['license'] and not 'oer' in item['license']:
+        if 'url' in item['license']:
             for key in Constants.LICENSE_MAPPINGS:
-                    if item['license']['url'].startswith(key):
+                if item['license']['url'].startswith(key):
                         item['license']['url'] = Constants.LICENSE_MAPPINGS[key]
                         break
+        if 'internal' in item['license'] and (
+                not 'url' in item['license'] or
+                not item['license']['url'] in Constants.VALID_LICENSE_URLS):
+            for key in Constants.LICENSE_MAPPINGS_INTERNAL:
+                if item['license']['internal'].casefold() == key.casefold():
+                    item['license']['url'] = Constants.LICENSE_MAPPINGS_INTERNAL[key]
+                    break
+
+        if 'url' in item['license'] and not 'oer' in item['license']:
             if(
                 item['license']['url'] == Constants.LICENSE_CC_BY_40 or 
                 item['license']['url'] == Constants.LICENSE_CC_BY_SA_30 or
@@ -74,12 +83,13 @@ class NormLicensePipeline(object):
                 item['license']['url'] == Constants.LICENSE_CC_ZERO_10
             ):
                 item['license']['oer'] = OerType.ALL
-          
+
         if 'internal' in item['license'] and not 'oer' in item['license']:
             internal = item['license']['internal'].lower()
             if(
                 'cc-by-sa' in internal or
-                'cc-0' in internal
+                'cc-0' in internal or
+                'pdm' in internal
             ):
                 item['license']['oer'] = OerType.ALL
         return item
@@ -161,13 +171,15 @@ class ProcessThumbnailPipeline:
         if 'thumbnail' in item:
             url = item['thumbnail']
             response = requests.get(url)
+            logging.debug('Loading thumbnail took ' + str(response.elapsed.total_seconds()) + 's')
         elif 'location' in item['lom']['technical'] and 'format' in item['lom']['technical'] and item['lom']['technical']['format'] == 'text/html':
-            response = requests.post(settings.get('SPLASH_URL')+'/render.png', json={
-                'url': item['lom']['technical']['location'],
-                'wait': settings.get('SPLASH_WAIT'),
-                'html5_media': 1,
-                'headers': settings.get('SPLASH_HEADERS')
-            })
+            if settings.get('SPLASH_URL'):
+                response = requests.post(settings.get('SPLASH_URL')+'/render.png', json={
+                    'url': item['lom']['technical']['location'],
+                    'wait': settings.get('SPLASH_WAIT'),
+                    'html5_media': 1,
+                    'headers': settings.get('SPLASH_HEADERS')
+                })
         if response == None:
             logging.error('Neither thumbnail or technical.location provided! Please provie at least one of them')
         else:
@@ -225,22 +237,14 @@ class EduSharingCheckPipeline(EduSharing):
 class EduSharingStorePipeline(EduSharing):
     def process_item(self, item, spider):
         output = io.BytesIO()
-        exporter = JsonItemExporter(output, fields_to_export = ['lom','valuespaces','license','type','fulltext','ranking','lastModified','thumbnail'])
+        exporter = JsonItemExporter(output, fields_to_export = ['lom','valuespaces','license','type','origin','fulltext','ranking','lastModified','thumbnail'])
         exporter.export_item(item)
-        json = output.getvalue().decode('UTF-8')
-        esItem = self.findItem(item['sourceId'], spider)
         title = '<no title>'
         if 'title' in item['lom']['general']:
             title = str(item['lom']['general']['title'])
-        #logging.info(item['lom'])
-        if esItem:
-            entryUUID = esItem[0]
-            self.updateItem(spider, entryUUID, item)
-            logging.info('item ' + entryUUID + ' updated')
-        else:
-            entryUUID = self.buildUUID(item['response']['url'])
-            self.insertItem(spider, entryUUID, item)
-            logging.info('item ' + entryUUID + ' created')
+        entryUUID = self.buildUUID(item['response']['url'])
+        self.insertItem(spider, entryUUID, item)
+        logging.info('item ' + entryUUID + ' inserted/updated')
 
         # @TODO: We may need to handle Collections
         #if 'collection' in item:

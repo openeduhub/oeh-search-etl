@@ -131,13 +131,13 @@ class OAIBase(scrapy.Spider, LomBase):
 
         role = record.xpath('metadata/lom/lifeCycle/contribute/role/value//text()').extract_first()
         lifecycle = LomBase.getLOMLifecycle(response)
-        lifecycle.add_value('role',role)
         entity = record.xpath('metadata/lom/lifeCycle/contribute/entity//text()').extract_first()
         if entity:
             vcard = vobject.readOne(entity)
             if hasattr(vcard, 'n'):
                 given = vcard.n.value.given
                 family = vcard.n.value.family
+                lifecycle.add_value('role',role)
                 lifecycle.add_value('firstName',given)
                 lifecycle.add_value('lastName',family)
         return lifecycle

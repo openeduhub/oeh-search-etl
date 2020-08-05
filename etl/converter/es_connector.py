@@ -1,3 +1,4 @@
+import time
 import uuid
 import requests
 import json
@@ -29,6 +30,11 @@ class EduSharingConstants:
     GROUP_PREFIX = 'GROUP_'
     MEDIACENTER_PREFIX = 'MEDIA_CENTER_'
     MEDIACENTER_PROXY_PREFIX = 'MEDIA_CENTER_PROXY_'
+    LIFECYCLE_ROLES_MAPPING = {
+        'publisher' : 'ccm:lifecyclecontributer_publisher',
+        'author' : 'ccm:lifecyclecontributer_author',
+        'editor' : 'ccm:lifecyclecontributer_editor',
+    }
 
 # creating the swagger client: java -jar swagger-codegen-cli-3.0.20.jar generate -l python -i http://localhost:8080/edu-sharing/rest/swagger.json -o edu_sharing_swagger -c edu-sharing-swagger.config.json
 class ESApiClient(ApiClient):
@@ -71,13 +77,16 @@ class EduSharing:
     def getHeaders(self, contentType = 'application/json'):
         return { 'COOKIE' : EduSharing.cookie, 'Accept' : 'application/json', 'Content-Type' : contentType}
     def syncNode(self, spider, type, properties):
-        response = EduSharing.bulkApi.sync(body = properties, match = ['ccm:replicationsource', 'ccm:replicationsourceid'], type = type, group = spider.name, reset_version = EduSharing.resetVersion)
+        groupBy = []
+        if 'ccm:replicationsourceorigin' in properties:
+            groupBy = ['ccm:replicationsourceorigin']
+        response = EduSharing.bulkApi.sync(body = properties, match = ['ccm:replicationsource', 'ccm:replicationsourceid'], type = type, group = spider.name, group_by = groupBy, reset_version = EduSharing.resetVersion)
         return response['node']
     def setNodeText(self, uuid, item) -> bool:
         if 'fulltext' in item:
-            response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + uuid + '/textContent?mimetype = text/plain', 
-                headers = self.getHeaders(None),
-                data = item['fulltext'].encode('utf-8'))
+            response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + uuid + '/textContent',
+                headers = self.getHeaders('multipart/form-data'),
+                                     data = item['fulltext'].encode('utf-8'))
             return response.status_code == 200
             # does currently not store data
             # try:
@@ -94,12 +103,13 @@ class EduSharing:
         except ApiException as e:
             return False
     def setNodePreview(self, uuid, item) -> bool:
-        key = 'large' if 'large' in item['thumbnail'] else 'small'
-        files = {'image': base64.b64decode(item['thumbnail'][key])}
-        response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + uuid + '/preview?mimetype=' + item['thumbnail']['mimetype'], 
-                    headers = self.getHeaders(None),
-                    files = files)
-        return response.status_code == 200
+        key = 'large' if 'large' in item['thumbnail'] else  'small' if 'small' in item['thumbnail'] else None
+        if key:
+            files = {'image': base64.b64decode(item['thumbnail'][key])}
+            response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + uuid + '/preview?mimetype=' + item['thumbnail']['mimetype'],
+                        headers = self.getHeaders(None),
+                        files = files)
+            return response.status_code == 200
  
     def mapLicense(self, spaces, license):
         if 'url' in license:
@@ -120,6 +130,8 @@ class EduSharing:
         if 'internal' in license:
             if license['internal'] == Constants.LICENSE_COPYRIGHT_LAW:
                 spaces['ccm:commonlicense_key'] = 'COPYRIGHT_FREE'
+        if 'author' in license:
+            spaces['ccm:author_freetext'] = license['author']
 
     def transformItem(self, uuid, spider, item):
         spaces = {
@@ -133,6 +145,9 @@ class EduSharing:
             'cclom:location' : item['lom']['technical']['location'],
             'cclom:title' : item['lom']['general']['title'],
         }
+        if 'origin' in item:
+            spaces['ccm:replicationsourceorigin'] = item['origin'] #TODO currently not mapped in edu-sharing
+
         self.mapLicense(spaces, item['license'])
         if 'description' in item['lom']['general']:
             spaces['cclom:general_description'] = item['lom']['general']['description']
@@ -142,21 +157,15 @@ class EduSharing:
 
         if 'keyword' in item['lom']['general']:
             spaces['cclom:general_keyword'] = item['lom']['general']['keyword'],
-
-        lifecycleRolesMapping = {
-            'publisher' : 'ccm:lifecyclecontributer_publisher',
-            'author' : 'ccm:lifecyclecontributer_author',
-            'editor' : 'ccm:lifecyclecontributer_editor',
-        }
         # TODO: this does currently not support multiple values per role
         if 'lifecycle' in item['lom']:
             for person in item['lom']['lifecycle']:
                 if not 'role' in person:
                     continue
-                if not person['role'].lower() in lifecycleRolesMapping:
+                if not person['role'].lower() in EduSharingConstants.LIFECYCLE_ROLES_MAPPING:
                     logging.warn('The lifecycle role ' + person['role'] + ' is currently not supported by the edu-sharing connector')
                     continue
-                mapping = lifecycleRolesMapping[person['role'].lower()]
+                mapping = EduSharingConstants.LIFECYCLE_ROLES_MAPPING[person['role'].lower()]
                 # convert to a vcard string
                 firstName = person['firstName'] if 'firstName' in person else ''
                 lastName = person['lastName'] if 'lastName' in person else ''
@@ -273,7 +282,6 @@ class EduSharing:
         self.setNodePermissions(node['ref']['id'], item)
         self.setNodePreview(node['ref']['id'], item)
         self.setNodeText(node['ref']['id'], item)
-
 
     def updateItem(self, spider, uuid, item):
         self.insertItem(spider, uuid, item)

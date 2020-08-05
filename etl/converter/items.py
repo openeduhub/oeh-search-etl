@@ -113,12 +113,15 @@ class ValuespaceItem(Item):
     toolCategory = Field(output_processor=JoinMultivalues())
 
 class LicenseItem(Item):
-    # url to a license description
     url = Field()
-    # a internal constants for this license
+    "url to a license description"
     internal = Field()
-    # a value of OerType (if empty, will be mapped via the given url or internal value)
+    "a internal constants for this license"
     oer = Field()
+    "a value of OerType (if empty, will be mapped via the given url or internal value)"
+    author = Field()
+    "an author freetext (basically, how the author should be named in case this is a by-license"
+
 
 class PermissionItem(Item):
     public = Field()
@@ -139,6 +142,8 @@ class BaseItem(Item):
     collection = Field(output_processor=JoinMultivalues())
     "id of collections this entry should be placed into"
     type = Field()
+    origin = Field()
+    "in case it was fetched from a referatorium, the real origin name may be included here"
     response = Field(serializer=ResponseItem)
     ranking = Field()
     fulltext = Field()

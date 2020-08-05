@@ -77,7 +77,6 @@ class LomBase:
     if self.getId(response) != None and self.getHash(response) != None:
       if not self.hasChanged(response):
         return None
-
     main = self.getBase(response)
     main.add_value('lom', self.getLOM(response).load_item())
     main.add_value('valuespaces', self.getValuespaces(response).load_item())
@@ -95,15 +94,23 @@ class LomBase:
 
   def getUrlData(self, url):
     settings = get_project_settings()
-    html = requests.post(settings.get('SPLASH_URL')+'/render.html', json={
+    html = None
+    if settings.get('SPLASH_URL'):
+      html = requests.post(settings.get('SPLASH_URL')+'/render.html', json={
                 'url': url,
                 'wait': settings.get('SPLASH_WAIT'),
                 'headers': settings.get('SPLASH_HEADERS')
             }).content.decode('UTF-8')
-    return { 
-      'html': html,
-      'text': self.html2Text(html)
-    }
+      return { 
+        'html': html,
+        'text': self.html2Text(html)
+      }
+    else:
+      return {
+        'html': None,
+        'text': None
+      }
+
   def mapResponse(self, response, fetchData = True):
     r = ResponseItemLoader(response = response)
     r.add_value('status',response.status)
@@ -121,7 +128,7 @@ class LomBase:
   def getValuespaces(self, response):
     return ValuespaceItemLoader(response = response)
 
-  def getLOM(self, response):
+  def getLOM(self, response) -> LomBaseItemloader:
     lom = LomBaseItemloader(response = response)
     lom.add_value('general', self.getLOMGeneral(response).load_item())
     lom.add_value('lifecycle', self.getLOMLifecycle(response).load_item())
@@ -130,7 +137,7 @@ class LomBase:
     lom.add_value('classification', self.getLOMClassification(response).load_item())
     return lom
 
-  def getBase(self, response = None):
+  def getBase(self, response = None) -> BaseItemLoader:
     base = BaseItemLoader()
     base.add_value('sourceId', self.getId(response))
     base.add_value('hash', self.getHash(response))
@@ -138,25 +145,25 @@ class LomBase:
     base.add_value('type', Constants.TYPE_MATERIAL)
     return base
 
-  def getLOMGeneral(self, response = None):
+  def getLOMGeneral(self, response = None) -> LomGeneralItemloader:
     return LomGeneralItemloader(response = response)
 
-  def getLOMLifecycle(self, response = None):
+  def getLOMLifecycle(self, response = None) -> LomLifecycleItemloader:
     return LomLifecycleItemloader(response = response)
 
-  def getLOMTechnical(self, response = None):
+  def getLOMTechnical(self, response = None) -> LomTechnicalItemLoader:
     return LomTechnicalItemLoader(response = response)
 
-  def getLOMEducational(self, response = None):
+  def getLOMEducational(self, response = None) -> LomEducationalItemLoader:
     return LomEducationalItemLoader(response = response)
 
-  def getLicense(self, response = None):
+  def getLicense(self, response = None) -> LicenseItemLoader:
     return LicenseItemLoader(response = response)
 
-  def getLOMClassification(self, response = None):
+  def getLOMClassification(self, response = None) -> LomClassificationItemLoader:
     return LomClassificationItemLoader(response = response)
 
-  def getPermissions(self, response = None):
+  def getPermissions(self, response = None) -> PermissionItemLoader:
     permissions = PermissionItemLoader(response = response)
     # default all materials to public, needs to be changed depending on the spider!
     settings = get_project_settings()
