@@ -180,8 +180,10 @@ class ProcessThumbnailPipeline:
                     'html5_media': 1,
                     'headers': settings.get('SPLASH_HEADERS')
                 })
+            else:
+                logging.warning('No thumbnail provided and SPLASH_URL was not configured for screenshots!')
         if response == None:
-            logging.error('Neither thumbnail or technical.location provided! Please provie at least one of them')
+            logging.error('Neither thumbnail or technical.location provided! Please provide at least one of them')
         else:
             try:
                 if response.headers['Content-Type'] == 'image/svg+xml':
