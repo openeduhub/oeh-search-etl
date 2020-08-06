@@ -124,3 +124,27 @@ AUTOTHROTTLE_DEBUG = False
 #HTTPCACHE_DIR = 'httpcache'
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+
+# Enables useful test exports with `scrapy crawl -o my-test-output.json <spider>`
+FEED_EXPORT_FIELDS = [
+    "collection",
+    "fulltext",
+    "hash",
+    "lastModified",
+    "license",
+    "lom",
+    "origin",
+    "permissions",
+    "publisher",
+    "ranking",
+    # Response cannot be serialized since it has `bytes` keys
+    # "response",
+    "sourceId",
+    # Too much clutter
+    # "thumbnail",
+    "type",
+    "uuid",
+    "valuespaces",
+]
+FEED_EXPORT_INDENT = 2
+FEED_EXPORT_ENCODING = "utf-8"
