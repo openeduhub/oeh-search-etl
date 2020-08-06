@@ -58,7 +58,9 @@ class EduSharingBase(Spider, LomBase):
     if self.getProperty('ccm:replicationsource', response):
       # imported objects usually have the content as binary text
       try:
-        base.replace_value('fulltext', requests.get(response.meta['item']['downloadUrl']).text)
+        r = requests.get(response.meta['item']['downloadUrl'])
+        if r.status_code == 200:
+          base.replace_value('fulltext', r.text)
       except ConnectionError as e:
         logging.warning('error fetching data from ' + requests.get(response.meta['item']['downloadUrl']).text, e)
     else:

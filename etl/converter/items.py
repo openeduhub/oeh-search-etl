@@ -46,6 +46,7 @@ class LomLifecycleItem(Item):
     firstName = Field()
     lastName = Field()
     organization = Field()
+    url = Field()
     uuid = Field()
 
 class LomTechnicalItem(Item):

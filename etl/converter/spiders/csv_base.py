@@ -13,6 +13,8 @@ class CSVBase(LomBase):
     # column names supported:
     COLUMN_URL = 'url'
     COLUMN_TITLE = 'title'
+    COLUMN_SOURCE_TITLE = 'sourceTitle'
+    COLUMN_SOURCE_URL = 'sourceUrl'
     COLUMN_DESCRIPTION = 'description'
     COLUMN_TYPE = 'type'
     COLUMN_THUMBNAIL = 'thumbnail'

@@ -8,6 +8,9 @@ from scrapy.utils.project import get_project_settings
 from requests.auth import HTTPBasicAuth
 from io import BytesIO
 import logging
+
+from vobject.vcard import VCardBehavior
+
 from converter.constants import Constants
 from edu_sharing_client.api_client import ApiClient
 from edu_sharing_client.configuration import Configuration
@@ -103,13 +106,16 @@ class EduSharing:
         except ApiException as e:
             return False
     def setNodePreview(self, uuid, item) -> bool:
-        key = 'large' if 'large' in item['thumbnail'] else  'small' if 'small' in item['thumbnail'] else None
-        if key:
-            files = {'image': base64.b64decode(item['thumbnail'][key])}
-            response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + uuid + '/preview?mimetype=' + item['thumbnail']['mimetype'],
-                        headers = self.getHeaders(None),
-                        files = files)
-            return response.status_code == 200
+        if 'thumbnail' in item:
+            key = 'large' if 'large' in item['thumbnail'] else  'small' if 'small' in item['thumbnail'] else None
+            if key:
+                files = {'image': base64.b64decode(item['thumbnail'][key])}
+                response = requests.post(get_project_settings().get('EDU_SHARING_BASE_URL') + 'rest/node/v1/nodes/-home-/' + uuid + '/preview?mimetype=' + item['thumbnail']['mimetype'],
+                            headers = self.getHeaders(None),
+                            files = files)
+                return response.status_code == 200
+        else:
+            logging.warning('No thumbnail provided for ' + uuid)
  
     def mapLicense(self, spaces, license):
         if 'url' in license:
@@ -169,10 +175,17 @@ class EduSharing:
                 # convert to a vcard string
                 firstName = person['firstName'] if 'firstName' in person else ''
                 lastName = person['lastName'] if 'lastName' in person else ''
+                organization = person['organization'] if 'organization' in person else ''
+                url = person['url'] if 'url' in person else ''
                 vcard = vobject.vCard()
-                vcard.add('n')
-                vcard.n.value = vobject.vcard.Name(family = lastName, given = firstName)
-                vcard.add('fn').value = (firstName + ' ' + lastName).strip()
+                vcard.add('n').value = vobject.vcard.Name(family = lastName, given = firstName)
+                vcard.add('fn').value = organization if organization else (firstName + ' ' + lastName).strip()
+                if organization:
+                    vcard.add('org')
+                    # fix a bug of splitted org values
+                    vcard.org.behavior = VCardBehavior.defaultBehavior
+                    vcard.org.value = organization
+                vcard.add('url').value = url
                 spaces[mapping] = [vcard.serialize()]
 
                 

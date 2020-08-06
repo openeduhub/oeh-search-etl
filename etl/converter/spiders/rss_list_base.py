@@ -24,7 +24,7 @@ class RSSListBase(RSSBase, LomBase):
     def __init__(self, file, delimiter = ',', **kwargs):
         LomBase.__init__(self, **kwargs)
         dir = os.path.dirname(os.path.realpath(__file__))
-        with open(dir + '/../../' + file) as csvFile:
+        with open(dir + '/../../' + file, encoding = 'utf-8') as csvFile:
             csvReader = csv.reader(csvFile, delimiter=delimiter)
             i = 0
             for row in csvReader:
@@ -58,11 +58,10 @@ class RSSListBase(RSSBase, LomBase):
 
     def getValuespaces(self, response):
         valuespaces = RSSBase.getValuespaces(self, response)
-        valuespaces.add_value('educationalContext', ValuespaceHelper.educationalContextByAgeRange([
-            self.getCSVValue(response, CSVBase.COLUMN_TYPICAL_AGE_RANGE_FROM)[0], 
-            self.getCSVValue(response, CSVBase.COLUMN_TYPICAL_AGE_RANGE_TO)[0]
-            ]))
-        
+        tar_from = self.getCSVValue(response, CSVBase.COLUMN_TYPICAL_AGE_RANGE_FROM)
+        tar_to = self.getCSVValue(response, CSVBase.COLUMN_TYPICAL_AGE_RANGE_TO)
+        if tar_from and tar_to:
+            valuespaces.add_value('educationalContext', ValuespaceHelper.educationalContextByAgeRange([tar_from[0], tar_to[0]]))
         valuespaces.add_value('discipline', self.getCSVValue(response, CSVBase.COLUMN_DISCIPLINE))
         valuespaces.add_value('learningResourceType', self.getCSVValue(response, CSVBase.COLUMN_LEARNING_RESOURCE_TYPE))
         return valuespaces

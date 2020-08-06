@@ -33,7 +33,7 @@ class RSSBase(CrawlSpider, LomBase):
         return response.meta['item'].xpath('link//text()').get()
 
     def getHash(self, response):
-        return self.version + response.meta['item'].xpath('pubDate//text()').get()
+        return self.version + str(response.meta['item'].xpath('pubDate//text()').get())
 
     def mapResponse(self, response):
         r = LomBase.mapResponse(self, response)
@@ -49,7 +49,7 @@ class RSSBase(CrawlSpider, LomBase):
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
         general.add_value('identifier', response.meta['item'].xpath('guid//text()').get())
-        general.add_value('title', response.meta['item'].xpath('title//text()').get())  
+        general.add_value('title', response.meta['item'].xpath('title//text()').get().strip())
         general.add_value('language', self.commonProperties['language'])
         description = response.meta['item'].xpath('description//text()').get()
         if not description:
