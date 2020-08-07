@@ -5,7 +5,7 @@ from datetime import datetime
 from scrapy.spiders import CrawlSpider
 from converter.items import *
 from converter.spiders.lom_base import LomBase
-from converter.constants import *;
+from converter.constants import *
 
 
 class MediothekPixiothekSpider(CrawlSpider, LomBase):
@@ -14,11 +14,14 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
     Author: Timur Yure, timur.yure@capgemini.com , Capgemini for Schul-Cloud, Content team.
     """
-    name = 'mediothek_pixiothek_spider'
-    url = 'https://www.schulportal-thueringen.de/'  # the url which will be linked as the primary link to your source (should be the main url of your site)
-    friendlyName = 'MediothekPixiothek'  # name as shown in the search ui
-    version = '0.1'  # the version of your crawler, used to identify if a reimport is necessary
-    start_urls = ['https://www.schulportal-thueringen.de/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei']
+
+    name = "mediothek_pixiothek_spider"
+    url = "https://www.schulportal-thueringen.de/"  # the url which will be linked as the primary link to your source (should be the main url of your site)
+    friendlyName = "MediothekPixiothek"  # name as shown in the search ui
+    version = "0.1"  # the version of your crawler, used to identify if a reimport is necessary
+    start_urls = [
+        "https://www.schulportal-thueringen.de/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei"
+    ]
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -33,7 +36,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             copyResponse = response.copy()
 
             # Passing the dictionary for easier access to attributes.
-            copyResponse.meta['item'] = element
+            copyResponse.meta["item"] = element
 
             # In case JSON string representation is preferred:
             json_str = json.dumps(element, indent=4, sort_keys=True, ensure_ascii=False)
@@ -66,10 +69,10 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         return id + pts
 
     def mapResponse(self, response):
-        r = ResponseItemLoader(response = response)
-        r.add_value('status',response.status)
-        r.add_value('headers',response.headers)
-        r.add_value('url', self.getUri(response))
+        r = ResponseItemLoader(response=response)
+        r.add_value("status", response.status)
+        r.add_value("headers", response.headers)
+        r.add_value("url", self.getUri(response))
         return r
 
     def handleEntry(self, response):
@@ -83,7 +86,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
         # TODO: "For licensing reasons, this content is only available to users registered in the Thuringian school
         #  portal."
-        base.add_value('thumbnail', element_dict['previewImageUrl'])
+        base.add_value("thumbnail", element_dict["previewImageUrl"])
 
         return base
 
@@ -95,14 +98,16 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
         # TODO: Decide which title. Do we have to construct the title, by concatenating multiple from the provided ones?
         # Einzeltitel, einzeluntertitel, serientitel, serienuntertitel
-        general.add_value('title', element_dict["einzeltitel"])
+        general.add_value("title", element_dict["einzeltitel"])
         # self._if_exists_add(general, element_dict, "description", "kurzinhalt")
         if "kurzinhalt" in element_dict:
-            general.add_value('description', element_dict["kurzinhalt"])
+            general.add_value("description", element_dict["kurzinhalt"])
 
-        liste_stichwort = element_dict["listeStichwort"] if "listeStichwort" in element_dict else None
+        liste_stichwort = (
+            element_dict["listeStichwort"] if "listeStichwort" in element_dict else None
+        )
         if liste_stichwort is not None and len(liste_stichwort) > 0:
-            general.add_value('keyword', liste_stichwort)
+            general.add_value("keyword", liste_stichwort)
 
         return general
 
@@ -110,7 +115,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         # Element response as a Python dict.
         element_dict = response.meta["item"]
 
-        return element_dict['downloadUrl']
+        return element_dict["downloadUrl"]
 
     def getLicense(self, response):
         license = LomBase.getLicense(self, response)
@@ -118,15 +123,20 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         # Element response as a Python dict.
         element_dict = response.meta["item"]
 
-        license.replace_value('internal', Constants.LICENSE_NONPUBLIC if element_dict['oeffentlich'] == '1' else Constants.LICENSE_COPYRIGHT_LAW)
+        license.replace_value(
+            "internal",
+            Constants.LICENSE_NONPUBLIC
+            if element_dict["oeffentlich"] == "1"
+            else Constants.LICENSE_COPYRIGHT_LAW,
+        )
         return license
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
 
-        technical.add_value('format', 'text/html')
-        technical.add_value('location', self.getUri(response))
-        technical.add_value('size', len(response.body))
+        technical.add_value("format", "text/html")
+        technical.add_value("location", self.getUri(response))
+        technical.add_value("size", len(response.body))
 
         return technical
 

@@ -44,4 +44,3 @@ def _fail_on_missing_key(key: str) -> NoReturn:
     print("No configuration for key {} was found in your .env file.".format(key))
     print("Please refer to the .env.example file for a sample value.")
     sys.exit(1)
-

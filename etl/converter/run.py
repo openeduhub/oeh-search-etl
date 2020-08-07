@@ -25,8 +25,8 @@ def run():
             "crawl",
             "-a",
             "cleanrun=true",
-            '-o',
-            'out/items.json',
+            "-o",
+            "out/items.json",
             "wirlernenonline_spider",
         ]
     )
