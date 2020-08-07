@@ -101,7 +101,9 @@ ITEM_PIPELINES = {
     'converter.pipelines.ConvertTimePipeline': 200,
     'converter.pipelines.ProcessValuespacePipeline': 250,
     'converter.pipelines.ProcessThumbnailPipeline': 300,
-    'converter.pipelines.EduSharingStorePipeline': 1000,
+    'converter.pipelines.DummyOutPipeline'
+    if env.get_bool("DRY_RUN", default=False)
+    else 'converter.pipelines.EduSharingStorePipeline': 1000,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

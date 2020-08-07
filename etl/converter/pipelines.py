@@ -281,3 +281,44 @@ class EduSharingStorePipeline(EduSharing):
         output.close()
         return item
 
+
+class DummyOutPipeline:
+    # Scrapy will print the item on log level DEBUG anyway
+
+    # class Printer:
+    #     def write(self, byte_str: bytes) -> None:
+    #         logging.debug(byte_str.decode("utf-8"))
+
+    # def open_spider(self, spider):
+    #     self.exporter = JsonItemExporter(
+    #         DummyOutPipeline.Printer(),
+    #         fields_to_export=[
+    #             "collection",
+    #             "fulltext",
+    #             "hash",
+    #             "lastModified",
+    #             "license",
+    #             "lom",
+    #             "origin",
+    #             "permissions",
+    #             "publisher",
+    #             "ranking",
+    #             # "response",
+    #             "sourceId",
+    #             # "thumbnail",
+    #             "type",
+    #             "uuid",
+    #             "valuespaces",
+    #         ],
+    #         indent=2,
+    #         encoding="utf-8",
+    #     )
+    #     self.exporter.start_exporting()
+
+    # def close_spider(self, spider):
+    #     self.exporter.finish_exporting()
+
+    def process_item(self, item, spider):
+        logging.info("DRY RUN scraped {}".format(item["response"]["url"]))
+        # self.exporter.export_item(item)
+        return item
