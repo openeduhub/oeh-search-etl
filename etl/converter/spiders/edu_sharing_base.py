@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import requests
 
@@ -22,7 +23,7 @@ class EduSharingBase(Spider, LomBase):
     LomBase.__init__(self, **kwargs)
 
   def buildUrl(self, offset = 0):
-    return self.apiUrl + '/search/v1/queriesV2/-home-/' + self.mdsId + '/ngsearch?contentType=FILES&maxItems=100&skipCount=' + str(offset) + '&sortProperties=cm%3Acreated&sortAscending=true&propertyFilter=-all-'
+    return self.apiUrl + 'search/v1/queriesV2/-home-/' + self.mdsId + '/ngsearch?contentType=FILES&maxItems=100&skipCount=' + str(offset) + '&sortProperties=cm%3Acreated&sortAscending=true&propertyFilter=-all-'
 
   def search(self, offset = 0):
     return JsonRequest(url=self.buildUrl(offset), data = {
@@ -57,12 +58,13 @@ class EduSharingBase(Spider, LomBase):
     base.replace_value('origin', self.getProperty('ccm:replicationsource', response))
     if self.getProperty('ccm:replicationsource', response):
       # imported objects usually have the content as binary text
+      # TODO: Sometimes, edu-sharing redirects if no local content is found, and this should be html-parsed
       try:
         r = requests.get(response.meta['item']['downloadUrl'])
         if r.status_code == 200:
           base.replace_value('fulltext', r.text)
-      except ConnectionError as e:
-        logging.warning('error fetching data from ' + requests.get(response.meta['item']['downloadUrl']).text, e)
+      except:
+        logging.warning('error fetching data from ' + response.meta['item']['downloadUrl'], sys.exc_info()[0])
     else:
       # try to transform using alfresco
       r = requests.get(self.apiUrl + '/node/v1/nodes/' + response.meta['item']['ref']['repo'] + '/' + response.meta['item']['ref']['id'] + '/textContent', headers = {
