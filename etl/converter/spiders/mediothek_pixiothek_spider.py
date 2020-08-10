@@ -18,7 +18,8 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
     url = 'https://www.schulportal-thueringen.de/'  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = 'MediothekPixiothek'  # name as shown in the search ui
     version = '0.1'  # the version of your crawler, used to identify if a reimport is necessary
-    start_urls = ['https://www.schulportal-thueringen.de/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei']
+    # start_urls = ['https://www.schulportal-thueringen.de/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei']
+    start_urls = ['http://localhost:8080/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei']
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -29,7 +30,10 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         data = self.getUrlData(response.url)
         response.meta["rendered_data"] = data
         elements = json.loads(response.body_as_unicode())
-        for i, element in enumerate(elements):
+
+        grouped_elements = self.group_elements(elements)
+
+        for i, element in enumerate(grouped_elements):
             copyResponse = response.copy()
 
             # Passing the dictionary for easier access to attributes.
@@ -46,6 +50,43 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
             LomBase.parse(self, copyResponse)
 
+    def group_elements(self, elements):
+        """
+        This method groups the corresponding elements based on their mediumId. This changes the logic so that every
+        element in the end maps to an educational element in the https://www.schulportal-thueringen.de.
+        """
+
+        medium_id_groups = {}
+        for idx, element in enumerate(elements):
+            medium_id = element["mediumId"]
+
+            # The first element that has this mediumId creates the representative for this medium.
+            if medium_id not in medium_id_groups:
+                medium_id_groups[medium_id] = {
+                    "id": medium_id,
+                    "pts": self.get_or_default(element, "pts"),
+                    "previewImageUrl": self.get_or_default(element, "previewImageUrl"),
+                    "titel": self.get_or_default(element, "einzeltitel"),
+                    "kurzinhalt": self.get_or_default(element, "kurzinhalt"),
+                    "listeStichwort": self.get_or_default(element, "listeStichwort"),
+                    "oeffentlich": self.get_or_default(element, "oeffentlich"),
+                    "downloadUrl": "https://www.schulportal-thueringen.de/web/guest/media/detail?tspi=" + str(medium_id)
+                }
+
+            # The first element to have a serientitel for this mediumId will save it. The rest will just skip it.
+            if "serientitel" in element and "serientitel" not in medium_id_groups[medium_id]:
+                medium_id_groups[medium_id]["titel"] = element["serientitel"]
+                medium_id_groups[medium_id]["serientitel"] = element["serientitel"]
+
+        grouped_elements = [medium_id_groups[medium_id] for medium_id in medium_id_groups]
+
+        return grouped_elements
+
+    def get_or_default(self, element, attribute, default_value=""):
+        if attribute in element:
+            return element[attribute]
+        else:
+            return default_value
 
     def getId(self, response):
         # Element response as a Python dict.
@@ -80,7 +121,15 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
         # TODO: "For licensing reasons, this content is only available to users registered in the Thuringian school
         #  portal."
-        base.add_value('thumbnail', element_dict['previewImageUrl'])
+        # base.add_value('thumbnail', element_dict['previewImageUrl'])
+
+        # TODO: Remove this. This is only for a local execution of Mediothek to check whether Edu-Sharing has issues.
+        thumbnail = element_dict['previewImageUrl']
+        thumbnail = thumbnail.replace("https://www.schulportal-thueringen.de/", "http://localhost:8080/thumbnails/")
+        # Fix the encoding
+        from converter.offline_mode.mediothek_pixiothek_spider_offline import encode_url_for_local
+        thumbnail = encode_url_for_local(thumbnail)
+        base.add_value('thumbnail', thumbnail)
 
         return base
 
@@ -145,10 +194,11 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         # permissions.add_value("autoCreateMediacenters", True)
 
         element_dict = response.meta["item"]
-
+        permissions.replace_value('public', False)
         if "oeffentlich" in element_dict and element_dict["oeffentlich"] == "0":  # private
-            permissions.replace_value('public', False)
-            permissions.add_value('groups', ['Thuringia'])
+            permissions.add_value('groups', ['Thuringia-private'])
             # permissions.add_value('mediacenters', [self.name])  # only 1 mediacenter.
+        else:
+            permissions.add_value('groups', ['Thuringia-public'])
 
         return permissions
