@@ -4,6 +4,7 @@ from datetime import datetime
 
 from scrapy.spiders import CrawlSpider
 from converter.items import *
+from converter.offline_mode.mediothek_pixiothek_spider_offline import encode_url_for_local
 from converter.spiders.lom_base import LomBase
 from converter.constants import *;
 
@@ -73,10 +74,15 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
                     "downloadUrl": "https://www.schulportal-thueringen.de/web/guest/media/detail?tspi=" + str(medium_id)
                 }
 
+            # TODO: Discuss when it makes sense to combine "serientitel" and "einzeltitel"!
             # The first element to have a serientitel for this mediumId will save it. The rest will just skip it.
             if "serientitel" in element and "serientitel" not in medium_id_groups[medium_id]:
                 medium_id_groups[medium_id]["titel"] = element["serientitel"]
                 medium_id_groups[medium_id]["serientitel"] = element["serientitel"]
+                if "einzeltitel" in element:
+                    medium_id_groups[medium_id]["titel"] += " - " + element["einzeltitel"]
+                    medium_id_groups[medium_id]["einzeltitel"] = element["einzeltitel"]
+
 
         grouped_elements = [medium_id_groups[medium_id] for medium_id in medium_id_groups]
 
@@ -127,7 +133,6 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         thumbnail = element_dict['previewImageUrl']
         thumbnail = thumbnail.replace("https://www.schulportal-thueringen.de/", "http://localhost:8080/thumbnails/")
         # Fix the encoding
-        from converter.offline_mode.mediothek_pixiothek_spider_offline import encode_url_for_local
         thumbnail = encode_url_for_local(thumbnail)
         base.add_value('thumbnail', thumbnail)
 
@@ -141,7 +146,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
         # TODO: Decide which title. Do we have to construct the title, by concatenating multiple from the provided ones?
         # Einzeltitel, einzeluntertitel, serientitel, serienuntertitel
-        general.add_value('title', element_dict["einzeltitel"])
+        general.add_value('title', element_dict["titel"])
         # self._if_exists_add(general, element_dict, "description", "kurzinhalt")
         if "kurzinhalt" in element_dict:
             general.add_value('description', element_dict["kurzinhalt"])
