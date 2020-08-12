@@ -103,7 +103,8 @@ class YoutubeSpider(Spider):
     @overrides  # Spider
     def start_requests(self):
         for row in YoutubeSpider.get_csv_rows("youtube.csv"):
-            if (request := self.request_row(row)) is not None:
+            request = self.request_row(row)
+            if request is not None:
                 yield request
 
     def request_row(self, row: dict) -> Request:
@@ -189,9 +190,8 @@ class YoutubeSpider(Spider):
             )
 
     def parse_custom_url(self, response: Response) -> Request:
-        if (
-            match := re.search('"externalChannelId":"(.+?)"', response.text)
-        ) is not None:
+        match = re.search('"externalChannelId":"(.+?)"', response.text)
+        if match is not None:
             channel_id = match.group(1)
             return self.request_channel(channel_id, meta=response.meta)
         logging.warn("Could not extract channel id for {}".format(response.url))
@@ -275,11 +275,11 @@ class YoutubeLomLoader(LomBase):
         return general
 
     def getDescription(self, response: Response) -> str:
-        if (description := response.meta["item"]["snippet"]["description"]) :
-            return description
-        else:
+        return (
+            response.meta["item"]["snippet"]["description"]
             # Fall back to playlist title when no description was given.
-            return response.meta["playlist"]["snippet"]["title"]
+            or response.meta["playlist"]["snippet"]["title"]
+        )
 
     @overrides  # LomBase
     def getLOMTechnical(self, response: Response) -> items.LomTechnicalItemLoader:
