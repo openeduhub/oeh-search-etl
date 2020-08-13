@@ -190,11 +190,12 @@ class YoutubeSpider(Spider):
             )
 
     def parse_custom_url(self, response: Response) -> Request:
-        match = re.search('"externalChannelId":"(.+?)"', response.text)
+        match = re.search('<meta itemprop="channelId" content="(.+?)">', response.text)
         if match is not None:
             channel_id = match.group(1)
             return self.request_channel(channel_id, meta=response.meta)
-        logging.warn("Could not extract channel id for {}".format(response.url))
+        else:
+            logging.warn("Could not extract channel id for {}".format(response.url))
 
 
 class YoutubeLomLoader(LomBase):
