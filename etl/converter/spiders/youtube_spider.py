@@ -16,17 +16,14 @@ import converter.items as items
 from converter.spiders.lom_base import LomBase
 
 # TODO: Find suitable target field for channel/playlist information:
-#   - Title
+#   - Title (channel title included as organization in lifecycle-author)
 #   - Description
-#   - URL
+#   - URL (channel url included as url in lifecycle-author)
 #
 # TODO: Find out whether `publishedAt` reflects modification
 #   - Find another way to set `hash` if not
 #
 # Unhandled csv columns:
-#   - sourceTitle
-#     TODO: Find suitable target field
-#
 #   - typicalAgeRangeFrom
 #   - typicalAgeRangeTo
 #     TODO: Replace with educationalContext
@@ -233,6 +230,7 @@ class YoutubeLomLoader(LomBase):
     @overrides  # LomBase
     def getBase(self, response: Response) -> items.BaseItemLoader:
         base = LomBase.getBase(self, response)
+        base.add_value("origin", response.meta["row"]["sourceTitle"])
         base.add_value("lastModified", response.meta["item"]["snippet"]["publishedAt"])
         base.add_value("thumbnail", self.getThumbnailUrl(response))
         base.add_value("fulltext", self.getFulltext(response))
@@ -290,6 +288,18 @@ class YoutubeLomLoader(LomBase):
             "location", YoutubeSpider.get_video_url(response.meta["item"])
         )
         return technical
+
+    @overrides  # LomBase
+    def getLOMLifecycle(self, response: Response) -> items.LomLifecycleItemloader:
+        lifecycle = LomBase.getLOMLifecycle(self, response)
+        lifecycle.add_value("role", "author")
+        lifecycle.add_value("organization", response.meta["item"]["snippet"]["channelTitle"])
+        lifecycle.add_value("url", self.getChannelUrl(response))
+        return lifecycle
+
+    def getChannelUrl(self, response: Response) -> str:
+        channel_id = response.meta["item"]["snippet"]["channelId"]
+        return "https://www.youtube.com/channel/{}".format(channel_id)
 
     @overrides  # LomBase
     def getLicense(self, response: Response) -> items.LicenseItemLoader:
