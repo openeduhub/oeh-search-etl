@@ -88,7 +88,7 @@ class YoutubeSpider(Spider):
         csv_file_path = os.path.realpath(
             os.path.join(os.path.dirname(__file__), "..", "..", "csv", filename)
         )
-        with open(csv_file_path, newline="") as csv_file:
+        with open(csv_file_path, newline="", encoding="utf-8") as csv_file:
             reader = csv.DictReader(csv_file)
             for row in reader:
                 yield row
@@ -139,7 +139,8 @@ class YoutubeSpider(Spider):
     def parse_channel(self, response: Response) -> Request:
         body = json.loads(response.body)
         assert body["kind"] == "youtube#channelListResponse"
-        assert body["pageInfo"]["totalResults"] == 1
+        assert "items" in body
+        assert len(body["items"]) == 1
         playlist_id = body["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
         response.meta["channel"] = body["items"][0]
         return self.request_playlist(playlist_id, response.meta)
@@ -228,6 +229,10 @@ class YoutubeLomLoader(LomBase):
         return self.version + response.meta["item"]["snippet"]["publishedAt"]
 
     @overrides  # LomBase
+    def mapResponse(self, response) ->  items.ResponseItemLoader:
+        return LomBase.mapResponse(self, response, False)
+
+    @overrides  # LomBase
     def getBase(self, response: Response) -> items.BaseItemLoader:
         base = LomBase.getBase(self, response)
         base.add_value("origin", response.meta["row"]["sourceTitle"].strip())
@@ -248,11 +253,12 @@ class YoutubeLomLoader(LomBase):
         return thumbnail["url"]
 
     def getFulltext(self, response: Response) -> str:
+        item = response.meta["item"]["snippet"]
         # If `channel` is populated, it has more relevant information than `playlist` (see comments
         # to `meta` field above).
         if "channel" in response.meta:
             channel = response.meta["channel"]["snippet"]
-            fulltext = "\n\n".join([channel["title"], channel["description"]],)
+            fulltext = "\n\n".join([channel["title"], channel["description"], item["title"]],)
         else:
             playlist = response.meta["playlist"]["snippet"]
             fulltext = "\n\n".join(
