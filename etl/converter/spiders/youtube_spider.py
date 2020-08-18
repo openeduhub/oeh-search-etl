@@ -230,7 +230,7 @@ class YoutubeLomLoader(LomBase):
     @overrides  # LomBase
     def getBase(self, response: Response) -> items.BaseItemLoader:
         base = LomBase.getBase(self, response)
-        base.add_value("origin", response.meta["row"]["sourceTitle"])
+        base.add_value("origin", response.meta["row"]["sourceTitle"].strip())
         base.add_value("lastModified", response.meta["item"]["snippet"]["publishedAt"])
         base.add_value("thumbnail", self.getThumbnailUrl(response))
         base.add_value("fulltext", self.getFulltext(response))
