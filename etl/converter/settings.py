@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path  # python3 only
-from converter.env import Env
+import converter.env as env
+
 # Scrapy settings for project
 #
 # For simplicity, this file contains only settings considered important or
@@ -10,14 +11,14 @@ from converter.env import Env
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = 'converter_search_idx'
+BOT_NAME = "converter_search_idx"
 
-SPIDER_MODULES = ['converter.spiders']
-NEWSPIDER_MODULE = 'converter.spiders'
+SPIDER_MODULES = ["converter.spiders"]
+NEWSPIDER_MODULE = "converter.spiders"
 
-LOG_FILE = Env.get("LOG_FILE", True)
-LOG_LEVEL = Env.get("LOG_LEVEL")
-LOG_FORMATTER = 'converter.custom_log_formatter.CustomLogFormatter'
+LOG_FILE = env.get("LOG_FILE", allow_null=True)
+LOG_LEVEL = env.get("LOG_LEVEL", default="INFO")
+LOG_FORMATTER = "converter.custom_log_formatter.CustomLogFormatter"
 
 # Default behaviour for regular crawlers of non-license-controlled content
 # When set True, every item will have GROUP_EVERYONE attached in edu-sharing
@@ -26,31 +27,37 @@ DEFAULT_PUBLIC_STATE = False
 
 # Splash (Web Thumbnailer)
 # Will be rolled out via docker-compose by default
-SPLASH_URL = 'http://localhost:8050'
-SPLASH_WAIT = 1 # seconds to let the page load
-SPLASH_HEADERS = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'} # use chrome to not create warnings on pages
+SPLASH_URL = (
+    None if env.get_bool("DISABLE_SPLASH", default=False) else "http://localhost:8050"
+)
+SPLASH_WAIT = 1  # seconds to let the page load
+SPLASH_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36"
+}  # use chrome to not create warnings on pages
 
-#edu-sharing config
-EDU_SHARING_BASE_URL=Env.get("EDU_SHARING_BASE_URL")
-EDU_SHARING_USERNAME=Env.get("EDU_SHARING_USERNAME")
-EDU_SHARING_PASSWORD=Env.get("EDU_SHARING_PASSWORD")
+# edu-sharing config
+EDU_SHARING_BASE_URL = env.get("EDU_SHARING_BASE_URL")
+EDU_SHARING_USERNAME = env.get("EDU_SHARING_USERNAME")
+EDU_SHARING_PASSWORD = env.get("EDU_SHARING_PASSWORD")
 
 # Thumbnail config
-THUMBNAIL_SMALL_SIZE = 250*250
+THUMBNAIL_SMALL_SIZE = 250 * 250
 THUMBNAIL_SMALL_QUALITY = 40
-THUMBNAIL_LARGE_SIZE = 800*800
+THUMBNAIL_LARGE_SIZE = 800 * 800
 THUMBNAIL_LARGE_QUALITY = 60
-THUMBNAIL_MAX_SIZE = 50*1024 # max size for images that can not be converted (e.g. svg)
+THUMBNAIL_MAX_SIZE = (
+    50 * 1024
+)  # max size for images that can not be converted (e.g. svg)
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'converter_search_idx (+http://www.yourdomain.com)'
+# USER_AGENT = 'converter_search_idx (+http://www.yourdomain.com)'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-#CONCURRENT_REQUESTS = 32
+# CONCURRENT_REQUESTS = 32
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
@@ -65,67 +72,92 @@ PARSE_DELAY = 0
 # CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
-#COOKIES_ENABLED = False
+# COOKIES_ENABLED = False
 
 # Disable Telnet Console (enabled by default)
-#TELNETCONSOLE_ENABLED = False
+# TELNETCONSOLE_ENABLED = False
 
 # Override the default request headers:
-#DEFAULT_REQUEST_HEADERS = {
+# DEFAULT_REQUEST_HEADERS = {
 #   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 #   'Accept-Language': 'en',
-#}
+# }
 
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-#SPIDER_MIDDLEWARES = {
+# SPIDER_MIDDLEWARES = {
 #    'converter.middlewares.OerScrapySpiderMiddleware': 543,
-#}
+# }
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
+# DOWNLOADER_MIDDLEWARES = {
 #    'converter.middlewares.OerScrapyDownloaderMiddleware': 543,
-#}
+# }
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
 EXTENSIONS = {
-  #  'scrapy.extensions.telnet.TelnetConsole': None,
-  #  'scrapy.extensions.closespider.CLOSESPIDER_PAGECOUNT': 4,
+    #  'scrapy.extensions.telnet.TelnetConsole': None,
+    #  'scrapy.extensions.closespider.CLOSESPIDER_PAGECOUNT': 4,
 }
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'converter.pipelines.EduSharingCheckPipeline': 0,
-    'converter.pipelines.FilterSparsePipeline': 25,
-    'converter.pipelines.LOMFillupPipeline': 100,
-    'converter.pipelines.NormLicensePipeline': 125,
-    'converter.pipelines.ConvertTimePipeline': 200,
-    'converter.pipelines.ProcessValuespacePipeline': 250,
-    'converter.pipelines.ProcessThumbnailPipeline': 300,
-    #'converter.pipelines.NormLicensePipeline': 100,
-    'converter.pipelines.EduSharingStorePipeline': 1000,
+    "converter.pipelines.EduSharingCheckPipeline": 0,
+    "converter.pipelines.FilterSparsePipeline": 25,
+    "converter.pipelines.LOMFillupPipeline": 100,
+    "converter.pipelines.NormLicensePipeline": 125,
+    "converter.pipelines.ConvertTimePipeline": 200,
+    "converter.pipelines.ProcessValuespacePipeline": 250,
+    "converter.pipelines.ProcessThumbnailPipeline": 300,
+    "converter.pipelines.DummyOutPipeline"
+    if env.get_bool("DRY_RUN", default=False)
+    else "converter.pipelines.EduSharingStorePipeline": 1000,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
-AUTOTHROTTLE_ENABLED = True
+AUTOTHROTTLE_ENABLED = False
 # The initial download delay
 AUTOTHROTTLE_START_DELAY = 1
 # The maximum download delay to be set in case of high latencies
 AUTOTHROTTLE_MAX_DELAY = 60
 # The average number of requests Scrapy should be sending in parallel to
 # each remote server
-#AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
+# AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
 # Enable showing throttling stats for every response received:
 AUTOTHROTTLE_DEBUG = False
 
 # Enable and configure HTTP caching (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
-#HTTPCACHE_ENABLED = True
-#HTTPCACHE_EXPIRATION_SECS = 0
-#HTTPCACHE_DIR = 'httpcache'
-#HTTPCACHE_IGNORE_HTTP_CODES = []
-#HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+# HTTPCACHE_ENABLED = True
+# HTTPCACHE_EXPIRATION_SECS = 0
+# HTTPCACHE_DIR = 'httpcache'
+# HTTPCACHE_IGNORE_HTTP_CODES = []
+# HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+
+# Enables useful test exports with `scrapy crawl -o my-test-output.json <spider>`
+FEED_EXPORT_FIELDS = [
+    "collection",
+    "fulltext",
+    "hash",
+    "lastModified",
+    "license",
+    "lom",
+    "origin",
+    "permissions",
+    "publisher",
+    "ranking",
+    # Response cannot be serialized since it has `bytes` keys
+    # "response",
+    "sourceId",
+    # Too much clutter
+    # "thumbnail",
+    "type",
+    "uuid",
+    "valuespaces",
+]
+FEED_EXPORT_INDENT = 2
+FEED_EXPORT_ENCODING = "utf-8"

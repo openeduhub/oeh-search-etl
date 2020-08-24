@@ -59,7 +59,9 @@ do
 	echo "Executing $spider spider."
 	
 	# Execute the spider and save its output to two files: "nohup_SPIDER.out" (individual log) and "nohup.out" (collective logs).
-	nohup scrapy crawl ${spider}_spider | tee -a nohups/nohup_${spider}.out nohups/nohup.out >/dev/null & 2>&1	
+	#nohup scrapy crawl ${spider}_spider -a resetVersion=true | tee -a nohups/nohup_${spider}.out nohups/nohup.out >/dev/null 2>&1 &
+	#nohup scrapy crawl ${spider}_spider -a cleanrun=true | tee -a nohups/nohup_${spider}.out nohups/nohup.out >/dev/null 2>&1 &
+	nohup scrapy crawl ${spider}_spider | tee -a nohups/nohup_${spider}.out nohups/nohup.out >/dev/null & 2>&1
 	
 	# Execute the spider in the background. 
 	#scrapy crawl ${spider}_spider &

@@ -4,9 +4,8 @@ from datetime import datetime
 
 from scrapy.spiders import CrawlSpider
 from converter.items import *
-from converter.offline_mode.mediothek_pixiothek_spider_offline import encode_url_for_local
 from converter.spiders.lom_base import LomBase
-from converter.constants import *;
+from converter.constants import *
 
 
 class MediothekPixiothekSpider(CrawlSpider, LomBase):
@@ -15,12 +14,14 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
     Author: Timur Yure, timur.yure@capgemini.com , Capgemini for Schul-Cloud, Content team.
     """
-    name = 'mediothek_pixiothek_spider'
-    url = 'https://www.schulportal-thueringen.de/'  # the url which will be linked as the primary link to your source (should be the main url of your site)
-    friendlyName = 'MediothekPixiothek'  # name as shown in the search ui
-    version = '0.1'  # the version of your crawler, used to identify if a reimport is necessary
-    # start_urls = ['https://www.schulportal-thueringen.de/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei']
-    start_urls = ['http://localhost:8080/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei']
+
+    name = "mediothek_pixiothek_spider"
+    url = "https://www.schulportal-thueringen.de/"  # the url which will be linked as the primary link to your source (should be the main url of your site)
+    friendlyName = "MediothekPixiothek"  # name as shown in the search ui
+    version = "0.1"  # the version of your crawler, used to identify if a reimport is necessary
+    start_urls = [
+        "https://www.schulportal-thueringen.de/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei"
+    ]
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -32,13 +33,14 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         response.meta["rendered_data"] = data
         elements = json.loads(response.body_as_unicode())
 
-        grouped_elements = self.group_elements(elements)
+        # grouped_elements = self.group_elements_by_medium_id(elements)
+        grouped_elements = self.group_elements_by_sammlung(elements)
 
         for i, element in enumerate(grouped_elements):
             copyResponse = response.copy()
 
             # Passing the dictionary for easier access to attributes.
-            copyResponse.meta['item'] = element
+            copyResponse.meta["item"] = element
 
             # In case JSON string representation is preferred:
             json_str = json.dumps(element, indent=4, sort_keys=True, ensure_ascii=False)
@@ -51,7 +53,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
             LomBase.parse(self, copyResponse)
 
-    def group_elements(self, elements):
+    def group_elements_by_medium_id(self, elements):
         """
         This method groups the corresponding elements based on their mediumId. This changes the logic so that every
         element in the end maps to an educational element in the https://www.schulportal-thueringen.de.
@@ -88,6 +90,43 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
         return grouped_elements
 
+    def group_elements_by_sammlung(self, elements):
+        """
+        In this method we identify elements that have a keyword (Stichwort) ending in "collection" (sammlung).
+        These elements are parents of other elements that have a serienTitel same as the einzeltitel of these collection
+        items. Then, we remove these children from the elements and we only have collections or single items, not part
+        of any collection.
+        """
+
+        # Step 1 - Identify collection elements
+        collections_elements = set()
+        for idx, element in enumerate(elements):
+            keywords = element["listeStichwort"]
+            element_collections_keywords = set()
+            for keyword in keywords:
+                if keyword.endswith("sammlung"):
+                    element_collections_keywords.add(keyword)
+                    break
+            if len(element_collections_keywords) > 0:
+                collections_elements.add(idx)
+
+        # Step 2 - Get a dictionary of "Einzeltitel" --> element index, for the collection elements.
+        # collections_einzeltitel = {elements[idx]["einzeltitel"]: idx for idx in collections_elements}
+        collections_einzeltitel = {}
+        for idx in collections_elements:
+            collection_einzeltitel = elements[idx]["einzeltitel"]
+            if collection_einzeltitel not in collections_einzeltitel:
+                collections_einzeltitel[collection_einzeltitel] = list()
+            collections_einzeltitel[collection_einzeltitel].append(elements[idx])
+            # if "serientitel" in elements[idx]:
+            #     collections_einzeltitel[collection_einzeltitel].append(elements[idx]["serientitel"])
+            # else:
+            #     collections_einzeltitel[collection_einzeltitel].append(None)
+        print("hi")
+
+
+
+
     def get_or_default(self, element, attribute, default_value=""):
         if attribute in element:
             return element[attribute]
@@ -110,10 +149,10 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         return id + pts
 
     def mapResponse(self, response):
-        r = ResponseItemLoader(response = response)
-        r.add_value('status',response.status)
-        r.add_value('headers',response.headers)
-        r.add_value('url', self.getUri(response))
+        r = ResponseItemLoader(response=response)
+        r.add_value("status", response.status)
+        r.add_value("headers", response.headers)
+        r.add_value("url", self.getUri(response))
         return r
 
     def handleEntry(self, response):
@@ -127,14 +166,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
         # TODO: "For licensing reasons, this content is only available to users registered in the Thuringian school
         #  portal."
-        # base.add_value('thumbnail', element_dict['previewImageUrl'])
-
-        # TODO: Remove this. This is only for a local execution of Mediothek to check whether Edu-Sharing has issues.
-        thumbnail = element_dict['previewImageUrl']
-        thumbnail = thumbnail.replace("https://www.schulportal-thueringen.de/", "http://localhost:8080/thumbnails/")
-        # Fix the encoding
-        thumbnail = encode_url_for_local(thumbnail)
-        base.add_value('thumbnail', thumbnail)
+        base.add_value("thumbnail", element_dict["previewImageUrl"])
 
         return base
 
@@ -146,14 +178,16 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
         # TODO: Decide which title. Do we have to construct the title, by concatenating multiple from the provided ones?
         # Einzeltitel, einzeluntertitel, serientitel, serienuntertitel
-        general.add_value('title', element_dict["titel"])
+        general.add_value("title", element_dict["titel"])
         # self._if_exists_add(general, element_dict, "description", "kurzinhalt")
         if "kurzinhalt" in element_dict:
-            general.add_value('description', element_dict["kurzinhalt"])
+            general.add_value("description", element_dict["kurzinhalt"])
 
-        liste_stichwort = element_dict["listeStichwort"] if "listeStichwort" in element_dict else None
+        liste_stichwort = (
+            element_dict["listeStichwort"] if "listeStichwort" in element_dict else None
+        )
         if liste_stichwort is not None and len(liste_stichwort) > 0:
-            general.add_value('keyword', liste_stichwort)
+            general.add_value("keyword", liste_stichwort)
 
         return general
 
@@ -161,7 +195,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         # Element response as a Python dict.
         element_dict = response.meta["item"]
 
-        return element_dict['downloadUrl']
+        return element_dict["downloadUrl"]
 
     def getLicense(self, response):
         license = LomBase.getLicense(self, response)
@@ -170,18 +204,18 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         element_dict = response.meta["item"]
 
         if "oeffentlich" in element_dict and element_dict["oeffentlich"] == "0":  # private
-            license.replace_value('internal', Constants.LICENSE_NONPUBLIC)
+            license.replace_value("internal", Constants.LICENSE_NONPUBLIC)
         else:
-            license.replace_value('internal', Constants.LICENSE_COPYRIGHT_LAW)  # public
+            license.replace_value("internal", Constants.LICENSE_COPYRIGHT_LAW)  # public
 
         return license
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
 
-        technical.add_value('format', 'text/html')
-        technical.add_value('location', self.getUri(response))
-        technical.add_value('size', len(response.body))
+        technical.add_value("format", "text/html")
+        technical.add_value("location", self.getUri(response))
+        technical.add_value("size", len(response.body))
 
         return technical
 

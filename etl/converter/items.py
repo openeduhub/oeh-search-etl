@@ -12,6 +12,7 @@ from scrapy.loader.processors import Join, MapCompose, TakeFirst
 from w3lib.html import remove_tags, replace_escape_chars
 import logging
 
+
 def replace_processor(value):
     if value is not None:
         return replace_escape_chars(remove_tags(value)).strip()
@@ -20,8 +21,7 @@ def replace_processor(value):
 
 
 class JoinMultivalues(object):
-
-    def __init__(self, separator=u' '):
+    def __init__(self, separator=u" "):
         self.separator = separator
 
     def __call__(self, values):
@@ -31,6 +31,8 @@ class JoinMultivalues(object):
 class MutlilangItem(Item):
     key = Field()
     de_DE = Field()
+
+
 class LomGeneralItem(Item):
     identifier = Field()
     title = Field()
@@ -41,12 +43,15 @@ class LomGeneralItem(Item):
     aggregationLevel = Field()
     description = Field()
 
+
 class LomLifecycleItem(Item):
     role = Field()
     firstName = Field()
     lastName = Field()
     organization = Field()
+    url = Field()
     uuid = Field()
+
 
 class LomTechnicalItem(Item):
     format = Field()
@@ -57,9 +62,11 @@ class LomTechnicalItem(Item):
     otherPlatformRequirements = Field()
     duration = Field()
 
+
 class LomAgeRangeItem(Item):
     fromRange = Field()
     toRange = Field()
+
 
 class LomEducationalItem(Item):
     interactivityType = Field()
@@ -68,7 +75,9 @@ class LomEducationalItem(Item):
     interactivityLevel = Field()
     semanticDensity = Field()
     # Please use valuespaces.intendedEndUserRole
-    intendedEndUserRole = Field(serializer=MutlilangItem, output_processor=JoinMultivalues())
+    intendedEndUserRole = Field(
+        serializer=MutlilangItem, output_processor=JoinMultivalues()
+    )
     # Please use valuespaces.educationalContext
     # context = Field()
     typicalAgeRange = Field(serializer=LomAgeRangeItem)
@@ -77,11 +86,13 @@ class LomEducationalItem(Item):
     description = Field()
     language = Field()
 
-#please use the seperate license data
-#class LomRightsItem(Item):
-    #cost = Field()
-    #coyprightAndOtherRestrictions = Field()
-    #description = Field()
+
+# please use the seperate license data
+# class LomRightsItem(Item):
+# cost = Field()
+# coyprightAndOtherRestrictions = Field()
+# description = Field()
+
 
 class LomClassificationItem(Item):
     cost = Field()
@@ -90,13 +101,15 @@ class LomClassificationItem(Item):
     description = Field()
     keyword = Field()
 
+
 class LomBaseItem(Item):
     general = Field(serializer=LomGeneralItem)
     lifecycle = Field(serializer=LomLifecycleItem, output_processor=JoinMultivalues())
     technical = Field(serializer=LomTechnicalItem)
     educational = Field(serializer=LomEducationalItem)
-    #rights = Field(serializer=LomRightsItem)
+    # rights = Field(serializer=LomRightsItem)
     classification = Field(serializer=LomClassificationItem)
+
 
 class ResponseItem(Item):
     status = Field()
@@ -104,20 +117,27 @@ class ResponseItem(Item):
     html = Field()
     text = Field()
     headers = Field()
+
+
 class ValuespaceItem(Item):
     intendedEndUserRole = Field(output_processor=JoinMultivalues())
     discipline = Field(output_processor=JoinMultivalues())
     educationalContext = Field(output_processor=JoinMultivalues())
     learningResourceType = Field(output_processor=JoinMultivalues())
     sourceContentType = Field(output_processor=JoinMultivalues())
+    toolCategory = Field(output_processor=JoinMultivalues())
+
 
 class LicenseItem(Item):
-    # url to a license description
     url = Field()
-    # a internal constants for this license
+    "url to a license description"
     internal = Field()
-    # a value of OerType (if empty, will be mapped via the given url or internal value)
+    "a internal constants for this license"
     oer = Field()
+    "a value of OerType (if empty, will be mapped via the given url or internal value)"
+    author = Field()
+    "an author freetext (basically, how the author should be named in case this is a by-license"
+
 
 class PermissionItem(Item):
     public = Field()
@@ -130,6 +150,8 @@ class PermissionItem(Item):
     "Should global groups be created if they don't exist"
     autoCreateMediacenters = Field()
     "Should media centers be created  if they don't exist"
+
+
 class BaseItem(Item):
     sourceId = Field()
     uuid = Field()
@@ -138,6 +160,8 @@ class BaseItem(Item):
     collection = Field(output_processor=JoinMultivalues())
     "id of collections this entry should be placed into"
     type = Field()
+    origin = Field()
+    "in case it was fetched from a referatorium, the real origin name may be included here"
     response = Field(serializer=ResponseItem)
     ranking = Field()
     fulltext = Field()
@@ -151,47 +175,71 @@ class BaseItem(Item):
     license = Field(serializer=LicenseItem)
     publisher = Field()
 
+
 class BaseItemLoader(ItemLoader):
     default_item_class = BaseItem
-    #default_input_processor = MapCompose(replace_processor)
+    # default_input_processor = MapCompose(replace_processor)
     default_output_processor = TakeFirst()
+
 
 class MutlilangItemLoader(ItemLoader):
     default_item_class = MutlilangItem
     default_output_processor = TakeFirst()
+
+
 class ValuespaceItemLoader(ItemLoader):
     default_item_class = ValuespaceItem
     default_output_processor = TakeFirst()
+
+
 class LicenseItemLoader(ItemLoader):
     default_item_class = LicenseItem
     default_output_processor = TakeFirst()
+
+
 class LomBaseItemloader(ItemLoader):
     default_item_class = LomBaseItem
     default_output_processor = TakeFirst()
+
+
 class ResponseItemLoader(ItemLoader):
     default_item_class = ResponseItem
     default_output_processor = TakeFirst()
+
+
 class LomGeneralItemloader(ItemLoader):
     default_item_class = LomGeneralItem
     default_output_processor = TakeFirst()
+
+
 class LomLifecycleItemloader(ItemLoader):
     default_item_class = LomLifecycleItem
     default_output_processor = TakeFirst()
+
+
 class LomTechnicalItemLoader(ItemLoader):
     default_item_class = LomTechnicalItem
     default_output_processor = TakeFirst()
+
+
 class LomAgeRangeItemLoader(ItemLoader):
     default_item_class = LomAgeRangeItem
     default_output_processor = TakeFirst()
+
+
 class LomEducationalItemLoader(ItemLoader):
     default_item_class = LomEducationalItem
     default_output_processor = TakeFirst()
-#class LomRightsItemLoader(ItemLoader):
+
+
+# class LomRightsItemLoader(ItemLoader):
 #    default_item_class = LomRightsItem
 #    default_output_processor = TakeFirst()
 class LomClassificationItemLoader(ItemLoader):
     default_item_class = LomClassificationItem
     default_output_processor = TakeFirst()
+
+
 class PermissionItemLoader(ItemLoader):
     default_item_class = PermissionItem
     default_output_processor = TakeFirst()

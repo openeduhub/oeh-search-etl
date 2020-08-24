@@ -36,9 +36,9 @@ class JobDetail(object):
         'key': 'Key',
         'volatile': 'bool',
         'full_name': 'str',
-        'job_listener_names': 'list[str]',
         'stateful': 'bool',
-        'durable': 'bool'
+        'durable': 'bool',
+        'job_listener_names': 'list[str]'
     }
 
     attribute_map = {
@@ -49,12 +49,12 @@ class JobDetail(object):
         'key': 'key',
         'volatile': 'volatile',
         'full_name': 'fullName',
-        'job_listener_names': 'jobListenerNames',
         'stateful': 'stateful',
-        'durable': 'durable'
+        'durable': 'durable',
+        'job_listener_names': 'jobListenerNames'
     }
 
-    def __init__(self, name=None, group=None, description=None, job_data_map=None, key=None, volatile=False, full_name=None, job_listener_names=None, stateful=False, durable=False):  # noqa: E501
+    def __init__(self, name=None, group=None, description=None, job_data_map=None, key=None, volatile=False, full_name=None, stateful=False, durable=False, job_listener_names=None):  # noqa: E501
         """JobDetail - a model defined in Swagger"""  # noqa: E501
         self._name = None
         self._group = None
@@ -63,9 +63,9 @@ class JobDetail(object):
         self._key = None
         self._volatile = None
         self._full_name = None
-        self._job_listener_names = None
         self._stateful = None
         self._durable = None
+        self._job_listener_names = None
         self.discriminator = None
         if name is not None:
             self.name = name
@@ -81,12 +81,12 @@ class JobDetail(object):
             self.volatile = volatile
         if full_name is not None:
             self.full_name = full_name
-        if job_listener_names is not None:
-            self.job_listener_names = job_listener_names
         if stateful is not None:
             self.stateful = stateful
         if durable is not None:
             self.durable = durable
+        if job_listener_names is not None:
+            self.job_listener_names = job_listener_names
 
     @property
     def name(self):
@@ -236,27 +236,6 @@ class JobDetail(object):
         self._full_name = full_name
 
     @property
-    def job_listener_names(self):
-        """Gets the job_listener_names of this JobDetail.  # noqa: E501
-
-
-        :return: The job_listener_names of this JobDetail.  # noqa: E501
-        :rtype: list[str]
-        """
-        return self._job_listener_names
-
-    @job_listener_names.setter
-    def job_listener_names(self, job_listener_names):
-        """Sets the job_listener_names of this JobDetail.
-
-
-        :param job_listener_names: The job_listener_names of this JobDetail.  # noqa: E501
-        :type: list[str]
-        """
-
-        self._job_listener_names = job_listener_names
-
-    @property
     def stateful(self):
         """Gets the stateful of this JobDetail.  # noqa: E501
 
@@ -297,6 +276,27 @@ class JobDetail(object):
         """
 
         self._durable = durable
+
+    @property
+    def job_listener_names(self):
+        """Gets the job_listener_names of this JobDetail.  # noqa: E501
+
+
+        :return: The job_listener_names of this JobDetail.  # noqa: E501
+        :rtype: list[str]
+        """
+        return self._job_listener_names
+
+    @job_listener_names.setter
+    def job_listener_names(self, job_listener_names):
+        """Sets the job_listener_names of this JobDetail.
+
+
+        :param job_listener_names: The job_listener_names of this JobDetail.  # noqa: E501
+        :type: list[str]
+        """
+
+        self._job_listener_names = job_listener_names
 
     def to_dict(self):
         """Returns the model properties as a dict"""
