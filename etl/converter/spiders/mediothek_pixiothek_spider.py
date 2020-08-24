@@ -179,6 +179,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         # TODO: Decide which title. Do we have to construct the title, by concatenating multiple from the provided ones?
         # Einzeltitel, einzeluntertitel, serientitel, serienuntertitel
         general.add_value("title", element_dict["titel"])
+
         # self._if_exists_add(general, element_dict, "description", "kurzinhalt")
         if "kurzinhalt" in element_dict:
             general.add_value("description", element_dict["kurzinhalt"])

@@ -195,6 +195,7 @@ class ProcessThumbnailPipeline:
         response = None
         settings = get_project_settings()
         url = False
+
         if "thumbnail" in item:
             url = item["thumbnail"]
             response = requests.get(url)

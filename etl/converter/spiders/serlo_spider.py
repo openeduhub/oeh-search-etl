@@ -25,6 +25,7 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
         url = self.url + "/entity/api/json/export/article"
         # current dummy fallback since the Serlo API is basically down
         # url = "http://localhost/sources/serlo.json"
+
         yield scrapy.Request(url=url, callback=self.parseList)
 
     # some fields are having xml entities (for whatever reason), we will unescape them here

@@ -131,13 +131,13 @@ class MerlinSpider(CrawlSpider, LomBase):
     def getBase(self, response):
         base = LomBase.getBase(self, response)
         base.add_value("thumbnail", response.xpath("/data/thumbnail/text()").get())
+
         if response.xpath("/data/srcLogoUrl/text()").get():
             base.add_value("defaultThumbnail", "https://merlin.nibis.de" + response.xpath("/data/srcLogoUrl/text()").get())
         elif response.xpath("/data/logo/text()").get():
             base.add_value("defaultThumbnail", "https://merlin.nibis.de" + response.xpath("/data/logo/text()").get())
         else:  # backup thumbnail hard-coded.
             base.add_value('defaultThumbnail', 'https://merlin.nibis.de/logos/bs_logos/merlin.png')
-
 
         return base
 
