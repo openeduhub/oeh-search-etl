@@ -1,13 +1,8 @@
 version: "3.4"
 
 services:
-  # valuespaces:
-  #   image: laocoon667/oer-flask-api:dev
-  #   ports:
-  #     - "127.0.0.1:5000:5000"
-  #   restart: on-failure
   splash:
-    image: scrapinghub/splash
+    image: scrapinghub/splash:master
     command: --maxrss 4000
     restart: always
     ports:
