@@ -266,7 +266,8 @@ class YoutubeLomLoader(LomBase):
         general.add_value(
             "keyword", self.parse_csv_field(response.meta["row"]["keyword"])
         )
-        general.add_value("keyword", response.meta["item"]["snippet"]["tags"])
+        if "tags" in response.meta["item"]["snippet"]:
+            general.add_value("keyword", response.meta["item"]["snippet"]["tags"])
         general.add_value(
             "language", self.parse_csv_field(response.meta["row"]["language"])
         )
