@@ -275,12 +275,13 @@ class ProcessThumbnailPipeline:
                         + url
                         + ": "
                         + str(e)
-                        + " (falling back to screenshot)"
                     )
                 if "thumbnail" in item:
+                    logging.warn("(falling back to " + ("defaultThumbnail" if "defaultThumbnail" in item else "screenshot") + ")")
                     del item["thumbnail"]
                     return self.process_item(item, spider)
                 elif 'defaultThumbnail' in item:
+                    logging.warn("(falling back to screenshot)")
                     del item['defaultThumbnail']
                     return self.process_item(item, spider)
                 else:

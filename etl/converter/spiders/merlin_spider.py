@@ -18,7 +18,7 @@ class MerlinSpider(CrawlSpider, LomBase):
     name = "merlin_spider"
     url = "https://merlin.nibis.de/index.php"  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = "Merlin"  # name as shown in the search ui
-    version = "0.1"  # the version of your crawler, used to identify if a reimport is necessary
+    version = "0.2"  # the version of your crawler, used to identify if a reimport is necessary
     apiUrl = "https://merlin.nibis.de/index.php?action=resultXml&start=%start&anzahl=%anzahl&query[stichwort]=*"  # * regular expression, to represent all possible values.
 
     limit = 100
@@ -59,13 +59,29 @@ class MerlinSpider(CrawlSpider, LomBase):
                 element_xml_str = etree.tostring(
                     element, pretty_print=True, encoding="unicode"
                 )
-                element_dict = xmltodict.parse(element_xml_str)
                 try:
+                    element_dict = xmltodict.parse(element_xml_str)
+                    element_dict = element_dict["data"]
+
+                    # Preparing the values here helps for all following logic across the methods.
+                    prepare_element(self, element_dict)
+
+                    # If there is no available Kreis code, then we do not want to deal with this element.
+                    if not("kreis_id" in element_dict
+                           and element_dict["kreis_id"] is not None
+                           and len(element_dict["kreis_id"]) > 0):
+                        continue
+
+                    # If the content is private, skip it for now!
+                    # TODO: remove this when the  private is more clear!!!
+                    if not(len(element_dict["kreis_id"]) == 1 and str(element_dict["kreis_id"][0]) == "merlin_spider_100"):
+                        continue
+
                     # TODO: It's probably a pointless attribute.
                     # del element_dict["data"]["score"]
 
                     # Passing the dictionary for easier access to attributes.
-                    copyResponse.meta["item"] = element_dict["data"]
+                    copyResponse.meta["item"] = element_dict
 
                     # In case JSON string representation is preferred:
                     # copyResponse._set_body(json.dumps(copyResponse.meta['item'], indent=1, ensure_ascii=False))
@@ -130,14 +146,20 @@ class MerlinSpider(CrawlSpider, LomBase):
 
     def getBase(self, response):
         base = LomBase.getBase(self, response)
-        base.add_value("thumbnail", response.xpath("/data/thumbnail/text()").get())
 
-        if response.xpath("/data/srcLogoUrl/text()").get():
-            base.add_value("defaultThumbnail", "https://merlin.nibis.de" + response.xpath("/data/srcLogoUrl/text()").get())
-        elif response.xpath("/data/logo/text()").get():
-            base.add_value("defaultThumbnail", "https://merlin.nibis.de" + response.xpath("/data/logo/text()").get())
-        else:  # backup thumbnail hard-coded.
-            base.add_value('defaultThumbnail', 'https://merlin.nibis.de/logos/bs_logos/merlin.png')
+        # Element response as a Python dict.
+        element_dict = dict(response.meta["item"])
+
+        base.add_value("thumbnail", element_dict.get("thumbnail", ""))  # get or default
+
+        # As a backup, if no other thumbnail URL is available.
+        element_dict["hardcodedDefaultLogoUrl"] = "/logos/bs_logos/merlin.png"
+
+        # By the order of preference. As soon as one of these default thumbnails is available you keep that.
+        for default_thumbnail in ["srcLogoUrl", "logo", "hardcodedDefaultLogoUrl"]:
+            if default_thumbnail in element_dict:
+                base.add_value("defaultThumbnail", "https://merlin.nibis.de" + element_dict[default_thumbnail])
+                break
 
         return base
 
@@ -160,10 +182,11 @@ class MerlinSpider(CrawlSpider, LomBase):
         # Element response as a Python dict.
         element_dict = response.meta["item"]
 
-        if "kreis_id" in element_dict and element_dict["kreis_id"] is not None and len(element_dict["kreis_id"]) > 0:
-            license.replace_value('internal', Constants.LICENSE_NONPUBLIC) # private
-        else:
+        # If there is only one element and is the Kreis code 100, then it is public content.
+        if len(element_dict["kreis_id"]) == 1 and str(element_dict["kreis_id"][0]) == "merlin_spider_100":
             license.replace_value('internal', Constants.LICENSE_COPYRIGHT_LAW)  # public
+        else:
+            license.replace_value('internal', Constants.LICENSE_NONPUBLIC)  # private
 
         return license
 
@@ -229,21 +252,27 @@ class MerlinSpider(CrawlSpider, LomBase):
 
         permissions.replace_value("public", False)
         permissions.add_value("autoCreateGroups", True)
+        permissions.add_value("autoCreateMediacenters", True)
 
-        # If the license is private.
-        if "kreis_id" in element_dict and element_dict["kreis_id"] is not None and len(element_dict["kreis_id"]) > 0:
-            # Self-explained. 1 media center per Kreis-code in this case.
-            # permissions.add_value("autoCreateMediacenters", True)
-            kreis_ids = element_dict["kreis_id"]["data"]  # ... redundant extra nested dictionary "data"...
-            if not isinstance(kreis_ids, list):  # one element
-                kreis_ids = [kreis_ids]
-            kreis_ids = sorted(kreis_ids, key=lambda x: int(x))
-            # kreis_ids = [self.name + "_" + id for id in kreis_ids]  # add prefix
-
-            # permissions.add_value('groups', ['Lower Saxony'])
-            permissions.add_value("groups", ["LowerSaxony-private"])
-            # permissions.add_value('mediacenters', kreis_ids)
-        else:
+        # If there is only one element and is the Kreis code 100, then it is public content.
+        if len(element_dict["kreis_id"]) == 1 and str(element_dict["kreis_id"][0]) == "merlin_spider_100":
             permissions.add_value("groups", ["LowerSaxony-public"])
+        else:
+            permissions.add_value("groups", ["LowerSaxony-private"])
+
+        # Self-explained. 1 media center per Kreis-code in this case.
+        permissions.add_value('mediacenters', element_dict["kreis_id"])
 
         return permissions
+
+def prepare_element(self, element_dict):
+    # Step 1. Prepare Kreis codes.
+    if "kreis_id" in element_dict and element_dict["kreis_id"] is not None:
+        kreis_ids = element_dict["kreis_id"]["data"]  # ... redundant extra nested dictionary "data"...
+        if not isinstance(kreis_ids, list):  # one element
+            kreis_ids = [kreis_ids]
+        kreis_ids = sorted(kreis_ids, key=lambda x: int(x))
+        kreis_ids = [self.name + "_" + id for id in kreis_ids]  # add prefix
+        element_dict["kreis_id"] = kreis_ids
+
+    return element_dict
