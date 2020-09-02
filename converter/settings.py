@@ -46,7 +46,7 @@ THUMBNAIL_SMALL_QUALITY = 40
 THUMBNAIL_LARGE_SIZE = 800 * 800
 THUMBNAIL_LARGE_QUALITY = 60
 THUMBNAIL_MAX_SIZE = (
-    50 * 1024
+    1 * 1024 * 1024
 )  # max size for images that can not be converted (e.g. svg)
 
 
