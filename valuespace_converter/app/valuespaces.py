@@ -4,7 +4,7 @@ import requests
 import json
 
 class Valuespaces:
-    ids = ['intendedEndUserRole', 'discipline', 'educationalContext', 'EAF-Sachgebietssystematik', 'learningResourceType', 'sourceContentType', 'toolCategory']
+    ids = ['intendedEndUserRole', 'discipline', 'educationalContext', 'EAF-Sachgebietssystematik', 'allSchoolTopics', 'learningResourceType', 'sourceContentType', 'toolCategory']
     data = {}
     def __init__(self):
         for v in self.ids:

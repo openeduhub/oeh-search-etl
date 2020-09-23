@@ -36,6 +36,7 @@ from scrapy.utils.project import get_project_settings
 from converter.es_connector import EduSharing
 import nltk
 from nltk.stem.snowball import SnowballStemmer
+from nltk.corpus import stopwords
 import re
 
 
@@ -51,6 +52,7 @@ class ValuespaceFillupPipeline:
     process = ['discipline', 'learningResourceType']
     stemmer = SnowballStemmer("german")
     minSimilarity = 0.9
+    stopwords = set(stopwords.words('german'))
 
     def process_item(self, item, spider):
         if not 'general' in item['lom']:
@@ -89,10 +91,9 @@ class ValuespaceFillupPipeline:
             #    continue
             valuesToAdd = set()
             for key in Valuespaces.data[v]:
-                for vword in key['words']:
-                    if vword.casefold() in textToCheck.casefold():
-                        valuesToAdd.add(key['id'])
-                        break
+                if self.matches(textToCheck, key['words'], True):
+                    valuesToAdd.add(key['id'])
+                    break
                     #for word in wordsToCheckPrimary:
                     #    if self.wordsSimilar(word, vword):
                     #        valuesToAdd.add(key['id'])
@@ -104,15 +105,17 @@ class ValuespaceFillupPipeline:
                     item['valuespaces'][v] = []
                 item['valuespaces'][v] += valuesToAdd
 
-        systematics = self.getSystematics(wordsToCheckAll)
+        systematics = self.getSystematics(wordsToCheckAll, 'EAF-Sachgebietssystematik', 0.2) | \
+                      self.getSystematics(wordsToCheckAll, 'allSchoolTopics', 0.2)
         print(systematics)
+        print(item['lom']['technical']['location'])
         if len(systematics) > 0:
             if not 'discipline' in item['valuespaces']:
                 item['valuespaces']['discipline'] = []
             item['valuespaces']['discipline'] += list(systematics)
 
         return item
-    def getSystematics(self, wordsToCheck, valuespace = 'EAF-Sachgebietssystematik'):
+    def getSystematics(self, wordsToCheck, valuespace, breakValue):
         systematics = []
         systematicsDiscipline = []
         systematicsCounts = {}
@@ -121,7 +124,9 @@ class ValuespaceFillupPipeline:
             if 'narrower' in key:
                 found = self.findInTree(key['narrower'], wordsToCheck)
                 if len(found) > 0:
-                    systematicsDiscipline.append(discipline)
+                    # enhance count
+                    for i in found:
+                        systematicsDiscipline.append(discipline)
                     systematics += found
         for k in systematics + systematicsDiscipline:
             if k in systematicsCounts:
@@ -129,14 +134,15 @@ class ValuespaceFillupPipeline:
             else:
                 systematicsCounts[k] = 1
         if len(systematicsCounts):
+            #print(systematicsCounts)
             maxValue = max(systematicsCounts.values())
+            sumValue = sum(systematicsCounts.values())
             systematicsFiltered = set()
-            print(systematicsCounts)
             for k in systematicsCounts:
-                if systematicsCounts[k] > maxValue * 0.5:
+                if systematicsCounts[k] == maxValue and systematicsCounts[k] > sumValue * breakValue:
                     systematicsFiltered.add(k)
             return systematicsFiltered
-        return []
+        return set()
     def findInTree(self, key, wordsToCheck):
         #else:
         result = []
@@ -144,9 +150,8 @@ class ValuespaceFillupPipeline:
             if 'narrower' in k:
                 result += self.findInTree(k['narrower'], wordsToCheck)
             else:
-                for vword in k['words']:
-                    if vword.casefold() in ' '.join(wordsToCheck).casefold():
-                        result.append(k['prefLabel']['de'])
+                for i in range(pow(self.matches(' '.join(wordsToCheck), k['words']), 2)):
+                    result.append(k['prefLabel']['de'])
                     #for word in wordsToCheck:
                     #    if self.wordsSimilar(word, vword):
                     #        result.append(k['prefLabel']['de'])
@@ -161,6 +166,15 @@ class ValuespaceFillupPipeline:
                         #self.stemmer.stem(word).casefold() == self.stemmer.stem(vword).casefold() and \
                         #sim > 0.6
                 #)
+
+    def matches(self, textToCheck, words, softMatch = False):
+        for vword in list(filter(lambda x: x not in self.stopwords and len(x) > 2, words)):
+            if softMatch and ' ' + vword.casefold() + ' ' in ' '+textToCheck.casefold()+' ':
+                return len(vword)
+            elif not softMatch and vword.casefold() in textToCheck.casefold():
+                return len(vword)*2
+        return 0
+
 
 class FilterSparsePipeline:
     def process_item(self, item, spider):
@@ -296,7 +310,7 @@ class ProcessValuespacePipeline:
                 if found and len(list(filter(lambda x: x == id, mapped))) == 0:
                     mapped.append(id)
                 elif not found:
-                    logging.info('Not found valuespace ' + key + ' entry for value ' + entry)
+                    logging.debug('Not found valuespace ' + key + ' entry for value ' + entry)
             if len(mapped):
                 json[key] = mapped
             else:
@@ -444,7 +458,7 @@ class CSVStorePipeline():
         self.spamwriter.writerow([
             'title',
             'description',
-            'fulltext',
+            #'fulltext',
             'keywords',
             'location',
             'discipline',
@@ -469,7 +483,7 @@ class CSVStorePipeline():
         self.spamwriter.writerow([
             self.getValue(item,'lom.general.title'),
             self.getValue(item,'lom.general.description'),
-            self.getValue(item,'fulltext'),
+            #self.getValue(item,'fulltext'),
             self.getValue(item,'lom.general.keyword'),
             self.getValue(item,'lom.technical.location'),
             self.getValue(item,'valuespaces.discipline'),
