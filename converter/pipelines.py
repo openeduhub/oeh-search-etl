@@ -4,13 +4,17 @@
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-
+from scrapy import Item
 from scrapy.exceptions import DropItem
+from scrapy.loader import ItemLoader
+import csv
+from fuzzywuzzy import fuzz
 from converter.constants import *
+from overrides import overrides
 import json
 import re
 from w3lib.html import replace_escape_chars
-from scrapy.exporters import JsonItemExporter
+from scrapy.exporters import JsonItemExporter, CsvItemExporter
 import io
 from datetime import date
 import time
@@ -26,17 +30,136 @@ import html2text
 import scrapy
 import sys
 import uuid
+from nltk.tokenize import word_tokenize
 from valuespace_converter.app.valuespaces import Valuespaces
 from scrapy.utils.project import get_project_settings
 from converter.es_connector import EduSharing
+import nltk
+from nltk.stem.snowball import SnowballStemmer
+import re
 
-# fillup missing props by "guessing" or loading them if possible
+
+# fillup missing props by "inferencing" or loading them if possible
 class LOMFillupPipeline:
     def process_item(self, item, spider):
         if not "fulltext" in item and "text" in item["response"]:
             item["fulltext"] = item["response"]["text"]
         return item
 
+
+class ValuespaceFillupPipeline:
+    process = ['discipline', 'learningResourceType']
+    stemmer = SnowballStemmer("german")
+    minSimilarity = 0.8
+
+    def process_item(self, item, spider):
+        if not 'general' in item['lom']:
+            return item
+        fieldsToCheck = [item['lom']['general']['title']]
+        if 'keyword' in item['lom']['general']:
+            fieldsToCheck += item['lom']['general']['keyword']
+        if 'description' in item['lom']['general']:
+            # only fallback?
+            fieldsToCheck += [item['lom']['general']['description']]
+        textToCheck = ' '.join(fieldsToCheck)
+        # stem words, so e.g. Übungen ==> Übung
+        # wordsToCheckPrimary = [item for sublist in
+        #                list(map(lambda x: list(map(lambda y: self.stemmer.stem(y),re.split('[ ,.:/]',x))),fieldsToCheck))
+        #                for item in sublist
+        #                ]
+        wordsToCheckPrimary = [item for sublist in
+                        list(map(lambda x: word_tokenize(x),fieldsToCheck))
+                        for item in sublist
+                        ]
+        print(wordsToCheckPrimary)
+        # to unclean results?
+
+        # wordsToCheckAll = [item for sublist in
+        #                      list(map(lambda x: list(map(lambda y: self.stemmer.stem(y), re.split('[ ,.:/]', x))),
+        #                               fieldsToCheck))
+        #                      for item in sublist
+        #                     ]
+
+        foundValues = False
+        for v in self.process:
+            # if v in item['valuespaces']:
+            #    continue
+            valuesToAdd = set()
+            for key in Valuespaces.data[v]:
+                for vword in key['words']:
+                    #if vword.casefold() in textToCheck.casefold():
+                    #    valuesToAdd.add(key['id'])
+                    #    break
+                    for word in wordsToCheckPrimary:
+                        if self.wordsSimilar(word, vword):
+                            valuesToAdd.add(key['id'])
+                            break
+
+            if len(valuesToAdd):
+                foundValues = True
+                if not v in item['valuespaces']:
+                    item['valuespaces'][v] = []
+                # TODO: replace with += !!!
+                item['valuespaces'][v] = valuesToAdd
+
+        systematics = self.getSystematics(wordsToCheckPrimary)
+        print(systematics)
+        if len(systematics) > 0:
+            if not 'discipline' in item['valuespaces']:
+                item['valuespaces']['discipline'] = []
+            # TODO: replace with += !!!
+            item['valuespaces']['discipline'] = list(systematics)
+
+        return item
+    def getSystematics(self, wordsToCheck):
+        systematics = []
+        systematicsDiscipline = []
+        systematicsCounts = {}
+        for key in Valuespaces.data['EAF-Sachgebietssystematik']:
+            discipline = key['prefLabel']['de']
+            if 'narrower' in key:
+                found = self.findInTree(key['narrower'], wordsToCheck)
+                if len(found) > 0:
+                    systematicsDiscipline.append(discipline)
+                    systematics += found
+        for k in systematics + systematicsDiscipline:
+            if k in systematicsCounts:
+                systematicsCounts[k] += 1
+            else:
+                systematicsCounts[k] = 1
+        maxValue = max(systematicsCounts.values())
+        systematicsFiltered = set()
+        print(systematicsCounts)
+        for k in systematicsCounts:
+            if systematicsCounts[k] > maxValue / 2.:
+                systematicsFiltered.add(k)
+        print(systematicsFiltered)
+        return systematicsFiltered
+    def findInTree(self, key, wordsToCheck):
+        #else:
+        result = []
+        for k in key:
+            if 'narrower' in k:
+                result += self.findInTree(k['narrower'], wordsToCheck)
+            else:
+                for vword in k['words']:
+                    #if vword.casefold() in textToCheck.casefold():
+                    #    print('found ' + vword)
+                    #    result.add(k['prefLabel']['de'])
+                    for word in wordsToCheck:
+                        if self.wordsSimilar(word, vword):
+                            result.append(k['prefLabel']['de'])
+        return result
+
+    def wordsSimilar(self, word, vword):
+        # return word.similarity(nlp(vword)) > self.minSimilarity or \
+        # return lemmatizer(word.text, NOUN)[0].casefold() == lemmatizer(vword, NOUN)[0].casefold()
+        sim = fuzz.ratio(word.casefold(), vword.casefold())/100.
+        return  sim > self.minSimilarity # or \
+                #(
+                        #self.stemmer.stem(word).casefold() == self.stemmer.stem(vword).casefold() and \
+                        #sim > 0.6
+                #)
 
 class FilterSparsePipeline:
     def process_item(self, item, spider):
@@ -79,8 +202,8 @@ class NormLicensePipeline:
                     item["license"]["url"] = Constants.LICENSE_MAPPINGS[key]
                     break
         if "internal" in item["license"] and (
-            not "url" in item["license"]
-            or not item["license"]["url"] in Constants.VALID_LICENSE_URLS
+                not "url" in item["license"]
+                or not item["license"]["url"] in Constants.VALID_LICENSE_URLS
         ):
             for key in Constants.LICENSE_MAPPINGS_INTERNAL:
                 if item["license"]["internal"].casefold() == key.casefold():
@@ -89,10 +212,10 @@ class NormLicensePipeline:
 
         if "url" in item["license"] and not "oer" in item["license"]:
             if (
-                item["license"]["url"] == Constants.LICENSE_CC_BY_40
-                or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_30
-                or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_40
-                or item["license"]["url"] == Constants.LICENSE_CC_ZERO_10
+                    item["license"]["url"] == Constants.LICENSE_CC_BY_40
+                    or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_30
+                    or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_40
+                    or item["license"]["url"] == Constants.LICENSE_CC_ZERO_10
             ):
                 item["license"]["oer"] = OerType.ALL
 
@@ -127,9 +250,9 @@ class ConvertTimePipeline:
             splitted = time.split(":")
             if len(splitted) == 3:
                 mapped = (
-                    int(splitted[0]) * 60 * 60
-                    + int(splitted[1]) * 60
-                    + int(splitted[2])
+                        int(splitted[0]) * 60 * 60
+                        + int(splitted[1]) * 60
+                        + int(splitted[2])
                 )
             if mapped == None:
                 logging.warn(
@@ -171,6 +294,8 @@ class ProcessValuespacePipeline:
                         break
                 if found and len(list(filter(lambda x: x == id, mapped))) == 0:
                     mapped.append(id)
+                elif not found:
+                    logging.info('Not found valuespace ' + key + ' entry for value ' + entry)
             if len(mapped):
                 json[key] = mapped
             else:
@@ -201,9 +326,9 @@ class ProcessThumbnailPipeline:
                 "Loading thumbnail took " + str(response.elapsed.total_seconds()) + "s"
             )
         elif (
-            "location" in item["lom"]["technical"]
-            and "format" in item["lom"]["technical"]
-            and item["lom"]["technical"]["format"] == "text/html"
+                "location" in item["lom"]["technical"]
+                and "format" in item["lom"]["technical"]
+                and item["lom"]["technical"]["format"] == "text/html"
         ):
             if settings.get("SPLASH_URL"):
                 response = requests.post(
@@ -308,6 +433,45 @@ class EduSharingCheckPipeline(EduSharing):
                 # raise DropItem()
         return item
 
+class CSVStorePipeline():
+
+    def open_spider(self, spider):
+        self.csvFile = open('output_'+spider.name+'.csv', 'w', newline='')
+        self.spamwriter = csv.writer(self.csvFile, delimiter=',',
+                                quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        self.spamwriter.writerow([
+            'title',
+            'description',
+            'keywords',
+            'discipline',
+            'learningResourceType',
+        ])
+
+    def getValue(self, item, value):
+        container = item
+        tokens = value.split('.')
+        for v in tokens:
+            if v in container:
+                container = container[v]
+            else:
+                return None
+        if tokens[0] == 'valuespaces':
+            return list(map(lambda x: Valuespaces.findKey(tokens[1], x)['prefLabel']['de'], container))
+        return container
+
+    def close_spider(self, spider):
+        self.csvFile.close()
+    def process_item(self, item, spider):
+        self.spamwriter.writerow([
+            self.getValue(item,'lom.general.title'),
+            self.getValue(item,'lom.general.description'),
+            self.getValue(item,'lom.general.keyword'),
+            self.getValue(item,'valuespaces.discipline'),
+            self.getValue(item,'valuespaces.learningResourceType'),
+        ])
+        self.csvFile.flush()
+        print('processing csv')
+        return item
 
 class EduSharingStorePipeline(EduSharing):
     def process_item(self, item, spider):
@@ -368,7 +532,7 @@ class EduSharingStorePipeline(EduSharing):
         return item
 
 
-class DummyOutPipeline:
+class DummyPipeline:
     # Scrapy will print the item on log level DEBUG anyway
 
     # class Printer:

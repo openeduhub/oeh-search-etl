@@ -14,6 +14,9 @@ from converter.constants import Constants
 from scrapy.selector import Selector
 
 # Spider to fetch API from Serlo
+from converter.valuespace_helper import ValuespaceHelper
+
+
 class TutorySpider(scrapy.Spider, LomBase, JSONBase):
     name = "tutory_spider"
     friendlyName = "tutory"
@@ -26,7 +29,7 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
         LomBase.__init__(self, **kwargs)
 
     def start_requests(self):
-        url = self.baseUrl + "worksheet?groupSlug=entdecken&pageSize=999999"
+        url = self.baseUrl + "worksheet?groupSlug=entdecken&pageSize=500"
         yield scrapy.Request(url=url, callback=self.parseList)
 
     def parseList(self, response):
@@ -67,6 +70,18 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
             )
         )
         valuespaces.add_value("discipline", discipline)
+        classLevel = list(
+            map(
+                lambda x: x["code"],
+                filter(
+                    lambda x: x["type"] == "classLevel",
+                    response.meta["item"]["metaValues"],
+                ),
+            )
+        )
+        if classLevel:
+            valuespaces.add_value("educationalContext",ValuespaceHelper.educationalContextByGrade([min(classLevel),max(classLevel)]))
+
         return valuespaces
 
     def getLicense(self, response):
@@ -81,7 +96,6 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
             general.add_value("description", response.meta["item"]["description"])
         else:
             html = self.getUrlData(response.url)["html"]
-            general.add_value("description", 'test')
             if html:
                 data = (
                     Selector(text=html)

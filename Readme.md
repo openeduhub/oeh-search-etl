@@ -14,6 +14,10 @@ python3 -m venv .venv
 
 `pip3 install -r requirements.txt`
 
+For adding the NLP for stemming and automatic valuespace conclusions
+`python -m spacy download de_core_news_lg`
+//`python -m nltk.downloader all`
+
 As a last step, set up your config variables by copying the example and modify it if necessary `cp converter/.env.example converter/.env`
 
 - crawler can be run with `scrapy crawl <spider-name>`. It assumes that you have the postgres database running, so you should run the `docker-compose up` command from before.

@@ -1,5 +1,6 @@
 from converter.pipelines import ProcessValuespacePipeline
 from valuespace_converter.app.valuespaces import Valuespaces
+import logging
 
 
 class ValuespaceHelper:
@@ -17,17 +18,21 @@ class ValuespaceHelper:
     @staticmethod
     def educationalContextByGrade(range):
         context = []
-        if len(range) < 2:
-            range = list(range)
-            range.append(range[0])
-        if int(range[0]) <= 4:
-            context.append("Grundschule")
-        if int(range[1]) >= 4 and int(range[0]) <= 10:
-            context.append("Sekundarstufe 1")
-        if int(range[0]) >= 11 or int(range[1]) >= 11:
-            context.append("Sekundarstufe 2")
-        if len(context):
-            return context
+        try:
+            if len(range) < 2:
+                range = list(range)
+                range.append(range[0])
+            if int(range[0]) <= 4:
+                context.append("Grundschule")
+            if int(range[1]) >= 4 and int(range[0]) <= 10:
+                context.append("Sekundarstufe 1")
+            if int(range[0]) >= 11 or int(range[1]) >= 11:
+                context.append("Sekundarstufe 2")
+            if len(context):
+                return context
+        except:
+            logging.warning('Could not convert data to grade:')
+            logging.warning(range)
         return None
 
     # range must be an array [from, to]

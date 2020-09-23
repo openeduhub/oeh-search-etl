@@ -28,7 +28,7 @@ DEFAULT_PUBLIC_STATE = False
 # Splash (Web Thumbnailer)
 # Will be rolled out via docker-compose by default
 SPLASH_URL = (
-    None if env.get_bool("DISABLE_SPLASH", default=False) else "http://localhost:8050"
+    None if env.get_bool("DISABLE_SPLASH", default=False) else "http://192.168.16.158:8050"
 )
 SPLASH_WAIT = 1  # seconds to let the page load
 SPLASH_HEADERS = {
@@ -101,15 +101,20 @@ EXTENSIONS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    "converter.pipelines.EduSharingCheckPipeline": 0,
+    "converter.pipelines.EduSharingCheckPipeline"
+    if env.get("MODE", default='edu-sharing')
+    else "converter.pipelines.DummyPipeline": 0,
     "converter.pipelines.FilterSparsePipeline": 25,
     "converter.pipelines.LOMFillupPipeline": 100,
+    "converter.pipelines.ValuespaceFillupPipeline": 112,
     "converter.pipelines.NormLicensePipeline": 125,
     "converter.pipelines.ConvertTimePipeline": 200,
     "converter.pipelines.ProcessValuespacePipeline": 250,
     "converter.pipelines.ProcessThumbnailPipeline": 300,
-    "converter.pipelines.DummyOutPipeline"
-    if env.get_bool("DRY_RUN", default=False)
+    "converter.pipelines.DummyPipeline"
+    if env.get("MODE", default='edu-sharing') == None
+    else "converter.pipelines.CSVStorePipeline"
+    if env.get("MODE", default='edu-sharing') == 'csv'
     else "converter.pipelines.EduSharingStorePipeline": 1000,
 }
 
