@@ -50,17 +50,17 @@ class LOMFillupPipeline:
 class ValuespaceFillupPipeline:
     process = ['discipline', 'learningResourceType']
     stemmer = SnowballStemmer("german")
-    minSimilarity = 0.8
+    minSimilarity = 0.9
 
     def process_item(self, item, spider):
         if not 'general' in item['lom']:
             return item
+        # TODO: Only for testing
+        item['valuespaces']['discipline'] = []
+        item['valuespaces']['learningResourceType'] = []
         fieldsToCheck = [item['lom']['general']['title']]
         if 'keyword' in item['lom']['general']:
             fieldsToCheck += item['lom']['general']['keyword']
-        if 'description' in item['lom']['general']:
-            # only fallback?
-            fieldsToCheck += [item['lom']['general']['description']]
         textToCheck = ' '.join(fieldsToCheck)
         # stem words, so e.g. Übungen ==> Übung
         # wordsToCheckPrimary = [item for sublist in
@@ -73,12 +73,15 @@ class ValuespaceFillupPipeline:
                         ]
         print(wordsToCheckPrimary)
         # to unclean results?
-
-        # wordsToCheckAll = [item for sublist in
-        #                      list(map(lambda x: list(map(lambda y: self.stemmer.stem(y), re.split('[ ,.:/]', x))),
-        #                               fieldsToCheck))
-        #                      for item in sublist
-        #                     ]
+        if 'description' in item['lom']['general']:
+            # only fallback?
+            fieldsToCheck += [item['lom']['general']['description']]
+        if 'fulltext' in item:
+            fieldsToCheck += [item['fulltext']]
+        wordsToCheckAll = [item for sublist in
+                        list(map(lambda x: word_tokenize(x),fieldsToCheck))
+                        for item in sublist
+                        ]
 
         foundValues = False
         for v in self.process:
@@ -87,35 +90,33 @@ class ValuespaceFillupPipeline:
             valuesToAdd = set()
             for key in Valuespaces.data[v]:
                 for vword in key['words']:
-                    #if vword.casefold() in textToCheck.casefold():
-                    #    valuesToAdd.add(key['id'])
-                    #    break
-                    for word in wordsToCheckPrimary:
-                        if self.wordsSimilar(word, vword):
-                            valuesToAdd.add(key['id'])
-                            break
+                    if vword.casefold() in textToCheck.casefold():
+                        valuesToAdd.add(key['id'])
+                        break
+                    #for word in wordsToCheckPrimary:
+                    #    if self.wordsSimilar(word, vword):
+                    #        valuesToAdd.add(key['id'])
+                    #        break
 
             if len(valuesToAdd):
                 foundValues = True
                 if not v in item['valuespaces']:
                     item['valuespaces'][v] = []
-                # TODO: replace with += !!!
-                item['valuespaces'][v] = valuesToAdd
+                item['valuespaces'][v] += valuesToAdd
 
-        systematics = self.getSystematics(wordsToCheckPrimary)
+        systematics = self.getSystematics(wordsToCheckAll)
         print(systematics)
         if len(systematics) > 0:
             if not 'discipline' in item['valuespaces']:
                 item['valuespaces']['discipline'] = []
-            # TODO: replace with += !!!
-            item['valuespaces']['discipline'] = list(systematics)
+            item['valuespaces']['discipline'] += list(systematics)
 
         return item
-    def getSystematics(self, wordsToCheck):
+    def getSystematics(self, wordsToCheck, valuespace = 'EAF-Sachgebietssystematik'):
         systematics = []
         systematicsDiscipline = []
         systematicsCounts = {}
-        for key in Valuespaces.data['EAF-Sachgebietssystematik']:
+        for key in Valuespaces.data[valuespace]:
             discipline = key['prefLabel']['de']
             if 'narrower' in key:
                 found = self.findInTree(key['narrower'], wordsToCheck)
@@ -127,14 +128,15 @@ class ValuespaceFillupPipeline:
                 systematicsCounts[k] += 1
             else:
                 systematicsCounts[k] = 1
-        maxValue = max(systematicsCounts.values())
-        systematicsFiltered = set()
-        print(systematicsCounts)
-        for k in systematicsCounts:
-            if systematicsCounts[k] > maxValue / 2.:
-                systematicsFiltered.add(k)
-        print(systematicsFiltered)
-        return systematicsFiltered
+        if len(systematicsCounts):
+            maxValue = max(systematicsCounts.values())
+            systematicsFiltered = set()
+            print(systematicsCounts)
+            for k in systematicsCounts:
+                if systematicsCounts[k] > maxValue * 0.5:
+                    systematicsFiltered.add(k)
+            return systematicsFiltered
+        return []
     def findInTree(self, key, wordsToCheck):
         #else:
         result = []
@@ -143,12 +145,11 @@ class ValuespaceFillupPipeline:
                 result += self.findInTree(k['narrower'], wordsToCheck)
             else:
                 for vword in k['words']:
-                    #if vword.casefold() in textToCheck.casefold():
-                    #    print('found ' + vword)
-                    #    result.add(k['prefLabel']['de'])
-                    for word in wordsToCheck:
-                        if self.wordsSimilar(word, vword):
-                            result.append(k['prefLabel']['de'])
+                    if vword.casefold() in ' '.join(wordsToCheck).casefold():
+                        result.append(k['prefLabel']['de'])
+                    #for word in wordsToCheck:
+                    #    if self.wordsSimilar(word, vword):
+                    #        result.append(k['prefLabel']['de'])
         return result
 
     def wordsSimilar(self, word, vword):
@@ -319,6 +320,7 @@ class ProcessThumbnailPipeline:
     def process_item(self, item, spider):
         response = None
         settings = get_project_settings()
+        url = None
         if "thumbnail" in item:
             url = item["thumbnail"]
             response = requests.get(url)
@@ -442,7 +444,9 @@ class CSVStorePipeline():
         self.spamwriter.writerow([
             'title',
             'description',
+            'fulltext',
             'keywords',
+            'location',
             'discipline',
             'learningResourceType',
         ])
@@ -465,7 +469,9 @@ class CSVStorePipeline():
         self.spamwriter.writerow([
             self.getValue(item,'lom.general.title'),
             self.getValue(item,'lom.general.description'),
+            self.getValue(item,'fulltext'),
             self.getValue(item,'lom.general.keyword'),
+            self.getValue(item,'lom.technical.location'),
             self.getValue(item,'valuespaces.discipline'),
             self.getValue(item,'valuespaces.learningResourceType'),
         ])
