@@ -51,7 +51,8 @@ class LOMFillupPipeline:
 class ValuespaceFillupPipeline:
     process = ['discipline', 'learningResourceType']
     stemmer = SnowballStemmer("german")
-    minSimilarity = 0.9
+    # 0 - 1, higher values equal stricter matching
+    minConfidence = 0.4
     stopwords = set(stopwords.words('german'))
 
     def process_item(self, item, spider):
@@ -78,7 +79,7 @@ class ValuespaceFillupPipeline:
         if 'description' in item['lom']['general']:
             # only fallback?
             fieldsToCheck += [item['lom']['general']['description']]
-        elif 'fulltext' in item:
+        if 'fulltext' in item:
             fieldsToCheck += [item['fulltext']]
         wordsToCheckAll = [item for sublist in
                         list(map(lambda x: word_tokenize(x),fieldsToCheck))
@@ -103,8 +104,8 @@ class ValuespaceFillupPipeline:
                     item['valuespaces'][v] = []
                 item['valuespaces'][v] += valuesToAdd
 
-        systematics = self.getSystematics(wordsToCheckAll, 'EAF-Sachgebietssystematik', 0.4) | \
-                      self.getSystematics(wordsToCheckAll, 'allSchoolTopics', 0.3)
+        systematics = self.getSystematics(wordsToCheckAll, 'EAF-Sachgebietssystematik', self.minConfidence) | \
+                      self.getSystematics(wordsToCheckAll, 'allSchoolTopics', self.minConfidence)
         #print(systematics)
         print(item['lom']['technical']['location'])
         if len(systematics) > 0:
@@ -131,7 +132,8 @@ class ValuespaceFillupPipeline:
             sumValue = sum(systematicsCounts.values())
             systematicsFiltered = set()
             for k in systematicsCounts:
-                if systematicsCounts[k] == maxValue and systematicsCounts[k] > sumValue * breakValue:
+                #if systematicsCounts[k] == maxValue and \
+                if systematicsCounts[k] > sumValue * breakValue:
                     print(k+': ' + str(systematicsCounts[k] / sumValue))
                     systematicsFiltered.add(k)
             return systematicsFiltered
@@ -492,7 +494,7 @@ class CSVStorePipeline():
             self.getValue(item,'valuespaces.learningResourceType'),
         ])
         self.csvFile.flush()
-        print('processing csv')
+        print('--------------')
         return item
 
 class EduSharingStorePipeline(EduSharing):
