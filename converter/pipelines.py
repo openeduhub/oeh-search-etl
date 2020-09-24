@@ -60,10 +60,10 @@ class ValuespaceFillupPipeline:
         # TODO: Only for testing
         item['valuespaces']['discipline'] = []
         item['valuespaces']['learningResourceType'] = []
+        # TODO End
         fieldsToCheck = [item['lom']['general']['title']]
         if 'keyword' in item['lom']['general']:
             fieldsToCheck += item['lom']['general']['keyword']
-        textToCheck = ' '.join(fieldsToCheck)
         # stem words, so e.g. Übungen ==> Übung
         # wordsToCheckPrimary = [item for sublist in
         #                list(map(lambda x: list(map(lambda y: self.stemmer.stem(y),re.split('[ ,.:/]',x))),fieldsToCheck))
@@ -78,20 +78,19 @@ class ValuespaceFillupPipeline:
         if 'description' in item['lom']['general']:
             # only fallback?
             fieldsToCheck += [item['lom']['general']['description']]
-        if 'fulltext' in item:
+        elif 'fulltext' in item:
             fieldsToCheck += [item['fulltext']]
         wordsToCheckAll = [item for sublist in
                         list(map(lambda x: word_tokenize(x),fieldsToCheck))
                         for item in sublist
                         ]
-
-        foundValues = False
+        #print(wordsToCheckAll)
         for v in self.process:
             # if v in item['valuespaces']:
             #    continue
             valuesToAdd = set()
             for key in Valuespaces.data[v]:
-                if self.matches(textToCheck, key['words'], True):
+                if self.matches(wordsToCheckPrimary, key['words'], False):
                     valuesToAdd.add(key['id'])
                     break
                     #for word in wordsToCheckPrimary:
@@ -100,14 +99,13 @@ class ValuespaceFillupPipeline:
                     #        break
 
             if len(valuesToAdd):
-                foundValues = True
                 if not v in item['valuespaces']:
                     item['valuespaces'][v] = []
                 item['valuespaces'][v] += valuesToAdd
 
-        systematics = self.getSystematics(wordsToCheckAll, 'EAF-Sachgebietssystematik', 0.2) | \
-                      self.getSystematics(wordsToCheckAll, 'allSchoolTopics', 0.2)
-        print(systematics)
+        systematics = self.getSystematics(wordsToCheckAll, 'EAF-Sachgebietssystematik', 0.4) | \
+                      self.getSystematics(wordsToCheckAll, 'allSchoolTopics', 0.3)
+        #print(systematics)
         print(item['lom']['technical']['location'])
         if len(systematics) > 0:
             if not 'discipline' in item['valuespaces']:
@@ -123,39 +121,40 @@ class ValuespaceFillupPipeline:
             discipline = key['prefLabel']['de']
             if 'narrower' in key:
                 found = self.findInTree(key['narrower'], wordsToCheck)
-                if len(found) > 0:
-                    # enhance count
-                    for i in found:
-                        systematicsDiscipline.append(discipline)
-                    systematics += found
-        for k in systematics + systematicsDiscipline:
-            if k in systematicsCounts:
-                systematicsCounts[k] += 1
-            else:
-                systematicsCounts[k] = 1
-        if len(systematicsCounts):
+                systematicsCounts[discipline] = found
+
+        if len(systematicsCounts.keys()):
+            for k in systematicsCounts.keys():
+                systematicsCounts[k] = systematicsCounts[k]['matched']/systematicsCounts[k]['total']
             #print(systematicsCounts)
             maxValue = max(systematicsCounts.values())
             sumValue = sum(systematicsCounts.values())
             systematicsFiltered = set()
             for k in systematicsCounts:
                 if systematicsCounts[k] == maxValue and systematicsCounts[k] > sumValue * breakValue:
+                    print(k+': ' + str(systematicsCounts[k] / sumValue))
                     systematicsFiltered.add(k)
             return systematicsFiltered
         return set()
     def findInTree(self, key, wordsToCheck):
         #else:
-        result = []
+        total = 0
+        matched = 0
         for k in key:
             if 'narrower' in k:
-                result += self.findInTree(k['narrower'], wordsToCheck)
+                found = self.findInTree(k['narrower'], wordsToCheck)
+                total += found['total']
+                matched += found['matched']
             else:
-                for i in range(pow(self.matches(' '.join(wordsToCheck), k['words']), 2)):
-                    result.append(k['prefLabel']['de'])
-                    #for word in wordsToCheck:
+                total += sum(list(map(lambda x: len(x),k['words'])))
+                matched += self.matches(wordsToCheck, k['words'])
+                #for word in wordsToCheck:
                     #    if self.wordsSimilar(word, vword):
                     #        result.append(k['prefLabel']['de'])
-        return result
+        return {
+            'total': total,
+            'matched': matched
+        }
 
     def wordsSimilar(self, word, vword):
         # return word.similarity(nlp(vword)) > self.minSimilarity or \
@@ -167,13 +166,16 @@ class ValuespaceFillupPipeline:
                         #sim > 0.6
                 #)
 
-    def matches(self, textToCheck, words, softMatch = False):
-        for vword in list(filter(lambda x: x not in self.stopwords and len(x) > 2, words)):
-            if softMatch and ' ' + vword.casefold() + ' ' in ' '+textToCheck.casefold()+' ':
-                return len(vword)
-            elif not softMatch and vword.casefold() in textToCheck.casefold():
-                return len(vword)*2
-        return 0
+    def matches(self, wordsToCheck, words, wordGroupMatch = False):
+        words = list(filter(lambda x: x not in self.stopwords and len(x) > 2, words))
+        matchCount = 0
+        for vword in words:
+            textToCheck = ' '.join(wordsToCheck)
+            if wordGroupMatch and ' ' + vword.casefold() + ' ' in ' '+textToCheck.casefold()+' ':
+                matchCount += len(vword)
+            elif not wordGroupMatch and vword.casefold() in textToCheck.casefold():
+                matchCount += len(vword)
+        return matchCount
 
 
 class FilterSparsePipeline:
@@ -457,9 +459,9 @@ class CSVStorePipeline():
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
         self.spamwriter.writerow([
             'title',
-            'description',
+            #'description',
             #'fulltext',
-            'keywords',
+            #'keywords',
             'location',
             'discipline',
             'learningResourceType',
@@ -482,9 +484,9 @@ class CSVStorePipeline():
     def process_item(self, item, spider):
         self.spamwriter.writerow([
             self.getValue(item,'lom.general.title'),
-            self.getValue(item,'lom.general.description'),
+            #self.getValue(item,'lom.general.description'),
             #self.getValue(item,'fulltext'),
-            self.getValue(item,'lom.general.keyword'),
+            #self.getValue(item,'lom.general.keyword'),
             self.getValue(item,'lom.technical.location'),
             self.getValue(item,'valuespaces.discipline'),
             self.getValue(item,'valuespaces.learningResourceType'),
