@@ -4,7 +4,9 @@ import requests
 import json
 
 class Valuespaces:
-    ids = ['intendedEndUserRole', 'discipline', 'educationalContext', 'EAF-Sachgebietssystematik', 'allSchoolTopics', 'learningResourceType', 'sourceContentType', 'toolCategory']
+    ids = ['intendedEndUserRole', 'discipline', 'educationalContext', 'EAF-Sachgebietssystematik',
+           'eaf-schlagwortsystematik', 'allSchoolTopics', 'learningResourceType', 'sourceContentType',
+           'toolCategory']
     data = {}
     def __init__(self):
         for v in self.ids:
@@ -52,5 +54,5 @@ class Valuespaces:
             names += key['note']['de'] if 'de' in key['note'] else []
             names += key['note']['en'] if 'en' in key['note'] else []
 
-        names = list(map(lambda x: x.strip(), names))
+        names = list(set(map(lambda x: x.strip(), names)))
         return names

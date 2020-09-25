@@ -105,6 +105,7 @@ class ValuespaceFillupPipeline:
                 item['valuespaces'][v] += valuesToAdd
 
         systematics = self.getSystematics(wordsToCheckAll, 'EAF-Sachgebietssystematik', self.minConfidence) | \
+                      self.getSystematics(wordsToCheckAll, 'eaf-schlagwortsystematik', self.minConfidence) | \
                       self.getSystematics(wordsToCheckAll, 'allSchoolTopics', self.minConfidence)
         #print(systematics)
         print(item['lom']['technical']['location'])
