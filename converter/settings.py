@@ -28,7 +28,7 @@ DEFAULT_PUBLIC_STATE = False
 # Splash (Web Thumbnailer)
 # Will be rolled out via docker-compose by default
 SPLASH_URL = (
-    None if env.get_bool("DISABLE_SPLASH", default=False) else "http://192.168.16.158:8050"
+    None if env.get_bool("DISABLE_SPLASH", default=False) else "http://localhost:8050"
 )
 SPLASH_WAIT = 1  # seconds to let the page load
 SPLASH_HEADERS = {
