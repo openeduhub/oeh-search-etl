@@ -18,25 +18,24 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
     name = "tutory_spider"
     friendlyName = "tutory"
     url = "https://www.tutory.de/"
-    baseUrl = "https://www.tutory.de/api/v1/"
-    version = "0.1.0"
+    objectUrl = "https://www.tutory.de/bereitstellung/dokument/"
+    baseUrl = "https://www.tutory.de/api/v1/share/"
+    version = "0.1.1"
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
     def start_requests(self):
-        url = self.baseUrl + "worksheet?pageSize=999999"
+        url = self.baseUrl + "worksheet?groupSlug=entdecken&pageSize=999999"
         yield scrapy.Request(url=url, callback=self.parseList)
 
     def parseList(self, response):
         data = json.loads(response.body)
         for j in data["worksheets"]:
-            responseCopy = response.replace(url=self.url + "worksheet/" + j["id"])
+            responseCopy = response.replace(url=self.objectUrl + j["id"])
             responseCopy.meta["item"] = j
             if self.hasChanged(responseCopy):
-                yield scrapy.Request(
-                    url=responseCopy.url, callback=self.parse, meta={"item": j}
-                )
+                yield self.parse(responseCopy)
 
     def getId(self, response):
         return str(response.meta["item"]["id"])
@@ -45,7 +44,6 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
         return response.meta["item"]["updatedAt"] + self.version
 
     def parse(self, response):
-        print(response.url)
         return LomBase.parse(self, response)
 
     def getBase(self, response):
@@ -53,7 +51,7 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
         base.add_value("lastModified", response.meta["item"]["updatedAt"])
         base.add_value(
             "thumbnail",
-            self.url + "worksheet/" + response.meta["item"]["id"] + ".jpg?width=1000",
+            self.objectUrl + response.meta["item"]["id"] + ".jpg?width=1000",
         )
         return base
 
@@ -79,23 +77,25 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
         general.add_value("title", response.meta["item"]["name"])
-        if response.meta["item"]["description"] != "":
+        if 'description' in response.meta["item"]:
             general.add_value("description", response.meta["item"]["description"])
         else:
             html = self.getUrlData(response.url)["html"]
-            data = (
-                Selector(text=html)
-                .xpath('//ul[contains(@class,"worksheet-pages")]//text()')
-                .getall()
-            )
-            cutoff = 4
-            if len(data) > cutoff:
-                for i in range(cutoff):
-                    del data[0]
+            general.add_value("description", 'test')
+            if html:
+                data = (
+                    Selector(text=html)
+                    .xpath('//ul[contains(@class,"worksheet-pages")]//text()')
+                    .getall()
+                )
+                cutoff = 4
+                if len(data) > cutoff:
+                    for i in range(cutoff):
+                        del data[0]
 
-            text = " ".join(data)
-            text = text[:1000]
-            general.add_value("description", text)
+                text = " ".join(data)
+                text = text[:1000]
+                general.add_value("description", text)
         return general
 
     def getLOMTechnical(self, response):
