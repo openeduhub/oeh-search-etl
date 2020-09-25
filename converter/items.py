@@ -166,6 +166,7 @@ class BaseItem(Item):
     ranking = Field()
     fulltext = Field()
     thumbnail = Field()
+    defaultThumbnail = Field()
     lastModified = Field()
     lom = Field(serializer=LomBaseItem)
     valuespaces = Field(serializer=ValuespaceItem)

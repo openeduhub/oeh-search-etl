@@ -1,0 +1,98 @@
+version: "3.4"
+
+services:
+  elasticsearch:
+    image: elasticsearch:7.4.2
+    environment:
+      - "discovery.type=single-node"
+      #- ELASTIC_PASSWORD=changethisinproduction
+      #- xpack.security.enabled=true
+      - http.port=9200
+      - http.cors.enabled=true
+      - http.cors.allow-origin=*
+      - http.cors.allow-headers=X-Requested-With,X-Auth-Token,Content-Type,Content-Length,Authorization,Access-Control-Allow-Headers,Accept
+      - http.cors.allow-credentials=true
+      - bootstrap.memory_lock=true
+      - 'ES_JAVA_OPTS=-Xms2g -Xmx4g'
+    networks:
+      - elasticnet
+    ports:
+      - "127.0.0.1:9200:9200"
+    restart: on-failure
+    volumes: 
+      - es-data:/usr/share/elasticsearch/data
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.4.2
+    networks: 
+      - elasticnet
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601" # exposte to host
+  postgres:
+    build:
+      context: ./postgres
+      dockerfile: postgres.Dockerfile
+    environment:
+      - "POSTGRES_USER=search"
+      - "POSTGRES_PASSWORD=admin"
+      - "POSTGRES_DB=search"
+    networks: 
+      - elasticnet
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: always
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+  valuespace_converter:
+    build:
+      context: ./etl/valuespace_converter
+      dockerfile: valuespace_converter.Dockerfile
+    networks:
+      - elasticnet
+    ports:
+      - "5010:5010" # exposte to host
+    restart: on-failure
+  logstash:
+    build:
+      context: ./logstash
+      dockerfile: logstash_psql.Dockerfile
+    environment: 
+      - LS_JAVA_OPTS=-Xmx4g
+    networks:
+      - elasticnet
+    depends_on:
+      - elasticsearch
+      - postgres
+    restart: on-failure
+  valuespaces:
+    image: laocoon667/oer-flask-api:dev
+    networks:
+      - elasticnet
+    ports:
+      - "127.0.0.1:5000:5000"
+    restart: on-failure
+  splash:
+    image: scrapinghub/splash
+    networks:
+      - elasticnet
+    command: --maxrss 4000
+    restart: always
+    ports:
+      - "127.0.0.1:8050:8050"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8050/_ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  elasticnet:
+
+volumes:
+  pg-data:
+      driver: local
+  es-data:
+      driver: local
+      
+      

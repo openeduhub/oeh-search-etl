@@ -12,7 +12,8 @@ class LeifiSpider(scrapy.Spider, LomBase):
     name = "leifi_spider"
     friendlyName = "LEIFIphysik"
     url = "https://www.leifiphysik.de/"
-    rssUrl = "http://localhost/sources/leifi_feed_rss.xml"
+    #rssUrl = "http://localhost/sources/leifi_feed_rss.xml"
+    rssUrl = "https://www.leifiphysik.de/sites/default/files/elixier/leifi_feed_rss.xml"
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)

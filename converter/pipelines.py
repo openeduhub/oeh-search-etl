@@ -194,12 +194,17 @@ class ProcessThumbnailPipeline:
     def process_item(self, item, spider):
         response = None
         settings = get_project_settings()
+        url = False
+
         if "thumbnail" in item:
             url = item["thumbnail"]
             response = requests.get(url)
             logging.debug(
                 "Loading thumbnail took " + str(response.elapsed.total_seconds()) + "s"
             )
+        elif 'defaultThumbnail' in item:
+            url = item['defaultThumbnail']
+            response = requests.get(url)
         elif (
             "location" in item["lom"]["technical"]
             and "format" in item["lom"]["technical"]
@@ -270,10 +275,14 @@ class ProcessThumbnailPipeline:
                         + url
                         + ": "
                         + str(e)
-                        + " (falling back to screenshot)"
                     )
                 if "thumbnail" in item:
+                    logging.warn("(falling back to " + ("defaultThumbnail" if "defaultThumbnail" in item else "screenshot") + ")")
                     del item["thumbnail"]
+                    return self.process_item(item, spider)
+                elif 'defaultThumbnail' in item:
+                    logging.warn("(falling back to screenshot)")
+                    del item['defaultThumbnail']
                     return self.process_item(item, spider)
                 else:
                     # item['thumbnail']={}
