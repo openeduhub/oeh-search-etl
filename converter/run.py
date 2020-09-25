@@ -7,7 +7,7 @@ Add the following to the `configurations` array in `.vscode/launch.json`:
         "name": "Run scrapy",
         "type": "python",
         "request": "launch",
-        "program": "${workspaceFolder}/etl/converter/run.py",
+        "program": "${workspaceFolder}/converter/run.py",
         "console": "integratedTerminal"
     }
 """

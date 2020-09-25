@@ -27,52 +27,26 @@ from converter.spiders.lom_base import LomBase
 #   - typicalAgeRangeFrom
 #   - typicalAgeRangeTo
 #     TODO: Replace with educationalContext
-#
-# Example item:
-# ```
-# {
-#   "kind": "youtube#playlistItem",
-#   "etag": "q9_JO0nhU1k7HI7HuTUMsNOd6KM",
-#   "id": "UExuX1JYWEUxZk1tUGRHbkVvYW00aGI0VDlJdjhNM2Joei4yODlGNEE0NkRGMEEzMEQy",
-#   "snippet": {
-#     "publishedAt": "2015-06-29T20:16:59Z",
-#     "channelId": "UC_cCcxd8yUwIu1-rt5dpBdw",
-#     "title": "BIOLOGIE NACHHILFE - Evolution & Entwicklung - die neue Serie | Evolution 1",
-#     "description": "ALLE THEMEN AUS DIESEM VID[...]",
-#     "thumbnails": {
-#         [...]
-#     },
-#     "channelTitle": "Die Merkhilfe",
-#     "playlistId": "PLn_RXXE1fMmPdGnEoam4hb4T9Iv8M3bhz",
-#     "position": 0,
-#     "resourceId": {
-#       "kind": "youtube#video",
-#       "videoId": "BF4st6XBViI"
-#     }
-#   },
-#   "contentDetails": {
-#     "videoId": "BF4st6XBViI",
-#     "videoPublishedAt": "2015-07-05T13:00:01Z"
-#   },
-#   "status": {
-#     "privacyStatus": "public"
-#   }
-# }
-# ```
 
 
 class YoutubeSpider(Spider):
+    """
+    Parse a CSV file with Youtube channels and playlists and crawl them.
+
+    The CSV file was manually exported from
+    https://docs.google.com/spreadsheets/d/1VsGyb4mrbzq45qIGVt-j6_ut4_VGJPRA39oBhi5SxGk to
+    `csv/youtube.csv`.
+    """
+
     name = "youtube_spider"
     friendlyName = "Youtube"
     url = "https://www.youtube.com/"
-    version = "0.1.0"
+    version = "0.2.0"
 
     @staticmethod
     def get_video_url(item: dict) -> str:
-        assert item["snippet"]["resourceId"]["kind"] == "youtube#video"
-        return "https://www.youtube.com/watch?v={}".format(
-            item["snippet"]["resourceId"]["videoId"]
-        )
+        assert item["kind"] == "youtube#video"
+        return "https://www.youtube.com/watch?v={}".format(item["id"])
 
     @staticmethod
     def update_url_query(url: str, params: dict) -> str:
@@ -175,10 +149,8 @@ class YoutubeSpider(Spider):
     def parse_playlist_items(self, response: Response):
         body = json.loads(response.body)
         assert body["kind"] == "youtube#playlistItemListResponse"
-        for item in body["items"]:
-            response_copy = response.replace(url=self.get_video_url(item))
-            response_copy.meta["item"] = item
-            yield self.lomLoader.parse(response_copy)
+        ids = [item["snippet"]["resourceId"]["videoId"] for item in body["items"]]
+        yield self.request_videos(ids, response.meta)
         if "nextPageToken" in body:
             request_url = YoutubeSpider.update_url_query(
                 response.url, {"pageToken": body["nextPageToken"]}
@@ -186,6 +158,24 @@ class YoutubeSpider(Spider):
             yield response.follow(
                 request_url, meta=response.meta, callback=self.parse_playlist_items
             )
+
+    def request_videos(self, ids: List[str], meta: dict):
+        part = ["snippet", "status", "contentDetails"]
+        request_url = (
+            "https://www.googleapis.com/youtube/v3/videos"
+            + "?part={}&id={}&key={}".format(
+                "%2C".join(part), "%2C".join(ids), env.get("YOUTUBE_API_KEY"),
+            )
+        )
+        return Request(request_url, meta=meta, callback=self.parse_videos)
+
+    def parse_videos(self, response: Response):
+        body = json.loads(response.body)
+        assert body["kind"] == "youtube#videoListResponse"
+        for item in body["items"]:
+            response_copy = response.replace(url=self.get_video_url(item))
+            response_copy.meta["item"] = item
+            yield self.lomLoader.parse(response_copy)
 
     def parse_custom_url(self, response: Response) -> Request:
         match = re.search('<meta itemprop="channelId" content="(.+?)">', response.text)
@@ -229,7 +219,7 @@ class YoutubeLomLoader(LomBase):
         return self.version + response.meta["item"]["snippet"]["publishedAt"]
 
     @overrides  # LomBase
-    def mapResponse(self, response) ->  items.ResponseItemLoader:
+    def mapResponse(self, response) -> items.ResponseItemLoader:
         return LomBase.mapResponse(self, response, False)
 
     @overrides  # LomBase
@@ -258,7 +248,9 @@ class YoutubeLomLoader(LomBase):
         # to `meta` field above).
         if "channel" in response.meta:
             channel = response.meta["channel"]["snippet"]
-            fulltext = "\n\n".join([channel["title"], channel["description"], item["title"]],)
+            fulltext = "\n\n".join(
+                [channel["title"], channel["description"], item["title"]],
+            )
         else:
             playlist = response.meta["playlist"]["snippet"]
             fulltext = "\n\n".join(
@@ -274,6 +266,8 @@ class YoutubeLomLoader(LomBase):
         general.add_value(
             "keyword", self.parse_csv_field(response.meta["row"]["keyword"])
         )
+        if "tags" in response.meta["item"]["snippet"]:
+            general.add_value("keyword", response.meta["item"]["snippet"]["tags"])
         general.add_value(
             "language", self.parse_csv_field(response.meta["row"]["language"])
         )
@@ -293,13 +287,18 @@ class YoutubeLomLoader(LomBase):
         technical.add_value(
             "location", YoutubeSpider.get_video_url(response.meta["item"])
         )
+        technical.add_value(
+            "duration", response.meta["item"]["contentDetails"]["duration"]
+        )
         return technical
 
     @overrides  # LomBase
     def getLOMLifecycle(self, response: Response) -> items.LomLifecycleItemloader:
         lifecycle = LomBase.getLOMLifecycle(self, response)
         lifecycle.add_value("role", "author")
-        lifecycle.add_value("organization", response.meta["item"]["snippet"]["channelTitle"])
+        lifecycle.add_value(
+            "organization", response.meta["item"]["snippet"]["channelTitle"]
+        )
         lifecycle.add_value("url", self.getChannelUrl(response))
         return lifecycle
 
@@ -310,9 +309,12 @@ class YoutubeLomLoader(LomBase):
     @overrides  # LomBase
     def getLicense(self, response: Response) -> items.LicenseItemLoader:
         license = LomBase.getLicense(self, response)
-        license.add_value(
-            "internal", self.parse_csv_field(response.meta["row"]["license"])
-        )
+        license.add_value("internal", response.meta["item"]["status"]["license"])
+        # possible values: "youtube", "creativeCommon"
+        if response.meta["item"]["status"]["license"] == "creativeCommon":
+            license.add_value(
+                "url", "https://creativecommons.org/licenses/by/3.0/legalcode"
+            )
         return license
 
     @overrides  # LomBase
