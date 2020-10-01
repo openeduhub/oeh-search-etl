@@ -59,8 +59,8 @@ class ValuespaceFillupPipeline:
         if not 'general' in item['lom']:
             return item
         # TODO: Only for testing
-        item['valuespaces']['discipline'] = []
-        item['valuespaces']['learningResourceType'] = []
+        # item['valuespaces']['discipline'] = []
+        # item['valuespaces']['learningResourceType'] = []
         # TODO End
         fieldsToCheck = [item['lom']['general']['title']]
         if 'keyword' in item['lom']['general']:
