@@ -12,6 +12,7 @@ import logging
 from vobject.vcard import VCardBehavior
 
 from converter.constants import Constants
+from converter.spiders.utils.spider_name_converter import get_spider_friendly_name
 from edu_sharing_client.api_client import ApiClient
 from edu_sharing_client.configuration import Configuration
 from edu_sharing_client.api.bulk_v1_api import BULKV1Api
@@ -186,6 +187,7 @@ class EduSharing:
     def transformItem(self, uuid, spider, item):
         spaces = {
             "ccm:replicationsource": spider.name,
+            "ccm:replicationsource_DISPLAYNAME": get_spider_friendly_name(spider.name),
             "ccm:replicationsourceid": item["sourceId"],
             "ccm:replicationsourcehash": item["hash"],
             "ccm:objecttype": item["type"],
@@ -199,6 +201,7 @@ class EduSharing:
             spaces["ccm:replicationsourceorigin"] = item[
                 "origin"
             ]  # TODO currently not mapped in edu-sharing
+            spaces["ccm:replicationsourceorigin_DISPLAYNAME"] = get_spider_friendly_name(item["origin"])
 
         self.mapLicense(spaces, item["license"])
         if "description" in item["lom"]["general"]:
