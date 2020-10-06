@@ -64,7 +64,7 @@ class MerlinSpider(CrawlSpider, LomBase):
                     element_dict = element_dict["data"]
 
                     # Preparing the values here helps for all following logic across the methods.
-                    prepare_element(self, element_dict)
+                    self.prepare_element(element_dict)
 
                     # If there is no available Kreis code, then we do not want to deal with this element.
                     if not("kreis_id" in element_dict
@@ -265,14 +265,34 @@ class MerlinSpider(CrawlSpider, LomBase):
 
         return permissions
 
-def prepare_element(self, element_dict):
-    # Step 1. Prepare Kreis codes.
-    if "kreis_id" in element_dict and element_dict["kreis_id"] is not None:
-        kreis_ids = element_dict["kreis_id"]["data"]  # ... redundant extra nested dictionary "data"...
-        if not isinstance(kreis_ids, list):  # one element
-            kreis_ids = [kreis_ids]
-        kreis_ids = sorted(kreis_ids, key=lambda x: int(x))
-        kreis_ids = [self.name + "_" + id for id in kreis_ids]  # add prefix
-        element_dict["kreis_id"] = kreis_ids
+    def prepare_element(self, element_dict):
+        # Step 1. Prepare Kreis codes.
+        if "kreis_id" in element_dict and element_dict["kreis_id"] is not None:
+            kreis_ids = element_dict["kreis_id"]["data"]  # ... redundant extra nested dictionary "data"...
+            if not isinstance(kreis_ids, list):  # one element
+                kreis_ids = [kreis_ids]
+            kreis_ids = sorted(kreis_ids, key=lambda x: int(x))
+            kreis_ids = [self.name + "_" + id for id in kreis_ids]  # add prefix
+            element_dict["kreis_id"] = kreis_ids
 
-    return element_dict
+        # Step 2. Fix thumbnail URL.
+        thumbnail_prepared = element_dict["thumbnail"]
+
+        # Step 2. Case a: Remove the 3 dots "...".
+        thumbnail_prepared = thumbnail_prepared.replace("...", "")
+
+        # Step 2. Case b: Replace "%2F" with '/'
+        # TODO: check why not ALL occurrences are replaced.
+        thumbnail_prepared = thumbnail_prepared.replace("%2F", "/")
+
+        # Step 2. Case c: Replace the dot after the parent identifier with a '/'.
+        if element_dict["parent_identifier"] is not None:
+            parent_identifier = element_dict["parent_identifier"]
+            subpath_position = thumbnail_prepared.find(parent_identifier) + len(parent_identifier)
+            if thumbnail_prepared[subpath_position] == ".":
+                thumbnail_prepared = thumbnail_prepared[:subpath_position] + "/" + thumbnail_prepared[subpath_position + 1:]
+
+            element_dict["thumbnail"] = thumbnail_prepared
+
+        return element_dict
+
