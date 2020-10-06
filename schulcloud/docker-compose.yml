@@ -1,0 +1,29 @@
+version: "3.7"
+services:
+
+  edusharing:
+    build: .
+    container_name: edusharing_docker
+    ports:
+      - "80:80"
+    volumes:
+      - "alf_data:/usr/local/alfresco/alf_data/"
+      - "pg_data:/pg_data/"
+      - "moodle_data:/var/moodledata/"
+      - "rs_cache:/var/cache/esrender/"
+      - "mds_xml_dir:/usr/local/tomcat/shared/classes/org/edu_sharing/metadataset/v2/xml"
+    environment: 
+      - "PORT=80"
+      - "DOMAIN=localhost" 
+      - "SCHEME=http"
+    # network_mode: host
+    deploy:  # For Docker Swarm.
+      restart_policy:
+        condition: on-failure
+
+volumes:
+  alf_data:
+  pg_data:
+  moodle_data:
+  rs_cache:
+  mds_xml_dir:
