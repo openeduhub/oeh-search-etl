@@ -72,11 +72,6 @@ class MerlinSpider(CrawlSpider, LomBase):
                            and len(element_dict["kreis_id"]) > 0):
                         continue
 
-                    # If the content is private, skip it for now!
-                    # TODO: remove this when the  private is more clear!!!
-                    if not(len(element_dict["kreis_id"]) == 1 and str(element_dict["kreis_id"][0]) == "merlin_spider_100"):
-                        continue
-
                     # TODO: It's probably a pointless attribute.
                     # del element_dict["data"]["score"]
 
@@ -252,16 +247,30 @@ class MerlinSpider(CrawlSpider, LomBase):
 
         permissions.replace_value("public", False)
         permissions.add_value("autoCreateGroups", True)
-        permissions.add_value("autoCreateMediacenters", True)
+
+        groups = []
 
         # If there is only one element and is the Kreis code 100, then it is public content.
         if len(element_dict["kreis_id"]) == 1 and str(element_dict["kreis_id"][0]) == "merlin_spider_100":
-            permissions.add_value("groups", ["LowerSaxony-public"])
-        else:
-            permissions.add_value("groups", ["LowerSaxony-private"])
+            # Add to state-wide public group.
+            groups.append("LowerSaxony-public")
 
-        # Self-explained. 1 media center per Kreis-code in this case.
-        permissions.add_value('mediacenters', element_dict["kreis_id"])
+            # Add 1 group per Kreis-code, which in this case is just "100" (merlin_spider_100).
+            groups.extend(element_dict["kreis_id"])
+        else:
+            # Add to state-wide private group.
+            groups.append("LowerSaxony-private")
+
+            kreis_ids = element_dict["kreis_id"]
+
+            # If Kreis code 100 (country-wide) is included in the list, remove it.
+            if "merlin_spider_100" in kreis_ids:
+                kreis_ids.remove("merlin_spider_100")
+
+            # Add 1 group per Kreis-code.
+            groups.extend(kreis_ids)
+
+        permissions.add_value("groups", groups)
 
         return permissions
 
