@@ -1,3 +1,5 @@
+import json
+
 from converter.items import *
 from pprint import pprint
 import logging
@@ -108,15 +110,21 @@ class LomBase:
         settings = get_project_settings()
         html = None
         if settings.get("SPLASH_URL"):
-            html = requests.post(
-                settings.get("SPLASH_URL") + "/render.html",
+            data = requests.post(
+                settings.get("SPLASH_URL") + "/render.json",
                 json={
+                    "html": 1,
+                    "iframes": 1,
                     "url": url,
                     "wait": settings.get("SPLASH_WAIT"),
                     "headers": settings.get("SPLASH_HEADERS"),
                 },
             ).content.decode("UTF-8")
-            return {"html": html, "text": self.html2Text(html)}
+            j = json.loads(data)
+            html = j['html']
+            text = html
+            text += '\n'.join(list(map(lambda x: x["html"], j["childFrames"])))
+            return {"html": html, "text": self.html2Text(text)}
         else:
             return {"html": None, "text": None}
 
