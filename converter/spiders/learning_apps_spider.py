@@ -1,5 +1,5 @@
-from flask import Response
 from overrides import overrides
+from scrapy.http import Response
 
 from converter import items
 from converter.items import *
