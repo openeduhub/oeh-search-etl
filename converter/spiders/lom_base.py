@@ -121,9 +121,9 @@ class LomBase:
                 },
             ).content.decode("UTF-8")
             j = json.loads(data)
-            html = j['html']
+            html = j['html'] if 'html' in j else ''
             text = html
-            text += '\n'.join(list(map(lambda x: x["html"], j["childFrames"])))
+            text += '\n'.join(list(map(lambda x: x["html"], j["childFrames"]))) if 'childFrames' in j else ''
             return {"html": html, "text": self.html2Text(text)}
         else:
             return {"html": None, "text": None}
