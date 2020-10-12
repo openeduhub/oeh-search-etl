@@ -17,7 +17,7 @@ class LearningAppsSpider(scrapy.Spider, LomBase):
     friendlyName = "LearningApps.org"
     url = "https://learningapps.org/"
     apiUrl = "https://learningapps.org/api.php"
-    version = '0.1.0'
+    version = '0.1.2'
 
     categories = {}
     subcategories = {}
@@ -56,12 +56,16 @@ class LearningAppsSpider(scrapy.Spider, LomBase):
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
         valuespaces.add_value('discipline', list(map(lambda x: self.categories[x], response.meta["item"].xpath("@category").getall())))
-        # TODO: Maybe more useful as a generic keyword?
-        try:
-            valuespaces.add_value('discipline', list(map(lambda x: self.subcategories[x], response.meta["item"].xpath("@subcategory").getall())))
-        except:
-            pass
+        valuespaces.add_value('learningResourceType', 'Lernspiel')
         valuespaces.add_value('learningResourceType', 'Website')
+        levels = int(response.meta["item"].xpath("@levels").get())
+        if levels & 1:
+            valuespaces.add_value('educationalContext', 'Primarstufe')
+        if levels & 4:
+            valuespaces.add_value('educationalContext', 'Sekundarstufe I')
+        if levels & 8:
+            valuespaces.add_value('educationalContext', 'Sekundarstufe II')
+
         return valuespaces
 
     def getId(self, response):
@@ -102,6 +106,12 @@ class LearningAppsSpider(scrapy.Spider, LomBase):
         general.add_value(
             "keyword",response.meta["item"].xpath("@tags").get()
         )
+        # TODO: Maybe later in a vocabulary
+        try:
+            general.add_value('keyword', list(
+                map(lambda x: self.subcategories[x], response.meta["item"].xpath("@subcategory").getall())))
+        except:
+            pass
         return general
 
     def getLOMTechnical(self, response):
