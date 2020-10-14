@@ -33,29 +33,38 @@ class LearningAppsSpider(scrapy.Spider, LomBase):
             self.categories[cat.xpath('@id').get()] = cat.xpath('@name').get()
             for subcat in cat.xpath('subcategory'):
                 self.subcategories[subcat.xpath('@id').get()] = subcat.xpath('@title').get()
-        yield self.startRequest()
 
-    def startRequest(self, offset=0):
-        return scrapy.Request(url=self.apiUrl + '?search=&lang=DE&offset=' + str(offset),
+        yield self.startRequest(0, 0)
+        for cat in self.categories:
+            yield self.startRequest(cat, 0)
+            for subcat in self.subcategories:
+                yield self.startRequest(cat, subcat)
+
+    def startRequest(self, cat, subcat,  offset=0):
+        return scrapy.Request(url=self.apiUrl + '?getapps&lang=DE&category=' + str(cat) + '&subcategory='+ str(subcat) + '&offset=' + str(offset),
                              callback=self.parseList,
-                             meta={'offset': offset}
+                             meta={'cat': cat, 'subcat': subcat, 'offset': offset}
                              )
 
     def parseList(self, response):
         for item in response.xpath('//results/app'):
             copyResponse = response.replace(url = item.xpath('@iframeurl').get().replace('//', 'https://'))
-            copyResponse.meta["item"] = item
+            copyResponse.meta['item'] = item
             yield self.parse(copyResponse)
         offset = response.meta['offset']
         offset += len(response.xpath('//results/app'))
-        yield self.startRequest(offset)
+        yield self.startRequest(response.meta['cat'], response.meta['subcat'], offset)
 
     def parse(self, response):
         return LomBase.parse(self, response)
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
-        valuespaces.add_value('discipline', list(map(lambda x: self.categories[x], response.meta["item"].xpath("@category").getall())))
+        try:
+            valuespaces.add_value('discipline', list(map(lambda x: self.categories[x], response.meta["item"].xpath("@category").getall())))
+        except:
+            pass
+
         valuespaces.add_value('learningResourceType', 'Lernspiel')
         valuespaces.add_value('learningResourceType', 'Website')
         levels = int(response.meta["item"].xpath("@levels").get())
