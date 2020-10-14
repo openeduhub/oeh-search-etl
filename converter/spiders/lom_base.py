@@ -1,5 +1,6 @@
 import json
 
+from converter.MethodPerformanceTracing import MethodPerformanceTracing
 from converter.items import *
 from pprint import pprint
 import logging
@@ -9,9 +10,9 @@ import html2text
 import urllib
 from scrapy.utils.project import get_project_settings
 from converter.es_connector import EduSharing
+import time
 
-
-class LomBase:
+class LomBase(MethodPerformanceTracing):
     friendlyName = "LOM Based spider"
     ranking = 1
     version = (

@@ -11,6 +11,7 @@ import logging
 
 from vobject.vcard import VCardBehavior
 
+from converter.MethodPerformanceTracing import MethodPerformanceTracing
 from converter.constants import Constants
 from edu_sharing_client.api_client import ApiClient
 from edu_sharing_client.configuration import Configuration
@@ -42,7 +43,7 @@ class EduSharingConstants:
 
 
 # creating the swagger client: java -jar swagger-codegen-cli-3.0.20.jar generate -l python -i http://localhost:8080/edu-sharing/rest/swagger.json -o edu_sharing_swagger -c edu-sharing-swagger.config.json
-class ESApiClient(ApiClient):
+class ESApiClient(ApiClient, MethodPerformanceTracing):
     def deserialize(self, response, response_type):
         """Deserializes response into an object.
 
