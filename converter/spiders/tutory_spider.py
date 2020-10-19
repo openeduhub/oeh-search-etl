@@ -67,6 +67,8 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
             )
         )
         valuespaces.add_value("discipline", discipline)
+
+        valuespaces.add_value("learningResourceType", "worksheet")
         return valuespaces
 
     def getLicense(self, response):
