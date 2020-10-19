@@ -81,7 +81,6 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
             general.add_value("description", response.meta["item"]["description"])
         else:
             html = self.getUrlData(response.url)["html"]
-            general.add_value("description", 'test')
             if html:
                 data = (
                     Selector(text=html)
