@@ -127,6 +127,13 @@ class ValuespaceItem(Item):
     sourceContentType = Field(output_processor=JoinMultivalues())
     toolCategory = Field(output_processor=JoinMultivalues())
 
+    conditionsOfAccess = Field(output_processor=JoinMultivalues())
+    containsAdvertisement = Field(output_processor=JoinMultivalues())
+    price = Field(output_processor=JoinMultivalues())
+    accessibilitySummary = Field(output_processor=JoinMultivalues())
+    dataProtectionConformity = Field(output_processor=JoinMultivalues())
+    fskRating = Field(output_processor=JoinMultivalues())
+
 
 class LicenseItem(Item):
     url = Field()
@@ -173,6 +180,8 @@ class BaseItem(Item):
     "permissions (access rights) for this entry"
     license = Field(serializer=LicenseItem)
     publisher = Field()
+    # editorial notes
+    notes = Field()
 
 
 class BaseItemLoader(ItemLoader):
