@@ -67,7 +67,7 @@ class LomBase(MethodPerformanceTracing):
                 return True
             return False
         if self.remoteId:
-            if self.getId(response) == self.remoteId:
+            if str(self.getId(response)) == self.remoteId:
                 logging.info("matching requested id: " + self.remoteId)
                 return True
             return False
