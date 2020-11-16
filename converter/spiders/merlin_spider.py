@@ -66,10 +66,10 @@ class MerlinSpider(CrawlSpider, LomBase):
                     # Preparing the values here helps for all following logic across the methods.
                     self.prepare_element(element_dict)
 
-                    # If there is no available Kreis code, then we do not want to deal with this element.
-                    if not("kreis_id" in element_dict
-                           and element_dict["kreis_id"] is not None
-                           and len(element_dict["kreis_id"]) > 0):
+                    # If there is no available county (Kreis) code, then we do not want to deal with this element.
+                    if not("county_ids" in element_dict
+                           and element_dict["county_ids"] is not None
+                           and len(element_dict["county_ids"]) > 0):
                         continue
 
                     # TODO: It's probably a pointless attribute.
@@ -177,8 +177,8 @@ class MerlinSpider(CrawlSpider, LomBase):
         # Element response as a Python dict.
         element_dict = response.meta["item"]
 
-        # If there is only one element and is the Kreis code 100, then it is public content.
-        if len(element_dict["kreis_id"]) == 1 and str(element_dict["kreis_id"][0]) == "merlin_spider_100":
+        # If there is only one element and is the County code 3100, then it is public content.
+        if len(element_dict["county_ids"]) == 1 and str(element_dict["county_ids"][0]) == "county-3100":
             license.replace_value('internal', Constants.LICENSE_COPYRIGHT_LAW)  # public
         else:
             license.replace_value('internal', Constants.LICENSE_NONPUBLIC)  # private
@@ -236,9 +236,9 @@ class MerlinSpider(CrawlSpider, LomBase):
 
     def getPermissions(self, response):
         """
-        In case license information, in the form of Kreis codes, is available. This changes the permissions from
+        In case license information, in the form of counties (Kreis codes), is available. This changes the permissions from
         public to private and sets accordingly the groups and mediacenters. For more information regarding the available
-        Merlin kreis codes please consult 'http://merlin.nibis.de/index.php?action=kreise'
+        Merlin county (kreis) codes please consult 'http://merlin.nibis.de/index.php?action=kreise'
         """
 
         permissions = LomBase.getPermissions(self, response)
@@ -250,39 +250,46 @@ class MerlinSpider(CrawlSpider, LomBase):
 
         groups = []
 
-        # If there is only one element and is the Kreis code 100, then it is public content.
-        if len(element_dict["kreis_id"]) == 1 and str(element_dict["kreis_id"][0]) == "merlin_spider_100":
+        county_ids = element_dict["county_ids"]
+        public_county = "county-3100"
+
+        # If there is only one element and is the County code 3100, then it is public content.
+        if len(county_ids) == 1 and str(county_ids[0]) == public_county:
             # Add to state-wide public group.
+            # groups.append("state-LowerSaxony-public")
             groups.append("LowerSaxony-public")
 
-            # Add 1 group per Kreis-code, which in this case is just "100" (merlin_spider_100).
-            groups.extend(element_dict["kreis_id"])
+            # Add 1 group per County-code, which in this case is just "100" (3100).
+            groups.extend(county_ids)
         else:
-            # Add to state-wide private group.
+            # Add to state-wide private/licensed group.
+            # groups.append("state-LowerSaxony-licensed")
             groups.append("LowerSaxony-private")
 
-            kreis_ids = element_dict["kreis_id"]
+            # If County code 100 (country-wide) is included in the list, remove it.
+            if public_county in county_ids:
+                county_ids.remove(public_county)
 
-            # If Kreis code 100 (country-wide) is included in the list, remove it.
-            if "merlin_spider_100" in kreis_ids:
-                kreis_ids.remove("merlin_spider_100")
-
-            # Add 1 group per Kreis-code.
-            groups.extend(kreis_ids)
+            # Add 1 group per county.
+            groups.extend(county_ids)
 
         permissions.add_value("groups", groups)
 
         return permissions
 
     def prepare_element(self, element_dict):
-        # Step 1. Prepare Kreis codes.
+        # Step 1. Prepare county (Kreis) codes.
         if "kreis_id" in element_dict and element_dict["kreis_id"] is not None:
-            kreis_ids = element_dict["kreis_id"]["data"]  # ... redundant extra nested dictionary "data"...
-            if not isinstance(kreis_ids, list):  # one element
-                kreis_ids = [kreis_ids]
-            kreis_ids = sorted(kreis_ids, key=lambda x: int(x))
-            kreis_ids = [self.name + "_" + id for id in kreis_ids]  # add prefix
-            element_dict["kreis_id"] = kreis_ids
+            county_ids = element_dict["kreis_id"]["data"]  # ... redundant extra nested dictionary "data"...
+            if not isinstance(county_ids, list):  # one element
+                county_ids = [county_ids]
+            county_ids = sorted(county_ids, key=lambda x: int(x))
+
+            # Add prefix "3" to conform with nationally-assigned IDs:
+            # https://de.wikipedia.org/wiki/Liste_der_Landkreise_in_Deutschland
+            county_ids = ["3" + id for id in county_ids]
+            county_ids = ["county-" + x for x in county_ids]
+            element_dict["county_ids"] = county_ids
 
         # Step 2. Fix thumbnail URL.
         thumbnail_prepared = element_dict["thumbnail"]

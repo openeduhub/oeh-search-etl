@@ -1,0 +1,21 @@
+<metadataset id="oeh" label="OEH" hidden="false">
+	<i18n>mds</i18n>
+	<inherit>mds</inherit>
+	<name>Open Edu Hub</name>
+	<queries>
+		<query join="AND" id="ngsearch">
+			<property name="ccm:ph_invited">
+				<multiple>true</multiple>
+				<multiplejoin>OR</multiplejoin>
+			</property>
+		</query>
+	</queries>
+	<queries syntax="dsl">
+		<query join="AND" id="ngsearch">
+			<property name="ccm:ph_invited">
+				<multiple>true</multiple>
+				<multiplejoin>OR</multiplejoin>
+			</property>
+		</query>
+	</queries>
+</metadataset>

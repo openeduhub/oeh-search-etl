@@ -9,6 +9,10 @@ COPY --chown=tomcat:tomcat \
        metadatasets/mds_oeh_17_09_2020.xml \
        /usr/local/tomcat/shared/classes/org/edu_sharing/metadataset/v2/xml/mds_oeh.xml
 
+COPY --chown=tomcat:tomcat \
+       metadatasets/mds_oeh_override.xml \
+       /usr/local/tomcat/shared/classes/org/edu_sharing/metadataset/v2/xml/mds_oeh_override.xml
+
 # Add the script that will wait and add the mds_oeh_24_06_2020.xml at the right time.
 ADD metadatasets/curl_metadatasetsV2.sh /root/curl_metadatasetsV2.sh
 
