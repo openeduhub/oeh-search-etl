@@ -18,9 +18,32 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
     name = "wirlernenonline_spider"
     friendlyName = "WirLernenOnline"
     url = "https://wirlernenonline.de/"
-    version = "0.1.2"
+    version = "0.1.3"
     apiUrl = "https://wirlernenonline.de/wp-json/wp/v2/%type/?per_page=50&page=%page"
     keywords = {}
+
+    mappings = {
+        'conditionsOfAccess': {
+            '20': 'no_login',
+            '21': 'login_for_additional_features',
+            '22': 'login'
+        },
+        'price': {
+            '30': 'no',
+            '31': 'yes_for_additional',
+            '32': 'yes'
+        },
+        'accessibilitySummary': {
+            '60':  'a',
+            '61': 'none',
+            '62': 'invalid_value'
+        },
+        'dataProtectionConformity': {
+            '50': 'generalDataProtectionRegulation',
+            '51': 'noGeneralDataProtectionRegulation',
+            '52': 'invalid_value',
+        }
+    }
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -87,6 +110,11 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
         base.replace_value("type", self.getType(response))
         fulltext = self.get("acf.long_text", json=response.meta["item"])
         base.replace_value("fulltext", HTMLParser().unescape(fulltext))
+        try:
+            notes = '\n'.join(list(map(lambda x: x['notes'], self.get('acf.notizen', json=response.meta["item"]))))
+            base.replace_value('notes', notes)
+        except:
+            pass
         return base
 
     def getLOMGeneral(self, response):
@@ -160,4 +188,26 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
             map(lambda x: x["value"], self.get("acf.role", json=response.meta["item"]))
         )
         valuespaces.add_value("intendedEndUserRole", role)
+
+        self.addValuespace(valuespaces, 'conditionsOfAccess', 'acf.nutzung', response)
+        valuespaces.add_value("containsAdvertisement", 'yes' if self.get('acf.advertisment', json=response.meta['item']) else 'no')
+        self.addValuespace(valuespaces, 'price', 'acf.costs', response)
+        self.addValuespace(valuespaces, 'accessibilitySummary', 'acf.accessibility', response)
+        self.addValuespace(valuespaces, 'dataProtectionConformity', 'acf.dsgvo', response)
+
         return valuespaces
+
+    def addValuespace(self, valuespaces, key, key_wp, response):
+        try:
+            apiData = self.get(key_wp, json=response.meta['item'])
+            logging.info(key_wp)
+            if not isinstance(apiData, list):
+                apiData = [apiData]
+            data = list(
+                map(lambda x: self.mappings[key][x['value']], apiData)
+            )
+            logging.info(data)
+            valuespaces.add_value(key, data)
+        except:
+            logging.info('Could not map ' + key_wp + ' to ' + key + ' for item ' + str(self.getId(response)))
+            pass
