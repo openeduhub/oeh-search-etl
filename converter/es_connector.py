@@ -112,7 +112,7 @@ class EduSharing:
                 get_project_settings().get("EDU_SHARING_BASE_URL")
                 + "rest/node/v1/nodes/-home-/"
                 + uuid
-                + "/textContent",
+                + "/textContent?mimetype=text/plain",
                 headers=self.getHeaders("multipart/form-data"),
                 data=item["fulltext"].encode("utf-8"),
             )
@@ -460,6 +460,7 @@ class EduSharing:
                 )
                 logging.debug("Built up edu-sharing group cache", EduSharing.groupCache)
                 return
+            logging.warning(auth.text)
             raise Exception(
                 "Could not authentify as admin at edu-sharing. Please check your settings for repository "
                 + settings.get("EDU_SHARING_BASE_URL")
