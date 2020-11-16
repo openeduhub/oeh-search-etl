@@ -196,6 +196,8 @@ class EduSharing:
             "cclom:location": item["lom"]["technical"]["location"],
             "cclom:title": item["lom"]["general"]["title"],
         }
+        if "notes" in item:
+            spaces["ccm:notes"] = item["notes"]
         if "origin" in item:
             spaces["ccm:replicationsourceorigin"] = item[
                 "origin"
@@ -259,6 +261,12 @@ class EduSharing:
             "learningResourceType": "ccm:educationallearningresourcetype",
             "sourceContentType": "ccm:sourceContentType",
             "toolCategory": "ccm:toolCategory",
+            "conditionsOfAccess": "ccm:conditionsOfAccess",
+            "containsAdvertisement": "ccm:containsAdvertisement",
+            "price": "ccm:price",
+            "accessibilitySummary": "ccm:accessibilitySummary",
+            "dataProtectionConformity": "ccm:dataProtectionConformity",
+            "fskRating": "ccm:fskRating",
         }
         for key in item["valuespaces"]:
             spaces[valuespaceMapping[key]] = item["valuespaces"][key]
@@ -276,7 +284,6 @@ class EduSharing:
         # sourceContentType = Field(output_processor=JoinMultivalues())
         spaces["cm:edu_metadataset"] = "mds_oeh"
         spaces["cm:edu_forcemetadataset"] = "true"
-
         for key in spaces:
             if type(spaces[key]) is tuple:
                 spaces[key] = list([x for y in spaces[key] for x in y])
