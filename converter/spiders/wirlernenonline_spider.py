@@ -200,13 +200,11 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
     def addValuespace(self, valuespaces, key, key_wp, response):
         try:
             apiData = self.get(key_wp, json=response.meta['item'])
-            logging.info(key_wp)
             if not isinstance(apiData, list):
                 apiData = [apiData]
             data = list(
                 map(lambda x: self.mappings[key][x['value']], apiData)
             )
-            logging.info(data)
             valuespaces.add_value(key, data)
         except:
             logging.info('Could not map ' + key_wp + ' to ' + key + ' for item ' + str(self.getId(response)))
