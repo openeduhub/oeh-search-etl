@@ -30,6 +30,36 @@ from valuespace_converter.app.valuespaces import Valuespaces
 from scrapy.utils.project import get_project_settings
 from converter.es_connector import EduSharing
 
+class StoreJson(object):
+    def open_spider(self, spider):
+        self.file = open("../json/" + spider.name + "_output.json", 'wb')
+        self.exporter = JsonItemExporter(
+            self.file,
+            fields_to_export=[
+                "sourceId",
+                "lom",
+                # "valuespaces",
+                "license",
+                # "type",
+                # "origin",
+                # "fulltext",
+                # "ranking",
+                # "lastModified",
+                # "thumbnail",
+            ],
+            encoding='utf-8',
+            ensure_ascii=False)
+        self.exporter.start_exporting()
+
+    def close_spider(self, spider):
+        self.exporter.finish_exporting()
+        self.file.close()
+
+    def process_item(self, item, spider):
+        self.exporter.export_item(item)
+        return item
+
+
 # fillup missing props by "guessing" or loading them if possible
 class LOMFillupPipeline:
     def process_item(self, item, spider):
@@ -221,7 +251,7 @@ class ProcessThumbnailPipeline:
                 )
         if response == None:
             logging.error(
-                "Neither thumbnail or technical.location provided! Please provide at least one of them"
+                "Neither thumbnail or technical.location (and technical.format) provided! Please provide at least one of them"
             )
         else:
             try:

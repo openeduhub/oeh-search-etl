@@ -101,13 +101,15 @@ EXTENSIONS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    "converter.pipelines.EduSharingCheckPipeline": 0,
+    # TODO SR turn on again
+    # "converter.pipelines.EduSharingCheckPipeline": 0,
     "converter.pipelines.FilterSparsePipeline": 25,
     "converter.pipelines.LOMFillupPipeline": 100,
     "converter.pipelines.NormLicensePipeline": 125,
     "converter.pipelines.ConvertTimePipeline": 200,
     "converter.pipelines.ProcessValuespacePipeline": 250,
     "converter.pipelines.ProcessThumbnailPipeline": 300,
+    "converter.pipelines.StoreJson": 301,
     "converter.pipelines.DummyOutPipeline"
     if env.get_bool("DRY_RUN", default=False)
     else "converter.pipelines.EduSharingStorePipeline": 1000,
