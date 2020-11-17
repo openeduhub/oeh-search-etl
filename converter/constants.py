@@ -3,6 +3,8 @@ class Constants:
     LICENSE_CC_BY_SA_30 = "https://creativecommons.org/licenses/by-sa/3.0/"
     LICENSE_CC_BY_SA_40 = "https://creativecommons.org/licenses/by-sa/4.0/"
     LICENSE_CC_BY_40 = "https://creativecommons.org/licenses/by/4.0/"
+    LICENSE_CC_BY_NC_ND_40 = "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+    LICENSE_CC_BY_NC_ND_30 = "https://creativecommons.org/licenses/by-nc-nd/3.0/"
     LICENSE_PDM = "https://creativecommons.org/publicdomain/mark/1.0/"
 
     VALID_LICENSE_URLS = [
@@ -18,6 +20,8 @@ class Constants:
         "https://creativecommons.org/licenses/by-sa/": LICENSE_CC_BY_SA_40,
         # wrong mapping (currently from edu-sharing)
         "https://creativecommons.org/licenses/pdm/": LICENSE_PDM,
+        "https://creativecommons.org/licenses/by-nc-nd/4.0/": LICENSE_CC_BY_NC_ND_40,
+        "https://creativecommons.org/licenses/by-nc-nd/3.0/": LICENSE_CC_BY_NC_ND_30,
     }
     LICENSE_MAPPINGS_INTERNAL = {
         "CC_0": LICENSE_CC_ZERO_10,
