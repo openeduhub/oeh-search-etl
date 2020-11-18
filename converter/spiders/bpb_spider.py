@@ -21,7 +21,7 @@ class BpbSpider(LrmiBase, CrawlSpider):
         'internationales',
         'geschichte',
         'gesellschaft',
-        'nachschlagen',
+        # 'nachschlagen', # refers to some kind of glossar, which we might not need
         'lernen',
         'mediathek'
         ]
