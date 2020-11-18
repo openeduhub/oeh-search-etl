@@ -193,6 +193,7 @@ class ProcessThumbnailPipeline:
 
     def process_item(self, item, spider):
         response = None
+        url = None
         settings = get_project_settings()
         if "thumbnail" in item:
             url = item["thumbnail"]
@@ -264,7 +265,7 @@ class ProcessThumbnailPipeline:
                         large.getvalue()
                     ).decode()
             except Exception as e:
-                if url:
+                if url is not None:
                     logging.warn(
                         "Could not read thumbnail at "
                         + url
