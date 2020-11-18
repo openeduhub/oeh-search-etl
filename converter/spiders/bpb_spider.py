@@ -11,9 +11,9 @@ from typing import List
 
 
 class BpbSpider(LrmiBase, CrawlSpider):
-    name = "bpb_spider"
-    url = "https://www.bpb.de"  # the url which will be linked as the primary link to your source (should be the main url of your site)
-    friendlyName = "Bundeszentrale für politische Bildung"  # name as shown in the search ui
+    name = "bpb_spider" 
+    url = "https://www.bpb.de"
+    friendlyName = "Bundeszentrale für politische Bildung"
     start_urls = ["https://www.bpb.de/sitemap/"]
     allowed_domains = ['bpb.de']
     whitelist = [
@@ -24,7 +24,7 @@ class BpbSpider(LrmiBase, CrawlSpider):
         # 'nachschlagen', # refers to some kind of glossar, which we might not need
         'lernen',
         'mediathek'
-        ]
+    ]
 
     blacklist: tuple = (
         "/suche",
@@ -34,7 +34,8 @@ class BpbSpider(LrmiBase, CrawlSpider):
     version = "0.1"  # the version of your crawler, used to identify if a reimport is necessary
 
     rules = (
-        Rule(LinkExtractor(allow=()), process_links='process_links', callback='parse_links', follow=True),
+        Rule(LinkExtractor(allow=()), process_links='process_links',
+             callback='parse_links', follow=True),
     )
 
     # save a list of urls crawled and skip if url is already crawled
@@ -70,12 +71,31 @@ class BpbSpider(LrmiBase, CrawlSpider):
         #         return None
         main = self.getBase(response)
         main.add_value("lom", self.getLOM(response).load_item())
-        main.add_value("valuespaces", self.getValuespaces(response).load_item())
+        main.add_value("valuespaces", self.getValuespaces(
+            response).load_item())
         main.add_value("license", self.getLicense(response).load_item())
-        main.add_value("permissions", self.getPermissions(response).load_item())
+        main.add_value("permissions", self.getPermissions(
+            response).load_item())
         logging.debug(main.load_item())
         main.add_value("response", self.mapResponse(response).load_item())
         return main.load_item()
+
+    def getLOM(self, response) -> LomBaseItemloader:
+        lom = LomBaseItemloader(response=response)
+        lom.add_value("general", self.getLOMGeneral(response).load_item())
+
+        # get number of authors
+        num_of_authors = self.getNumberOfAuthors(response)
+        for i, _ in enumerate(range(num_of_authors)):
+            lom.add_value("lifecycle", self.getLOMLifecycle(
+                response, i).load_item())
+
+        lom.add_value("technical", self.getLOMTechnical(response).load_item())
+        lom.add_value("educational", self.getLOMEducational(
+            response).load_item())
+        lom.add_value("classification",
+                      self.getLOMClassification(response).load_item())
+        return lom
 
     # return a (stable) id of the source
     def getId(self, response):
@@ -90,9 +110,8 @@ class BpbSpider(LrmiBase, CrawlSpider):
         base = LomBase.getBase(self, response)
         sourceId = self.getId(response)
 
-        ## check if we already crawled that page (TODO SR might be redundant if hash checker is turned on)
+        # check if we already crawled that page (TODO SR might be redundant if hash checker is turned on)
         if sourceId in self.crawled:
-            print(f"sourceId: {sourceId} was already crawled")
             return None
 
         self.crawled.append(sourceId)
@@ -111,7 +130,7 @@ class BpbSpider(LrmiBase, CrawlSpider):
         general.add_value("identifier", self.getLRMI(
             "mainEntityOfPage", response=response))
         general.add_value("title", self.getLRMI("headline", response=response))
-        
+
         # Keywords
         keywords: List[str] = [keyword.strip() for keyword in self.getLRMI(
             "keywords", response=response).split(",")]
@@ -128,14 +147,75 @@ class BpbSpider(LrmiBase, CrawlSpider):
         )
         return general
 
-    # TODO wie Organisationsnamen darstellen? wie mehrfache Autor:innen?
-    def getLOMLifecycle(self, response):
-        lifecycle = LomBase.getLOMLifecycle(self, response)
+    def getLOMLifecycle(self, response, i):
         name = self.getLRMI("author", response=response)
-        lifecycle.add_value("role", "author")
-        lifecycle.add_value("firstName", "")
-        lifecycle.add_value("lastName", name)
+        lifecycle = LomBase.getLOMLifecycle(self, response)
+
+        if name == "Bundeszentrale für politische Bildung":
+            lifecycle.add_value("role", "author")
+            # if author organization
+            lifecycle.add_value(
+                "organization", name)
+
+        elif name == "Redaktion":
+            lifecycle.add_value("role", "author")
+            # if author organization
+            lifecycle.add_value(
+                "organization", name)
+
+        elif "Redaktion werkstatt.bpb.de" in name:
+            lifecycle.add_value("role", "author")
+            # if author organization
+            lifecycle.add_value(
+                "organization", name)
+
+        elif ", " not in name:
+            # maybe one author
+            lifecycle.add_value("role", "author")
+            author = name.split(" ")
+            lifecycle.add_value("firstName", " ".join(author[:-1]).strip())
+            lifecycle.add_value("lastName", author[-1].strip())
+
+        elif ", " in name:
+            author_name = name.split(",")[i]
+            lifecycle.add_value("role", "author")
+            author = author_name.split(" ")
+            lifecycle.add_value("firstName", " ".join(author[:-1]).strip())
+            lifecycle.add_value("lastName", author[-1].strip())
+
+        elif "und" in name:
+            author_name = name.split("und")[i]
+            lifecycle.add_value("role", "author")
+            author = author_name.split(" ")
+            lifecycle.add_value("firstName", " ".join(author[:-1]).strip())
+            lifecycle.add_value("lastName", author[-1].strip())
+
         return lifecycle
+
+    def getNumberOfAuthors(self, response):
+        name = self.getLRMI("author", response=response)
+
+        if name == "Bundeszentrale für politische Bildung":
+            return 1
+
+        elif name == "Redaktion":
+            return 1
+
+        elif "Redaktion werkstatt.bpb.de" in name:
+            return 1
+
+        elif ", " not in name:
+            return 1
+
+        elif ", " in name:
+            authors = name.split(",")
+            return len(authors)
+
+        elif "und" in name:
+            authors = name.split("und")
+            return len(authors)
+
+        return 0
 
     # TODO welche Lizenz? manche inhalte haben eine Lizenz angabe
     def getLicense(self, response):
