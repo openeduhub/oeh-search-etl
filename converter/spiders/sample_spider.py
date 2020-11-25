@@ -32,7 +32,7 @@ class SampleSpider(CrawlSpider, LomBase):
 
     def getBase(self, response):
         base = LomBase.getBase(self, response)
-        # optionlly provide thumbnail. If empty, it will tried to be generated from the getLOMTechnical 'location' (if format is 'text/html')
+        # optionally provide thumbnail. If empty, it will tried to be generated from the getLOMTechnical 'location' (if format is 'text/html')
         # base.add_value('thumbnail', 'https://url/to/thumbnail')
         return base
 
@@ -50,14 +50,6 @@ class SampleSpider(CrawlSpider, LomBase):
         technical.add_value("format", "text/html")
         technical.add_value("size", len(response.body))
         return technical
-
-    def getLOMGeneral(self, response):
-        general = LomBase.getLOMGeneral(self, response)
-        general.add_value("title", response.xpath("//title//text()").get())
-        general.add_value(
-            "language", response.xpath('//meta[@property="og:locale"]/@content').get()
-        )
-        return general
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)

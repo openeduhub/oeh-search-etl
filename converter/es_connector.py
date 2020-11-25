@@ -173,6 +173,12 @@ class EduSharing:
             if license["url"] == Constants.LICENSE_CC_BY_SA_40:
                 spaces["ccm:commonlicense_key"] = "CC_BY_SA"
                 spaces["ccm:commonlicense_cc_version"] = "4.0"
+            if license["url"] == Constants.LICENSE_CC_BY_NC_ND_30:
+                spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                spaces["ccm:commonlicense_cc_version"] = "3.0"
+            if license["url"] == Constants.LICENSE_CC_BY_NC_ND_40:
+                spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                spaces["ccm:commonlicense_cc_version"] = "4.0"
             if license["url"] == Constants.LICENSE_CC_ZERO_10:
                 spaces["ccm:commonlicense_key"] = "CC_0"
                 spaces["ccm:commonlicense_cc_version"] = "1.0"
