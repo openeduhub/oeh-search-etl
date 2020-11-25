@@ -1,3 +1,5 @@
+from scrapy import Request
+
 from converter.items import *
 from scrapy.spiders import CrawlSpider, SitemapSpider, Rule
 from scrapy.linkextractors import LinkExtractor
@@ -16,7 +18,7 @@ class BpbSpider(LrmiBase, CrawlSpider):
     friendlyName = "Bundeszentrale für politische Bildung"
     start_urls = ["https://www.bpb.de/sitemap/"]
     allowed_domains = ["bpb.de"]
-    whitelist = [
+    allow_list = [
         "politik",
         "internationales",
         "geschichte",
@@ -26,7 +28,7 @@ class BpbSpider(LrmiBase, CrawlSpider):
         "mediathek"
     ]
 
-    blacklist: tuple = (
+    deny_list: tuple = (
         "/suche",
         "/glossar"
     )
@@ -38,8 +40,8 @@ class BpbSpider(LrmiBase, CrawlSpider):
              callback="parse_links", follow=True),
     )
 
-    # save a list of urls crawled and skip if url is already crawled
-    crawled = []
+    def start_requests(self):
+        yield Request(url = self.start_urls[0], callback = self.parse)
 
     def parse(self, response):
         return CrawlSpider.parse(self, response)
@@ -51,9 +53,9 @@ class BpbSpider(LrmiBase, CrawlSpider):
     def process_links(self, links):
         for link in links:
             try:
-                if link.url.split("/")[3] not in self.whitelist:
+                if link.url.split("/")[3] not in self.allow_list:
                     continue
-                elif link.url.endswith(self.blacklist):
+                elif link.url.endswith(self.deny_list):
                     continue
                 yield link
             except IndexError:
@@ -164,9 +166,7 @@ class BpbSpider(LrmiBase, CrawlSpider):
     def getValuespaces(self, response):
         valuespaces = LrmiBase.getValuespaces(self, response)
         disciplines = ["politik", "geschichte"]
-        print("url: "+response.url)
         for discipline in disciplines:
             if "/" + discipline in response.url:
                 valuespaces.add_value("discipline", discipline)
-                print(discipline)
         return valuespaces

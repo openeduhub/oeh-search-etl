@@ -13,7 +13,6 @@ import logging
 class LrmiBase(LomBase, JSONBase):
     friendlyName = "LRMI-Header Based spider"
     lrmi_path = '//script[@type="application/ld+json"]//text()'
-    sitemap_urls = []
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
