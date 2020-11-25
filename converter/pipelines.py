@@ -7,6 +7,8 @@
 import csv
 
 from scrapy.exceptions import DropItem
+
+from converter import env
 from converter.constants import *
 import json
 import re
@@ -342,20 +344,14 @@ class EduSharingCheckPipeline(EduSharing):
         return item
 
 class CSVStorePipeline():
-
+    rows = []
     def open_spider(self, spider):
         self.csvFile = open('output_'+spider.name+'.csv', 'w', newline='')
         self.spamwriter = csv.writer(self.csvFile, delimiter=',',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        self.spamwriter.writerow([
-            'title',
-            #'description',
-            #'fulltext',
-            #'keywords',
-            'location',
-            'discipline',
-            'learningResourceType',
-        ])
+        self.rows = env.get("CSV_ROWS", allow_null = False).split(",")
+        print(self.rows)
+        self.spamwriter.writerow(self.rows)
 
     def getValue(self, item, value):
         container = item
@@ -372,17 +368,8 @@ class CSVStorePipeline():
     def close_spider(self, spider):
         self.csvFile.close()
     def process_item(self, item, spider):
-        self.spamwriter.writerow([
-            self.getValue(item,'lom.general.title'),
-            #self.getValue(item,'lom.general.description'),
-            #self.getValue(item,'fulltext'),
-            #self.getValue(item,'lom.general.keyword'),
-            self.getValue(item,'lom.technical.location'),
-            self.getValue(item,'valuespaces.discipline'),
-            self.getValue(item,'valuespaces.learningResourceType'),
-        ])
+        self.spamwriter.writerow(list(map(lambda x:self.getValue(item, x), self.rows)))
         self.csvFile.flush()
-        print('--------------')
         return item
 
 class EduSharingStorePipeline(EduSharing):
