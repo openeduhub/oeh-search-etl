@@ -114,7 +114,8 @@ class NormLicensePipeline:
         ):
             for key in Constants.LICENSE_MAPPINGS_INTERNAL:
                 if item["license"]["internal"].casefold() == key.casefold():
-                    item["license"]["url"] = Constants.LICENSE_MAPPINGS_INTERNAL[key]
+                    # use the first entry
+                    item["license"]["url"] = Constants.LICENSE_MAPPINGS_INTERNAL[key][0]
                     break
 
         if "url" in item["license"] and not "oer" in item["license"]:

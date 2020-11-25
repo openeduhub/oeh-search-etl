@@ -5,8 +5,8 @@ from converter.spiders.lom_base import LomBase
 from converter.spiders.json_base import JSONBase
 import json
 import time
+import html
 import logging
-from html.parser import HTMLParser
 
 # base spider mapping data via LRMI inside the html pages
 # Please override the lrmi_path if necessary and add your sitemap_urls
@@ -34,7 +34,7 @@ class LrmiBase(LomBase, JSONBase):
         for l in lrmi:
             value = JSONBase.get(self, *params, json=l)
             if value != None:
-                return HTMLParser().unescape(value)
+                return html.unescape(value)
         return None
 
     def parse(self, response):
@@ -60,21 +60,13 @@ class LrmiBase(LomBase, JSONBase):
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
         general.add_value("identifier", self.getLRMI("identifier", response=response))
-        general.add_value("title", self.getLRMI("name", response=response))
+        general.add_value("title", self.getLRMI("name", "headline", response=response))
         general.add_value("keyword", self.getLRMI("keywords", response=response))
         general.add_value("language", self.getLRMI("inLanguage", response=response))
         general.add_value(
             "description", self.getLRMI("description", "about", response=response)
         )
         return general
-
-    def getValuespaces(self, response):
-        valuespaces = LomBase.getValuespaces(self, response)
-        valuespaces.add_value(
-            "intendedEndUserRole",
-            self.getLRMI("audience.educationalRole", response=response),
-        )
-        return valuespaces
 
     def getLOMEducational(self, response):
         educational = LomBase.getLOMEducational(self, response)
@@ -88,6 +80,10 @@ class LrmiBase(LomBase, JSONBase):
         valuespaces.add_value(
             "learningResourceType",
             self.getLRMI("learningResourceType", response=response),
+        )
+        valuespaces.add_value(
+            "intendedEndUserRole",
+            self.getLRMI("audience.educationalRole", response=response),
         )
         return valuespaces
 
