@@ -4,6 +4,7 @@
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
+import csv
 
 from scrapy.exceptions import DropItem
 from converter.constants import *
@@ -340,6 +341,49 @@ class EduSharingCheckPipeline(EduSharing):
                 # raise DropItem()
         return item
 
+class CSVStorePipeline():
+
+    def open_spider(self, spider):
+        self.csvFile = open('output_'+spider.name+'.csv', 'w', newline='')
+        self.spamwriter = csv.writer(self.csvFile, delimiter=',',
+                                quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        self.spamwriter.writerow([
+            'title',
+            #'description',
+            #'fulltext',
+            #'keywords',
+            'location',
+            'discipline',
+            'learningResourceType',
+        ])
+
+    def getValue(self, item, value):
+        container = item
+        tokens = value.split('.')
+        for v in tokens:
+            if v in container:
+                container = container[v]
+            else:
+                return None
+        if tokens[0] == 'valuespaces':
+            return list(map(lambda x: Valuespaces.findKey(tokens[1], x)['prefLabel']['de'], container))
+        return container
+
+    def close_spider(self, spider):
+        self.csvFile.close()
+    def process_item(self, item, spider):
+        self.spamwriter.writerow([
+            self.getValue(item,'lom.general.title'),
+            #self.getValue(item,'lom.general.description'),
+            #self.getValue(item,'fulltext'),
+            #self.getValue(item,'lom.general.keyword'),
+            self.getValue(item,'lom.technical.location'),
+            self.getValue(item,'valuespaces.discipline'),
+            self.getValue(item,'valuespaces.learningResourceType'),
+        ])
+        self.csvFile.flush()
+        print('--------------')
+        return item
 
 class EduSharingStorePipeline(EduSharing):
     def process_item(self, item, spider):
@@ -400,7 +444,7 @@ class EduSharingStorePipeline(EduSharing):
         return item
 
 
-class DummyOutPipeline:
+class DummyPipeline:
     # Scrapy will print the item on log level DEBUG anyway
 
     # class Printer:
