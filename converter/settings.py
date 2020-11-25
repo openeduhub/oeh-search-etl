@@ -114,6 +114,8 @@ ITEM_PIPELINES = {
         if storeMode == None
         else "converter.pipelines.CSVStorePipeline"
         if storeMode == 'csv'
+        else "converter.pipelines.JSONStorePipeline"
+        if storeMode == 'json'
         else "converter.pipelines.EduSharingStorePipeline"
     ): 1000,
 }
