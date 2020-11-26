@@ -42,6 +42,11 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
             '50': 'generalDataProtectionRegulation',
             '51': 'noGeneralDataProtectionRegulation',
             '52': 'invalid_value',
+        },
+        'oer' : {
+            '10': '0',
+            '11': '1',
+            '12': '2',
         }
     }
 
@@ -194,6 +199,8 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
         self.addValuespace(valuespaces, 'price', 'acf.costs', response)
         self.addValuespace(valuespaces, 'accessibilitySummary', 'acf.accessibility', response)
         self.addValuespace(valuespaces, 'dataProtectionConformity', 'acf.dsgvo', response)
+
+        self.addValuespace(valuespaces, 'oer', 'acf.licence', response)
 
         return valuespaces
 

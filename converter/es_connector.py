@@ -44,6 +44,9 @@ class EduSharingConstants:
 
 # creating the swagger client: java -jar swagger-codegen-cli-3.0.20.jar generate -l python -i http://localhost:8080/edu-sharing/rest/swagger.json -o edu_sharing_swagger -c edu-sharing-swagger.config.json
 class ESApiClient(ApiClient, MethodPerformanceTracing):
+    COOKIE_REBUILD_THRESHOLD = 60 * 5
+    lastRequestTime = 0
+
     def deserialize(self, response, response_type):
         """Deserializes response into an object.
 
@@ -66,6 +69,24 @@ class ESApiClient(ApiClient, MethodPerformanceTracing):
         # workaround for es: simply return to prevent error throwing
         # return self.__deserialize(data, response_type)
         return data
+
+    def __getattribute__(self, name):
+        attr = object.__getattribute__(self, name)
+        if hasattr(attr, '__call__'):
+            def newfunc(*args, **kwargs):
+                if time.time() - ESApiClient.lastRequestTime > ESApiClient.COOKIE_REBUILD_THRESHOLD:
+                    EduSharing.initCookie()
+                    self.cookie =  EduSharing.cookie
+
+                # store last request time
+                ESApiClient.lastRequestTime = time.time()
+                return attr(*args, **kwargs)
+
+
+            return newfunc
+        else:
+            return attr
+
 
 
 class EduSharing:
@@ -273,6 +294,7 @@ class EduSharing:
             "accessibilitySummary": "ccm:accessibilitySummary",
             "dataProtectionConformity": "ccm:dataProtectionConformity",
             "fskRating": "ccm:fskRating",
+            "oer": "ccm:license_oer",
         }
         for key in item["valuespaces"]:
             spaces[valuespaceMapping[key]] = item["valuespaces"][key]
@@ -435,22 +457,36 @@ class EduSharing:
 
     def updateItem(self, spider, uuid, item):
         self.insertItem(spider, uuid, item)
-
+    @staticmethod
+    def initCookie():
+        settings = get_project_settings()
+        auth = requests.get(
+            settings.get("EDU_SHARING_BASE_URL")
+            + "rest/authentication/v1/validateSession",
+            auth=HTTPBasicAuth(
+                settings.get("EDU_SHARING_USERNAME"),
+                settings.get("EDU_SHARING_PASSWORD"),
+            ),
+            headers={"Accept": "application/json"},
+        )
+        isAdmin = json.loads(auth.text)["isAdmin"]
+        if isAdmin:
+            EduSharing.cookie = auth.headers["SET-COOKIE"].split(";")[0]
+        return auth
     def initApiClient(self):
         if EduSharing.cookie == None:
             settings = get_project_settings()
-            auth = requests.get(
-                settings.get("EDU_SHARING_BASE_URL")
-                + "rest/authentication/v1/validateSession",
-                auth=HTTPBasicAuth(
-                    settings.get("EDU_SHARING_USERNAME"),
-                    settings.get("EDU_SHARING_PASSWORD"),
-                ),
-                headers={"Accept": "application/json"},
-            )
+            auth = self.initCookie()
             isAdmin = json.loads(auth.text)["isAdmin"]
             if isAdmin:
-                EduSharing.cookie = auth.headers["SET-COOKIE"].split(";")[0]
+                configuration = Configuration()
+                configuration.host = settings.get("EDU_SHARING_BASE_URL") + "rest"
+                EduSharing.apiClient = ESApiClient(
+                    configuration,
+                    cookie=EduSharing.cookie,
+                    header_name="Accept",
+                    header_value="application/json",
+                )
                 configuration = Configuration()
                 configuration.host = settings.get("EDU_SHARING_BASE_URL") + "rest"
                 EduSharing.apiClient = ESApiClient(
