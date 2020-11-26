@@ -1,3 +1,6 @@
+import json
+
+from converter.MethodPerformanceTracing import MethodPerformanceTracing
 from converter.items import *
 from pprint import pprint
 import logging
@@ -7,9 +10,9 @@ import html2text
 import urllib
 from scrapy.utils.project import get_project_settings
 from converter.es_connector import EduSharing
+import time
 
-
-class LomBase:
+class LomBase(MethodPerformanceTracing):
     friendlyName = "LOM Based spider"
     ranking = 1
     version = (
@@ -64,7 +67,7 @@ class LomBase:
                 return True
             return False
         if self.remoteId:
-            if self.getId(response) == self.remoteId:
+            if str(self.getId(response)) == self.remoteId:
                 logging.info("matching requested id: " + self.remoteId)
                 return True
             return False
@@ -108,15 +111,21 @@ class LomBase:
         settings = get_project_settings()
         html = None
         if settings.get("SPLASH_URL"):
-            html = requests.post(
-                settings.get("SPLASH_URL") + "/render.html",
+            data = requests.post(
+                settings.get("SPLASH_URL") + "/render.json",
                 json={
+                    "html": 1,
+                    "iframes": 1,
                     "url": url,
                     "wait": settings.get("SPLASH_WAIT"),
                     "headers": settings.get("SPLASH_HEADERS"),
                 },
             ).content.decode("UTF-8")
-            return {"html": html, "text": self.html2Text(html)}
+            j = json.loads(data)
+            html = j['html'] if 'html' in j else ''
+            text = html
+            text += '\n'.join(list(map(lambda x: x["html"], j["childFrames"]))) if 'childFrames' in j else ''
+            return {"html": html, "text": self.html2Text(text)}
         else:
             return {"html": None, "text": None}
 

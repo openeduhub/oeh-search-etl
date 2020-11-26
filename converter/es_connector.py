@@ -11,6 +11,7 @@ import logging
 
 from vobject.vcard import VCardBehavior
 
+from converter.MethodPerformanceTracing import MethodPerformanceTracing
 from converter.constants import Constants
 from edu_sharing_client.api_client import ApiClient
 from edu_sharing_client.configuration import Configuration
@@ -42,7 +43,7 @@ class EduSharingConstants:
 
 
 # creating the swagger client: java -jar swagger-codegen-cli-3.0.20.jar generate -l python -i http://localhost:8080/edu-sharing/rest/swagger.json -o edu_sharing_swagger -c edu-sharing-swagger.config.json
-class ESApiClient(ApiClient):
+class ESApiClient(ApiClient, MethodPerformanceTracing):
     def deserialize(self, response, response_type):
         """Deserializes response into an object.
 
@@ -111,7 +112,7 @@ class EduSharing:
                 get_project_settings().get("EDU_SHARING_BASE_URL")
                 + "rest/node/v1/nodes/-home-/"
                 + uuid
-                + "/textContent",
+                + "/textContent?mimetype=text/plain",
                 headers=self.getHeaders("multipart/form-data"),
                 data=item["fulltext"].encode("utf-8"),
             )
@@ -172,6 +173,12 @@ class EduSharing:
             if license["url"] == Constants.LICENSE_CC_BY_SA_40:
                 spaces["ccm:commonlicense_key"] = "CC_BY_SA"
                 spaces["ccm:commonlicense_cc_version"] = "4.0"
+            if license["url"] == Constants.LICENSE_CC_BY_NC_ND_30:
+                spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                spaces["ccm:commonlicense_cc_version"] = "3.0"
+            if license["url"] == Constants.LICENSE_CC_BY_NC_ND_40:
+                spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                spaces["ccm:commonlicense_cc_version"] = "4.0"
             if license["url"] == Constants.LICENSE_CC_ZERO_10:
                 spaces["ccm:commonlicense_key"] = "CC_0"
                 spaces["ccm:commonlicense_cc_version"] = "1.0"
@@ -195,6 +202,8 @@ class EduSharing:
             "cclom:location": item["lom"]["technical"]["location"],
             "cclom:title": item["lom"]["general"]["title"],
         }
+        if "notes" in item:
+            spaces["ccm:notes"] = item["notes"]
         if "origin" in item:
             spaces["ccm:replicationsourceorigin"] = item[
                 "origin"
@@ -258,6 +267,12 @@ class EduSharing:
             "learningResourceType": "ccm:educationallearningresourcetype",
             "sourceContentType": "ccm:sourceContentType",
             "toolCategory": "ccm:toolCategory",
+            "conditionsOfAccess": "ccm:conditionsOfAccess",
+            "containsAdvertisement": "ccm:containsAdvertisement",
+            "price": "ccm:price",
+            "accessibilitySummary": "ccm:accessibilitySummary",
+            "dataProtectionConformity": "ccm:dataProtectionConformity",
+            "fskRating": "ccm:fskRating",
         }
         for key in item["valuespaces"]:
             spaces[valuespaceMapping[key]] = item["valuespaces"][key]
@@ -275,7 +290,6 @@ class EduSharing:
         # sourceContentType = Field(output_processor=JoinMultivalues())
         spaces["cm:edu_metadataset"] = "mds_oeh"
         spaces["cm:edu_forcemetadataset"] = "true"
-
         for key in spaces:
             if type(spaces[key]) is tuple:
                 spaces[key] = list([x for y in spaces[key] for x in y])
@@ -459,6 +473,7 @@ class EduSharing:
                 )
                 logging.debug("Built up edu-sharing group cache", EduSharing.groupCache)
                 return
+            logging.warning(auth.text)
             raise Exception(
                 "Could not authentify as admin at edu-sharing. Please check your settings for repository "
                 + settings.get("EDU_SHARING_BASE_URL")

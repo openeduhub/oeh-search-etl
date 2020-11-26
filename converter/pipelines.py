@@ -4,8 +4,11 @@
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
+import csv
 
 from scrapy.exceptions import DropItem
+
+from converter import env
 from converter.constants import *
 import json
 import re
@@ -84,7 +87,8 @@ class NormLicensePipeline:
         ):
             for key in Constants.LICENSE_MAPPINGS_INTERNAL:
                 if item["license"]["internal"].casefold() == key.casefold():
-                    item["license"]["url"] = Constants.LICENSE_MAPPINGS_INTERNAL[key]
+                    # use the first entry
+                    item["license"]["url"] = Constants.LICENSE_MAPPINGS_INTERNAL[key][0]
                     break
 
         if "url" in item["license"] and not "oer" in item["license"]:
@@ -193,6 +197,7 @@ class ProcessThumbnailPipeline:
 
     def process_item(self, item, spider):
         response = None
+        url = None
         settings = get_project_settings()
         if "thumbnail" in item:
             url = item["thumbnail"]
@@ -221,7 +226,7 @@ class ProcessThumbnailPipeline:
                 )
         if response == None:
             logging.error(
-                "Neither thumbnail or technical.location provided! Please provide at least one of them"
+                "Neither thumbnail or technical.location (and technical.format) provided! Please provide at least one of them"
             )
         else:
             try:
@@ -264,7 +269,7 @@ class ProcessThumbnailPipeline:
                         large.getvalue()
                     ).decode()
             except Exception as e:
-                if url:
+                if url is not None:
                     logging.warn(
                         "Could not read thumbnail at "
                         + url
@@ -308,6 +313,65 @@ class EduSharingCheckPipeline(EduSharing):
                 # raise DropItem()
         return item
 
+
+class JSONStorePipeline(object):
+    def open_spider(self, spider):
+        self.file = open("output_" + spider.name + ".json", 'wb')
+        self.exporter = JsonItemExporter(
+            self.file,
+            fields_to_export=[
+                "sourceId",
+                "lom",
+                # "valuespaces",
+                "license",
+                # "type",
+                # "origin",
+                # "fulltext",
+                # "ranking",
+                # "lastModified",
+                # "thumbnail",
+            ],
+            encoding='utf-8',
+            ensure_ascii=False)
+        self.exporter.start_exporting()
+
+    def close_spider(self, spider):
+        self.exporter.finish_exporting()
+        self.file.close()
+
+    def process_item(self, item, spider):
+        self.exporter.export_item(item)
+        return item
+
+
+class CSVStorePipeline():
+    rows = []
+    def open_spider(self, spider):
+        self.csvFile = open('output_'+spider.name+'.csv', 'w', newline='')
+        self.spamwriter = csv.writer(self.csvFile, delimiter=',',
+                                quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        self.rows = env.get("CSV_ROWS", allow_null = False).split(",")
+        print(self.rows)
+        self.spamwriter.writerow(self.rows)
+
+    def getValue(self, item, value):
+        container = item
+        tokens = value.split('.')
+        for v in tokens:
+            if v in container:
+                container = container[v]
+            else:
+                return None
+        if tokens[0] == 'valuespaces':
+            return list(map(lambda x: Valuespaces.findKey(tokens[1], x)['prefLabel']['de'], container))
+        return container
+
+    def close_spider(self, spider):
+        self.csvFile.close()
+    def process_item(self, item, spider):
+        self.spamwriter.writerow(list(map(lambda x:self.getValue(item, x), self.rows)))
+        self.csvFile.flush()
+        return item
 
 class EduSharingStorePipeline(EduSharing):
     def process_item(self, item, spider):
@@ -368,7 +432,7 @@ class EduSharingStorePipeline(EduSharing):
         return item
 
 
-class DummyOutPipeline:
+class DummyPipeline:
     # Scrapy will print the item on log level DEBUG anyway
 
     # class Printer:
