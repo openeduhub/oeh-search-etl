@@ -5,7 +5,7 @@ import json
 
 class Valuespaces:
     idsVocabs = ['intendedEndUserRole', 'discipline', 'educationalContext', 'learningResourceType',
-                 'sourceContentType', 'toolCategory', 'conditionsOfAccess']
+                 'sourceContentType', 'toolCategory', 'conditionsOfAccess', 'oer']
     idsW3ID = ['containsAdvertisement', 'price', 'accessibilitySummary', 'dataProtectionConformity', 'fskRating']
     data = {}
     def __init__(self):

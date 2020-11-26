@@ -133,6 +133,7 @@ class ValuespaceItem(Item):
     accessibilitySummary = Field(output_processor=JoinMultivalues())
     dataProtectionConformity = Field(output_processor=JoinMultivalues())
     fskRating = Field(output_processor=JoinMultivalues())
+    oer = Field(output_processor=JoinMultivalues())
 
 
 class LicenseItem(Item):
