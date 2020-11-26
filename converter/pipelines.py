@@ -29,6 +29,8 @@ import html2text
 import scrapy
 import sys
 import uuid
+
+from converter.settings import METADATA_PICKER_URL
 from valuespace_converter.app.valuespaces import Valuespaces
 from scrapy.utils.project import get_project_settings
 from converter.es_connector import EduSharing
@@ -184,6 +186,24 @@ class ProcessValuespacePipeline:
         item["valuespaces"] = json
         return item
 
+# pick metadata from additional service
+class PickMetadataPipeline:
+    def process_item(self, item, spider):
+        if "html" in item["response"]:
+            print(METADATA_PICKER_URL + '/extract_meta')
+            print(type(item["response"]["html"]))
+            f = open("demofile2.txt", "a")
+            f.write(json.dumps({
+                "url": item["lom"]["technical"]["location"],
+                "html": item["response"]["html"]
+            }))
+            f.close()
+            data = requests.post(METADATA_PICKER_URL + '/extract_meta', None, {
+                "url": item["lom"]["technical"]["location"],
+                #"html": item["response"]["html"]
+            }).json()
+            print(data)
+        return item
 
 # generate thumbnails
 class ProcessThumbnailPipeline:

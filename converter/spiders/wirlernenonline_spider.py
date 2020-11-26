@@ -54,9 +54,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
         LomBase.__init__(self, **kwargs)
 
     def mapResponse(self, response):
-        r = LomBase.mapResponse(self, response, fetchData=False)
-        r.replace_value("text", "")
-        r.replace_value("html", "")
+        r = LomBase.mapResponse(self, response, fetchData=True)
         r.replace_value("url", response.meta["item"].get("link"))
         return r
 
@@ -90,7 +88,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
         results = json.loads(response.body_as_unicode())
         if results:
             for item in results:
-                copyResponse = response.copy()
+                copyResponse = response.replace(url = self.get("acf.url", json = item))
                 copyResponse.meta["item"] = item
                 if self.hasChanged(copyResponse):
                     yield self.handleEntry(copyResponse)
@@ -145,9 +143,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
         technical.replace_value("format", "text/html")
-        technical.replace_value(
-            "location", self.get("acf.url", json=response.meta["item"])
-        )
+        technical.replace_value("location", response.url)
         return technical
 
     def getLicense(self, response):

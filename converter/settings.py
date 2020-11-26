@@ -35,6 +35,10 @@ SPLASH_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36"
 }  # use chrome to not create warnings on pages
 
+# Will be rolled out via docker-compose by default
+METADATA_PICKER_URL = "http://localhost:5057"
+
+
 # edu-sharing config
 EDU_SHARING_BASE_URL = env.get("EDU_SHARING_BASE_URL")
 EDU_SHARING_USERNAME = env.get("EDU_SHARING_USERNAME")
@@ -109,6 +113,7 @@ ITEM_PIPELINES = {
     "converter.pipelines.ConvertTimePipeline": 200,
     "converter.pipelines.ProcessValuespacePipeline": 250,
     "converter.pipelines.ProcessThumbnailPipeline": 300,
+    "converter.pipelines.PickMetadataPipeline": 400,
     (
         "converter.pipelines.DummyPipeline"
         if storeMode == None
