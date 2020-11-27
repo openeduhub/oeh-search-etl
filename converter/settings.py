@@ -111,7 +111,7 @@ ITEM_PIPELINES = {
     "converter.pipelines.ProcessThumbnailPipeline": 300,
     (
         "converter.pipelines.DummyPipeline"
-        if storeMode == None
+        if storeMode == "None"
         else "converter.pipelines.CSVStorePipeline"
         if storeMode == 'csv'
         else "converter.pipelines.JSONStorePipeline"
