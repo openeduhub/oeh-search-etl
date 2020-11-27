@@ -130,7 +130,7 @@ class LomBase(MethodPerformanceTracing):
             text = html
             text += '\n'.join(list(map(lambda x: x["html"], j["childFrames"]))) if 'childFrames' in j else ''
             cookies = result.cookies.get_dict()
-            return {"html": html, "text": self.html2Text(text), "cookies": cookies, "har": json.dumps(j["har"])}
+            return {"html": html, "text": self.html2Text(text), "cookies": cookies, "har": str(json.dumps(j["har"]))}
         else:
             return {"html": None, "text": None, "cookies": None, "har": None}
 
