@@ -191,17 +191,12 @@ class PickMetadataPipeline:
     def process_item(self, item, spider):
         if "html" in item["response"]:
             print(METADATA_PICKER_URL + '/extract_meta')
-            print(type(item["response"]["html"]))
-            f = open("demofile2.txt", "a")
-            f.write(json.dumps({
-                "url": item["lom"]["technical"]["location"],
-                "html": item["response"]["html"]
-            }))
-            f.close()
-            data = requests.post(METADATA_PICKER_URL + '/extract_meta', None, {
-                "url": item["lom"]["technical"]["location"],
-                #"html": item["response"]["html"]
-            }).json()
+            jsonData = {}
+            for key in item["response"].keys():
+                if isinstance(key, bytes):
+                    key = key.decode(encoding="little-endian")
+                jsonData.update({key: str(item['response'][key])})
+            data = requests.post(METADATA_PICKER_URL + '/extract_meta', None, jsonData).json()
             print(data)
         return item
 
