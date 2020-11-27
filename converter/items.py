@@ -117,6 +117,8 @@ class ResponseItem(Item):
     html = Field()
     text = Field()
     headers = Field()
+    cookies = Field()
+    har = Field()
 
 
 class ValuespaceItem(Item):

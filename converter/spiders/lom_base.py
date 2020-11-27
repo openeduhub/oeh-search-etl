@@ -111,7 +111,7 @@ class LomBase(MethodPerformanceTracing):
         settings = get_project_settings()
         html = None
         if settings.get("SPLASH_URL"):
-            data = requests.post(
+            result = requests.post(
                 settings.get("SPLASH_URL") + "/render.json",
                 json={
                     "html": 1,
@@ -119,15 +119,20 @@ class LomBase(MethodPerformanceTracing):
                     "url": url,
                     "wait": settings.get("SPLASH_WAIT"),
                     "headers": settings.get("SPLASH_HEADERS"),
+                    "script": 1,
+                    "har": 1,
+                    "response_body": 1,
                 },
-            ).content.decode("UTF-8")
+            )
+            data = result.content.decode("UTF-8")
             j = json.loads(data)
             html = j['html'] if 'html' in j else ''
             text = html
             text += '\n'.join(list(map(lambda x: x["html"], j["childFrames"]))) if 'childFrames' in j else ''
-            return {"html": html, "text": self.html2Text(text)}
+            cookies = result.cookies.get_dict()
+            return {"html": html, "text": self.html2Text(text), "cookies": cookies, "har": json.dumps(j["har"])}
         else:
-            return {"html": None, "text": None}
+            return {"html": None, "text": None, "cookies": None, "har": None}
 
     def mapResponse(self, response, fetchData=True):
         r = ResponseItemLoader(response=response)
@@ -139,6 +144,8 @@ class LomBase(MethodPerformanceTracing):
             data = self.getUrlData(response.url)
             r.add_value("html", data["html"])
             r.add_value("text", data["text"])
+            r.add_value("cookies", data["cookies"])
+            r.add_value("har", data["har"])
         r.add_value("headers", response.headers)
         r.add_value("url", self.getUri(response))
         return r
