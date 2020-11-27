@@ -78,10 +78,13 @@ class BpbSpider(LrmiBase, CrawlSpider):
         general.replace_value("identifier", self.getLRMI(
             "mainEntityOfPage", response=response))
 
-        # Keywords
-        keywords: List[str] = [keyword.strip() for keyword in self.getLRMI(
-            "keywords", response=response).split(",")]
-        general.replace_value("keyword", keywords)
+        # Keywords (use try catch, some entries might not have keywords)
+        try:
+            keywords: List[str] = [keyword.strip() for keyword in self.getLRMI(
+                "keywords", response=response).split(",")]
+            general.replace_value("keyword", keywords)
+        except:
+            pass
 
         # Language TODO fill in value by hand or leave empty?
         general.add_value("language", self.getLRMI(
