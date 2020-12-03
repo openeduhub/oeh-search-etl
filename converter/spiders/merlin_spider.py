@@ -156,6 +156,9 @@ class MerlinSpider(CrawlSpider, LomBase):
                 base.add_value("defaultThumbnail", "https://merlin.nibis.de" + element_dict[default_thumbnail])
                 break
 
+        # Adding a default searchable value to constitute this element (node) as a valid-to-be-returned object.
+        base.add_value("searchable", "1")
+
         return base
 
     def getLOMGeneral(self, response):
@@ -164,6 +167,9 @@ class MerlinSpider(CrawlSpider, LomBase):
         general.add_value(
             "description", response.xpath("/data/beschreibung/text()").get()
         )
+
+        # Adding a default aggregationLevel, which can be used during filtering queries.
+        general.add_value("aggregationLevel", "1")
 
         return general
 

@@ -101,6 +101,18 @@ class LomClassificationItem(Item):
     description = Field()
     keyword = Field()
 
+class LomRelationResourceItem(Item):
+    identifier = Field(output_processor=JoinMultivalues())
+    catalog = Field()
+    entry = Field()
+    description = Field()
+
+class LomRelationItem(Item):
+    """
+    Following the LOM-DE.doc#7 (Relation) specifications: http://sodis.de/lom-de/LOM-DE.doc .
+    """
+    kind = Field()
+    resource = Field(serializer=LomRelationResourceItem)
 
 class LomBaseItem(Item):
     general = Field(serializer=LomGeneralItem)
@@ -109,6 +121,7 @@ class LomBaseItem(Item):
     educational = Field(serializer=LomEducationalItem)
     # rights = Field(serializer=LomRightsItem)
     classification = Field(serializer=LomClassificationItem)
+    relation = Field(serializer=LomRelationItem, output_processor=JoinMultivalues())
 
 
 class ResponseItem(Item):
@@ -174,6 +187,7 @@ class BaseItem(Item):
     "permissions (access rights) for this entry"
     license = Field(serializer=LicenseItem)
     publisher = Field()
+    searchable = Field()
 
 
 class BaseItemLoader(ItemLoader):
@@ -237,6 +251,14 @@ class LomEducationalItemLoader(ItemLoader):
 #    default_output_processor = TakeFirst()
 class LomClassificationItemLoader(ItemLoader):
     default_item_class = LomClassificationItem
+    default_output_processor = TakeFirst()
+
+class LomRelationResourceItemLoader(ItemLoader):
+    default_item_class = LomRelationResourceItem
+    default_output_processor = TakeFirst()
+
+class LomRelationItemLoader(ItemLoader):
+    default_item_class = LomRelationItem
     default_output_processor = TakeFirst()
 
 

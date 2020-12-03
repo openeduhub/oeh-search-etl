@@ -18,8 +18,17 @@ class OEHSpider(EduSharingBase):
     def getBase(self, response):
         base = EduSharingBase.getBase(self, response)
         base.replace_value("type", self.getProperty("ccm:objecttype", response))
+
+        # Adding a default searchable value to constitute this element (node) as a valid-to-be-returned object.
+        base.replace_value("searchable", "1")
         return base
 
+    def getLOMGeneral(self, response):
+        general = EduSharingBase.getLOMGeneral(self, response)
+
+        # Adding a default aggregationLevel, which can be used during filtering queries.
+        general.replace_value("aggregationLevel", "1")
+        return general
 
     def getLOMTechnical(self, response):
         technical = EduSharingBase.getLOMTechnical(self, response)
@@ -27,7 +36,6 @@ class OEHSpider(EduSharingBase):
             technical.replace_value("format", "text/html")
             technical.replace_value("location", response.meta["item"]["properties"]["ccm:wwwurl"][0])
         return technical
-
 
     def shouldImport(self, response=None):
         if "ccm:collection_io_reference" in response.meta["item"]["aspects"]:
