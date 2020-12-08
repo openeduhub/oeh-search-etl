@@ -224,6 +224,8 @@ class EduSharing:
             "ccm:wwwurl": item["lom"]["technical"]["location"],
             "cclom:location": item["lom"]["technical"]["location"],
             "cclom:title": item["lom"]["general"]["title"],
+            "cclom:general_aggregationlevel": item["lom"]["general"]["aggregationLevel"],
+            "ccm:searchable": item["searchable"],
         }
         if "notes" in item:
             spaces["ccm:notes"] = item["notes"]
@@ -320,6 +322,16 @@ class EduSharing:
                 spaces[key] = list([x for y in spaces[key] for x in y])
             if not type(spaces[key]) is list:
                 spaces[key] = [spaces[key]]
+
+        # Relation information, according to the LOM-DE.doc#7 specifications: http://sodis.de/lom-de/LOM-DE.doc
+        if "relation" in item["lom"]:
+            spaces["cclom:relation"] = item["lom"]["relation"]
+            # Since Edu-Sharing has no further information about the schema of this attribute it is better to treat it
+            # as a list of strings and not as a JSON.
+            for i, element in enumerate(spaces["cclom:relation"]):
+                relation_value = str(element).replace("\n", "").replace("\r", "")
+                relation_value = ' '.join(relation_value.split())
+                spaces["cclom:relation"][i] = relation_value
 
         return spaces
 

@@ -1,8 +1,11 @@
+import copy
 import json
 import time
 from datetime import datetime
 
 from scrapy.spiders import CrawlSpider
+
+from converter.es_connector import EduSharing
 from converter.items import *
 from converter.spiders.lom_base import LomBase
 from converter.constants import *
@@ -10,42 +13,41 @@ from converter.constants import *
 
 class MediothekPixiothekSpider(CrawlSpider, LomBase):
     """
-    This crawler fetches data from the Mediothek/Pixiothek. The API request sends all results in one page. The outcome is an JSON array which will be parsed to their elements.
+    This crawler fetches data from the Mediothek/Pixiothek. The API request sends all results in one page. The outcome
+    is an JSON array which will be parsed to their elements.
 
-    Author: Timur Yure, timur.yure@capgemini.com , Capgemini for Schul-Cloud, Content team.
+    Author: Ioannis Koumarelas, ioannis.koumarelas@gmail.com , Schul-Cloud, Content team.
     """
 
     name = "mediothek_pixiothek_spider"
     url = "https://www.schulportal-thueringen.de/"  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = "MediothekPixiothek"  # name as shown in the search ui
-    version = "0.1"  # the version of your crawler, used to identify if a reimport is necessary
+    version = "0.2"  # the version of your crawler, used to identify if a reimport is necessary
     start_urls = [
         "https://www.schulportal-thueringen.de/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei"
+        # Alternatively, you can load the file from a local path
+        # "file://LOCAL_FILE_PATH"  # e.g., file:///data/file.json
     ]
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
     def parse(self, response: scrapy.http.Response):
-
-        # Call Splash only once per page (that contains multiple XML elements).
-        data = self.getUrlData(response.url)
-        response.meta["rendered_data"] = data
         elements = json.loads(response.body_as_unicode())
+        prepared_elements = [self.prepare_element(element_dict) for element_dict in elements]
 
-        # grouped_elements = self.group_elements_by_medium_id(elements)
-        grouped_elements = self.group_elements_by_sammlung(elements)
+        collection_elements = self.prepare_collections(prepared_elements)
 
-        for i, element in enumerate(grouped_elements):
+        for i, element_dict in enumerate(collection_elements):
+
             copyResponse = response.copy()
 
             # Passing the dictionary for easier access to attributes.
-            copyResponse.meta["item"] = element
+            copyResponse.meta["item"] = element_dict
 
             # In case JSON string representation is preferred:
-            json_str = json.dumps(element, indent=4, sort_keys=True, ensure_ascii=False)
+            json_str = json.dumps(element_dict, indent=4, sort_keys=True, ensure_ascii=False)
             copyResponse._set_body(json_str)
-            print(json_str)
 
             if self.hasChanged(copyResponse):
                 yield self.handleEntry(copyResponse)
@@ -53,85 +55,6 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
             LomBase.parse(self, copyResponse)
 
-    def group_elements_by_medium_id(self, elements):
-        """
-        This method groups the corresponding elements based on their mediumId. This changes the logic so that every
-        element in the end maps to an educational element in the https://www.schulportal-thueringen.de.
-        """
-
-        medium_id_groups = {}
-        for idx, element in enumerate(elements):
-            medium_id = element["mediumId"]
-
-            # The first element that has this mediumId creates the representative for this medium.
-            if medium_id not in medium_id_groups:
-                medium_id_groups[medium_id] = {
-                    "id": medium_id,
-                    "pts": self.get_or_default(element, "pts"),
-                    "previewImageUrl": self.get_or_default(element, "previewImageUrl"),
-                    "titel": self.get_or_default(element, "einzeltitel"),
-                    "kurzinhalt": self.get_or_default(element, "kurzinhalt"),
-                    "listeStichwort": self.get_or_default(element, "listeStichwort"),
-                    "oeffentlich": self.get_or_default(element, "oeffentlich"),
-                    "downloadUrl": "https://www.schulportal-thueringen.de/web/guest/media/detail?tspi=" + str(medium_id)
-                }
-
-            # TODO: Discuss when it makes sense to combine "serientitel" and "einzeltitel"!
-            # The first element to have a serientitel for this mediumId will save it. The rest will just skip it.
-            if "serientitel" in element and "serientitel" not in medium_id_groups[medium_id]:
-                medium_id_groups[medium_id]["titel"] = element["serientitel"]
-                medium_id_groups[medium_id]["serientitel"] = element["serientitel"]
-                if "einzeltitel" in element:
-                    medium_id_groups[medium_id]["titel"] += " - " + element["einzeltitel"]
-                    medium_id_groups[medium_id]["einzeltitel"] = element["einzeltitel"]
-
-
-        grouped_elements = [medium_id_groups[medium_id] for medium_id in medium_id_groups]
-
-        return grouped_elements
-
-    def group_elements_by_sammlung(self, elements):
-        """
-        In this method we identify elements that have a keyword (Stichwort) ending in "collection" (sammlung).
-        These elements are parents of other elements that have a serienTitel same as the einzeltitel of these collection
-        items. Then, we remove these children from the elements and we only have collections or single items, not part
-        of any collection.
-        """
-
-        # Step 1 - Identify collection elements
-        collections_elements = set()
-        for idx, element in enumerate(elements):
-            keywords = element["listeStichwort"]
-            element_collections_keywords = set()
-            for keyword in keywords:
-                if keyword.endswith("sammlung"):
-                    element_collections_keywords.add(keyword)
-                    break
-            if len(element_collections_keywords) > 0:
-                collections_elements.add(idx)
-
-        # Step 2 - Get a dictionary of "Einzeltitel" --> element index, for the collection elements.
-        # collections_einzeltitel = {elements[idx]["einzeltitel"]: idx for idx in collections_elements}
-        collections_einzeltitel = {}
-        for idx in collections_elements:
-            collection_einzeltitel = elements[idx]["einzeltitel"]
-            if collection_einzeltitel not in collections_einzeltitel:
-                collections_einzeltitel[collection_einzeltitel] = list()
-            collections_einzeltitel[collection_einzeltitel].append(elements[idx])
-            # if "serientitel" in elements[idx]:
-            #     collections_einzeltitel[collection_einzeltitel].append(elements[idx]["serientitel"])
-            # else:
-            #     collections_einzeltitel[collection_einzeltitel].append(None)
-        print("hi")
-
-
-
-
-    def get_or_default(self, element, attribute, default_value=""):
-        if attribute in element:
-            return element[attribute]
-        else:
-            return default_value
 
     def getId(self, response):
         # Element response as a Python dict.
@@ -142,11 +65,13 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
     def getHash(self, response):
         # Element response as a Python dict.
         element_dict = response.meta["item"]
-        # presentation timestamp (PTS)
         id = element_dict["id"]
+
+        # presentation timestamp (PTS)
         pts = element_dict["pts"]
+
         # date_object = datetime.strptime(hash, "%Y-%m-%d %H:%M:%S.%f").date()
-        return id + pts
+        return hash(hash(id) + hash(pts))
 
     def mapResponse(self, response):
         r = ResponseItemLoader(response=response)
@@ -168,6 +93,8 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         #  portal."
         base.add_value("thumbnail", element_dict["previewImageUrl"])
 
+        base.add_value("searchable", element_dict.get("searchable", "0"))
+
         return base
 
     def getLOMGeneral(self, response):
@@ -176,9 +103,9 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         # Element response as a Python dict.
         element_dict = response.meta["item"]
 
-        # TODO: Decide which title. Do we have to construct the title, by concatenating multiple from the provided ones?
-        # Einzeltitel, einzeluntertitel, serientitel, serienuntertitel
-        general.add_value("title", element_dict["titel"])
+        general.add_value("title", element_dict["title"])
+
+        general.add_value("aggregationLevel", element_dict["aggregation_level"])
 
         # self._if_exists_add(general, element_dict, "description", "kurzinhalt")
         if "kurzinhalt" in element_dict:
@@ -242,3 +169,244 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             permissions.add_value('groups', ['Thuringia-public'])
 
         return permissions
+
+
+    def getLOMRelation(self, response=None) -> LomRelationItemLoader:
+        """
+        Helps implement collections using relations as described in the LOM-DE.doc#7 (Relation) specifications:
+        http://sodis.de/lom-de/LOM-DE.doc .
+        """
+        relation = LomBase.getLOMRelation(self, response)
+
+        # Element response as a Python dict.
+        element_dict = response.meta["item"]
+
+        relation.add_value("kind", element_dict["relation"][0]["kind"])
+
+        resource = LomRelationResourceItem()
+        resource["identifier"] = element_dict["relation"][0]["resource"]["identifier"]
+        relation.add_value("resource", resource)
+
+        return relation
+
+    def prepare_collections(self, prepared_elements):
+        """
+        Prepares Mediothek and Pixiothek collections according to their strategies.
+        """
+        mediothek_elements = []
+        pixiothek_elements = []
+        for element_dict in prepared_elements:
+            if element_dict["pixiothek"] == "1":
+                pixiothek_elements.append(element_dict)
+            else:
+                mediothek_elements.append(element_dict)
+
+        max_id = int(max(prepared_elements, key=lambda x: int(x["id"]))["id"])
+
+        pixiothek_elements_grouped, mediothek_elements, max_id = \
+            self.group_pixiothek_elements(pixiothek_elements, mediothek_elements, max_id)
+
+        mediothek_elements_grouped, max_id = self.group_mediothek_elements(mediothek_elements, max_id)
+
+        collection_elements = []
+        collection_elements.extend(pixiothek_elements_grouped)
+        collection_elements.extend(mediothek_elements_grouped)
+
+        return collection_elements
+
+    def group_by_elements(self, elements, group_by):
+        """
+        This method groups the corresponding elements based on the provided group_by parameter. This changes the logic
+        so that every element in the end maps to an educational element in the https://www.schulportal-thueringen.de.
+        """
+        groups = {}
+        for idx, element in enumerate(elements):
+            if group_by not in element:
+                logging.debug("Element " + str(element["id"])  + " does not contain information about " + group_by)
+                continue
+            group_by_value = element[group_by]
+            if group_by_value not in groups:
+                groups[group_by_value] = []
+            groups[group_by_value].append(element)
+
+        return groups
+
+    def group_pixiothek_elements(self, pixiothek_elements, mediothek_elements, max_id):
+        """
+        Collection elements in Pixiothek have a "parent" (representative) Mediothek element that describes the whole
+        collection. Our task in this method is for every Pixiothek group to find its Mediothek element and add the
+        connections between it and the Pixiothek elements. These Mediothek elements will not be considered as children
+        of Mediothek collections.
+
+        If we cannot find such a "parent" element among the Mediothek elements, then we select one of them as the
+        collection parent (representative element) and set some of its attributes accordingly.
+        """
+
+        default_download_url = "https://www.schulportal-thueringen.de/html/images/" \
+                               "themes/tsp2/startseite/banner_phone_startseite.jpg?id="
+
+        mediothek_default_download_url = "https://www.schulportal-thueringen.de/web/guest/media/detail?tspi="
+
+        pixiothek_elements_grouped_by = self.group_by_elements(pixiothek_elements, "serientitel")
+
+        # Group Mediothek elements by einzeltitel. We are going to use this dictionary in the following loop to find
+        # Pixiothek items that have this value in their serientitel.
+        mediothek_elements_grouped_by_einzeltitel = self.group_by_elements(mediothek_elements, "einzeltitel")
+
+        single_element_collection_serientitel = "Mediensammlungen zur freien Verwendung im Bildungsbereich"
+
+        collection_elements = []
+
+        edusharing = EduSharing()
+
+        # Keeping track of "parent" (representative) elements to remove them from the Mediothek elements.
+        parent_mediothek_elements = set()
+
+        # Generate new "representative" (parent) element.
+        for group_by_key, group in pixiothek_elements_grouped_by.items():
+            serientitel = None
+            if "serientitel" in group[0]:
+                serientitel = group[0]["serientitel"]
+
+            # If a single Mediothek element exists with the same einzeltitel as this group's serientitel, then we shall use it
+            # as the parent element of this collection.
+            if serientitel in mediothek_elements_grouped_by_einzeltitel and \
+                len(mediothek_elements_grouped_by_einzeltitel[serientitel]) == 1 and \
+                mediothek_elements_grouped_by_einzeltitel[serientitel][0]["id"] not in parent_mediothek_elements: # Is not used as a parent of another collection.
+
+                parent_element = copy.deepcopy(mediothek_elements_grouped_by_einzeltitel[serientitel][0])
+                parent_mediothek_elements.add(parent_element["id"])
+                parent_element["title"] = parent_element["einzeltitel"]
+                parent_element["downloadUrl"] = mediothek_default_download_url + str(parent_element["mediumId"])
+
+                # If the found Mediothek element has a serientitel equal to a predefined value, which indicates that
+                # this is a collection item (which should normally be a parent and not a single element), we treat
+                # specially and set the title equal to the einzeltitel, which already describes the collection.
+                if parent_element["serientitel"] == single_element_collection_serientitel:
+                    group.append(copy.deepcopy(mediothek_elements_grouped_by_einzeltitel[serientitel][0]))
+
+            # Else, we shall use any random element of this group as the parent element.
+            else:
+                parent_element = copy.deepcopy(group[0])
+
+                # We need to assign a new ID, different from the previous ones.
+                max_id += 1
+                parent_element["id"] = str(max_id)
+
+                # Assign a fake URL that we can still recognize if we ever want to allow the access of the collection
+                # content.
+                parent_element["downloadUrl"] = default_download_url + str(max_id)
+                parent_element["title"] = parent_element["serientitel"]
+
+            parent_element["searchable"] = 1
+            parent_element["aggregation_level"] = 2
+            parent_element["uuid"] = edusharing.buildUUID(parent_element["downloadUrl"])
+
+            for element in group:
+                element["searchable"] = 0
+                element["aggregation_level"] = 1
+                element["uuid"] = edusharing.buildUUID(element["downloadUrl"])
+
+            # Add connections from parent to children elements.
+            parent_element, group = self.relate_parent_with_children_elements(parent_element, group)
+
+            collection_elements.append(parent_element)
+            collection_elements.extend(group)
+
+        # Remove Mediothek elements which were used as parents. We go in reverse mode as only then the indices keep
+        # making sense as we keep deleting elements. The other way around, every time you delete an element the
+        # consequent indices are not valid anymore.
+        for i in reversed(range(len(mediothek_elements))):
+            if mediothek_elements[i]["id"] in parent_mediothek_elements:
+                del (mediothek_elements[i])
+
+        return collection_elements, mediothek_elements, max_id
+
+    def group_mediothek_elements(self, mediothek_elements, max_id):
+        """
+        Collection elements in Mediothek have no special element to represent them (a parent element). Therefore, we
+        select one of them as the collection representative (parent element) and set some of its attributes accordingly.
+        """
+        mediothek_default_download_url = "https://www.schulportal-thueringen.de/web/guest/media/detail?tspi="
+
+        mediothek_elements_grouped_by = self.group_by_elements(mediothek_elements, "mediumNummer")
+
+        # Specifies a special case when a
+        single_element_collection_serientitel = "Mediensammlungen zur freien Verwendung im Bildungsbereich"
+
+        collection_elements = []
+
+        edusharing = EduSharing()  # Used to generate UUIDs.
+
+        # Generate new "parent" (representative) element.
+        for group_by_key, group in mediothek_elements_grouped_by.items():
+            parent_element = copy.deepcopy(group[0])
+
+            # We need to assign a new ID, different from the previous ones.
+            max_id += 1
+            parent_element["id"] = str(max_id)
+            parent_element["downloadUrl"] = mediothek_default_download_url + str(parent_element["mediumId"])
+
+            # In case we only have a single element in the collection AND its value in the serientitel is equal to a
+            # predefined value, which indicates that this is a collection (parent and not a single element), we treat
+            # this case different and set the title equal to the einzeltitel, which already describes the collection.
+            if len(group) == 1 and "serientitel" in parent_element and \
+                    parent_element["serientitel"] == single_element_collection_serientitel:
+                parent_element["title"] = parent_element["einzeltitel"]
+            else:
+                if "serientitel" in parent_element:
+                    parent_element["title"] = parent_element["serientitel"]
+                else:
+                    parent_element["title"] = parent_element["einzeltitel"]
+
+            parent_element["searchable"] = 1
+            parent_element["aggregation_level"] = 2
+            parent_element["uuid"] = edusharing.buildUUID(parent_element["downloadUrl"])
+
+            for element in group:
+                element["searchable"] = 0
+                element["aggregation_level"] = 1
+                element["uuid"] = edusharing.buildUUID(element["downloadUrl"])
+
+            # Add connections from parent to children elements.
+            parent_element, group = self.relate_parent_with_children_elements(parent_element, group)
+
+            collection_elements.append(parent_element)
+            collection_elements.extend(group)
+
+        return collection_elements, max_id
+
+    def relate_parent_with_children_elements(self, parent_element, children_elements):
+        # Add connections from "parent" to "children" elements.
+        parent_element["relation"] = [
+            {
+                "kind": "haspart",
+                "resource": {
+                    "identifier": [
+                        # Use the ccm:replicationsourceuuid to refer to the children elements.
+                        element["uuid"] for element in children_elements
+                    ]
+                }
+            }
+        ]
+
+        # Add connections from "children" elements to "parent".
+        for element in children_elements:
+            element["relation"] = [
+                {
+                    "kind": "ispartof",
+                    "resource": {
+                        # Use the ccm:replicationsourceuuid to refer to the parent element.
+                        "identifier": [parent_element["uuid"]]
+                    }
+                }
+            ]
+        return parent_element, children_elements
+
+    def prepare_element(self, element_dict):
+        # TODO: Decide which title. Do we have to construct the title, by concatenating multiple from the provided ones?
+        # Einzeltitel, einzeluntertitel, serientitel, serienuntertitel
+        # Please keep in mind that we override this value for parent elements of collections.
+        element_dict["title"] = element_dict["einzeltitel"]
+
+        return element_dict
