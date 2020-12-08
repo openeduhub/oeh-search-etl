@@ -23,14 +23,18 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
     url = "https://www.schulportal-thueringen.de/"  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = "MediothekPixiothek"  # name as shown in the search ui
     version = "0.2"  # the version of your crawler, used to identify if a reimport is necessary
-    start_urls = [
-        "https://www.schulportal-thueringen.de/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei"
-        # Alternatively, you can load the file from a local path
-        # "file://LOCAL_FILE_PATH"  # e.g., file:///data/file.json
-    ]
+    apiUrl = "https://www.schulportal-thueringen.de/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei"
+    # Alternatively, you can load the file from a local path
+    # "file://LOCAL_FILE_PATH"  # e.g., file:///data/file.json
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
+
+    def start_requests(self):
+        yield scrapy.Request(
+            url=self.apiUrl,
+            callback=self.parse,
+        )
 
     def parse(self, response: scrapy.http.Response):
         elements = json.loads(response.body_as_unicode())
