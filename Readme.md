@@ -16,7 +16,7 @@ python3 -m venv .venv
 
 As a last step, set up your config variables by copying the example and modify it if necessary `cp converter/.env.example converter/.env`
 
-- crawler can be run with `scrapy crawl <spider-name>`. It assumes that you have the postgres database running, so you should run the `docker-compose up` command from before.
+- crawler can be run with `scrapy crawl <spider-name>`. It assumes that you have an edu-sharing 6.0 instance in your `.env` settings configured which can accept the data.
 
 ## Building a Crawler
 

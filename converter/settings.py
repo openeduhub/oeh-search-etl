@@ -46,7 +46,7 @@ THUMBNAIL_SMALL_QUALITY = 40
 THUMBNAIL_LARGE_SIZE = 800 * 800
 THUMBNAIL_LARGE_QUALITY = 60
 THUMBNAIL_MAX_SIZE = (
-    50 * 1024
+    1 * 1024 * 1024
 )  # max size for images that can not be converted (e.g. svg)
 
 
@@ -104,6 +104,7 @@ EXTENSIONS = {
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
+storeMode = env.get("MODE", default='edu-sharing')
 ITEM_PIPELINES = {
     "converter.pipelines.EduSharingCheckPipeline": 0,
     "converter.pipelines.FilterSparsePipeline": 25,
@@ -112,9 +113,15 @@ ITEM_PIPELINES = {
     "converter.pipelines.ConvertTimePipeline": 200,
     "converter.pipelines.ProcessValuespacePipeline": 250,
     "converter.pipelines.ProcessThumbnailPipeline": 300,
-    "converter.pipelines.DummyOutPipeline"
-    if env.get_bool("DRY_RUN", default=False)
-    else "converter.pipelines.EduSharingStorePipeline": 1000,
+    (
+        "converter.pipelines.DummyPipeline"
+        if storeMode == None
+        else "converter.pipelines.CSVStorePipeline"
+        if storeMode == 'csv'
+        else "converter.pipelines.JSONStorePipeline"
+        if storeMode == 'json'
+        else "converter.pipelines.EduSharingStorePipeline"
+    ): 1000,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

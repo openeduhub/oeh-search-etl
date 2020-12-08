@@ -67,6 +67,8 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
             )
         )
         valuespaces.add_value("discipline", discipline)
+
+        valuespaces.add_value("learningResourceType", "worksheet")
         return valuespaces
 
     def getLicense(self, response):
@@ -81,7 +83,6 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
             general.add_value("description", response.meta["item"]["description"])
         else:
             html = self.getUrlData(response.url)["html"]
-            general.add_value("description", 'test')
             if html:
                 data = (
                     Selector(text=html)
