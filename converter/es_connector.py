@@ -11,6 +11,7 @@ import logging
 
 from vobject.vcard import VCardBehavior
 
+from converter.MethodPerformanceTracing import MethodPerformanceTracing
 from converter.constants import Constants
 from converter.spiders.utils.spider_name_converter import get_spider_friendly_name
 from edu_sharing_client.api_client import ApiClient
@@ -43,7 +44,10 @@ class EduSharingConstants:
 
 
 # creating the swagger client: java -jar swagger-codegen-cli-3.0.20.jar generate -l python -i http://localhost:8080/edu-sharing/rest/swagger.json -o edu_sharing_swagger -c edu-sharing-swagger.config.json
-class ESApiClient(ApiClient):
+class ESApiClient(ApiClient, MethodPerformanceTracing):
+    COOKIE_REBUILD_THRESHOLD = 60 * 5
+    lastRequestTime = 0
+
     def deserialize(self, response, response_type):
         """Deserializes response into an object.
 
@@ -66,6 +70,24 @@ class ESApiClient(ApiClient):
         # workaround for es: simply return to prevent error throwing
         # return self.__deserialize(data, response_type)
         return data
+
+    def __getattribute__(self, name):
+        attr = object.__getattribute__(self, name)
+        if hasattr(attr, '__call__'):
+            def newfunc(*args, **kwargs):
+                if time.time() - ESApiClient.lastRequestTime > ESApiClient.COOKIE_REBUILD_THRESHOLD:
+                    EduSharing.initCookie()
+                    self.cookie =  EduSharing.cookie
+
+                # store last request time
+                ESApiClient.lastRequestTime = time.time()
+                return attr(*args, **kwargs)
+
+
+            return newfunc
+        else:
+            return attr
+
 
 
 class EduSharing:
@@ -112,7 +134,7 @@ class EduSharing:
                 get_project_settings().get("EDU_SHARING_BASE_URL")
                 + "rest/node/v1/nodes/-home-/"
                 + uuid
-                + "/textContent",
+                + "/textContent?mimetype=text/plain",
                 headers=self.getHeaders("multipart/form-data"),
                 data=item["fulltext"].encode("utf-8"),
             )
@@ -173,6 +195,12 @@ class EduSharing:
             if license["url"] == Constants.LICENSE_CC_BY_SA_40:
                 spaces["ccm:commonlicense_key"] = "CC_BY_SA"
                 spaces["ccm:commonlicense_cc_version"] = "4.0"
+            if license["url"] == Constants.LICENSE_CC_BY_NC_ND_30:
+                spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                spaces["ccm:commonlicense_cc_version"] = "3.0"
+            if license["url"] == Constants.LICENSE_CC_BY_NC_ND_40:
+                spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                spaces["ccm:commonlicense_cc_version"] = "4.0"
             if license["url"] == Constants.LICENSE_CC_ZERO_10:
                 spaces["ccm:commonlicense_key"] = "CC_0"
                 spaces["ccm:commonlicense_cc_version"] = "1.0"
@@ -197,6 +225,8 @@ class EduSharing:
             "cclom:location": item["lom"]["technical"]["location"],
             "cclom:title": item["lom"]["general"]["title"],
         }
+        if "notes" in item:
+            spaces["ccm:notes"] = item["notes"]
         if "origin" in item:
             spaces["ccm:replicationsourceorigin"] = item[
                 "origin"
@@ -261,6 +291,13 @@ class EduSharing:
             "learningResourceType": "ccm:educationallearningresourcetype",
             "sourceContentType": "ccm:sourceContentType",
             "toolCategory": "ccm:toolCategory",
+            "conditionsOfAccess": "ccm:conditionsOfAccess",
+            "containsAdvertisement": "ccm:containsAdvertisement",
+            "price": "ccm:price",
+            "accessibilitySummary": "ccm:accessibilitySummary",
+            "dataProtectionConformity": "ccm:dataProtectionConformity",
+            "fskRating": "ccm:fskRating",
+            "oer": "ccm:license_oer",
         }
         for key in item["valuespaces"]:
             spaces[valuespaceMapping[key]] = item["valuespaces"][key]
@@ -278,7 +315,6 @@ class EduSharing:
         # sourceContentType = Field(output_processor=JoinMultivalues())
         spaces["cm:edu_metadataset"] = "mds_oeh"
         spaces["cm:edu_forcemetadataset"] = "true"
-
         for key in spaces:
             if type(spaces[key]) is tuple:
                 spaces[key] = list([x for y in spaces[key] for x in y])
@@ -424,22 +460,36 @@ class EduSharing:
 
     def updateItem(self, spider, uuid, item):
         self.insertItem(spider, uuid, item)
-
+    @staticmethod
+    def initCookie():
+        settings = get_project_settings()
+        auth = requests.get(
+            settings.get("EDU_SHARING_BASE_URL")
+            + "rest/authentication/v1/validateSession",
+            auth=HTTPBasicAuth(
+                settings.get("EDU_SHARING_USERNAME"),
+                settings.get("EDU_SHARING_PASSWORD"),
+            ),
+            headers={"Accept": "application/json"},
+        )
+        isAdmin = json.loads(auth.text)["isAdmin"]
+        if isAdmin:
+            EduSharing.cookie = auth.headers["SET-COOKIE"].split(";")[0]
+        return auth
     def initApiClient(self):
         if EduSharing.cookie == None:
             settings = get_project_settings()
-            auth = requests.get(
-                settings.get("EDU_SHARING_BASE_URL")
-                + "rest/authentication/v1/validateSession",
-                auth=HTTPBasicAuth(
-                    settings.get("EDU_SHARING_USERNAME"),
-                    settings.get("EDU_SHARING_PASSWORD"),
-                ),
-                headers={"Accept": "application/json"},
-            )
+            auth = self.initCookie()
             isAdmin = json.loads(auth.text)["isAdmin"]
             if isAdmin:
-                EduSharing.cookie = auth.headers["SET-COOKIE"].split(";")[0]
+                configuration = Configuration()
+                configuration.host = settings.get("EDU_SHARING_BASE_URL") + "rest"
+                EduSharing.apiClient = ESApiClient(
+                    configuration,
+                    cookie=EduSharing.cookie,
+                    header_name="Accept",
+                    header_value="application/json",
+                )
                 configuration = Configuration()
                 configuration.host = settings.get("EDU_SHARING_BASE_URL") + "rest"
                 EduSharing.apiClient = ESApiClient(
@@ -462,6 +512,7 @@ class EduSharing:
                 )
                 logging.debug("Built up edu-sharing group cache", EduSharing.groupCache)
                 return
+            logging.warning(auth.text)
             raise Exception(
                 "Could not authentify as admin at edu-sharing. Please check your settings for repository "
                 + settings.get("EDU_SHARING_BASE_URL")
