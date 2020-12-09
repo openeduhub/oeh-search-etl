@@ -75,6 +75,7 @@ class BpbSpider(LrmiBase, CrawlSpider):
 
     def getLOMGeneral(self, response):
         general = LrmiBase.getLOMGeneral(self, response)
+        general.replace_value("title", self.getLRMI("name", "headline", response=response).replace(" | bpb", ""))
         general.replace_value("identifier", self.getLRMI(
             "mainEntityOfPage", response=response))
 
