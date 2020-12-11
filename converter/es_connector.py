@@ -224,8 +224,8 @@ class EduSharing:
             "ccm:wwwurl": item["lom"]["technical"]["location"],
             "cclom:location": item["lom"]["technical"]["location"],
             "cclom:title": item["lom"]["general"]["title"],
-            "cclom:general_aggregationlevel": item["lom"]["general"]["aggregationLevel"],
-            "ccm:searchable": item["searchable"],
+            "ccm:hpi_lom_general_aggregationlevel": str(item["lom"]["general"]["aggregationLevel"]),
+            "ccm:hpi_searchable": str(item["searchable"]),
         }
         if "notes" in item:
             spaces["ccm:notes"] = item["notes"]
@@ -325,13 +325,20 @@ class EduSharing:
 
         # Relation information, according to the LOM-DE.doc#7 specifications: http://sodis.de/lom-de/LOM-DE.doc
         if "relation" in item["lom"]:
-            spaces["cclom:relation"] = item["lom"]["relation"]
+            spaces["ccm:hpi_lom_relation"] = item["lom"]["relation"]
             # Since Edu-Sharing has no further information about the schema of this attribute it is better to treat it
             # as a list of strings and not as a JSON.
-            for i, element in enumerate(spaces["cclom:relation"]):
-                relation_value = str(element).replace("\n", "").replace("\r", "")
+            for i, element in enumerate(spaces["ccm:hpi_lom_relation"]):
+                # JSON expects double quotes.
+                element_str = str(element).replace("\'", "\"")
+                # JSON to Python dictionary
+                element_dict = json.loads(element_str)
+
+                # We expect and prefer single quotes in the result.
+                relation_value = json.dumps(element_dict, sort_keys=True).replace("\"", "\'")
+                # Remove redundant white spaces.
                 relation_value = ' '.join(relation_value.split())
-                spaces["cclom:relation"][i] = relation_value
+                spaces["ccm:hpi_lom_relation"][i] = relation_value
 
         return spaces
 
