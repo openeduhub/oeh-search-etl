@@ -117,14 +117,21 @@ class EduSharing:
         groupBy = []
         if "ccm:replicationsourceorigin" in properties:
             groupBy = ["ccm:replicationsourceorigin"]
-        response = EduSharing.bulkApi.sync(
-            body=properties,
-            match=["ccm:replicationsource", "ccm:replicationsourceid"],
-            type=type,
-            group=spider.name,
-            group_by=groupBy,
-            reset_version=EduSharing.resetVersion,
-        )
+        try:
+            response = EduSharing.bulkApi.sync(
+                body=properties,
+                match=["ccm:replicationsource", "ccm:replicationsourceid"],
+                type=type,
+                group=spider.name,
+                group_by=groupBy,
+                reset_version=EduSharing.resetVersion,
+            )
+        except ApiException as e:
+            jsonError = json.loads(e.body)
+            if jsonError["error"] == "java.lang.IllegalStateException":
+                logging.warning("Node '" + properties['cm:name'][0] + "' probably blocked for sync: " + jsonError["message"])
+                return None
+            raise e
         return response["node"]
 
     def setNodeText(self, uuid, item) -> bool:
@@ -451,9 +458,10 @@ class EduSharing:
 
     def insertItem(self, spider, uuid, item):
         node = self.syncNode(spider, "ccm:io", self.transformItem(uuid, spider, item))
-        self.setNodePermissions(node["ref"]["id"], item)
-        self.setNodePreview(node["ref"]["id"], item)
-        self.setNodeText(node["ref"]["id"], item)
+        if node:
+            self.setNodePermissions(node["ref"]["id"], item)
+            self.setNodePreview(node["ref"]["id"], item)
+            self.setNodeText(node["ref"]["id"], item)
 
     def updateItem(self, spider, uuid, item):
         self.insertItem(spider, uuid, item)
