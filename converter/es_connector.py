@@ -117,14 +117,21 @@ class EduSharing:
         groupBy = []
         if "ccm:replicationsourceorigin" in properties:
             groupBy = ["ccm:replicationsourceorigin"]
-        response = EduSharing.bulkApi.sync(
-            body=properties,
-            match=["ccm:replicationsource", "ccm:replicationsourceid"],
-            type=type,
-            group=spider.name,
-            group_by=groupBy,
-            reset_version=EduSharing.resetVersion,
-        )
+        try:
+            response = EduSharing.bulkApi.sync(
+                body=properties,
+                match=["ccm:replicationsource", "ccm:replicationsourceid"],
+                type=type,
+                group=spider.name,
+                group_by=groupBy,
+                reset_version=EduSharing.resetVersion,
+            )
+        except ApiException as e:
+            jsonError = json.loads(e.body)
+            if jsonError["error"] == "java.lang.IllegalStateException":
+                logging.warning("Node '" + properties['cm:name'][0] + "' probably blocked for sync: " + jsonError["message"])
+                return None
+            raise e
         return response["node"]
 
     def setNodeText(self, uuid, item) -> bool:
