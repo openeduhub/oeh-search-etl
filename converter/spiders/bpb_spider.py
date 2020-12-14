@@ -33,7 +33,7 @@ class BpbSpider(LrmiBase, CrawlSpider):
         "/glossar"
     )
 
-    version = "0.1.0"  # the version of your crawler, used to identify if a reimport is necessary
+    version = "0.1.1"  # the version of your crawler, used to identify if a reimport is necessary
 
     rules = (
         Rule(LinkExtractor(allow=()), process_links="process_links",
@@ -73,16 +73,19 @@ class BpbSpider(LrmiBase, CrawlSpider):
         base.replace_value("thumbnail", None)
         return base
 
+    def getKeywords(self, response) -> List[str]:
+        return [keyword.strip() for keyword in self.getLRMI(
+            "keywords", response=response).split(",")]
+
     def getLOMGeneral(self, response):
         general = LrmiBase.getLOMGeneral(self, response)
+        general.replace_value("title", self.getLRMI("name", "headline", response=response).replace(" | bpb", ""))
         general.replace_value("identifier", self.getLRMI(
             "mainEntityOfPage", response=response))
 
         # Keywords (use try catch, some entries might not have keywords)
         try:
-            keywords: List[str] = [keyword.strip() for keyword in self.getLRMI(
-                "keywords", response=response).split(",")]
-            general.replace_value("keyword", keywords)
+            general.replace_value("keyword", self.getKeywords(response))
         except:
             pass
 
@@ -152,6 +155,8 @@ class BpbSpider(LrmiBase, CrawlSpider):
                 license_value = license_value[:-len("deed.de")]
             elif license_value.endswith("de/"):
                 license_value = license_value[:-len("de/")]
+            # oeh crawling constants all use https
+            license = license_value.replace("http://", "https://")
             license.replace_value("url", license_value)
         return license
 
@@ -172,4 +177,10 @@ class BpbSpider(LrmiBase, CrawlSpider):
         for discipline in disciplines:
             if "/" + discipline in response.url:
                 valuespaces.add_value("discipline", discipline)
+
+        # try to map keywords to known disciplines
+        try:
+            valuespaces.add_value("discipline", self.getKeywords(response))
+        except:
+            pass
         return valuespaces
