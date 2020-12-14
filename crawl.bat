@@ -1,1 +1,0 @@
-scrapy crawl br_rss_spider -a resetVersion=true
