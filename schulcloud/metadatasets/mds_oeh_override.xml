@@ -8,6 +8,22 @@
 				<multiple>true</multiple>
 				<multiplejoin>OR</multiplejoin>
 			</property>
+
+			<property name="ccm:hpi_searchable">
+				<multiple>true</multiple>
+				<multiplejoin>OR</multiplejoin>
+			</property>
+
+			<property name="ccm:hpi_lom_general_aggregationlevel">
+				<multiple>true</multiple>
+				<multiplejoin>OR</multiplejoin>
+			</property>
+
+			<property name="ccm:hpi_lom_relation">
+				<multiple>true</multiple>
+				<multiplejoin>OR</multiplejoin>
+			</property>
+
 		</query>
 	</queries>
 	<queries syntax="dsl">
@@ -16,6 +32,22 @@
 				<multiple>true</multiple>
 				<multiplejoin>OR</multiplejoin>
 			</property>
+
+			<property name="ccm:hpi_searchable">
+				<multiple>true</multiple>
+				<multiplejoin>OR</multiplejoin>
+			</property>
+
+			<property name="ccm:hpi_lom_general_aggregationlevel">
+				<multiple>true</multiple>
+				<multiplejoin>OR</multiplejoin>
+			</property>
+
+			<property name="ccm:hpi_lom_relation">
+				<multiple>true</multiple>
+				<multiplejoin>OR</multiplejoin>
+			</property>
+
 		</query>
 	</queries>
 </metadataset>

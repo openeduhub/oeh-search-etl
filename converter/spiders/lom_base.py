@@ -159,6 +159,7 @@ class LomBase(MethodPerformanceTracing):
         lom.add_value("technical", self.getLOMTechnical(response).load_item())
         lom.add_value("educational", self.getLOMEducational(response).load_item())
         lom.add_value("classification", self.getLOMClassification(response).load_item())
+        lom.add_value("relation", self.getLOMRelation(response).load_item())
         return lom
 
     def getBase(self, response=None) -> BaseItemLoader:
@@ -186,6 +187,9 @@ class LomBase(MethodPerformanceTracing):
 
     def getLOMClassification(self, response=None) -> LomClassificationItemLoader:
         return LomClassificationItemLoader(response=response)
+
+    def getLOMRelation(self, response=None) -> LomRelationItemLoader:
+        return LomRelationItemLoader(response=response)
 
     def getPermissions(self, response=None) -> PermissionItemLoader:
         permissions = PermissionItemLoader(response=response)

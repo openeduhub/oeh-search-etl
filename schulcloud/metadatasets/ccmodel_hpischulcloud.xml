@@ -1,0 +1,30 @@
+<!--Please include the following aspect into the ccmodel.xml-->
+<!--Full path (docker): /usr/local/alfresco/tomcat/shared/classes/alfresco/extension/es_models/ccmodel.xml-->
+<aspect name="ccm:hpi">
+     <title>aspect for hpi</title>
+     <properties>
+            <property name="ccm:hpi_searchable">
+                <type>d:text</type>
+                <multiple>true</multiple>
+                <index enabled="true">
+                    <tokenised>false</tokenised>
+                </index>
+            </property>
+
+            <property name="ccm:hpi_lom_general_aggregationlevel">
+                <type>d:text</type>
+                <multiple>true</multiple>
+                <index enabled="true">
+                    <tokenised>false</tokenised>
+                </index>
+            </property>
+
+            <property name="ccm:hpi_lom_relation">
+                <type>d:text</type>
+                <multiple>true</multiple>
+                <index enabled="true">
+                    <tokenised>false</tokenised>
+                </index>
+            </property>
+     </properties>
+</aspect>
