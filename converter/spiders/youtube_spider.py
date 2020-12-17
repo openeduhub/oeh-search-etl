@@ -13,6 +13,7 @@ from scrapy.spiders import Spider
 
 import converter.env as env
 import converter.items as items
+from converter.constants import Constants
 from converter.spiders.lom_base import LomBase
 
 # TODO: Find suitable target field for channel/playlist information:
@@ -73,6 +74,9 @@ class YoutubeSpider(Spider):
 
     @overrides  # Spider
     def start_requests(self):
+        if env.get("YOUTUBE_API_KEY", False) == "":
+            logging.error("YOUTUBE_API_KEY is required for youtube_spider")
+            return
         for row in YoutubeSpider.get_csv_rows("youtube.csv"):
             request = self.request_row(row)
             if request is not None:
@@ -105,7 +109,7 @@ class YoutubeSpider(Spider):
         request_url = (
             "https://www.googleapis.com/youtube/v3/channels"
             + "?part={}&id={}&key={}".format(
-                "%2C".join(part), channel_id, env.get("YOUTUBE_API_KEY")
+                "%2C".join(part), channel_id, env.get("YOUTUBE_API_KEY", False)
             )
         )
         return Request(url=request_url, meta=meta, callback=self.parse_channel)
@@ -313,7 +317,7 @@ class YoutubeLomLoader(LomBase):
         # possible values: "youtube", "creativeCommon"
         if response.meta["item"]["status"]["license"] == "creativeCommon":
             license.add_value(
-                "url", "https://creativecommons.org/licenses/by/3.0/legalcode"
+                "url", Constants.LICENSE_CC_BY_30
             )
         return license
 
