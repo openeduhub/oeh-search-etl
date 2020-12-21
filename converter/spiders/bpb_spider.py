@@ -157,8 +157,8 @@ class BpbSpider(LrmiBase, CrawlSpider):
             elif license_value.endswith("de/"):
                 license_value = license_value[:-len("de/")]
             # oeh crawling constants all use https
-            license = license_value.replace("http://", "https://")
-            license.replace("url", license_value)
+            license_value = license_value.replace("http://", "https://")
+            license.replace_value("url", license_value)
         return license
 
     def getLOMTechnical(self, response):
