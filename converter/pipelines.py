@@ -76,7 +76,7 @@ class FilterSparsePipeline:
 
 class NormLicensePipeline:
     def process_item(self, item, spider):
-        if "url" in item["license"]:
+        if "url" in item["license"] and not item["license"]["url"] in Constants.VALID_LICENSE_URLS:
             for key in Constants.LICENSE_MAPPINGS:
                 if item["license"]["url"].startswith(key):
                     item["license"]["url"] = Constants.LICENSE_MAPPINGS[key]
@@ -94,6 +94,7 @@ class NormLicensePipeline:
         if "url" in item["license"] and not "oer" in item["license"]:
             if (
                 item["license"]["url"] == Constants.LICENSE_CC_BY_40
+                or item["license"]["url"] == Constants.LICENSE_CC_BY_30
                 or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_30
                 or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_40
                 or item["license"]["url"] == Constants.LICENSE_CC_ZERO_10

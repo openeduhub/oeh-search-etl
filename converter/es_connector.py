@@ -195,6 +195,9 @@ class EduSharing:
             if license["url"] == Constants.LICENSE_CC_BY_40:
                 spaces["ccm:commonlicense_key"] = "CC_BY"
                 spaces["ccm:commonlicense_cc_version"] = "4.0"
+            if license["url"] == Constants.LICENSE_CC_BY_30:
+                spaces["ccm:commonlicense_key"] = "CC_BY"
+                spaces["ccm:commonlicense_cc_version"] = "3.0"
             if license["url"] == Constants.LICENSE_CC_BY_SA_30:
                 spaces["ccm:commonlicense_key"] = "CC_BY_SA"
                 spaces["ccm:commonlicense_cc_version"] = "3.0"
