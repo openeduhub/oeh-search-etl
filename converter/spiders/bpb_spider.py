@@ -33,7 +33,7 @@ class BpbSpider(LrmiBase, CrawlSpider):
         "/glossar"
     )
 
-    version = "0.1.1"  # the version of your crawler, used to identify if a reimport is necessary
+    version = "0.1.2"  # the version of your crawler, used to identify if a reimport is necessary
 
     rules = (
         Rule(LinkExtractor(allow=()), process_links="process_links",
@@ -74,8 +74,10 @@ class BpbSpider(LrmiBase, CrawlSpider):
         return base
 
     def getKeywords(self, response) -> List[str]:
-        return[keyword.strip() for keyword in self.getLRMI(
-            "keywords", response=response).split(",")]
+        keywords = self.getLRMI("keywords", response=response)
+        if keywords.strip():
+            return[keyword.strip() for keyword in keywords.split(",")]
+        return []
     def getLOMGeneral(self, response):
         general = LrmiBase.getLOMGeneral(self, response)
         general.replace_value("title", self.getLRMI("name", "headline", response=response).replace(" | bpb", ""))
