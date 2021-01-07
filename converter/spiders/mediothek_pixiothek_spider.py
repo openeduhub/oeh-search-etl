@@ -1,7 +1,6 @@
 import copy
 import json
-import time
-from datetime import datetime
+import os
 
 from scrapy.spiders import CrawlSpider
 
@@ -205,12 +204,10 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             else:
                 mediothek_elements.append(element_dict)
 
-        max_id = int(max(prepared_elements, key=lambda x: int(x["id"]))["id"])
+        pixiothek_elements_grouped, mediothek_elements = \
+            self.group_pixiothek_elements(pixiothek_elements, mediothek_elements)
 
-        pixiothek_elements_grouped, mediothek_elements, max_id = \
-            self.group_pixiothek_elements(pixiothek_elements, mediothek_elements, max_id)
-
-        mediothek_elements_grouped, max_id = self.group_mediothek_elements(mediothek_elements, max_id)
+        mediothek_elements_grouped = self.group_mediothek_elements(mediothek_elements)
 
         collection_elements = []
         collection_elements.extend(pixiothek_elements_grouped)
@@ -233,9 +230,13 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
                 groups[group_by_value] = []
             groups[group_by_value].append(element)
 
+        # For consistency sort all values per key.
+        for key in groups.keys():
+            groups[key] = sorted(groups[key], key=lambda x: int(x["id"]))
+
         return groups
 
-    def group_pixiothek_elements(self, pixiothek_elements, mediothek_elements, max_id):
+    def group_pixiothek_elements(self, pixiothek_elements, mediothek_elements):
         """
         Collection elements in Pixiothek have a "parent" (representative) Mediothek element that describes the whole
         collection. Our task in this method is for every Pixiothek group to find its Mediothek element and add the
@@ -267,7 +268,8 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         parent_mediothek_elements = set()
 
         # Generate new "representative" (parent) element.
-        for group_by_key, group in pixiothek_elements_grouped_by.items():
+        for group_by_key in sorted(pixiothek_elements_grouped_by.keys()):
+            group = pixiothek_elements_grouped_by[group_by_key]
             serientitel = None
             if "serientitel" in group[0]:
                 serientitel = group[0]["serientitel"]
@@ -293,13 +295,15 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             else:
                 parent_element = copy.deepcopy(group[0])
 
-                # We need to assign a new ID, different from the previous ones.
-                max_id += 1
-                parent_element["id"] = str(max_id)
+                # We need to assign a new ID, different from the previous ones. For this purpose, we decide to modify
+                # the ID of the existing element and add some suffix to note that this is an artificial element.
+                # Clearly, such a big number for an ID will have no collisions with existing real elements.
+                artificial_element_suffix = "000000"
+                parent_element["id"] = parent_element["id"] + artificial_element_suffix
 
                 # Assign a fake URL that we can still recognize if we ever want to allow the access of the collection
                 # content.
-                parent_element["downloadUrl"] = default_download_url + str(max_id)
+                parent_element["downloadUrl"] = default_download_url + parent_element["id"]
                 parent_element["title"] = parent_element["serientitel"]
 
             parent_element["searchable"] = 1
@@ -324,9 +328,9 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             if mediothek_elements[i]["id"] in parent_mediothek_elements:
                 del (mediothek_elements[i])
 
-        return collection_elements, mediothek_elements, max_id
+        return collection_elements, mediothek_elements
 
-    def group_mediothek_elements(self, mediothek_elements, max_id):
+    def group_mediothek_elements(self, mediothek_elements):
         """
         Collection elements in Mediothek have no special element to represent them (a parent element). Therefore, we
         select one of them as the collection representative (parent element) and set some of its attributes accordingly.
@@ -343,25 +347,19 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         edusharing = EduSharing()  # Used to generate UUIDs.
 
         # Generate new "parent" (representative) element.
-        for group_by_key, group in mediothek_elements_grouped_by.items():
+        for group_by_key in sorted(mediothek_elements_grouped_by.keys()):
+            group = mediothek_elements_grouped_by[group_by_key]
             parent_element = copy.deepcopy(group[0])
 
-            # We need to assign a new ID, different from the previous ones.
-            max_id += 1
-            parent_element["id"] = str(max_id)
+            # We need to assign a new ID, different from the previous ones. For this purpose, we decide to modify
+            # the ID of the existing element and add some suffix to note that this is an artificial element.
+            # Clearly, such a big number for an ID will have no collisions with existing real elements.
+            artificial_element_suffix = "000000"
+            parent_element["id"] = parent_element["id"] + artificial_element_suffix
+
             parent_element["downloadUrl"] = mediothek_default_download_url + str(parent_element["mediumId"])
 
-            # In case we only have a single element in the collection AND its value in the serientitel is equal to a
-            # predefined value, which indicates that this is a collection (parent and not a single element), we treat
-            # this case different and set the title equal to the einzeltitel, which already describes the collection.
-            if len(group) == 1 and "serientitel" in parent_element and \
-                    parent_element["serientitel"] == single_element_collection_serientitel:
-                parent_element["title"] = parent_element["einzeltitel"]
-            else:
-                if "serientitel" in parent_element:
-                    parent_element["title"] = parent_element["serientitel"]
-                else:
-                    parent_element["title"] = parent_element["einzeltitel"]
+            parent_element["title"] = parent_element["einzeltitel"]
 
             parent_element["searchable"] = 1
             parent_element["aggregation_level"] = 2
@@ -372,13 +370,18 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
                 element["aggregation_level"] = 1
                 element["uuid"] = edusharing.buildUUID(element["downloadUrl"])
 
+                if "dateiName" in element:
+                    # Remove the file extension
+                    filename, file_extension = os.path.splitext(element["dateiName"])
+                    element["title"] = filename.replace("_", " ")
+
             # Add connections from parent to children elements.
             parent_element, group = self.relate_parent_with_children_elements(parent_element, group)
 
             collection_elements.append(parent_element)
             collection_elements.extend(group)
 
-        return collection_elements, max_id
+        return collection_elements
 
     def relate_parent_with_children_elements(self, parent_element, children_elements):
         # Add connections from "parent" to "children" elements.
