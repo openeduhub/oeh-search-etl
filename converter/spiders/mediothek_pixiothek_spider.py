@@ -315,6 +315,8 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
                 element["aggregation_level"] = 1
                 element["uuid"] = edusharing.buildUUID(element["downloadUrl"])
 
+                element["title"] = element["dateiBezeichnung"]
+
             # Add connections from parent to children elements.
             parent_element, group = self.relate_parent_with_children_elements(parent_element, group)
 
@@ -370,10 +372,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
                 element["aggregation_level"] = 1
                 element["uuid"] = edusharing.buildUUID(element["downloadUrl"])
 
-                if "dateiName" in element:
-                    # Remove the file extension
-                    filename, file_extension = os.path.splitext(element["dateiName"])
-                    element["title"] = filename.replace("_", " ")
+                element["title"] = element["dateiBezeichnung"]
 
             # Add connections from parent to children elements.
             parent_element, group = self.relate_parent_with_children_elements(parent_element, group)
