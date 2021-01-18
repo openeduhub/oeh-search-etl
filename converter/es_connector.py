@@ -218,6 +218,11 @@ class EduSharing:
         if "internal" in license:
             if license["internal"] == Constants.LICENSE_COPYRIGHT_LAW:
                 spaces["ccm:commonlicense_key"] = "COPYRIGHT_FREE"
+            if license["internal"] == Constants.LICENSE_CUSTOM:
+                spaces["ccm:commonlicense_key"] = "CUSTOM"
+                if "description" in license:
+                    spaces["cclom:rights_description"] = license["description"]
+
         if "author" in license:
             spaces["ccm:author_freetext"] = license["author"]
 

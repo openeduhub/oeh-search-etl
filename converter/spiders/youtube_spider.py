@@ -319,6 +319,9 @@ class YoutubeLomLoader(LomBase):
             license.add_value(
                 "url", Constants.LICENSE_CC_BY_30
             )
+        elif response.meta["item"]["status"]["license"] == "youtube":
+            license.replace_value("internal", Constants.LICENSE_CUSTOM)
+            license.add_value("description", "Youtube-Standardlizenz")
         return license
 
     @overrides  # LomBase

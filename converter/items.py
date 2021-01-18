@@ -143,6 +143,8 @@ class LicenseItem(Item):
     "url to a license description"
     internal = Field()
     "a internal constants for this license"
+    description = Field()
+    "a custom, free-text license description. Will only be used if the internal constants is set to CUSTOM"
     oer = Field()
     "a value of OerType (if empty, will be mapped via the given url or internal value)"
     author = Field()

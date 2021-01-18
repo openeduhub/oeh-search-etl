@@ -36,6 +36,7 @@ class Constants:
     }
 
     LICENSE_COPYRIGHT_LAW = "COPYRIGHT_LAW"
+    LICENSE_CUSTOM = "CUSTOM" # Custom License, use the license description field for arbitrary values
     LICENSE_NONPUBLIC = "NONPUBLIC"
 
     TYPE_MATERIAL = "MATERIAL"
