@@ -1,15 +1,47 @@
-version: "3.4"
+version: '3.4'
 
 services:
+  extractor:
+    image: openeduhub/metadata-picker:extractor
+    ports:
+      - "5057:5057"
+    links:
+      - splash
+      - accessibility
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5057/_ping" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend
   splash:
     image: scrapinghub/splash:master
     command: --maxrss 4000
     restart: always
     ports:
-      - "127.0.0.1:8050:8050"
+      - "5060:8050"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8050/_ping"]
+      test: ["CMD", "curl", "-f", "http://localhost:5060/_ping"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 40s
+    networks:
+      - backend
+  accessibility:
+    image: openeduhub/metadata-picker:accessibility
+    restart: always
+    ports:
+      - "5058:5058"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5080/_ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend
+networks:
+  backend:
