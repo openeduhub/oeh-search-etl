@@ -14,16 +14,16 @@ from converter.valuespace_helper import ValuespaceHelper
 from converter.constants import *
 
 # Spider to fetch RSS from planet schule
-class ZUMSpider(scrapy.Spider, LomBase, JSONBase):
-    name = "zum_spider"
-    friendlyName = "ZUM-Unterrichten"
-    url = "https://unterrichten.zum.de/"
+class ZUMKlexikon(scrapy.Spider, LomBase, JSONBase):
+    name = "zum_klexikon"
+    friendlyName = "ZUM-Klexikon"
+    url = "https://klexikon.zum.de/"
     version = "0.1.0"
-    apiUrl = "https://unterrichten.zum.de/api.php?action=query&format=json&list=allpages&apcontinue=%continue&aplimit=100"
+    apiUrl = "https://klexikon.zum.de/api.php?action=query&format=json&list=allpages&apcontinue=%continue&aplimit=100"
     apiEntryUrl = (
-        "https://unterrichten.zum.de/api.php?action=parse&format=json&pageid=%pageid"
+        "https://klexikon.zum.de/api.php?action=parse&format=json&pageid=%pageid"
     )
-    entryUrl = "https://unterrichten.zum.de/wiki/%page"
+    entryUrl = "https://klexikon.zum.de/wiki/%page"
     keywords = {}
 
     def __init__(self, **kwargs):
