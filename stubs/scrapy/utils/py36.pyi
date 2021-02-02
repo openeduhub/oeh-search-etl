@@ -1,3 +1,0 @@
-from typing import Any
-
-async def collect_asyncgen(result: Any): ...

@@ -1,3 +1,0 @@
-from scrapy.utils.ssl import get_openssl_version as get_openssl_version
-
-def scrapy_components_versions(): ...

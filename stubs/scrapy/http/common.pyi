@@ -1,3 +1,0 @@
-from typing import Any
-
-def obsolete_setter(setter: Any, attrname: Any): ...

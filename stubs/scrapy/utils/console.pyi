@@ -1,6 +1,0 @@
-from typing import Any, Optional
-
-DEFAULT_PYTHON_SHELLS: Any
-
-def get_shell_embed_func(shells: Optional[Any] = ..., known_shells: Optional[Any] = ...): ...
-def start_python_console(namespace: Optional[Any] = ..., banner: str = ..., shells: Optional[Any] = ...) -> None: ...
