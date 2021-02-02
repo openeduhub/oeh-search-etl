@@ -1,5 +1,5 @@
 from converter.items import *
-from converter.spiders.lom_base import LomBase
+from .lom_base import LomBase
 import logging
 import vobject
 

@@ -1,7 +1,7 @@
 import re
 
 from converter.constants import Constants
-from converter.spiders.lernprogramme_spider_base import LernprogrammeSpiderBase
+from .base_classes import LernprogrammeSpiderBase
 
 
 class ChemieLernprogrammeSpider(LernprogrammeSpiderBase):

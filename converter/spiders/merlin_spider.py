@@ -4,7 +4,7 @@ import xmltodict as xmltodict
 from lxml import etree
 from scrapy.spiders import CrawlSpider
 from converter.items import *
-from converter.spiders.lom_base import LomBase
+from .base_classes import LomBase
 
 
 class MerlinSpider(CrawlSpider, LomBase):

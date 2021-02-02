@@ -1,6 +1,6 @@
 import logging
 
-from converter.spiders.edu_sharing_base import EduSharingBase
+from .base_classes import EduSharingBase
 
 
 class OEHSpider(EduSharingBase):

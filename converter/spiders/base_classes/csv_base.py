@@ -1,11 +1,5 @@
-from scrapy.spiders import CrawlSpider
 from converter.items import *
-import time
-import logging
-from w3lib.html import remove_tags, replace_escape_chars
-from converter.spiders.lom_base import LomBase
-from converter.valuespace_helper import ValuespaceHelper
-import csv
+from .lom_base import LomBase
 import hashlib
 
 # rss crawler with a list of entries to crawl and map

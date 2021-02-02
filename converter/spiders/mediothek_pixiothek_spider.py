@@ -1,10 +1,8 @@
 import json
-import time
-from datetime import datetime
 
 from scrapy.spiders import CrawlSpider
 from converter.items import *
-from converter.spiders.lom_base import LomBase
+from .base_classes import LomBase
 from converter.constants import *
 
 

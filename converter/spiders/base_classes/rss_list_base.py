@@ -1,11 +1,7 @@
-from scrapy.spiders import CrawlSpider
 from converter.items import *
-import time
-import logging
-from w3lib.html import remove_tags, replace_escape_chars
-from converter.spiders.lom_base import LomBase
-from converter.spiders.rss_base import RSSBase
-from converter.spiders.csv_base import CSVBase
+from .lom_base import LomBase
+from .rss_base import RSSBase
+from .csv_base import CSVBase
 from converter.valuespace_helper import ValuespaceHelper
 import csv
 import os

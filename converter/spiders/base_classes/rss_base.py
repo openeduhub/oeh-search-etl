@@ -1,9 +1,5 @@
 from scrapy.spiders import CrawlSpider
-from converter.items import *
-import time
-import logging
-from w3lib.html import remove_tags, replace_escape_chars
-from converter.spiders.lom_base import LomBase
+from .lom_base import LomBase
 
 
 class RSSBase(CrawlSpider, LomBase):
