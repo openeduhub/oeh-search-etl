@@ -1,3 +1,0 @@
-from scrapy.http.response.text import TextResponse as TextResponse
-
-class XmlResponse(TextResponse): ...
