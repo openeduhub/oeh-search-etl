@@ -1,4 +1,4 @@
-from converter.spiders.oai_base import OAIBase
+from .base_classes import OAIBase
 
 
 class OAISodis(OAIBase):

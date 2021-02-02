@@ -1,12 +1,9 @@
 from scrapy.spiders import CrawlSpider
 from converter.items import *
 from converter.constants import Constants
-from datetime import datetime
-from w3lib.html import remove_tags, replace_escape_chars
-from converter.spiders.lom_base import LomBase
-from converter.spiders.json_base import JSONBase
+from .base_classes import LomBase, JSONBase
 import json
-import time
+
 
 # spider for GeoGebra
 class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):

@@ -1,13 +1,8 @@
-from scrapy.spiders import CrawlSpider
 from converter.items import *
-import time
-from w3lib.html import remove_tags, replace_escape_chars
-from converter.spiders.lom_base import LomBase
-from converter.spiders.json_base import JSONBase
+from .base_classes import LomBase, JSONBase
 import json
 import logging
 from html.parser import HTMLParser
-from converter.pipelines import ProcessValuespacePipeline
 import re
 from converter.constants import Constants
 

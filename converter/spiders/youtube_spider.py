@@ -8,13 +8,12 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from overrides import overrides
 from scrapy.http import Request, Response
-from scrapy.loader import ItemLoader
 from scrapy.spiders import Spider
 
 import converter.env as env
 import converter.items as items
 from converter.constants import Constants
-from converter.spiders.lom_base import LomBase
+from .base_classes import LomBase
 
 # TODO: Find suitable target field for channel/playlist information:
 #   - Title (channel title included as organization in lifecycle-author)

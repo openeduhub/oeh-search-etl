@@ -3,10 +3,9 @@ import sys
 
 import requests
 
-from converter.spiders.lom_base import LomBase, LomAgeRangeItemLoader
+from .lom_base import LomBase, LomAgeRangeItemLoader
 from scrapy.http import JsonRequest
 from scrapy.spiders import Spider
-import scrapy
 import json
 import vobject
 from converter.es_connector import EduSharingConstants

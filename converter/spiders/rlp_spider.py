@@ -1,6 +1,4 @@
-from converter.spiders.lrmi_base import LrmiBase
-from converter.spiders.oai_base import OAIBase
-from scrapy.spiders import SitemapSpider
+from .base_classes import OAIBase
 
 
 class RLPSpider(OAIBase):

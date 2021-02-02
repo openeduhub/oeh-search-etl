@@ -1,14 +1,8 @@
 from scrapy import Request
 
-from converter.items import *
-from scrapy.spiders import CrawlSpider, SitemapSpider, Rule
+from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
-import time
-from w3lib.html import remove_tags, replace_escape_chars
-from converter.spiders.lom_base import LomBase
-from converter.spiders.lrmi_base import LrmiBase
-from converter.constants import Constants
-import json
+from .base_classes import LrmiBase
 from typing import List
 
 

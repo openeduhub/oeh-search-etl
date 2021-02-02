@@ -1,8 +1,5 @@
-from converter.items import *
-from datetime import datetime
-from w3lib.html import remove_tags, replace_escape_chars
-from converter.spiders.lom_base import LomBase
-from converter.spiders.json_base import JSONBase
+from .lom_base import LomBase
+from .json_base import JSONBase
 import json
 import time
 import html

@@ -1,17 +1,15 @@
 import csv
 import hashlib
-import re
 from abc import ABCMeta, abstractmethod
 from io import StringIO
 from typing import List
 
 import converter.items as items
-from converter.spiders.lom_base import LomBase
+from .lom_base import LomBase
 from overrides import overrides
 from scrapy.http import Request, Response
 from scrapy.http.response.text import TextResponse
 from scrapy.spiders import Spider
-from typing import Callable
 
 
 class LernprogrammeSpiderBase(Spider, metaclass=ABCMeta):

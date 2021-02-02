@@ -1,10 +1,6 @@
-from converter.spiders.lom_base import LomBase
-from converter.spiders.oai_base import OAIBase
-from converter.spiders.csv_base import CSVBase
+from spiders.base_classes import LomBase, CSVBase
+
 from converter.constants import *
-import csv
-from scrapy.spiders import Spider
-import logging
 from io import StringIO
 from scrapy import *
 import csv
