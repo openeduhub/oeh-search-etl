@@ -1,0 +1,3 @@
+from typing import Any
+
+def urlparse_cached(request_or_response: Any): ...

@@ -1,0 +1,9 @@
+from scrapy.http.headers import Headers as Headers
+from scrapy.http.request import Request as Request
+from scrapy.http.request.form import FormRequest as FormRequest
+from scrapy.http.request.json_request import JsonRequest as JsonRequest
+from scrapy.http.request.rpc import XmlRpcRequest as XmlRpcRequest
+from scrapy.http.response import Response as Response
+from scrapy.http.response.html import HtmlResponse as HtmlResponse
+from scrapy.http.response.text import TextResponse as TextResponse
+from scrapy.http.response.xml import XmlResponse as XmlResponse

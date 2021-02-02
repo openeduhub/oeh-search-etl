@@ -1,0 +1,9 @@
+import itemloaders
+from scrapy.item import Item as Item
+from scrapy.selector import Selector as Selector
+from typing import Any, Optional
+
+class ItemLoader(itemloaders.ItemLoader):
+    default_item_class: Any = ...
+    default_selector_class: Any = ...
+    def __init__(self, item: Optional[Any] = ..., selector: Optional[Any] = ..., response: Optional[Any] = ..., parent: Optional[Any] = ..., **context: Any) -> None: ...
