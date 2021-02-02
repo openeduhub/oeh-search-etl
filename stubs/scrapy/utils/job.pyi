@@ -1,0 +1,3 @@
+from typing import Any
+
+def job_dir(settings: Any): ...
