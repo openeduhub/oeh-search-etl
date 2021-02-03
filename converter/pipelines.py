@@ -333,6 +333,7 @@ class JSONStorePipeline(object):
                 # "thumbnail",
             ],
             encoding='utf-8',
+            indent=2,
             ensure_ascii=False)
         self.exporter.start_exporting()
 
