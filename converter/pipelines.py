@@ -222,13 +222,15 @@ class ProcessThumbnailPipeline:
                     },
                 )
             else:
-                logging.warning(
-                    "No thumbnail provided and SPLASH_URL was not configured for screenshots!"
-                )
+                if settings.get("DISABLE_SPLASH") is False:
+                    logging.warning(
+                        "No thumbnail provided and SPLASH_URL was not configured for screenshots!"
+                    )
         if response == None:
-            logging.error(
-                "Neither thumbnail or technical.location (and technical.format) provided! Please provide at least one of them"
-            )
+            if settings.get("DISABLE_SPLASH") is False:
+                logging.error(
+                    "Neither thumbnail or technical.location (and technical.format) provided! Please provide at least one of them"
+                )
         else:
             try:
                 if response.headers["Content-Type"] == "image/svg+xml":
