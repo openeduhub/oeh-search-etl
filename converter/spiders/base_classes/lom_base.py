@@ -1,6 +1,6 @@
 import json
 
-from converter.MethodPerformanceTracing import MethodPerformanceTracing
+# from converter.MethodPerformanceTracing import MethodPerformanceTracing
 from converter.items import *
 from pprint import pprint
 import logging
@@ -12,7 +12,7 @@ from scrapy.utils.project import get_project_settings
 from converter.es_connector import EduSharing
 import time
 
-class LomBase(MethodPerformanceTracing):
+class LomBase:
     friendlyName = "LOM Based spider"
     ranking = 1
     version = (
@@ -82,14 +82,14 @@ class LomBase(MethodPerformanceTracing):
         return True
 
     def parse(self, response):
-        if self.shouldImport(response) == False:
+        if self.shouldImport(response) is False:
             logging.info(
                 "Skipping entry "
                 + str(self.getId(response))
                 + " because shouldImport() returned false"
             )
             return None
-        if self.getId(response) != None and self.getHash(response) != None:
+        if self.getId(response) is not None and self.getHash(response) is not None:
             if not self.hasChanged(response):
                 return None
         main = self.getBase(response)

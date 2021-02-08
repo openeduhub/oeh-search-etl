@@ -1,8 +1,9 @@
 from converter.items import *
-from spiders.base_classes import LomBase, JSONBase
+from .base_classes import LomBase, JSONBase
 import json
 from converter.constants import Constants
 from scrapy.selector import Selector
+import scrapy
 
 # Spider to fetch API from Serlo
 class TutorySpider(scrapy.Spider, LomBase, JSONBase):

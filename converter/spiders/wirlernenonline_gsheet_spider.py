@@ -1,4 +1,4 @@
-from spiders.base_classes import LomBase, CSVBase
+from .base_classes import LomBase, CSVBase
 
 from converter.constants import *
 from io import StringIO

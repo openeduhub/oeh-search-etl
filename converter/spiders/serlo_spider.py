@@ -5,6 +5,7 @@ import logging
 from html.parser import HTMLParser
 import re
 from converter.constants import Constants
+import scrapy
 
 # Spider to fetch API from Serlo
 class SerloSpider(scrapy.Spider, LomBase, JSONBase):

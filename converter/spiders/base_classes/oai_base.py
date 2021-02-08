@@ -2,6 +2,7 @@ from converter.items import *
 from .lom_base import LomBase
 import logging
 import vobject
+import scrapy
 
 
 class OAIBase(scrapy.Spider, LomBase):

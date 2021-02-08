@@ -6,6 +6,7 @@ import logging
 import requests
 from html.parser import HTMLParser
 from converter.constants import *
+import scrapy
 
 # Spider to fetch RSS from planet schule
 class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):

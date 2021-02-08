@@ -44,7 +44,7 @@ class LOMFillupPipeline:
 class FilterSparsePipeline:
     def process_item(self, item, spider):
         valid = False
-        if not "location" in item["lom"]["technical"]:
+        if "location" not in item["lom"]["technical"]:
             raise DropItem(
                 "Entry "
                 + item["lom"]["general"]["title"]
@@ -291,7 +291,7 @@ class ProcessThumbnailPipeline:
 
 class EduSharingCheckPipeline(EduSharing):
     def process_item(self, item, spider):
-        if not "hash" in item:
+        if "hash" not in item:
             logging.error(
                 "The spider did not provide a hash on the base object. The hash is required to detect changes on an element. May use the last modified date or something similar"
             )
