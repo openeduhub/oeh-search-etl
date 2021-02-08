@@ -9,16 +9,16 @@ from .lom_base import LomBase
 from overrides import overrides
 from scrapy.http import Request, Response
 from scrapy.http.response.text import TextResponse
-from scrapy.spiders import Spider
 
 
-class LernprogrammeSpiderBase(Spider, metaclass=ABCMeta):
+class LernprogrammeSpiderBase(metaclass=ABCMeta):
     version = "0.1.0"
 
+    @classmethod
     @property
     @abstractmethod
-    def name(self):
-        pass
+    def name(cls) -> str:
+        return ""
 
     @property
     @abstractmethod
