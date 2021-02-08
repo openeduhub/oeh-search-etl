@@ -192,7 +192,8 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
             | extra data: {extra}
             """)
             return None
-        return self.parse(self, response)
+
+        return super().parse(response)
 
     def getId(self, response=None):
         data = json.loads(response.body)
