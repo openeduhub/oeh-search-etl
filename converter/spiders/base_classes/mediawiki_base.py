@@ -80,6 +80,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
     url = "https://unterrichten.zum.de/"
     friendlyName = "ZUM-Unterrichten"
     version = "0.1.0"
+    license = Constants.LICENSE_CC_BY_SA_40
 
     _default_params = {
         'format': 'json',
@@ -232,7 +233,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
 
     def getLicense(self, response=None) -> LicenseItemLoader:
         loader = super().getLicense(response)
-        loader.add_value('url', Constants.LICENSE_CC_BY_SA_40)
+        loader.add_value('url', self.license)
         return loader
 
     def getLOMTechnical(self, response=None) -> LomTechnicalItemLoader:

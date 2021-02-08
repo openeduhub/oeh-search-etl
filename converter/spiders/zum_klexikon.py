@@ -2,12 +2,15 @@ from converter.items import LomTechnicalItem, LicenseItem, LomGeneralItem, Value
 from .base_classes import MediaWikiBase
 import scrapy
 
+from ..constants import Constants
+
 
 class ZUMSpider(MediaWikiBase, scrapy.Spider):
     name = "zum_klexikon_spider"
     friendlyName = "ZUM-Klexikon"
     url = "https://klexikon.zum.de/"
     version = "0.1.0"
+    license = Constants.LICENSE_CC_BY_SA_30
 
     def technical_item(self, response=None) -> LomTechnicalItem:
         """
