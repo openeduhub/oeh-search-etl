@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import scrapy
 
+from converter.constants import Constants
 from converter.items import LicenseItem, LomTechnicalItem, ValuespaceItem, LomGeneralItem
 from converter.spiders.base_classes import MediaWikiBase
 
@@ -11,6 +12,7 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
     friendlyName = "ZUM-Unterrichten"
     url = "https://unterrichten.zum.de/"
     version = "0.1.0"
+    license = Constants.LICENSE_CC_BY_SA_40
 
     def technical_item(self, response=None) -> LomTechnicalItem:
         """
