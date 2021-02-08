@@ -1,0 +1,77 @@
+[project]
+description = "crawls educational sites for use in wirlernenonline.de"
+authors = [
+    "torsten simon <doesnotexist@example.com>"
+]
+maintainers = [
+
+]
+license = "Proprietary"
+readme = "README.md"
+python = "^3.9"
+homepage = "https://github.com/openeduhub/oeh-search-etl"
+repository = "https://github.com/openeduhub/oeh-search-etl"
+documentation = "https://github.com/openeduhub/oeh-search-etl"
+
+keywords = ["metadata", "oer", "crawl", " wirlernenonline"]
+
+classifiers = [
+    "Framework :: Scrapy",
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Education :: Testing",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+]
+
+# Requirements
+[dependencies]
+Click = "^7.0"
+
+[dev-dependencies]
+black = { version = "^18.3-alpha.0", python = "^3.6" }
+
+[scripts]
+poetry = "infer_pyproject.cli:main"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+exclude = '''
+
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | \venv
+    | _build
+    | build
+    | dist
+  )/
+  | foo.py           # also separately exclude a file named foo.py in
+                     # the root of the project
+)
+'''
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py39
+skipsdist=True
+
+[testenv]
+deps =
+    pytest
+    flake8
+
+commands =
+    scrapy check
+"""
