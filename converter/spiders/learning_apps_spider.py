@@ -5,7 +5,7 @@ from converter import items
 from converter.items import *
 from .base_classes import LomBase
 from html.parser import HTMLParser
-
+import scrapy
 
 class LearningAppsSpider(scrapy.Spider, LomBase):
     name = "learning_apps_spider"

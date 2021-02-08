@@ -3,7 +3,7 @@ from .base_classes import LomBase, JSONBase
 import json
 import requests
 from converter.constants import *
-
+import scrapy
 # Spider to fetch RSS from planet schule
 class SeguSpider(scrapy.Spider, LomBase, JSONBase):
     name = "segu_spider"

@@ -4,6 +4,7 @@ from converter.valuespace_helper import Valuespaces
 import requests
 from html.parser import HTMLParser
 from converter.constants import Constants
+import scrapy
 
 # LEIFIphysik spider for xml data file
 class LeifiSpider(scrapy.Spider, LomBase):

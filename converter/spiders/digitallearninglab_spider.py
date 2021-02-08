@@ -5,6 +5,7 @@ import json
 from html.parser import HTMLParser
 from converter.valuespace_helper import ValuespaceHelper
 from converter.constants import Constants
+import scrapy
 
 # Spider to fetch RSS from planet schule
 class DigitallearninglabSpider(scrapy.Spider, LrmiBase):

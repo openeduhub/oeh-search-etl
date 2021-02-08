@@ -4,7 +4,7 @@ from scrapy.spiders import CrawlSpider
 from converter.items import *
 from .base_classes import LomBase
 from converter.constants import *
-
+import scrapy
 
 class MediothekPixiothekSpider(CrawlSpider, LomBase):
     """

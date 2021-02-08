@@ -5,6 +5,7 @@ from lxml import etree
 from scrapy.spiders import CrawlSpider
 from converter.items import *
 from .base_classes import LomBase
+import scrapy
 
 
 class MerlinSpider(CrawlSpider, LomBase):
