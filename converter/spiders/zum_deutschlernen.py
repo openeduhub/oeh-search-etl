@@ -1,3 +1,5 @@
+import json
+
 from converter.items import LomTechnicalItem, LicenseItem, LomGeneralItem, ValuespaceItem
 from .base_classes import MediaWikiBase
 import scrapy
@@ -12,11 +14,19 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
     version = "0.1.0"
     license = Constants.LICENSE_CC_BY_40
 
+    def parse_page_query(self, response: scrapy.http.Response):
+        """
+        @url https://deutsch-lernen.zum.de/api.php?format=json&action=query&list=allpages&aplimit=100&apfilterredir=nonredirects
+        @returns requests 101 101
+        """
+        yield from super().parse_page_query(response)
+
     def technical_item(self, response=None) -> LomTechnicalItem:
         """
         @url https://deutsch-lernen.zum.de/api.php?format=json&action=parse&pageid=477&prop=text|categories|links|sections|revid|iwlinks|properties
         @scrapes format location
         """
+        response.meta['item'] = json.loads(response.body)
         return self.getLOMTechnical(response).load_item()
 
     def license_item(self, response) -> LicenseItem:
@@ -24,6 +34,7 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
         @url https://deutsch-lernen.zum.de/api.php?format=json&action=parse&pageid=477&prop=text|categories|links|sections|revid|iwlinks|properties
         @scrapes url
         """
+        response.meta['item'] = json.loads(response.body)
         return self.getLicense(response).load_item()
 
     def general_item(self, response=None) -> LomGeneralItem:
@@ -31,6 +42,7 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
         @url https://deutsch-lernen.zum.de/api.php?format=json&action=parse&pageid=477&prop=text|categories|links|sections|revid|iwlinks|properties
         @scrapes title keyword description
         """
+        response.meta['item'] = json.loads(response.body)
         return self.getLOMGeneral(response).load_item()
 
     def valuespace_item(self, response) -> ValuespaceItem:
@@ -38,4 +50,5 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
         @url https://deutsch-lernen.zum.de/api.php?format=json&action=parse&pageid=477&prop=text|categories|links|sections|revid|iwlinks|properties
         @scrapes discipline educationalContext intendedEndUserRole
         """
+        response.meta['item'] = json.loads(response.body)
         return self.getValuespaces(response).load_item()
