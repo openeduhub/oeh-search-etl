@@ -1,80 +1,147 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+import base64
 # Define your item pipelines here
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 import csv
-
+import io
+import logging
+import time
+from io import BytesIO
+from typing import BinaryIO, TextIO, Optional
+from abc import ABCMeta
+import dateutil.parser
+import requests
+from PIL import Image
+import scrapy
+import scrapy.crawler
 from scrapy.exceptions import DropItem
+from scrapy.exporters import JsonItemExporter
+from scrapy.utils.project import get_project_settings
 
 from converter import env
 from converter.constants import *
-import json
-import re
-from w3lib.html import replace_escape_chars
-from scrapy.exporters import JsonItemExporter
-import io
-from datetime import date
-import time
-import dateutil.parser
-import logging
-from pprint import pprint
-from PIL import Image
-from io import BytesIO
-import requests
-import urllib
-import base64
-import html2text
-import scrapy
-import sys
-import uuid
-from valuespace_converter.app.valuespaces import Valuespaces
-from scrapy.utils.project import get_project_settings
 from converter.es_connector import EduSharing
+from valuespace_converter.app.valuespaces import Valuespaces
 
-# fillup missing props by "guessing" or loading them if possible
-class LOMFillupPipeline:
+log = logging.getLogger(__name__)
+
+
+class BasicPipeline(metaclass=ABCMeta):
+    def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        """
+        This method is called for every item pipeline component.
+
+        `item` is an :ref:`item object <item-types>`, see
+        :ref:`supporting-item-types`.
+
+        :meth:`process_item` must either: return an :ref:`item object <item-types>`,
+        return a :class:`~twisted.internet.defer.Deferred` or raise a
+        :exc:`~scrapy.exceptions.DropItem` exception.
+
+        Dropped items are no longer processed by further pipeline components.
+
+        :param item: the scraped item
+        :type item: :ref:`item object <item-types>`
+
+        :param spider: the spider which scraped the item
+        :type spider: :class:`~scrapy.spiders.Spider` object
+        """
+        return item
+
+
+class PipelineWithPerSpiderMethods(metaclass=ABCMeta):
+    def open_spider(self, spider: scrapy.Spider) -> None:
+        """
+        This method is called when the spider is opened.
+        :param spider: the spider which was opened
+        """
+        pass
+
+    def close_spider(self, spider: scrapy.Spider) -> None:
+        """
+        This method is called when the spider is closed.
+
+        :param spider: the spider which was closed
+        :type spider: :class:`~scrapy.spiders.Spider` object
+        """
+        pass
+
+
+class PipelineWithFactoryMethod(metaclass=ABCMeta):
+    @classmethod
+    def from_crawler(cls, crawler: scrapy.crawler.Crawler) -> 'PipelineWithFactoryMethod':
+        """
+        If present, this classmethod is called to create a pipeline instance
+        from a :class:`~scrapy.crawler.Crawler`. It must return a new instance
+        of the pipeline. Crawler object provides access to all Scrapy core
+        components like settings and signals; it is a way for pipeline to
+        access them and hook its functionality into Scrapy.
+
+        :param crawler: crawler that uses this pipeline
+        :type crawler: :class:`~scrapy.crawler.Crawler` object
+        """
+        return cls()
+
+
+class LOMFillupPipeline(BasicPipeline):
+    """
+    fillup missing props by "guessing" or loading them if possible
+    """
     def process_item(self, item, spider):
-        if not "fulltext" in item and "text" in item["response"]:
+        if "fulltext" not in item and "text" in item["response"]:
             item["fulltext"] = item["response"]["text"]
         return item
 
 
-class FilterSparsePipeline:
+class FilterSparsePipeline(BasicPipeline):
     def process_item(self, item, spider):
-        valid = False
-        if "location" not in item["lom"]["technical"]:
-            raise DropItem(
-                "Entry "
-                + item["lom"]["general"]["title"]
-                + " has no technical location"
-            )
+        try:
+            if "location" not in item["lom"]["technical"]:
+                raise DropItem(
+                    "Entry "
+                    + item["lom"]["general"]["title"]
+                    + " has no technical location"
+                )
+        except KeyError:
+            raise DropItem(f'Item {item} has no lom.technical.location')
         # pass through explicit uuid elements
         if "uuid" in item:
             return item
         try:
-            valid = item["lom"]["general"]["keyword"]
-        except:
+            # if it contains keywords, it's valid
+            if _ := item["lom"]["general"]["keyword"]:
+                return item
+        except KeyError:
             pass
         try:
-            valid = valid or item["lom"]["general"]["description"]
-        except:
+            # if it has a description, it's valid
+            if _ := item["lom"]["general"]["description"]:
+                return item
+        except KeyError:
             pass
         try:
-            valid = valid or item["valuespaces"]["learningResourceType"]
-        except:
+            # if it the valuespaces.learningResourceType is set, it is valid
+            if _ := item["valuespaces"]["learningResourceType"]:
+                return item
+        except KeyError:
             pass
-        if not valid:
+        # if none of the above matches drop the item
+
+        try:
             raise DropItem(
                 "Entry "
                 + item["lom"]["general"]["title"]
                 + " has neither keywords nor description"
             )
-        return item
+        except KeyError:
+            raise DropItem(f'Item {item} was dropped for not providing enough metadata')
 
 
-class NormLicensePipeline:
+class NormLicensePipeline(BasicPipeline):
     def process_item(self, item, spider):
         if "url" in item["license"] and not item["license"]["url"] in Constants.VALID_LICENSE_URLS:
             for key in Constants.LICENSE_MAPPINGS:
@@ -82,8 +149,8 @@ class NormLicensePipeline:
                     item["license"]["url"] = Constants.LICENSE_MAPPINGS[key]
                     break
         if "internal" in item["license"] and (
-            not "url" in item["license"]
-            or not item["license"]["url"] in Constants.VALID_LICENSE_URLS
+                "url" not in item["license"]
+                or item["license"]["url"] not in Constants.VALID_LICENSE_URLS
         ):
             for key in Constants.LICENSE_MAPPINGS_INTERNAL:
                 if item["license"]["internal"].casefold() == key.casefold():
@@ -91,25 +158,27 @@ class NormLicensePipeline:
                     item["license"]["url"] = Constants.LICENSE_MAPPINGS_INTERNAL[key][0]
                     break
 
-        if "url" in item["license"] and not "oer" in item["license"]:
+        if "url" in item["license"] and "oer" not in item["license"]:
             if (
-                item["license"]["url"] == Constants.LICENSE_CC_BY_40
-                or item["license"]["url"] == Constants.LICENSE_CC_BY_30
-                or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_30
-                or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_40
-                or item["license"]["url"] == Constants.LICENSE_CC_ZERO_10
+                    item["license"]["url"] == Constants.LICENSE_CC_BY_40
+                    or item["license"]["url"] == Constants.LICENSE_CC_BY_30
+                    or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_30
+                    or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_40
+                    or item["license"]["url"] == Constants.LICENSE_CC_ZERO_10
             ):
                 item["license"]["oer"] = OerType.ALL
 
-        if "internal" in item["license"] and not "oer" in item["license"]:
+        if "internal" in item["license"] and "oer" not in item["license"]:
             internal = item["license"]["internal"].lower()
             if "cc-by-sa" in internal or "cc-0" in internal or "pdm" in internal:
                 item["license"]["oer"] = OerType.ALL
         return item
 
 
-# convert typicalLearningTime into a integer representing seconds
-class ConvertTimePipeline:
+class ConvertTimePipeline(BasicPipeline):
+    """
+    convert typicalLearningTime into a integer representing seconds
+    """
     def process_item(self, item, spider):
         # map lastModified
         if "lastModified" in item:
@@ -120,36 +189,36 @@ class ConvertTimePipeline:
                     date = dateutil.parser.parse(item["lastModified"])
                     item["lastModified"] = int(date.timestamp())
                 except:
-                    logging.warn(
+                    log.warning(
                         "Unable to parse given lastModified date "
                         + item["lastModified"]
                     )
                     del item["lastModified"]
 
         if "typicalLearningTime" in item["lom"]["educational"]:
-            time = item["lom"]["educational"]["typicalLearningTime"]
+            t = item["lom"]["educational"]["typicalLearningTime"]
             mapped = None
-            splitted = time.split(":")
+            splitted = t.split(":")
             if len(splitted) == 3:
                 mapped = (
-                    int(splitted[0]) * 60 * 60
-                    + int(splitted[1]) * 60
-                    + int(splitted[2])
+                        int(splitted[0]) * 60 * 60
+                        + int(splitted[1]) * 60
+                        + int(splitted[2])
                 )
-            if mapped == None:
-                logging.warn(
+            if mapped is None:
+                log.warning(
                     "Unable to map given typicalLearningTime "
-                    + time
+                    + t
                     + " to numeric value"
                 )
             item["lom"]["educational"]["typicalLearningTime"] = mapped
         return item
 
 
-# generate de_DE / i18n strings for valuespace fields
-class ProcessValuespacePipeline:
-    valuespaces = None
-
+class ProcessValuespacePipeline(BasicPipeline):
+    """
+    generate de_DE / i18n strings for valuespace fields
+    """
     def __init__(self):
         self.valuespaces = Valuespaces()
 
@@ -160,7 +229,7 @@ class ProcessValuespacePipeline:
             # remap to new i18n layout
             mapped = []
             for entry in json[key]:
-                id = {}
+                _id = {}
                 valuespace = self.valuespaces.data[key]
                 found = False
                 for v in valuespace:
@@ -171,11 +240,11 @@ class ProcessValuespacePipeline:
                         )
                     labels = list(map(lambda x: x.casefold(), labels))
                     if v["id"].endswith(entry) or entry.casefold() in labels:
-                        id = v["id"]
+                        _id = v["id"]
                         found = True
                         break
-                if found and len(list(filter(lambda x: x == id, mapped))) == 0:
-                    mapped.append(id)
+                if found and len(list(filter(lambda x: x == _id, mapped))) == 0:
+                    mapped.append(_id)
             if len(mapped):
                 json[key] = mapped
             else:
@@ -186,12 +255,16 @@ class ProcessValuespacePipeline:
         return item
 
 
-# generate thumbnails
-class ProcessThumbnailPipeline:
-    def scaleImage(self, img, maxSize):
+class ProcessThumbnailPipeline(BasicPipeline):
+    """
+    generate thumbnails
+    """
+
+    @staticmethod
+    def scale_image(img, max_size):
         w = float(img.width)
         h = float(img.height)
-        while w * h > maxSize:
+        while w * h > max_size:
             w *= 0.9
             h *= 0.9
         return img.resize((int(w), int(h)), Image.ANTIALIAS).convert("RGB")
@@ -203,13 +276,13 @@ class ProcessThumbnailPipeline:
         if "thumbnail" in item:
             url = item["thumbnail"]
             response = requests.get(url)
-            logging.debug(
+            log.debug(
                 "Loading thumbnail took " + str(response.elapsed.total_seconds()) + "s"
             )
         elif (
-            "location" in item["lom"]["technical"]
-            and "format" in item["lom"]["technical"]
-            and item["lom"]["technical"]["format"] == "text/html"
+                "location" in item["lom"]["technical"]
+                and "format" in item["lom"]["technical"]
+                and item["lom"]["technical"]["format"] == "text/html"
         ):
             if settings.get("SPLASH_URL"):
                 response = requests.post(
@@ -223,12 +296,12 @@ class ProcessThumbnailPipeline:
                 )
             else:
                 if settings.get("DISABLE_SPLASH") is False:
-                    logging.warning(
+                    log.warning(
                         "No thumbnail provided and SPLASH_URL was not configured for screenshots!"
                     )
-        if response == None:
+        if response is None:
             if settings.get("DISABLE_SPLASH") is False:
-                logging.error(
+                log.error(
                     "Neither thumbnail or technical.location (and technical.format) provided! Please provide at least one of them"
                 )
         else:
@@ -250,14 +323,14 @@ class ProcessThumbnailPipeline:
                 else:
                     img = Image.open(BytesIO(response.content))
                     small = BytesIO()
-                    self.scaleImage(img, settings.get("THUMBNAIL_SMALL_SIZE")).save(
+                    self.scale_image(img, settings.get("THUMBNAIL_SMALL_SIZE")).save(
                         small,
                         "JPEG",
                         mode="RGB",
                         quality=settings.get("THUMBNAIL_SMALL_QUALITY"),
                     )
                     large = BytesIO()
-                    self.scaleImage(img, settings.get("THUMBNAIL_LARGE_SIZE")).save(
+                    self.scale_image(img, settings.get("THUMBNAIL_LARGE_SIZE")).save(
                         large,
                         "JPEG",
                         mode="RGB",
@@ -273,7 +346,7 @@ class ProcessThumbnailPipeline:
                     ).decode()
             except Exception as e:
                 if url is not None:
-                    logging.warn(
+                    log.warning(
                         "Could not read thumbnail at "
                         + url
                         + ": "
@@ -291,25 +364,25 @@ class ProcessThumbnailPipeline:
         return item
 
 
-class EduSharingCheckPipeline(EduSharing):
+class EduSharingCheckPipeline(EduSharing, BasicPipeline):
     def process_item(self, item, spider):
         if "hash" not in item:
-            logging.error(
+            log.error(
                 "The spider did not provide a hash on the base object. The hash is required to detect changes on an element. May use the last modified date or something similar"
             )
             item["hash"] = time.time()
 
         # @TODO: May this can be done only once?
-        if self.findSource(spider) == None:
-            logging.info("create new source " + spider.name)
+        if self.findSource(spider) is None:
+            log.info("create new source " + spider.name)
             self.createSource(spider)
 
-        dbItem = self.findItem(item["sourceId"], spider)
-        if dbItem:
-            if item["hash"] != dbItem[1]:
-                logging.debug("hash has changed, continuing pipelines")
+        db_item = self.findItem(item["sourceId"], spider)
+        if db_item:
+            if item["hash"] != db_item[1]:
+                log.debug("hash has changed, continuing pipelines")
             else:
-                logging.debug("hash unchanged, skip item")
+                log.debug("hash unchanged, skip item")
                 # self.update(item['sourceId'], spider)
                 # for tests, we update everything for now
                 # activate this later
@@ -317,11 +390,16 @@ class EduSharingCheckPipeline(EduSharing):
         return item
 
 
-class JSONStorePipeline(object):
+class JSONStorePipeline(BasicPipeline, PipelineWithPerSpiderMethods):
+    def __init__(self):
+        self.files: dict[str, BinaryIO] = {}
+        self.exporters: dict[str, JsonItemExporter] = {}
+
     def open_spider(self, spider):
-        self.file = open("output_" + spider.name + ".json", 'wb')
-        self.exporter = JsonItemExporter(
-            self.file,
+        file = open(f'output_{spider.name}.json', 'wb')
+        self.files[spider.name] = file
+        exporter = JsonItemExporter(
+            file,
             fields_to_export=[
                 "sourceId",
                 "lom",
@@ -337,28 +415,40 @@ class JSONStorePipeline(object):
             encoding='utf-8',
             indent=2,
             ensure_ascii=False)
-        self.exporter.start_exporting()
+        self.exporters[spider.name] = exporter
+        exporter.start_exporting()
 
     def close_spider(self, spider):
-        self.exporter.finish_exporting()
-        self.file.close()
+        self.exporters[spider.name].finish_exporting()
+        self.files[spider.name].close()
 
     def process_item(self, item, spider):
-        self.exporter.export_item(item)
+        self.exporters[spider.name].export_item(item)
         return item
 
 
-class CSVStorePipeline():
+class CSVStorePipeline(BasicPipeline, PipelineWithPerSpiderMethods):
     rows = []
-    def open_spider(self, spider):
-        self.csvFile = open('output_'+spider.name+'.csv', 'w', newline='')
-        self.spamwriter = csv.writer(self.csvFile, delimiter=',',
-                                quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        self.rows = env.get("CSV_ROWS", allow_null = False).split(",")
-        print(self.rows)
-        self.spamwriter.writerow(self.rows)
 
-    def getValue(self, item, value):
+    def __init__(self):
+        self.files: dict[str, TextIO] = {}
+        self.exporters: dict[str, csv.writer] = {}
+        CSVStorePipeline.rows = env.get("CSV_ROWS", allow_null=False).split(",")
+
+    def open_spider(self, spider):
+        csv_file = open('output_' + spider.name + '.csv', 'w', newline='')
+        spamwriter = csv.writer(
+            csv_file,
+            delimiter=',',
+            quotechar='"',
+            quoting=csv.QUOTE_MINIMAL)
+
+        spamwriter.writerow(self.rows)
+        self.files[spider.name] = csv_file
+        self.exporters[spider.name] = spamwriter
+
+    @staticmethod
+    def get_value(item, value):
         container = item
         tokens = value.split('.')
         for v in tokens:
@@ -371,13 +461,20 @@ class CSVStorePipeline():
         return container
 
     def close_spider(self, spider):
-        self.csvFile.close()
+        # exporter closes automatically?
+        self.files[spider.name].close()
+
     def process_item(self, item, spider):
-        self.spamwriter.writerow(list(map(lambda x:self.getValue(item, x), self.rows)))
-        self.csvFile.flush()
+        self.exporters[spider.name].writerow(list(map(lambda x: self.get_value(item, x), self.rows)))
+        self.files[spider.name].flush()
         return item
 
-class EduSharingStorePipeline(EduSharing):
+
+class EduSharingStorePipeline(EduSharing, BasicPipeline):
+    def __init__(self):
+        super().__init__()
+        self.counter = 0
+
     def process_item(self, item, spider):
         output = io.BytesIO()
         exporter = JsonItemExporter(
@@ -436,7 +533,7 @@ class EduSharingStorePipeline(EduSharing):
         return item
 
 
-class DummyPipeline:
+class DummyPipeline(BasicPipeline):
     # Scrapy will print the item on log level DEBUG anyway
 
     # class Printer:
@@ -473,6 +570,6 @@ class DummyPipeline:
     #     self.exporter.finish_exporting()
 
     def process_item(self, item, spider):
-        logging.info("DRY RUN scraped {}".format(item["response"]["url"]))
+        log.info("DRY RUN scraped {}".format(item["response"]["url"]))
         # self.exporter.export_item(item)
         return item
