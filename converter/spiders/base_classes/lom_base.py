@@ -1,18 +1,17 @@
 import json
-
-# from converter.MethodPerformanceTracing import MethodPerformanceTracing
-from converter.items import *
-from pprint import pprint
 import logging
-from converter.constants import Constants
-import requests
+
 import html2text
-import urllib
+import requests
 from scrapy.utils.project import get_project_settings
+
+from converter.constants import Constants
 from converter.es_connector import EduSharing
-import time
+from converter.items import *
+
 
 class LomBase:
+    name = None
     friendlyName = "LOM Based spider"
     ranking = 1
     version = (
@@ -24,6 +23,8 @@ class LomBase:
     forceUpdate = False
 
     def __init__(self, **kwargs):
+        if self.name is None:
+            raise NotImplementedError(f'{self.__class__.__name__}.name is not defined on crawler')
         if "uuid" in kwargs:
             self.uuid = kwargs["uuid"]
         if "remoteId" in kwargs:
@@ -45,11 +46,11 @@ class LomBase:
 
     # override to improve performance and automatically handling id
     def getId(self, response=None) -> str:
-        return None
+        raise NotImplementedError(f'{self.__class__.__name__}.getId callback is not defined')
 
     # override to improve performance and automatically handling hash
     def getHash(self, response=None) -> str:
-        return None
+        raise NotImplementedError(f'{self.__class__.__name__}.getHash callback is not defined')
 
     # return the unique uri for the entry
     def getUri(self, response=None) -> str:
