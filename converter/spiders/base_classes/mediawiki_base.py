@@ -76,11 +76,11 @@ def _api_url(url) -> str:
 
 
 class MediaWikiBase(LomBase, metaclass=SpiderBase):
-    name = "mediawiki_base_spider"
-    url = "https://unterrichten.zum.de/"
-    friendlyName = "ZUM-Unterrichten"
-    version = "0.1.0"
-    license = Constants.LICENSE_CC_BY_SA_40
+    name = None
+    url = None
+    friendlyName = None
+    version = None
+    license = None
 
     _default_params = {
         'format': 'json',
@@ -138,12 +138,10 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
         ])
     }
 
-    entryUrl = "https://unterrichten.zum.de/wiki/%page"
-    wikiUrl = f'{url}'
-    api_url = _api_url(url)
     keywords = {}
 
     def __init__(self, **kwargs):
+        self.api_url = _api_url(self.url)
         super().__init__(**kwargs)
 
     def start_requests(self):
@@ -186,6 +184,8 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
 
     def parse_page_data(self, response: scrapy.http.Response, extra=None):
         data = json.loads(response.body)
+        response.meta['item'] = data
+        response.meta['item_extra'] = extra
         if error := data.get('error', None):
             log.error(f"""
             | Wiki Error: {error}
@@ -197,15 +197,14 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
         return super().parse(response)
 
     def getId(self, response=None):
-        data = json.loads(response.body)
+        data = response.meta['item']
         return jmes_pageid.search(data)
 
     def getHash(self, response=None):
-        data = json.loads(response.body)
-        return str(jmes_revid.search(data)) + self.version
+        return str(jmes_revid.search(response.meta['item'])) + self.version
 
     def mapResponse(self, response, fetchData=True):
-        mr = super().mapResponse(response, fetchData)
+        mr = super().mapResponse(response, fetchData=False)
         data = json.loads(response.body)
         mr.replace_value('url', f'{self.url}wiki/{jmes_title.search(data)}')
         return mr
@@ -213,9 +212,9 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
     def getBase(self, response=None) -> BaseItemLoader:
         # r: ParseResponse = response.meta["item"]
         loader = super().getBase(response)
-        data = json.loads(response.body)
+        data = response.meta['item']
         # fulltext = r.parse.text
-        text = jmes_text.search(data)
+        text = jmes_text.search(response.meta['item'])
         if text is None:
             print('text of wikipage was empty:')
             print(f'{data}')
@@ -225,7 +224,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
     def getLOMGeneral(self, response=None) -> LomGeneralItemloader:
         # r: ParseResponse = response.meta["item"]
         loader = super().getLOMGeneral(response)
-        data = json.loads(response.body)
+        data = response.meta['item']
         loader.replace_value('title', jmes_title.search(data))
         loader.add_value('keyword', jmes_links.search(data))
         loader.add_value('description', jmes_description.search(data))
@@ -239,14 +238,14 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
     def getLOMTechnical(self, response=None) -> LomTechnicalItemLoader:
         loader = super().getLOMTechnical(response)
         loader.replace_value('format', 'text/html')
-        data = json.loads(response.body)
+        data = response.meta['item']
         title = jmes_title.search(data)
         loader.replace_value('location', f'{self.url}wiki/{title}')
         return loader
 
     def getValuespaces(self, response):
         loader = super().getValuespaces(response)
-        data = json.loads(response.body)
+        data = response.meta['item']
         categories = jmes_categories.search(data)  # ['Ethik', 'Sekundarstufe_1']
         if categories:
             loader.add_value("discipline", categories)
