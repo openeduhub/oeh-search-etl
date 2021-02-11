@@ -12,7 +12,7 @@ import converter.env as env
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 BOT_NAME = "converter_search_idx"
-
+TWISTED_REACTOR = 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
 SPIDER_MODULES = ["converter.spiders"]
 NEWSPIDER_MODULE = "converter.spiders"
 
@@ -102,7 +102,7 @@ EXTENSIONS = {
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 storeMode = env.get("MODE", default='edu-sharing')
 ITEM_PIPELINES = {
-    "converter.pipelines.EduSharingCheckPipeline": 0,
+    "converter.pipelines.EduSharingCheckAsyncPipeline": 0,
     "converter.pipelines.FilterSparsePipeline": 25,
     "converter.pipelines.LOMFillupPipeline": 100,
     "converter.pipelines.NormLicensePipeline": 125,
@@ -116,7 +116,7 @@ ITEM_PIPELINES = {
         if storeMode == 'csv'
         else "converter.pipelines.JSONStorePipeline"
         if storeMode == 'json'
-        else "converter.pipelines.EduSharingStorePipeline"
+        else "converter.pipelines.EduSharingStoreAsyncPipeline"
     ): 1000,
 }
 
