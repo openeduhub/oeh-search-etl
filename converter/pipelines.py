@@ -11,8 +11,8 @@ import io
 import logging
 import time
 from io import BytesIO
-from typing import BinaryIO, TextIO, Optional
-from abc import ABCMeta
+from typing import BinaryIO, TextIO, Optional, TypeVar
+from abc import ABCMeta, abstractmethod
 import dateutil.parser
 import requests
 from PIL import Image
@@ -25,12 +25,22 @@ from scrapy.utils.project import get_project_settings
 from converter import env
 from converter.constants import *
 from converter.es_connector import EduSharing
+from converter.es_connector_common import build_uuid
 from valuespace_converter.app.valuespaces import Valuespaces
+from converter.es_connector_async import AsyncEsApiClient
 
 log = logging.getLogger(__name__)
+T = TypeVar('T')
+
+
+class BasicAsyncPipeline(metaclass=ABCMeta):
+    @abstractmethod
+    async def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        pass
 
 
 class BasicPipeline(metaclass=ABCMeta):
+    @abstractmethod
     def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
         """
         This method is called for every item pipeline component.
@@ -50,10 +60,11 @@ class BasicPipeline(metaclass=ABCMeta):
         :param spider: the spider which scraped the item
         :type spider: :class:`~scrapy.spiders.Spider` object
         """
-        return item
+        pass
 
 
 class PipelineWithPerSpiderMethods(metaclass=ABCMeta):
+    @abstractmethod
     def open_spider(self, spider: scrapy.Spider) -> None:
         """
         This method is called when the spider is opened.
@@ -61,6 +72,7 @@ class PipelineWithPerSpiderMethods(metaclass=ABCMeta):
         """
         pass
 
+    @abstractmethod
     def close_spider(self, spider: scrapy.Spider) -> None:
         """
         This method is called when the spider is closed.
@@ -73,7 +85,8 @@ class PipelineWithPerSpiderMethods(metaclass=ABCMeta):
 
 class PipelineWithFactoryMethod(metaclass=ABCMeta):
     @classmethod
-    def from_crawler(cls, crawler: scrapy.crawler.Crawler) -> 'PipelineWithFactoryMethod':
+    @abstractmethod
+    def from_crawler(cls: T, crawler: scrapy.crawler.Crawler) -> T:
         """
         If present, this classmethod is called to create a pipeline instance
         from a :class:`~scrapy.crawler.Crawler`. It must return a new instance
@@ -85,6 +98,91 @@ class PipelineWithFactoryMethod(metaclass=ABCMeta):
         :type crawler: :class:`~scrapy.crawler.Crawler` object
         """
         return cls()
+
+
+class EduSharingCheckAsyncPipeline(BasicAsyncPipeline, PipelineWithFactoryMethod):
+    @classmethod
+    def from_crawler(cls: T, crawler: scrapy.crawler.Crawler) -> T:
+        client = AsyncEsApiClient.get_instance_blocking()
+        return cls(client)
+
+    def __init__(self, client: AsyncEsApiClient):
+        print('__init__ check')
+        self.client = client
+
+    async def process_item(self, item, spider):
+        if "hash" not in item:
+            log.error(
+                "The spider did not provide a hash on the base object. The hash is required to detect changes on an element. May use the last modified date or something similar"
+            )
+            item["hash"] = time.time()
+
+        db_item = await self.client.find_item(spider, item["sourceId"])
+        # db_item = self.findItem(item["sourceId"], spider)
+        if db_item:
+            if item["hash"] != db_item[1]:
+                log.debug("hash has changed, continuing pipelines")
+            else:
+                log.debug("hash unchanged, skip item")
+                # self.update(item['sourceId'], spider)
+                # for tests, we update everything for now
+                # activate this later
+                # raise DropItem()
+        return item
+
+
+class EduSharingStoreAsyncPipeline(BasicAsyncPipeline, PipelineWithFactoryMethod):
+    @classmethod
+    def from_crawler(cls: T, crawler: scrapy.crawler.Crawler) -> T:
+        client = AsyncEsApiClient.get_instance_blocking()
+        return cls(client)
+
+    def __init__(self, client: AsyncEsApiClient):
+        print('init store')
+        self.client = client
+
+    async def process_item(self, item, spider):
+        if 0 == self.counter % 50:
+            print('')
+        # self.exporter.export_item(item)
+        # title = "<no title>"
+        # if "title" in item["lom"]["general"]:
+        #     title = str(item["lom"]["general"]["title"])
+        entry_uuid = build_uuid(item["response"]["url"])
+        await self.client.insert_item(spider, entry_uuid, item)
+        log.info(f"item {entry_uuid} inserted/updated")
+        # @TODO: We may need to handle Collections
+        # if 'collection' in item:
+        #    for collection in item['collection']:
+        # if dbItem:
+        #     entryUUID = dbItem[0]
+        #     logging.info('Updating item ' + title + ' (' + entryUUID + ')')
+        #     self.curr.execute("""UPDATE "references_metadata" SET last_seen = now(), last_updated = now(), hash = %s, data = %s WHERE source = %s AND source_id = %s""", (
+        #         item['hash'], # hash
+        #         json,
+        #         spider.name,
+        #         str(item['sourceId']),
+        #     ))
+        # else:
+        #     entryUUID = self.buildUUID(item['response']['url'])
+        #     if 'uuid' in item:
+        #         entryUUID = item['uuid']
+        #     logging.info('Creating item ' + title + ' (' + entryUUID + ')')
+        #     if self.uuidExists(entryUUID):
+        #         logging.warn('Possible duplicate detected for ' + entryUUID)
+        #     else:
+        #         self.curr.execute("""INSERT INTO "references" VALUES (%s,true,now())""", (
+        #             entryUUID,
+        #         ))
+        #     self.curr.execute("""INSERT INTO "references_metadata" VALUES (%s,%s,%s,%s,now(),now(),%s)""", (
+        #         spider.name, # source name
+        #         str(item['sourceId']), # source item identifier
+        #         entryUUID,
+        #         item['hash'], # hash
+        #         json,
+        #     ))
+        # output.close()
+        return item
 
 
 class LOMFillupPipeline(BasicPipeline):
@@ -473,7 +571,6 @@ class CSVStorePipeline(BasicPipeline, PipelineWithPerSpiderMethods):
 class EduSharingStorePipeline(EduSharing, BasicPipeline):
     def __init__(self):
         super().__init__()
-        self.counter = 0
 
     def process_item(self, item, spider):
         output = io.BytesIO()
@@ -497,7 +594,7 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
             title = str(item["lom"]["general"]["title"])
         entryUUID = self.buildUUID(item["response"]["url"])
         self.insertItem(spider, entryUUID, item)
-        logging.info("item " + entryUUID + " inserted/updated")
+        log.info("item " + entryUUID + " inserted/updated")
 
         # @TODO: We may need to handle Collections
         # if 'collection' in item:
