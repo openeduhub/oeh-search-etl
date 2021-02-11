@@ -166,7 +166,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
             headers={"Accept": "application/json"},
         )
 
-    def parse_page_query(self, response: scrapy.http.Response):
+    async def parse_page_query(self, response: scrapy.http.Response):
         data = json.loads(response.body)
         pageids = jmes_pageids.search(data)
         for pageid in pageids:
@@ -182,7 +182,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
             return
         yield self.query_for_pages(jmes_continue.search(data))
 
-    def parse_page_data(self, response: scrapy.http.Response, extra=None):
+    async def parse_page_data(self, response: scrapy.http.Response, extra=None):
         data = json.loads(response.body)
         response.meta['item'] = data
         response.meta['item_extra'] = extra
@@ -195,6 +195,9 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
             return None
 
         return super().parse(response)
+
+    def hasChanged(self, response=None) -> bool:
+        return True
 
     def getId(self, response=None):
         data = response.meta['item']
