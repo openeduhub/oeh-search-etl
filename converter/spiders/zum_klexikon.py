@@ -15,7 +15,7 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
     version = "0.1.0"
     license = Constants.LICENSE_CC_BY_SA_30
 
-    def parse_page_query(self, response: scrapy.http.Response):
+    async def parse_page_query(self, response: scrapy.http.Response):
         """
         @url https://klexikon.zum.de/api.php?format=json&action=query&list=allpages&aplimit=100&apfilterredir=nonredirects
         @returns requests 101 101

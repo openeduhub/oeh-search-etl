@@ -14,12 +14,13 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
     version = "0.1.0"
     license = Constants.LICENSE_CC_BY_40
 
-    def parse_page_query(self, response: scrapy.http.Response):
+    async def parse_page_query(self, response: scrapy.http.Response):
         """
         @url https://deutsch-lernen.zum.de/api.php?format=json&action=query&list=allpages&aplimit=100&apfilterredir=nonredirects
         @returns requests 101 101
         """
-        yield from super().parse_page_query(response)
+        async for thing in super().parse_page_query(response):
+            yield thing
 
     def technical_item(self, response=None) -> LomTechnicalItem:
         """
