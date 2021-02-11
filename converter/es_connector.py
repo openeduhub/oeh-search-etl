@@ -330,14 +330,6 @@ class EduSharing:
                     header_name="Accept",
                     header_value="application/json",
                 )
-                configuration = Configuration()
-                configuration.host = settings.get("EDU_SHARING_BASE_URL") + "rest"
-                EduSharing.apiClient = ESApiClient(
-                    configuration,
-                    cookie=EduSharing.cookie,
-                    header_name="Accept",
-                    header_value="application/json",
-                )
                 EduSharing.bulkApi = BULKV1Api(EduSharing.apiClient)
                 EduSharing.iamApi = IAMV1Api(EduSharing.apiClient)
                 EduSharing.mediacenterApi = MEDIACENTERV1Api(EduSharing.apiClient)
