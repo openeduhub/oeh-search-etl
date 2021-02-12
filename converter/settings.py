@@ -102,13 +102,13 @@ EXTENSIONS = {
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 storeMode = env.get("MODE", default='edu-sharing')
 ITEM_PIPELINES = {
-    "converter.pipelines.EduSharingCheckAsyncPipeline": 0,
-    "converter.pipelines.FilterSparsePipeline": 25,
-    "converter.pipelines.LOMFillupPipeline": 100,
-    "converter.pipelines.NormLicensePipeline": 125,
-    "converter.pipelines.ConvertTimePipeline": 200,
-    "converter.pipelines.ProcessValuespacePipeline": 250,
-    "converter.pipelines.ProcessThumbnailPipeline": 300,
+    "converter.pipelines.edu_sharing.EduSharingCheckAsyncPipeline": 0,
+    "converter.pipelines.lom.FilterSparsePipeline": 25,
+    "converter.pipelines.lom.LOMFillupPipeline": 100,
+    "converter.pipelines.lom.NormLicensePipeline": 125,
+    "converter.pipelines.lom.ConvertTimePipeline": 200,
+    "converter.pipelines.valuespaces.ProcessValuespacePipeline": 250,
+    "converter.pipelines.thumbnail.ProcessThumbnailPipeline": 300,
     (
         "converter.pipelines.DummyPipeline"
         if storeMode == "None"
@@ -116,7 +116,7 @@ ITEM_PIPELINES = {
         if storeMode == 'csv'
         else "converter.pipelines.JSONStorePipeline"
         if storeMode == 'json'
-        else "converter.pipelines.EduSharingStoreAsyncPipeline"
+        else "converter.pipelines.edu_sharing.EduSharingStoreAsyncPipeline"
     ): 1000,
 }
 
