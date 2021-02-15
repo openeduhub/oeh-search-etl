@@ -43,7 +43,7 @@ jobs:
       uses: seanzhengw/sphinx-pages@v1
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        source_dir: ./docs
+        source_dir: sphinx_docs
     - name: test with tox
       run: |
         tox
