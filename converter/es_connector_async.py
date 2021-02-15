@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 import logging
+import os
 from typing import TypeVar
 
 import scrapy
@@ -14,6 +15,7 @@ import edu_sharing_async as es
 from converter.es_connector_common import transform_item, EduSharingConstants
 from converter.util import async_timed
 from edu_sharing_async.rest import ApiException
+
 
 log = logging.getLogger(__name__)
 _T = TypeVar('_T')
@@ -129,6 +131,8 @@ class AsyncEsApiClient(es.ApiClient):
 
     @classmethod
     def get_instance_blocking(cls):
+        if 'SCRAPY_CHECK' in os.environ:
+            return None
         loop = asyncio.get_event_loop()
         client = loop.run_until_complete(cls.get_instance())
         return client
