@@ -5,7 +5,7 @@ name: Python package
 
 on:
   push:
-    branches: [ $default-branch, develop ]
+    branches: [ $default-branch, develop, async ]
   pull_request:
     branches: [ $default-branch, develop ]
 
