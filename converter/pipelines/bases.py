@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import TypeVar, Optional
 
-import scrapy
+import scrapy.crawler
 
 T = TypeVar('T')
 

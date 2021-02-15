@@ -161,7 +161,8 @@ class EduSharing:
                 )
                 return response.status_code == 200
         else:
-            logging.warning("No thumbnail provided for " + uuid)
+            if get_project_settings().get("DISABLE_SCRAPY") is False:
+                logging.warning("No thumbnail provided for " + uuid)
 
     def createGroupsIfNotExists(self, groups, type: CreateGroupType):
         for group in groups:

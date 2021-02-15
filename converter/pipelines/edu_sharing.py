@@ -1,10 +1,14 @@
 import time
+import logging
+from typing import TypeVar
 
-import scrapy
+import scrapy.crawler
 
 from converter.es_connector_async import AsyncEsApiClient
 from converter.es_connector_common import build_uuid
-from converter.pipelines.bases import BasicAsyncPipeline, PipelineWithFactoryMethod, T, log
+from converter.pipelines.bases import BasicAsyncPipeline, PipelineWithFactoryMethod
+T = TypeVar('T')
+log = logging.getLogger(__name__)
 
 
 class EduSharingCheckAsyncPipeline(BasicAsyncPipeline, PipelineWithFactoryMethod):
@@ -49,8 +53,6 @@ class EduSharingStoreAsyncPipeline(BasicAsyncPipeline, PipelineWithFactoryMethod
         self.client = client
 
     async def process_item(self, item, spider):
-        if 0 == self.counter % 50:
-            print('')
         # self.exporter.export_item(item)
         # title = "<no title>"
         # if "title" in item["lom"]["general"]:

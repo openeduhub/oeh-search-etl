@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import scrapy
 
 from converter.constants import Constants
@@ -19,6 +20,7 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
         @url https://unterrichten.zum.de/api.php?format=json&action=parse&pageid=19445&prop=text|langlinks|categories|links|templates|images|externallinks|sections|revid|displaytitle|iwlinks|properties|parsewarnings
         @scrapes format location
         """
+        response.meta['item'] = json.loads(response.text)
         return self.getLOMTechnical(response).load_item()
 
     def license_item(self, response) -> LicenseItem:
@@ -26,6 +28,7 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
         @url https://unterrichten.zum.de/api.php?format=json&action=parse&pageid=19445&prop=text|langlinks|categories|links|templates|images|externallinks|sections|revid|displaytitle|iwlinks|properties|parsewarnings
         @scrapes url
         """
+        response.meta['item'] = json.loads(response.text)
         return self.getLicense(response).load_item()
 
     def general_item(self, response=None) -> LomGeneralItem:
@@ -33,6 +36,7 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
         @url https://unterrichten.zum.de/api.php?format=json&action=parse&pageid=19445&prop=text|langlinks|categories|links|templates|images|externallinks|sections|revid|displaytitle|iwlinks|properties|parsewarnings
         @scrapes title keyword description
         """
+        response.meta['item'] = json.loads(response.text)
         return self.getLOMGeneral(response).load_item()
 
     def valuespace_item(self, response) -> ValuespaceItem:
@@ -40,5 +44,6 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
         @url https://unterrichten.zum.de/api.php?format=json&action=parse&pageid=19445&prop=text|langlinks|categories|links|templates|images|externallinks|sections|revid|displaytitle|iwlinks|properties|parsewarnings
         @scrapes discipline educationalContext intendedEndUserRole
         """
+        response.meta['item'] = json.loads(response.text)
         return self.getValuespaces(response).load_item()
 

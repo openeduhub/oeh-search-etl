@@ -28,9 +28,5 @@ class SpiderBase(ABCMeta):
     def url(cls):
         pass
 
-    def register(cls: ABCMeta, subclass: Type[_T]) -> Type[_T]:
-        print(cls, subclass)
-        return super().register(subclass)
-
 
 
