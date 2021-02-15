@@ -21,8 +21,14 @@ class CustomLogFormatter(LogFormatter):
 
             .. versionadded:: 2.0
             """
+        if 'lom' in item:
+            return {
+                "level": logging.ERROR,
+                "msg": self.ITEMERRORMSG,
+                "args": {"item": item["lom"],},
+            }
         return {
             "level": logging.ERROR,
             "msg": self.ITEMERRORMSG,
-            "args": {"item": item["lom"],},
+            "args": {"item": item, },
         }
