@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
-
-# Define here the models for your scraped items
-#
-# See documentation in:
-# https://docs.scrapy.org/en/latest/topics/items.html
-
+from typing import Protocol
 from scrapy.item import Item, Field
 from scrapy.loader import ItemLoader
 from itemloaders.processors import TakeFirst
 from w3lib.html import remove_tags, replace_escape_chars
+
+
+class AlfrescoMappable(Protocol):
+    def to_alfresco(self) -> dict: ...
 
 
 def replace_processor(value):
