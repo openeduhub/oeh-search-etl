@@ -40,7 +40,7 @@ jobs:
         if [ -f requirements-docs.txt ]; then pip install -r requirements-docs.txt; fi
         if [ -f requirements-test.txt ]; then pip install -r requirements-test.txt; fi
     - name: build docs with sphinx
-      uses: seanzhengw/sphinx-pages@v1
+      uses: seanzhengw/sphinx-pages@master
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         source_dir: sphinx_docs
