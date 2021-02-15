@@ -1,9 +1,11 @@
 from scrapy.spiders import CrawlSpider
-from converter.items import *
 from converter.constants import Constants
 from .base_classes import LomBase, JSONBase
 import json
+import scrapy
+import logging
 
+log = logging.getLogger(__name__)
 
 # spider for GeoGebra
 class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
@@ -48,7 +50,7 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
     def parseEntry(self, response):
         if self.get("language", response=response) == "de":
             return LomBase.parse(self, response)
-        logging.info(
+        log.info(
             "Skpping entry with language " + self.get("language", response=response)
         )
         return None
