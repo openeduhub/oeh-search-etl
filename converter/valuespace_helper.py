@@ -1,4 +1,4 @@
-from converter.pipelines import ProcessValuespacePipeline
+from converter.pipelines.valuespaces import ProcessValuespacePipeline
 from valuespace_converter.app.valuespaces import Valuespaces
 
 

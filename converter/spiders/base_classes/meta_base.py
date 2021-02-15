@@ -1,6 +1,4 @@
 from abc import ABCMeta, abstractmethod
-from typing import Type, TypeVar
-_T = TypeVar('_T')
 
 
 class SpiderBase(ABCMeta):
