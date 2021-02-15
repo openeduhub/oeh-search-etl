@@ -8,9 +8,17 @@ Welcome to oeh-search-etl's documentation!
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Spider Documentation
 
+   sections/spiders.rst
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Items
+
+   sections/lom.rst
+
+.. todolist::
 
 Indices and tables
 ==================
