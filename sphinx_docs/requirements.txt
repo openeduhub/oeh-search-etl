@@ -1,1 +1,2 @@
-../requirements.txt
+Sphinx==3.4.3
+sphinx-rtd-theme
