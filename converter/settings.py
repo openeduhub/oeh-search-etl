@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path  # python3 only
 import converter.env as env
+import os
 
 # Scrapy settings for project
 #
@@ -36,9 +37,9 @@ SPLASH_HEADERS = {
 }  # use chrome to not create warnings on pages
 
 # edu-sharing config
-EDU_SHARING_BASE_URL = env.get("EDU_SHARING_BASE_URL")
-EDU_SHARING_USERNAME = env.get("EDU_SHARING_USERNAME")
-EDU_SHARING_PASSWORD = env.get("EDU_SHARING_PASSWORD")
+EDU_SHARING_BASE_URL = env.get("EDU_SHARING_BASE_URL", default=None)
+EDU_SHARING_USERNAME = env.get("EDU_SHARING_USERNAME", default=None)
+EDU_SHARING_PASSWORD = env.get("EDU_SHARING_PASSWORD", default=None)
 
 # Thumbnail config
 THUMBNAIL_SMALL_SIZE = 250 * 250
@@ -119,6 +120,8 @@ ITEM_PIPELINES = {
         else "converter.pipelines.edu_sharing.EduSharingStoreAsyncPipeline"
     ): 1000,
 }
+if 'TOX_ENV_NAME' in os.environ:
+    ITEM_PIPELINES = {}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
