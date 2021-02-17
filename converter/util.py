@@ -4,7 +4,7 @@ from functools import wraps
 
 log = logging.getLogger(__name__)
 ee_log_prefix = f'{__name__}.entry_exit'
-ee_log = logging.getLogger(f'{ee_log_prefix}')
+ee_log = logging.getLogger(ee_log_prefix)
 
 
 def async_entry_exit_log(f, entry_char, exit_char):
@@ -18,6 +18,9 @@ def async_entry_exit_log(f, entry_char, exit_char):
 
 
 def entry_exit_log(f, entry_char, exit_char):
+    """
+    TODO: this should be using a custom handler
+    """
     @wraps(f)
     def wrapper(*args, **kwds):
         ee_log.info(entry_char)
