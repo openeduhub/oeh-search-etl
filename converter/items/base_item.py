@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
 
 @dataclass
@@ -11,6 +11,8 @@ class BaseItem:
     source_uuid: str  #: replicationsourceuuid
     notes: Optional[str] = None
     source_origin: Optional[str] = None  #: TODO currently not mapped in edu-sharing
+    image_urls: Optional[List[str]] = None
+    images: Optional[List[str]] = None
 
     def to_alfresco(self):
         return {
