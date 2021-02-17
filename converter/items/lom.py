@@ -1,6 +1,6 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, Field
 from datetime import datetime
-from typing import Optional, List, Tuple, Union, TypeVar, Literal
+from typing import Optional, List, Tuple, Union, TypeVar, Literal, Protocol
 
 """
 This module's information is derived from the
@@ -13,22 +13,40 @@ mltext = Tuple[str, str]
 Multiple = Union[List[T], T]
 
 
+class AlfrescoMappable(Protocol):
+    def to_alfresco(self) -> dict: ...
+
+
+def strip_empty(thing: dict):
+    for key, value in thing.items():
+        if value:
+            yield key, value
+
+
 @dataclass
 class Schema:
     """
     cclom:schema
     """
     # associations, all optional
-    identifiers: Optional[List['Identifier']]  #: identifiers
-    general: 'General'  #: 1. Grundlegende Informationen, die das Lernobjekt als Ganzes beschreiben.
-    lifecycle: 'Lifecycle'  #: 2. Eigenschaften, die einerseits die Geschichte und den aktuellen Zustand des Lernobjektes als auch die beeinflussenden Lernobjekte beschreiben.
-    meta_metadata: 'MetaMetadata'  #: 3. Merkmale der Metadatenbeschreibung an sich.
-    technical: 'Technical'  #: 4. technische Voraussetzungen und Merkmale des Lernobjekts.
-    educational: Optional[List['Educational']]  #: 5. Bildungsmerkmale und pädagogische Beschreibung des Lernobjekts.
-    rights: 'Rights'  #: 6. Über Nutzungsbedingungen des Lernobjekts und Copyright-Fragen wird informiert.
-    relation: Optional[List['Relation']]  #: 7. Beziehungen zwischen dem Lernobjekt und anderen verwandten Lernobjekten.
-    annotation: Optional[List['Annotation']]  #: 8. ermöglicht Anmerkung über den Bildungsnutzen des Lernobjekts und Informationen über die Entstehung der Kommentare (wann, von wem)
-    classification: Optional[List['Classification']]  #: 9. Einordnung des Lernobjekts in ein Klassifizierungssystem.
+    identifiers: Optional[List['Identifier']] = None  #: identifiers
+    general: 'General' = None  #: 1. Grundlegende Informationen, die das Lernobjekt als Ganzes beschreiben.
+    lifecycle: 'Lifecycle' = None  #: 2. Eigenschaften, die einerseits die Geschichte und den aktuellen Zustand des Lernobjektes als auch die beeinflussenden Lernobjekte beschreiben.
+    meta_metadata: 'MetaMetadata' = None  #: 3. Merkmale der Metadatenbeschreibung an sich.
+    technical: 'Technical' = None  #: 4. technische Voraussetzungen und Merkmale des Lernobjekts.
+    educational: Optional[List['Educational']] = None  #: 5. Bildungsmerkmale und pädagogische Beschreibung des Lernobjekts.
+    rights: 'Rights' = None  #: 6. Über Nutzungsbedingungen des Lernobjekts und Copyright-Fragen wird informiert.
+    relation: Optional[List['Relation']] = None  #: 7. Beziehungen zwischen dem Lernobjekt und anderen verwandten Lernobjekten.
+    annotation: Optional[List['Annotation']] = None  #: 8. ermöglicht Anmerkung über den Bildungsnutzen des Lernobjekts und Informationen über die Entstehung der Kommentare (wann, von wem)
+    classification: Optional[List['Classification']] = None  #: 9. Einordnung des Lernobjekts in ein Klassifizierungssystem.
+
+    def to_alfresco(self):
+        result = {}
+        for fld in fields(self):
+            f: Field = fld
+            if data := getattr(self, f.name):
+                result |= data.to_alfresco()
+        return dict(strip_empty(result))
 
 
 @dataclass
@@ -39,10 +57,10 @@ class General:
     """
 
     title: Optional[mltext] = None  #: Name given to this learning object.
-    language: List[str] = field(default_factory=list)  #: "The primary human language or languages used within this learning object to communicate to the intended user."
-    description: List[mltext] = field(default_factory=list)  #: A textual description of the content of this learning object.
-    keyword: List[mltext] = field(default_factory=list)  #: A keyword or phrase describing the topic of this learning object.
-    coverage: List[mltext] = field(default_factory=list)  #: The time, culture, geography or region to which this learning object applies. (see documentation)
+    language: List[str] = None  #: "The primary human language or languages used within this learning object to communicate to the intended user."
+    description: List[mltext] = None  #: A textual description of the content of this learning object.
+    keyword: List[mltext] = None  #: A keyword or phrase describing the topic of this learning object.
+    coverage: List[mltext] = None  #: The time, culture, geography or region to which this learning object applies. (see documentation)
     structure: Optional[str] = None  #: Underlying organizational structure of this learning object Value; atomic, collection networked, hirrarchical, linear
     aggregationLevel: Optional[str] = None  #: The functional granularity of this learning; Value: 1, 2, 3, 4
     # child associations
@@ -109,13 +127,13 @@ class Technical:
     4. Technical Category (Technische Details):
     technische Voraussetzungen und Merkmale des Lernobjekts.
     """
-    format: str  #: Technical datatype(s) of (all the components of) this learning object. This data element shall be used to identify the software needed to access the learning object.
-    size: str  #: The size of the digital learning object in bytes (octets). The size is represented as a decimal value (radix 10). Consequently, only the digits "0" through "9" should be used. The unit is bytes, not Mbytes, GB, etc. This data element shall refer to the actual size of this learning object. If the learning object is compressed, then this data element shall refer to the uncompressed size.
-    location: List[str]  #: A string that is used to access this learning object. It may be a location (e.g., Universal Resource Locator), or a method that resolves to a location (e.g., Universal Resource Identifier). The first element of this list shall be the preferable location. NOTE:This is where the learning object described by this metadata instance is physically located
-    installationRemarks: List[mltext]  #: Description of how to install this learning object.
-    otherPlatformRequirements: List[mltext]  #: Information about other software and hardware requirements.
-    duration: str  #: Time a continuous learning object takes when played at intended speed.
-    requirements: List['requirement']  #: The technical capabilities necessary for using this learning object.
+    format: Optional[str] = None  #: Technical datatype(s) of (all the components of) this learning object. This data element shall be used to identify the software needed to access the learning object.
+    size: Optional[str] = None  #: The size of the digital learning object in bytes (octets). The size is represented as a decimal value (radix 10). Consequently, only the digits "0" through "9" should be used. The unit is bytes, not Mbytes, GB, etc. This data element shall refer to the actual size of this learning object. If the learning object is compressed, then this data element shall refer to the uncompressed size.
+    location: Optional[str] = None  #: A string that is used to access this learning object. It may be a location (e.g., Universal Resource Locator), or a method that resolves to a location (e.g., Universal Resource Identifier). The first element of this list shall be the preferable location. NOTE:This is where the learning object described by this metadata instance is physically located
+    installationRemarks: Optional[List[mltext]] = None  #: Description of how to install this learning object.
+    otherPlatformRequirements: Optional[List[mltext]] = None  #: Information about other software and hardware requirements.
+    duration: Optional[str] = None  #: Time a continuous learning object takes when played at intended speed.
+    requirements: Optional[List['requirement']] = None  #: The technical capabilities necessary for using this learning object.
 
     def to_alfresco(self):
         return {

@@ -5,10 +5,6 @@ from itemloaders.processors import TakeFirst
 from w3lib.html import remove_tags, replace_escape_chars
 
 
-class AlfrescoMappable(Protocol):
-    def to_alfresco(self) -> dict: ...
-
-
 def replace_processor(value):
     if value is not None:
         return replace_escape_chars(remove_tags(value)).strip()
