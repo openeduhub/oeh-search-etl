@@ -395,12 +395,26 @@ class AsyncEsApiClient(es.ApiClient):
         if not key:
             return False
 
-        url = get_project_settings().get("EDU_SHARING_BASE_URL")
-        path = f'rest/node/v1/nodes/-home-/{uuid}/preview?mimetype={item["thumbnail"]["mimetype"]}'
-        headers = {"Accept": "application/json"}
-        files = {"image": base64.b64decode(item["thumbnail"][key])}
-        async with self.aio_client.post(url+path, headers=headers, files=files) as response:
-            return response.ok
+        # url = get_project_settings().get("EDU_SHARING_BASE_URL")
+        # path = f'rest/node/v1/nodes/-home-/{uuid}/preview?mimetype={item["thumbnail"]["mimetype"]}'
+        # headers = {"Accept": "application/json"}
+        # files = {"image": base64.b64decode(item["thumbnail"][key])}
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as dir:
+            dir_path = Path(dir)
+            tmp_file = dir_path / 'thumbnail.png'
+            tmp_file.write_bytes(base64.b64decode(item["thumbnail"][key]))
+            response = await self.node_api.change_preview(
+                mimetype=item["thumbnail"]["mimetype"],
+                repository=EduSharingConstants.HOME,
+                node=uuid,
+                image=tmp_file
+            )
+        log.info(f'set thumbnail {response}')
+        # async with self.aio_client.post(url+path, headers=headers, files=files) as response:
+        #     log.info(f'set thumbnail {response.ok}')
+        #     return response.ok
 
 
 async def main():
