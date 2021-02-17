@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
+from pathlib import PurePosixPath
 from urllib import parse
 
 import jmespath
@@ -70,7 +70,7 @@ log = logging.getLogger(__name__)
 
 def _api_url(url) -> str:
     p = parse.urlparse(url)
-    path = Path(p.path)
+    path = PurePosixPath(p.path)
     api_path = path / 'api.php'
     return parse.urljoin(url, str(api_path))
 
