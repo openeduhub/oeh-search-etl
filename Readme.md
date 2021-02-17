@@ -1,6 +1,6 @@
 # Open Edu Hub Search ETL
 
-- make sure you have python3 installed (<https://docs.python-guide.org/starting/install3/osx/>)
+- make sure you have python (at least v3.9) installed (<https://docs.python-guide.org/starting/install3/osx/>)
 - go to project root
 - Run
 ```
