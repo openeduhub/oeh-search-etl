@@ -167,3 +167,15 @@ FEED_EXPORT_FIELDS = [
 ]
 FEED_EXPORT_INDENT = 2
 FEED_EXPORT_ENCODING = "utf-8"
+FEED_EXPORTERS = {'edu-sharing': 'converter.exporters.EduSharingExporter'}
+FEED_STORAGES = {'https': 'converter.feed_storage.EduSharingStorage'}
+feedpath = Path.cwd() / 'debug_runs' / '%(name)s.jsonl'
+FEEDS = {
+    feedpath: {
+        'format': 'jsonlines',
+        'fields': [
+            'sourceid', 'hash', 'type', 'fulltext', 'lom', 'valuespaces', 'license', 'permission'
+        ],
+        'indent': 4,
+    }
+}
