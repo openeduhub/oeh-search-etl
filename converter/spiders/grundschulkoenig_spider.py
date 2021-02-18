@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from urllib import parse
 
 import scrapy
 from dataclasses import dataclass, field
+
+from converter.constants import Constants
+from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
+    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, PermissionItemLoader
 from converter.spiders.base_classes.meta_base import SpiderBase
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Set
 from converter.dc_items.lom import General, Technical, Schema
 from converter.util.sitemap import from_xml_response, SitemapEntry
 from urllib.parse import urlparse
@@ -21,29 +26,8 @@ class GrundSchulKoenigSpider(scrapy.Spider, metaclass=SpiderBase):
        contains Advertisements
     """
     start_urls = ['https://www.grundschulkoenig.de/sitemap.xml?sitemap=pages&cHash=06e4f67db47c88d09df2534dfa2ab810']
-    excluded_paths = [
-        'brandenburg-ferien-feiertage-brueckentage',
-        'schulferien-feiertage-brueckentage',
-        'sachsen-anhalt-ferien-feiertage-brueckentage',
-        'rheinland-pfalz-ferien-feiertage-brueckentage',
-        'nordrhein-westfalen-ferien-feiertage-brueckentage',
-        'mecklenburg-vorpommern-ferien-feiertage-brueckentage',
-        'niedersachen-ferien-feiertage-brueckentage',
-        'schleswig-holstein-ferien-feiertage-brueckentage',
-        'hamburg-ferien-feiertage-brueckentage',
-        'bremen-ferien-feiertage-brueckentage',
-        'thueringen-ferien-feiertage-brueckentage',
-        'berlin-ferien-feiertage-brueckentage',
-        'sachsen-ferien-feiertage-brueckentage',
-        'saarland-ferien-feiertage-brueckentage',
-        'hessen-ferien-feiertage-brueckentage',
-        'baden-wuerttemberg-ferien-feiertage-brueckentage',
-        'bayern-ferien-feiertage-brueckentage',
-        '404-page-not-found',
-        'landing',
-        'mehr',
-    ]
     name = 'grundschulkoenig_spider'
+    excluded = ['blog']
 
     def parse(self, response: scrapy.http.XmlResponse, **kwargs):
         """
@@ -55,52 +39,92 @@ class GrundSchulKoenigSpider(scrapy.Spider, metaclass=SpiderBase):
                     <priority>0.5</priority>
             </url>
         """
-        paths_by_depth: Dict[int, List[Tuple[PurePosixPath, SitemapEntry, Dict]]] = defaultdict(list)
+        paths_by_depth: Dict[int, List[Tuple[PurePosixPath, SitemapEntry]]] = defaultdict(list)
         items = from_xml_response(response)
         for item in items:
             path = PurePosixPath(urlparse(item.loc).path)
-            # PurePosixPath('/englisch/sports-sport').parts == ('/', 'englisch', 'sports-sport')
-            if path.parts[1] in self.excluded_paths:
-                # ignore
-                continue
             path_depth = len(path.parts)
-            children = defaultdict(list)
-            paths_by_depth[path_depth].append((path, item, children))
+            if path_depth == 1:
+                continue  # root: ignore
+            if path.parts[1] in self.excluded:
+                continue  # ignore
+            if path.parts[1].endswith('brueckentage'):
+                continue  # ignore holiday listing pages
+            paths_by_depth[path_depth].append((path, item))
 
             # yield response.follow(item.loc, callback=self.parse_site, cb_kwargs={'sitemap_entry': item})
-
-        root = paths_by_depth[1][0]
         print(list(sorted(paths_by_depth)))
-        print(root)
-        for path, item, children in paths_by_depth[2]:
-            # sub categories
-            if path.parts[1] not in self.excluded_paths:
-                print(f"'{path.parts[1]}',")
-
-            pass
-        for depth in sorted(paths_by_depth):
-            if depth == 1:
-                # root is here
-                continue
-            if depth != 2:
-                continue
-
+        rev_idx = list(reversed(sorted(paths_by_depth.keys())))
+        for child_depth, parent_depth in zip(rev_idx[:-1], rev_idx[1:]): # (5,4),(4,3),(3,2)
+            # start at the leaves and the remove their parents
+            parents_to_keep: List[Tuple[PurePosixPath, SitemapEntry]] = []
+            parents_to_remove: Set[PurePosixPath] = set()
+            for path, entry in paths_by_depth[child_depth]:
+                parents_to_remove.add(path.parent)
+                yield response.follow(entry.loc, callback=self.parse_site, cb_kwargs={'sitemap_entry': entry})
+            for path, entry in paths_by_depth[parent_depth]:
+                if path in parents_to_remove:
+                    continue
+                parents_to_keep.append((path, entry))
+            paths_by_depth[parent_depth] = parents_to_keep
 
 
     def parse_site(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None):
-        # content = response.css('.entry-content')
-        # content.css('.sharedaddy').remove()
-        # pdf_links = content.css('ul li a').getall()
-        # description = content.css('p::text').get()
-        # thumbnail_href = response.css('.post-thumbnail img::attr(src)').get()
-        # title: str = response.css('.entry-title span::text').get()
-        # description: str = content.css('.entry-content p::text').get()
-        # keywords: List[str] = response.css('.post-categories a::text').getall()
-        # general = General(title=title, description=description, keyword=keywords)
-        # technical = Technical(format='text/html', location=response.url)
-        # yield Schema(general=general, technical=technical)
-        # yield technical.to_alfresco() | general.to_alfresco()
-        pass
+        # sollte wenigstens eine instanz von .css('.worksheet__content') enthalten, damit sicher ist, dass auch wirklich content da ist.
+        content = response.css('.page__content')
+        if 0 == len(content):
+            return
+        # >>> content.css('.module-breadcrumb')[0]
+        crumbs = []  # after loop: ['Home', 'Deutsch', '1. Klasse', 'Abschreibtexte']
+        for crumb in content.css('.nav__crumb'):
+            crumbs.append(crumb.css('span::text').get())
+
+        assert crumbs[0] == 'Home'
+        title = crumbs[-1]
+        worksheet_containers = content.css('.col-wrapper .module-worksheet').pop()
+
+        if 0 == len(response.css('.worksheet__content').getall()):
+            # keine Arbeitsblätter auf der webseite
+            return
+
+        base = BaseItemLoader(response=response)
+        base.add_value("sourceId", parse.urlparse(sitemap_entry.loc).path)  # id der Seite
+        base.add_value("hash", sitemap_entry.lastmod)  # version/Datum der Seite
+        # we assume that content is imported. Please use replace_value if you import something different
+        base.add_value("type", Constants.TYPE_MATERIAL)
+        # base.add_css('thumbnail', '.post-thumbnail img::attr(src)')
+        base.add_value('lastModified', sitemap_entry.lastmod)
+        lom = LomBaseItemloader()
+        general = LomGeneralItemloader(response=response)
+        general.add_css('title', 'h1.-color-secondary-beta')
+        general.add_css('description', '.entry-content p::text')
+        general.add_css('keyword', '.post-categories a::text')
+        lom.add_value("general", general.load_item())
+        technical = LomTechnicalItemLoader()
+        technical.add_value('format', 'text/html')
+        technical.add_value('location', sitemap_entry.loc)
+        lom.add_value("technical", technical.load_item())
+        # lifecycle = LomLifecycleItemloader()
+        # lom.add_value("lifecycle", lifecycle.load_item())
+        edu = LomEducationalItemLoader()
+        lom.add_value("educational", edu.load_item())
+        # classification = LomClassificationItemLoader()
+        # lom.add_value("classification", classification.load_item())
+        base.add_value("lom", lom.load_item())
+        vs = ValuespaceItemLoader()
+        base.add_value("valuespaces", vs.load_item())
+        lic = LicenseItemLoader()
+        lic.add_value('url', Constants.LICENSE_CC_ZERO_10)
+        base.add_value("license", lic.load_item())
+        permissions = PermissionItemLoader(response=response)
+        # default all materials to public, needs to be changed depending on the spider!
+        permissions.add_value("public", self.settings.get("DEFAULT_PUBLIC_STATE"))
+
+        base.add_value("permissions", permissions.load_item())
+        response_loader = ResponseItemLoader()
+        response_loader.add_value('url', response.url)
+        base.add_value("response", response_loader.load_item())
+        yield base.load_item()
 
 
 

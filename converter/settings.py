@@ -102,22 +102,22 @@ EXTENSIONS = {
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 storeMode = env.get("MODE", default='edu-sharing')
 ITEM_PIPELINES = {
-    # "converter.pipelines.EduSharingCheckPipeline": 0,
-    # "converter.pipelines.FilterSparsePipeline": 25,
-    # "converter.pipelines.LOMFillupPipeline": 100,
-    # "converter.pipelines.NormLicensePipeline": 125,
-    # "converter.pipelines.ConvertTimePipeline": 200,
-    # "converter.pipelines.ProcessValuespacePipeline": 250,
-    # "converter.pipelines.ProcessThumbnailPipeline": 300,
-    # (
-    #     "converter.pipelines.DummyPipeline"
-    #     if storeMode == "None"
-    #     else "converter.pipelines.CSVStorePipeline"
-    #     if storeMode == 'csv'
-    #     else "converter.pipelines.JSONStorePipeline"
-    #     if storeMode == 'json'
-    #     else "converter.pipelines.EduSharingStorePipeline"
-    # ): 1000,
+    "converter.pipelines.EduSharingCheckPipeline": 0,
+    "converter.pipelines.FilterSparsePipeline": 25,
+    "converter.pipelines.LOMFillupPipeline": 100,
+    "converter.pipelines.NormLicensePipeline": 125,
+    "converter.pipelines.ConvertTimePipeline": 200,
+    "converter.pipelines.ProcessValuespacePipeline": 250,
+    "converter.pipelines.ProcessThumbnailPipeline": 300,
+    (
+        "converter.pipelines.DummyPipeline"
+        if storeMode == "None"
+        else "converter.pipelines.CSVStorePipeline"
+        if storeMode == 'csv'
+        else "converter.pipelines.JSONStorePipeline"
+        if storeMode == 'json'
+        else "converter.pipelines.EduSharingStorePipeline"
+    ): 1000,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -142,28 +142,28 @@ AUTOTHROTTLE_DEBUG = False
 # HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 # Enables useful test exports with `scrapy crawl -o my-test-output.json <spider>`
-# FEED_EXPORT_FIELDS = [
-#     "collection",
-#     "fulltext",
-#     "hash",
-#     "lastModified",
-#     "license",
-#     "lom",
-#     "origin",
-#     "permissions",
-#     "publisher",
-#     "ranking",
-#     # Response cannot be serialized since it has `bytes` keys
-#     # "response",
-#     "sourceId",
-#     # Too much clutter
-#     # "thumbnail",
-#     "type",
-#     "uuid",
-#     "valuespaces",
-# ]
-# FEED_EXPORT_INDENT = 2
-# FEED_EXPORT_ENCODING = "utf-8"
+FEED_EXPORT_FIELDS = [
+    "collection",
+    "fulltext",
+    "hash",
+    "lastModified",
+    "license",
+    "lom",
+    "origin",
+    "permissions",
+    "publisher",
+    "ranking",
+    # Response cannot be serialized since it has `bytes` keys
+    # "response",
+    "sourceId",
+    # Too much clutter
+    # "thumbnail",
+    "type",
+    "uuid",
+    "valuespaces",
+]
+FEED_EXPORT_INDENT = 2
+FEED_EXPORT_ENCODING = "utf-8"
 
 feedpath = Path.cwd() / 'debug_runs' / '%(name)s.jsonl'
 FEEDS = {
