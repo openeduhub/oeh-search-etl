@@ -31,7 +31,7 @@ jobs:
     - name: Build and Deploy
       uses: JacksonMaxfield/github-pages-deploy-action-python@master
       env:
-        ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         BASE_BRANCH: docs_and_tests
         BRANCH: gh-pages
         FOLDER: docs/_build/html
