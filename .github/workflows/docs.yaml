@@ -35,4 +35,4 @@ jobs:
         BASE_BRANCH: docs_and_tests
         BRANCH: gh-pages
         FOLDER: docs/_build/html
-        BUILD_SCRIPT: pip install sphinx sphinx_rtd_theme && make html
+        BUILD_SCRIPT: cd docs && pip install sphinx sphinx_rtd_theme && make html
