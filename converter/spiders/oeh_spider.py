@@ -1,6 +1,7 @@
 import logging
 
 from .base_classes import EduSharingBase
+import converter.env as env
 
 
 class OEHSpider(EduSharingBase):
@@ -10,9 +11,13 @@ class OEHSpider(EduSharingBase):
     apiUrl = "https://redaktion.openeduhub.net/edu-sharing/rest/"
     version = "0.1.1"
     mdsId = "mds_oeh"
-
+    importWhitelist: [str] = None
     def __init__(self, **kwargs):
         EduSharingBase.__init__(self, **kwargs)
+        importWhitelist = env.get("OEH_IMPORT_SOURCES", True, None)
+        if importWhitelist:
+            self.importWhitelist = importWhitelist.split(",")
+            logging.info("Importing only whitelisted sources: {}".format(self.importWhitelist))
 
     def getBase(self, response):
         base = EduSharingBase.getBase(self, response)
@@ -29,10 +34,18 @@ class OEHSpider(EduSharingBase):
 
 
     def shouldImport(self, response=None):
+        if self.importWhitelist:
+            source = response.meta["item"]["properties"]["ccm:replicationsource"]
+            source = source[0] if source else "oeh"
+            if source not in self.importWhitelist:
+                logging.info(
+                    "Skipping item {} because it has no whitelisted source {}".format(
+                        response.meta["item"]["ref"]["id"], source)
+                )
+                return False
         if "ccm:collection_io_reference" in response.meta["item"]["aspects"]:
             logging.info(
-                "Skipping collection_io_reference with id "
-                + response.meta["item"]["ref"]["id"]
+                "Skipping collection_io_reference with id {}".format(response.meta["item"]["ref"]["id"])
             )
             return False
         return True

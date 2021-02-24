@@ -84,10 +84,8 @@ class LomBase:
 
     def parse(self, response):
         if self.shouldImport(response) is False:
-            logging.info(
-                "Skipping entry "
-                + str(self.getId(response))
-                + " because shouldImport() returned false"
+            logging.debug(
+                "Skipping entry {} because shouldImport() returned false".format(str(self.getId(response)))
             )
             return None
         if self.getId(response) is not None and self.getHash(response) is not None:
