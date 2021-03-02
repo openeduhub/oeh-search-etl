@@ -102,7 +102,7 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
 
     def getLicense(self, response):
         license = LomBase.getLicense(self, response)
-        license.add_value("url", Constants.LICENSE_CC_BY_SA_30)
+        license.add_value("url", Constants.LICENSE_CC_BY_NC_SA_30)
         return license
 
     def getLOMTechnical(self, response):
