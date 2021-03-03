@@ -2,7 +2,9 @@ from scrapy.spiders import CrawlSpider
 from converter.items import *
 from converter.constants import Constants
 from .base_classes import LomBase, JSONBase
+from scrapy import Request
 import json
+import logging
 
 
 # spider for GeoGebra
@@ -10,7 +12,7 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
     name = "geogebra_spider"
     friendlyName = "GeoGebra"
     url = "https://www.geogebra.org"
-    version = "0.1"
+    version = "0.1.1"
     start_urls = [
         "https://www.geogebra.org/m-sitemap-1.xml",
         "https://www.geogebra.org/m-sitemap-2.xml",
@@ -29,6 +31,13 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
+        CrawlSpider.__init__(self, **kwargs)
+
+
+    def start_requests(self):
+        for url in self.start_urls:
+            yield Request(url = url, callback = self.parse)
+
 
     def get(self, *params, response):
         data = json.loads(response.body_as_unicode())
@@ -40,7 +49,7 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
             split = url.split("/")
             id = split[len(split) - 1]
             apiCall = self.apiUrl.replace("%id", id)
-            yield scrapy.Request(
+            yield Request(
                 url=apiCall, callback=self.parseEntry, meta={"url": url}
             )
             i += 1
