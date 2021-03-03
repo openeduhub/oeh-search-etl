@@ -33,11 +33,9 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
         LomBase.__init__(self, **kwargs)
         CrawlSpider.__init__(self, **kwargs)
 
-
     def start_requests(self):
         for url in self.start_urls:
             yield Request(url = url, callback = self.parse)
-
 
     def get(self, *params, response):
         data = json.loads(response.body_as_unicode())
