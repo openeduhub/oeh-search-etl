@@ -4,8 +4,9 @@ import time
 from .base_classes import LomBase, JSONBase
 import json
 from converter.constants import Constants
+import scrapy
 
-# Spider to fetch RSS from planet schule
+
 class MemuchoSpider(CrawlSpider, LomBase, JSONBase):
     name = "memucho_spider"
     friendlyName = "memucho"

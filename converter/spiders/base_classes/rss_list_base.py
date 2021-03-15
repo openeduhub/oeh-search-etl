@@ -5,6 +5,7 @@ from .csv_base import CSVBase
 from converter.valuespace_helper import ValuespaceHelper
 import csv
 import os
+import scrapy
 
 # rss crawler with a list of entries to crawl and map
 # for supported columns, please check the CSVbase class

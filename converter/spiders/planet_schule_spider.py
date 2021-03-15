@@ -2,8 +2,9 @@ from converter.items import *
 from .base_classes import LomBase, RSSBase
 from converter.valuespace_helper import ValuespaceHelper
 from converter.constants import Constants
+import scrapy
 
-# Spider to fetch RSS from planet schule
+
 class PlanetSchuleSpider(RSSBase):
     name = "planet_schule_spider"
     friendlyName = "planet schule"

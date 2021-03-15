@@ -21,6 +21,7 @@ import scrapy.crawler
 from scrapy.exceptions import DropItem
 from scrapy.exporters import JsonItemExporter
 from scrapy.utils.project import get_project_settings
+from itemadapter import ItemAdapter
 
 from converter import env
 from converter.constants import *
@@ -91,14 +92,16 @@ class LOMFillupPipeline(BasicPipeline):
     """
     fillup missing props by "guessing" or loading them if possible
     """
-    def process_item(self, item, spider):
+    def process_item(self, raw_item, spider):
+        item = ItemAdapter(raw_item)
         if "fulltext" not in item and "text" in item["response"]:
             item["fulltext"] = item["response"]["text"]
-        return item
+        return raw_item
 
 
 class FilterSparsePipeline(BasicPipeline):
-    def process_item(self, item, spider):
+    def process_item(self, raw_item, spider):
+        item = ItemAdapter(raw_item)
         try:
             if "location" not in item["lom"]["technical"]:
                 raise DropItem(
@@ -110,23 +113,23 @@ class FilterSparsePipeline(BasicPipeline):
             raise DropItem(f'Item {item} has no lom.technical.location')
         # pass through explicit uuid elements
         if "uuid" in item:
-            return item
+            return raw_item
         try:
             # if it contains keywords, it's valid
             if _ := item["lom"]["general"]["keyword"]:
-                return item
+                return raw_item
         except KeyError:
             pass
         try:
             # if it has a description, it's valid
             if _ := item["lom"]["general"]["description"]:
-                return item
+                return raw_item
         except KeyError:
             pass
         try:
             # if it the valuespaces.learningResourceType is set, it is valid
             if _ := item["valuespaces"]["learningResourceType"]:
-                return item
+                return raw_item
         except KeyError:
             pass
         # if none of the above matches drop the item
@@ -142,7 +145,8 @@ class FilterSparsePipeline(BasicPipeline):
 
 
 class NormLicensePipeline(BasicPipeline):
-    def process_item(self, item, spider):
+    def process_item(self, raw_item, spider):
+        item = ItemAdapter(raw_item)
         if "url" in item["license"] and not item["license"]["url"] in Constants.VALID_LICENSE_URLS:
             for key in Constants.LICENSE_MAPPINGS:
                 if item["license"]["url"].startswith(key):
@@ -172,15 +176,16 @@ class NormLicensePipeline(BasicPipeline):
             internal = item["license"]["internal"].lower()
             if "cc-by-sa" in internal or "cc-0" in internal or "pdm" in internal:
                 item["license"]["oer"] = OerType.ALL
-        return item
+        return raw_item
 
 
 class ConvertTimePipeline(BasicPipeline):
     """
     convert typicalLearningTime into a integer representing seconds
     """
-    def process_item(self, item, spider):
+    def process_item(self, raw_item, spider):
         # map lastModified
+        item = ItemAdapter(raw_item)
         if "lastModified" in item:
             try:
                 item["lastModified"] = float(item["lastModified"])
@@ -212,7 +217,7 @@ class ConvertTimePipeline(BasicPipeline):
                     + " to numeric value"
                 )
             item["lom"]["educational"]["typicalLearningTime"] = mapped
-        return item
+        return raw_item
 
 
 class ProcessValuespacePipeline(BasicPipeline):
@@ -222,7 +227,8 @@ class ProcessValuespacePipeline(BasicPipeline):
     def __init__(self):
         self.valuespaces = Valuespaces()
 
-    def process_item(self, item, spider):
+    def process_item(self, raw_item, spider):
+        item = ItemAdapter(raw_item)
         json = item["valuespaces"]
         delete = []
         for key in json:
@@ -252,7 +258,7 @@ class ProcessValuespacePipeline(BasicPipeline):
         for key in delete:
             del json[key]
         item["valuespaces"] = json
-        return item
+        return raw_item
 
 
 class ProcessThumbnailPipeline(BasicPipeline):
@@ -269,7 +275,8 @@ class ProcessThumbnailPipeline(BasicPipeline):
             h *= 0.9
         return img.resize((int(w), int(h)), Image.ANTIALIAS).convert("RGB")
 
-    def process_item(self, item, spider):
+    def process_item(self, raw_item, spider):
+        item = ItemAdapter(raw_item)
         response = None
         url = None
         settings = get_project_settings()
@@ -355,17 +362,18 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     )
                 if "thumbnail" in item:
                     del item["thumbnail"]
-                    return self.process_item(item, spider)
+                    return self.process_item(raw_item, spider)
                 else:
                     # item['thumbnail']={}
                     raise DropItem(
                         "No thumbnail provided or ressource was unavailable for fetching"
                     )
-        return item
+        return raw_item
 
 
 class EduSharingCheckPipeline(EduSharing, BasicPipeline):
-    def process_item(self, item, spider):
+    def process_item(self, raw_item, spider):
+        item = ItemAdapter(raw_item)
         if "hash" not in item:
             log.error(
                 "The spider did not provide a hash on the base object. The hash is required to detect changes on an element. May use the last modified date or something similar"
@@ -387,7 +395,7 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
                 # for tests, we update everything for now
                 # activate this later
                 # raise DropItem()
-        return item
+        return raw_item
 
 
 class JSONStorePipeline(BasicPipeline, PipelineWithPerSpiderMethods):
@@ -475,7 +483,8 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         super().__init__()
         self.counter = 0
 
-    def process_item(self, item, spider):
+    def process_item(self, raw_item, spider):
+        item = ItemAdapter(raw_item)
         output = io.BytesIO()
         exporter = JsonItemExporter(
             output,
@@ -530,7 +539,7 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         #         json,
         #     ))
         output.close()
-        return item
+        return raw_item
 
 
 class DummyPipeline(BasicPipeline):
