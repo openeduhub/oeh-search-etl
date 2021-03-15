@@ -8,8 +8,7 @@ from dataclasses import dataclass, field
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, PermissionItemLoader
-from converter.spiders.base_classes.meta_base import SpiderBase
+    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, PermissionItemLoader, ResponseItemLoader
 from typing import Optional, List, Dict, Tuple, Set
 from converter.dc_items.lom import General, Technical, Schema
 from converter.util.sitemap import from_xml_response, SitemapEntry
@@ -17,7 +16,7 @@ from urllib.parse import urlparse
 from pathlib import PurePosixPath
 
 
-class GrundSchulKoenigSpider(scrapy.Spider, metaclass=SpiderBase):
+class GrundSchulKoenigSpider(scrapy.Spider):
     """
     scrapes the Grundschulkönig website.
 
@@ -112,6 +111,20 @@ class GrundSchulKoenigSpider(scrapy.Spider, metaclass=SpiderBase):
         # lom.add_value("classification", classification.load_item())
         base.add_value("lom", lom.load_item())
         vs = ValuespaceItemLoader()
+        vs.add_value('conditionsOfAccess', 'no_login')
+        vs.add_value('containsAdvertisement', 'yes')
+        vs.add_value('price', 'no')
+        vs.add_value('accessibilitySummary', 'none')
+        vs.add_value('dataProtectionConformity', 'noGeneralDataProtectionRegulation')
+        vs.add_value('fskRating', '0')
+        vs.add_value('oer', '0')
+        vs.add_value('intendedEndUserRole', 'teacher')
+        vs.add_value('discipline', '720')  # allgemein
+        vs.add_value('educationalContext', 'elementarbereich')
+        vs.add_value('sourceContentType', '004')  # Material/Aufgabensammlung
+        # vs.add_value('toolCategory', 'noGeneralDataProtectionRegulation')
+        vs.add_value('learningResourceType', 'other_asset_type')
+
         base.add_value("valuespaces", vs.load_item())
         lic = LicenseItemLoader()
         lic.add_value('url', Constants.LICENSE_CC_ZERO_10)

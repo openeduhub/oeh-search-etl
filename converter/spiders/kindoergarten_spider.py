@@ -7,19 +7,26 @@ from scrapy.utils.project import get_project_settings
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomGeneralItemloader, LomBaseItemloader, LomTechnicalItemLoader, \
     LicenseItemLoader, PermissionItemLoader, ResponseItemLoader, LomEducationalItemLoader, ValuespaceItemLoader
-from converter.spiders.base_classes.meta_base import SpiderBase
 from typing import Optional, List
 from converter.dc_items.lom import General, Technical, Schema
 from converter.util.sitemap import SitemapEntry, from_xml_response
 from urllib import parse
+from converter.spiders.base_classes import LomBase
 
 
-class KindoergartenSpider(scrapy.Spider, metaclass=SpiderBase):
+class KindoergartenSpider(scrapy.Spider, LomBase):
     """
     scrapes the kindOERgarten wordpress.
     this wordpress instance has no json api enabled, so we go by sitemap
     https://kindoergarten.wordpress.com/sitemap.xml
     """
+
+    def getId(self, response: scrapy.http.Response = None) -> str:
+        pass
+
+    def getHash(self, response: scrapy.http.Response = None) -> str:
+        pass
+
     start_urls = ['https://kindoergarten.wordpress.com/sitemap.xml']
     name = 'kindoergarten_spider'
 
@@ -48,7 +55,7 @@ class KindoergartenSpider(scrapy.Spider, metaclass=SpiderBase):
         # pdf_links = content.css('ul li a').getall()
         # thumbnail_href = response.css('.post-thumbnail img::attr(src)').get()
         # title: str = response.css('.entry-title span::text').get()
-
+        response.meta['sitemap_entry'] = sitemap_entry
         base = BaseItemLoader(response=response)
         base.add_value("sourceId", parse.urlparse(sitemap_entry.loc).path)  # id der Seite
         base.add_value("hash", sitemap_entry.lastmod)  # version/Datum der Seite
