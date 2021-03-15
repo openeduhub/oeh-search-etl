@@ -3,7 +3,9 @@ import logging
 
 import html2text
 import requests
+import scrapy
 from scrapy.utils.project import get_project_settings
+from typing import Optional
 
 from converter.constants import Constants
 from converter.es_connector import EduSharing
@@ -11,6 +13,21 @@ from converter.items import *
 
 
 class LomBase:
+    """
+    This class is used to build the metadata and should be used wherever possible.
+
+    Use it either as an adapter for converting request data or use it as base class for your spider.
+
+    When you sub-class it from another spider, you should call super during __init__.
+    If you merely use it as an adapter, you should pass the kwargs from the spider __init__ to LomBase.
+    Otherwise it might not be configured correctly.
+
+    :param uuid: used to check if the item changed
+    :param remoteId: used to check if the item changed
+    :param cleanrun: set to 'true' if you want to ignore checks for possibly changed version
+    :param resetVersion: set to 'true' if you want to ignore the checks and also reset the version in edu-sharing
+    """
+
     name = None
     friendlyName = "LOM Based spider"
     ranking = 1
@@ -22,20 +39,19 @@ class LomBase:
     remoteId = None
     forceUpdate = False
 
-    def __init__(self, **kwargs):
+    def __init__(self, uuid=None, remoteId=None, cleanrun=None, resetVersion=None, **kwargs):
         if self.name is None:
             raise NotImplementedError(f'{self.__class__.__name__}.name is not defined on crawler')
-        if "uuid" in kwargs:
-            self.uuid = kwargs["uuid"]
-        if "remoteId" in kwargs:
-            self.remoteId = kwargs["remoteId"]
-        if "cleanrun" in kwargs and kwargs["cleanrun"] == "true":
+        self.uuid = uuid
+        self.remoteId = remoteId
+        self.forceUpdate = False
+        if cleanrun == "true":
             logging.info(
                 "cleanrun requested, will force update for crawler " + self.name
             )
             # EduSharing().deleteAll(self)
             self.forceUpdate = True
-        if "resetVersion" in kwargs and kwargs["resetVersion"] == "true":
+        if resetVersion == "true":
             logging.info(
                 "resetVersion requested, will force update + reset versions for crawler "
                 + self.name
@@ -44,22 +60,40 @@ class LomBase:
             EduSharing.resetVersion = True
             self.forceUpdate = True
 
-    # override to improve performance and automatically handling id
-    def getId(self, response=None) -> str:
+    def getId(self, response: scrapy.http.Response = None) -> str:
+        """
+        :returns: the unique id of the current item
+        """
         raise NotImplementedError(f'{self.__class__.__name__}.getId callback is not defined')
 
-    # override to improve performance and automatically handling hash
-    def getHash(self, response=None) -> str:
+    def getHash(self, response: scrapy.http.Response = None) -> str:
+        """
+        :returns: the hashed value of the item. This hash is usually used for checking if the item changed
+        """
         raise NotImplementedError(f'{self.__class__.__name__}.getHash callback is not defined')
 
     # return the unique uri for the entry
-    def getUri(self, response=None) -> str:
+    def getUri(self, response: scrapy.http.Response = None) -> str:
+        """
+        override this if the URI of the item is not response.url
+
+        :returns: the URI where the item can be accessed
+        """
         return response.url
 
-    def getUUID(self, response=None) -> str:
+    def getUUID(self, response: scrapy.http.Response = None) -> str:
+        """
+        :returns: the uuid, derived from getUri
+        """
         return EduSharing().buildUUID(self.getUri(response))
 
-    def hasChanged(self, response=None) -> bool:
+    def hasChanged(self, response: scrapy.http.Response = None) -> bool:
+        """
+        checks for equality in the following order: uuid, remoteId, getHash.
+        But only if uuid/remoteId were set during init.
+
+        :returns: true if the item changed, false otherwise
+        """
         if self.forceUpdate:
             return True
         if self.uuid:
@@ -73,16 +107,30 @@ class LomBase:
                 return True
             return False
         db = EduSharing().findItem(self.getId(response), self)
-        changed = db == None or db[1] != self.getHash(response)
+        changed = db is None or db[1] != self.getHash(response)
         if not changed:
             logging.info("Item " + db[0] + " has not changed")
         return changed
 
-    # you might override this method if you don't want to import specific entries
     def shouldImport(self, response=None) -> bool:
+        """
+        Place logic that decides if the item should be imported here.
+
+        :return: True
+        """
         return True
 
-    def parse(self, response):
+    def parse(self, response: scrapy.http.Response) -> Optional[BaseItem]:
+        """
+        Will generate the item from your response.
+        In order to populate the item you should override getLOM, getValuespaces, getLicense,
+        and mapResponse.
+
+        Instead of getLOM, you may also override getLOMGeneral, getLOMLifecycle, getLOMTechnical,
+        getLOMEducational and getLOMClassification in case it's too much code for one function.
+
+        :return: the populated BaseItem
+        """
         if self.shouldImport(response) is False:
             logging.info(
                 "Skipping entry "
@@ -102,13 +150,19 @@ class LomBase:
         main.add_value("response", self.mapResponse(response).load_item())
         return main.load_item()
 
-    def html2Text(self, html):
+    def html2Text(self, html: str):
         h = html2text.HTML2Text()
         h.ignore_links = True
         h.ignore_images = True
         return h.handle(html)
 
-    def getUrlData(self, url):
+    def getUrlData(self, url: str):
+        """
+        collects metadata from the given url
+
+        :param url: the url to collect the metadata from
+        :return: a dictionary with keys: text, html, cookies and har
+        """
         settings = get_project_settings()
         html = None
         if settings.get("SPLASH_URL"):
@@ -135,7 +189,15 @@ class LomBase:
         else:
             return {"html": None, "text": None, "cookies": None, "har": None}
 
-    def mapResponse(self, response, fetchData=True):
+    def mapResponse(self, response: scrapy.http.Response, fetchData=True) -> ResponseItemLoader:
+        """
+        will use the response to populate some fields in the returned Loader
+
+        :param response: the response to use.
+        :param fetchData: if True (default) it will collect more metadata from using the response.url,
+          otherwise only the HTTP status, headers and url are inserted.
+        :return: the populated loader
+        """
         r = ResponseItemLoader(response=response)
         r.add_value("status", response.status)
         # r.add_value('body',response.body.decode('utf-8'))
@@ -151,7 +213,7 @@ class LomBase:
         r.add_value("url", self.getUri(response))
         return r
 
-    def getValuespaces(self, response):
+    def getValuespaces(self, response) -> ValuespaceItemLoader:
         return ValuespaceItemLoader(response=response)
 
     def getLOM(self, response) -> LomBaseItemloader:

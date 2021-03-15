@@ -6,54 +6,10 @@ from pathlib import PurePosixPath
 from urllib import parse
 
 import jmespath
-import requests
 import scrapy
 
-from converter.constants import Constants
 from converter.items import BaseItemLoader, LomGeneralItemloader, LomTechnicalItemLoader, LicenseItemLoader
-from converter.spiders.base_classes.meta_base import SpiderBase
 from .lom_base import LomBase
-
-
-class PossibleTests:
-    """
-    https://klexikon.zum.de/api.php?action=query&format=json&list=allpages&aplimit=100&formatversion=2
-    {
-      "warnings": {
-        "main": {
-          "*": "Unrecognized parameter: 'formatversion'"
-        }
-      },
-      ...
-    } when api is too old for format v2
-
-    aplimit=0 !
-    https://klexikon.zum.de/api.php?action=query&format=json&list=allpages&aplimit=0&formatversion=2
-    {
-      "query-continue": {
-        "allpages": {
-          "apcontinue": "112"
-        }
-      },
-      "warnings": {
-        "main": {
-          "*": "Unrecognized parameter: 'formatversion'"
-        },
-        "allpages": {
-          "*": "aplimit may not be less than 1 (set to 0)"
-        }
-      },
-      "query": {
-        "allpages": [
-          {
-            "pageid": 1201,
-            "ns": 0,
-            "title": "1. Weltkrieg"
-          }
-        ]
-      }
-    }
-    """
 
 
 jmes_pageids = jmespath.compile('query.allpages[].pageid')
@@ -75,7 +31,15 @@ def _api_url(url) -> str:
     return parse.urljoin(url, str(api_path))
 
 
-class MediaWikiBase(LomBase, metaclass=SpiderBase):
+class MediaWikiBase(LomBase):
+    """
+    Is the base for scraping MediaWiki based sites like many of the ZUM websites.
+    It's built against one of the oldest API versions and *should* work for everything based on mediawiki.
+
+    There are newer versions of the MediaWiki API that accepts `formatversion: 2`, which yields much cleaner JSON.
+    But that would just double the code we have to write, so it's not really worth it.
+    """
+
     name = None
     url = None
     friendlyName = None
@@ -87,26 +51,19 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
         # 'formatversion': '2',
     }
 
-    """
-    The query action API: https://www.mediawiki.org/w/api.php?action=help&modules=query
-    The allpages parameters
-    https://www.mediawiki.org/w/api.php?action=help&modules=query%2Ballpages
-    """
     _query_params = _default_params | {
         'action': 'query',
         'list': 'allpages',
         'aplimit': '100',
         'apfilterredir': 'nonredirects'  # ignore redirection pages
     }
-
-    # _query_request_url = f"{_api_url(url)}?{parse.urlencode(_query_params)}"
-
     """
-    The parse action API: https://www.mediawiki.org/w/api.php?action=help&modules=parse
-    default for prop is:
-    text|langlinks|categories|links|templates|images|externallinks|sections|revid|displaytitle|iwlinks|properties|parsewarnings
-    we're using pageid, revid, text, title, links, properties, categories
+    Default parameters for the `query API <https://www.mediawiki.org/w/api.php?action=help&modules=query>`_.
+
+    Also, see the documentation for the 
+    `allpages parameters <https://www.mediawiki.org/w/api.php?action=help&modules=query%2Ballpages>`_
     """
+
     _parse_params = _default_params | {
         'action': 'parse',
         'prop': '|'.join([
@@ -137,22 +94,20 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
             # 'headitems',  # Deprecated. Gives items to put in the <head> of the page.
         ])
     }
-
-    keywords = {}
+    """
+    Default parameters for the `parse API: <https://www.mediawiki.org/w/api.php?action=help&modules=parse>`_
+    
+    default for prop is:
+    text|langlinks|categories|links|templates|images|externallinks|sections|revid|displaytitle|iwlinks|properties|parsewarnings
+    
+    we're using pageid, revid, text, title, links, properties, categories
+    """
 
     def __init__(self, **kwargs):
         self.api_url = _api_url(self.url)
         super().__init__(**kwargs)
 
     def start_requests(self):
-        keywords = json.loads(
-            requests.get(
-                "https://wirlernenonline.de/wp-json/wp/v2/tags/?per_page=100"
-            ).content.decode("UTF-8")
-        )
-        for keyword in keywords:
-            self.keywords[keyword["id"]] = keyword["name"]
-
         yield self.query_for_pages()
 
     def query_for_pages(self, continue_token: dict[str,str] = None):
