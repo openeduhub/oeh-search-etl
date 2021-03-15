@@ -1,8 +1,13 @@
+from warnings import warn
+
+
+
 # base for spiders using local 'json' data and need to access them
 class JSONBase:
     json = None
 
     def get(self, *params, mode="first", json=None):
+        warn("JSONBase.get is deprecated, please use jmespath instead")
         if json == None:
             json = self.json
 
