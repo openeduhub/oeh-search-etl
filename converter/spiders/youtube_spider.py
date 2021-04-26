@@ -13,7 +13,8 @@ from scrapy.spiders import Spider
 import converter.env as env
 import converter.items as items
 from converter.constants import Constants
-from .base_classes import LomBase
+from .base_classes import LomBase, CSVBase
+
 
 # TODO: Find suitable target field for channel/playlist information:
 #   - Title (channel title included as organization in lifecycle-author)
@@ -296,6 +297,21 @@ class YoutubeLomLoader(LomBase):
         return technical
 
     @overrides  # LomBase
+    def getLOMEducational(self, response):
+        educational = LomBase.getLOMEducational(self, response)
+        tar = items.LomAgeRangeItemLoader()
+        tar.add_value(
+            "fromRange",
+            self.parse_csv_field(response.meta["row"][CSVBase.COLUMN_TYPICAL_AGE_RANGE_FROM])
+        )
+        tar.add_value(
+            "toRange",
+            self.parse_csv_field(response.meta["row"][CSVBase.COLUMN_TYPICAL_AGE_RANGE_TO])
+        )
+        educational.add_value("typicalAgeRange", tar.load_item())
+        return educational
+
+    @overrides  # LomBase
     def getLOMLifecycle(self, response: Response) -> items.LomLifecycleItemloader:
         lifecycle = LomBase.getLOMLifecycle(self, response)
         lifecycle.add_value("role", "author")
@@ -321,6 +337,8 @@ class YoutubeLomLoader(LomBase):
         elif response.meta["item"]["status"]["license"] == "youtube":
             license.replace_value("internal", Constants.LICENSE_CUSTOM)
             license.add_value("description", "Youtube-Standardlizenz")
+        else:
+            logging.warning("Youtube element {} has no license".format(self.getId()))
         return license
 
     @overrides  # LomBase
@@ -333,6 +351,9 @@ class YoutubeLomLoader(LomBase):
         valuespaces.add_value("discipline", self.parse_csv_field(row["discipline"]))
         valuespaces.add_value(
             "intendedEndUserRole", self.parse_csv_field(row["intendedEndUserRole"]),
+        )
+        valuespaces.add_value(
+            "educationalContext", self.parse_csv_field(row[CSVBase.COLUMN_EDUCATIONAL_CONTEXT]),
         )
         return valuespaces
 
