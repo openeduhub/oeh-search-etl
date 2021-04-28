@@ -14,8 +14,6 @@ services:
       retries: 3
       start_period: 40s
 
-
-services:
   scrapy:
     # extra_hosts is only required if your need to access an edu-sharing instance on the host that runs docker
     # host.docker.internal points to the ip address of the host docker network interface 
