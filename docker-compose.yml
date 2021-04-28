@@ -19,7 +19,7 @@ services:
     # host.docker.internal points to the ip address of the host docker network interface 
     extra_hosts:
       host.docker.internal: host-gateway
-    image: openeduhub/oeh-search-etl
+    image: openeduhub/oeh-search-etl:develop
     environment:
       - "SPLASH_URL=http://splash:8050"
       - "CRAWLER=wirlernenonline_spider"
