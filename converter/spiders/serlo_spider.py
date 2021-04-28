@@ -2,7 +2,7 @@ from converter.items import *
 from .base_classes import LomBase, JSONBase
 import json
 import logging
-from html.parser import HTMLParser
+import html
 import re
 from converter.constants import Constants
 import scrapy
