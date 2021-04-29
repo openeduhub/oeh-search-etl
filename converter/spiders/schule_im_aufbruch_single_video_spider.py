@@ -14,7 +14,7 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
     name = "sia_single"
     friendlyName = "Schule im Aufbruch (Single Run Spider)"
     url = "https://vimeo.com/412230600"
-    version = "0.1.1"
+    version = "0.1.2"
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
