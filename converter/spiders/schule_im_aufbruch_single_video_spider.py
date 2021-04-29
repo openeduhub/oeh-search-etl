@@ -38,17 +38,8 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
         # XPath to description of a video looks like this:
         # //*[@id="main"]/div/main/div/div/div/div[2]/div[3]/div
 
-        edu = LomEducationalItemLoader()
-
-        permissions = PermissionItemLoader(response=response)
-        response_loader = ResponseItemLoader()
-
         # if ld+json script-container doesn't exist, at least log the error
         if (response.xpath('/html/body/script[1]/text()').get().strip()) is not None:
-            # using ld+json to fetch metadata:
-            # ld_json = self.get_ld_json(response)
-
-            current_url = str(response.url)  # making double-sure that we're using a string for sourceID
 
             # TODO: there's additional metadata inside a script block: window.vimeo.clip_page_config
             #   - longer description - maybe use this one?
@@ -58,13 +49,6 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
             #       - third_party_ads_enabled
             # response.xpath('//*[@id="wrap"]/div[2]/script[1]/text()').get()
             # might have to access it and split it up with regEx
-
-            # TODO: PermissionItemLoader ?
-            # permissions.add_value('public', self.settings.get("DEFAULT_PUBLIC_STATE"))  # is this necessary?
-            # base.add_value('permissions', permissions.load_item())
-            # # TODO: ResponseItemLoader() ?
-            # response_loader.add_value('url', response.url)
-            # base.add_value('response', response_loader.load_item())
 
             return LomBase.parse(self, response)
         else:
@@ -110,7 +94,8 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
         ld_json = self.get_ld_json(response)
         general.add_value('title', html.unescape(ld_json[0]["name"]))
         general.add_value('description', html.unescape(ld_json[0]["description"]))
-        # TODO: general.add_value('keyword', '') set manually if there are no keywords given?
+        # TODO: set manually if there are no keywords given?
+        #  general.add_value('keyword', '')     # manual keywords?
         return general
 
     def getLOMTechnical(self, response=None) -> LomTechnicalItemLoader:
@@ -170,3 +155,9 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
         license_url = self.get_license(response)
         lic.add_value('url', license_url)
         return lic
+
+    def getPermissions(self, response=None) -> PermissionItemLoader:
+        permissions = LomBase.getPermissions(self, response)
+        # TODO: PermissionItemLoader - which value should be set?
+        # permissions.add_value('public', self.settings.get("DEFAULT_PUBLIC_STATE"))  # is this necessary?
+        return permissions
