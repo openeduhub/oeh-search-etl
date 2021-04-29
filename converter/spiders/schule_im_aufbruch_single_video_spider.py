@@ -38,8 +38,6 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
         # XPath to description of a video looks like this:
         # //*[@id="main"]/div/main/div/div/div/div[2]/div[3]/div
 
-        lifecycle = LomLifecycleItemloader()
-
         edu = LomEducationalItemLoader()
 
         permissions = PermissionItemLoader(response=response)
@@ -48,7 +46,7 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
         # if ld+json script-container doesn't exist, at least log the error
         if (response.xpath('/html/body/script[1]/text()').get().strip()) is not None:
             # using ld+json to fetch metadata:
-            ld_json = self.get_ld_json(response)
+            # ld_json = self.get_ld_json(response)
 
             current_url = str(response.url)  # making double-sure that we're using a string for sourceID
 
@@ -59,14 +57,7 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
             #       - house_ads_enabled
             #       - third_party_ads_enabled
             # response.xpath('//*[@id="wrap"]/div[2]/script[1]/text()').get()
-            # might have to access it by regEx
-
-            # TODO: which category does "schule im Aufbruch" fit into? double-check!
-            # edu.add_value('language', 'de')  # okay to hardcode this? (some videos are sometimes bilingual, but meta
-            # data from vimeo doesn't offer language attributes)
-
-            # lom.add_value('educational', edu.load_item())
-            # base.add_value('lom', lom.load_item())
+            # might have to access it and split it up with regEx
 
             # TODO: PermissionItemLoader ?
             # permissions.add_value('public', self.settings.get("DEFAULT_PUBLIC_STATE"))  # is this necessary?
@@ -80,7 +71,11 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
             logging.debug("Could not find ld+json script, skipping entry: " + response.url)
 
     @staticmethod
-    def get_ld_json(response: scrapy.http.Response):
+    def get_ld_json(response: scrapy.http.Response) -> list:
+        """
+        acquires the ld+json script block from the current page and deserializes it into a json list
+
+        """
         ld_json_string = response.xpath('/html/body/script[1]/text()').get().strip()
         ld_json = json.loads(ld_json_string)
         return ld_json
@@ -103,12 +98,10 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
         base = LomBase.getBase(self, response)
         ld_json = self.get_ld_json(response)
         current_url = str(response.url)  # making double-sure that we're using a string for sourceID
-        base.add_value('sourceId', current_url)  # this needs to be fixed
+        base.add_value('sourceId', current_url)
         base.add_value("hash", ld_json[0]["dateModified"])
         # TODO: datetime-conversion necessary?
         base.add_value("lastModified", ld_json[0]["dateModified"])
-        # TODO: store thumbnail or thumbnailUrl?
-        # url can be acquired from current_page_json[0]["thumbnailUrl"]
         base.add_value('thumbnail', ld_json[0]["thumbnailUrl"])
         return base
 
@@ -122,15 +115,17 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
 
     def getLOMTechnical(self, response=None) -> LomTechnicalItemLoader:
         # TODO: LomTechnicalItemLoader()
-        # grabs the video type from the metadata header - most of the times it'll be video.other
+        technical = LomBase.getLOMTechnical(self, response)
+        ld_json = self.get_ld_json(response)
+
+        # TODO: Make sure that we're grabbing the right type for 'format'
         # if we were to acquire the format by an API call
         # (see https://developer.vimeo.com/api/reference/responses/video), vimeo would offer 3 options:
         # 'live' (for live events),
         # 'stock' (this video is a Vimeo Stock video)
         # 'video' (this video is a standard Vimeo video)
-        technical = LomBase.getLOMTechnical(self, response)
-        ld_json = self.get_ld_json(response)
-        # TODO: Make sure that we're grabbing the right type for 'format'
+
+        # grabs the video type from the metadata header - most of the times it'll be video.other
         technical.add_value('format', response.xpath('/html/head/meta[18]/@content').get())
         technical.add_value('location', ld_json[0]["url"])
         return technical
@@ -156,11 +151,19 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
         lifecycle = LomBase.getLOMLifecycle(self, response)
         ld_json = self.get_ld_json(response)
         # author information is inside a dictionary with schema.org type Person
+        # we could maybe grab the whole object instead?
         author_dict = ld_json[1]["itemListElement"][0]["item"]
         # TODO: LomLifeCycleItemLoader
         lifecycle.add_value('organization', author_dict["name"])
         lifecycle.add_value('url', author_dict["@id"])
         return lifecycle
+
+    def getLOMEducational(self, response=None) -> LomEducationalItemLoader:
+        edu = LomBase.getLOMEducational(self, response)
+        # TODO: which category does "schule im Aufbruch" fit into? double-check!
+        edu.add_value('language', 'de')  # okay to hardcode this? (some videos are bilingual, but meta
+        # data from vimeo doesn't offer language attributes)
+        return edu
 
     def getLicense(self, response=None) -> LicenseItemLoader:
         lic = LomBase.getLicense(self, response)
