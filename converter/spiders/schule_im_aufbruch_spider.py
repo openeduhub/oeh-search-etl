@@ -4,9 +4,8 @@ import logging
 
 import scrapy
 
-from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, PermissionItemLoader, ResponseItemLoader, \
-    LomLifecycleItemloader
+from converter.items import BaseItemLoader, LomGeneralItemloader, LomTechnicalItemLoader, \
+    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, PermissionItemLoader, LomLifecycleItemloader
 from converter.spiders.base_classes import LomBase
 
 
@@ -55,7 +54,7 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
         """
 
         # TODO: acquire thumbnail from the overview?
-        # thumnbails can be acquired using the srcset attribute on each thumbnail, e.g.:
+        # thumbnails can be acquired using the 'srcset' attribute on each thumbnail, e.g.:
         # response.xpath('//*[@id="clip_412230600"]/a/img/@srcset').get()
 
         # acquire current URLs from <script type="application/ld+json"> block
@@ -129,8 +128,8 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
         ld_json = self.get_ld_json(response)
         current_url = str(response.url)  # making double-sure that we're using a string for sourceID
         base.add_value('sourceId', current_url)
+        # maybe add sourceID + dateModified as hash?
         base.add_value("hash", ld_json[0]["dateModified"])
-        # TODO: datetime-conversion necessary?
         base.add_value("lastModified", ld_json[0]["dateModified"])
         base.add_value('thumbnail', ld_json[0]["thumbnailUrl"])
         return base
@@ -169,7 +168,6 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
         #   - oer
         #   - educationalContext
         #   - educationalContentType
-        #   - learningResourceType (other_asset_type)?
         vs.add_value('conditionsOfAccess', 'no_login')
         # vs.add_value('containsAdvertisement', 'no')  # do vimeo-advertisements for their own vimeo-plans count?
         vs.add_value('price', 'no')
@@ -205,7 +203,7 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
     def getPermissions(self, response=None) -> PermissionItemLoader:
         permissions = LomBase.getPermissions(self, response)
         # TODO: PermissionItemLoader - which value should be set?
-        # permissions.add_value('public', self.settings.get("DEFAULT_PUBLIC_STATE"))  # is this necessary?
+        permissions.add_value('public', self.settings.get("DEFAULT_PUBLIC_STATE"))  # is this necessary?
         return permissions
 
     def get_next_vimeo_overview_page(self, response: scrapy.http.Response):
