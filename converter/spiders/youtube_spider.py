@@ -24,11 +24,6 @@ from .base_classes import LomBase, CSVBase
 # TODO: Find out whether `publishedAt` reflects modification
 #   - Find another way to set `hash` if not
 #
-# Unhandled csv columns:
-#   - typicalAgeRangeFrom
-#   - typicalAgeRangeTo
-#     TODO: Replace with educationalContext
-
 
 class YoutubeSpider(Spider):
     """
