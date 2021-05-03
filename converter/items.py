@@ -147,6 +147,8 @@ class LicenseItem(Item):
     "a value of OerType (if empty, will be mapped via the given url or internal value)"
     author = Field()
     "an author freetext (basically, how the author should be named in case this is a by-license"
+    expirationDate = Field()
+    "a date at which any content license expires and the content shouldn't be delivered anymore"
 
 
 class PermissionItem(Item):
