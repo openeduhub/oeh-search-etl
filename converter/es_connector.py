@@ -228,6 +228,9 @@ class EduSharing:
         if "author" in license:
             spaces["ccm:author_freetext"] = license["author"]
 
+        if "expirationDate" in license:
+            spaces["ccm:license_to"] = [license["expirationDate"].isoformat()]
+
     def transformItem(self, uuid, spider, item):
         spaces = {
             "ccm:replicationsource": spider.name,
