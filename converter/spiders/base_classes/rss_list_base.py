@@ -1,3 +1,5 @@
+import scrapy
+
 from converter.items import *
 from .lom_base import LomBase
 from .rss_base import RSSBase
@@ -5,6 +7,7 @@ from .csv_base import CSVBase
 from converter.valuespace_helper import ValuespaceHelper
 import csv
 import os
+
 
 # rss crawler with a list of entries to crawl and map
 # for supported columns, please check the CSVbase class
