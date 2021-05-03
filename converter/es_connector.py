@@ -526,7 +526,7 @@ class EduSharing:
                         )["groups"],
                     )
                 )
-                logging.debug("Built up edu-sharing group cache", EduSharing.groupCache)
+                logging.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
                 return
             logging.warning(auth.text)
             raise Exception(
