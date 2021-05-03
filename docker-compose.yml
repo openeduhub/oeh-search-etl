@@ -13,3 +13,19 @@ services:
       timeout: 5s
       retries: 3
       start_period: 40s
+
+  scrapy:
+    # extra_hosts is only required if your need to access an edu-sharing instance on the host that runs docker
+    # host.docker.internal points to the ip address of the host docker network interface 
+    extra_hosts:
+      host.docker.internal: host-gateway
+    image: openeduhub/oeh-search-etl:develop
+    environment:
+      - "SPLASH_URL=http://splash:8050"
+      - "CRAWLER=wirlernenonline_spider"
+      - "DRY_RUN=False"
+      - "EDU_SHARING_BASE_URL=http://host.docker.internal/edu-sharing/"
+      - "EDU_SHARING_USERNAME=admin"
+      - "EDU_SHARING_PASSWORD=admin"
+
+      

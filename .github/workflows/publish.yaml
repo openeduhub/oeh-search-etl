@@ -1,0 +1,27 @@
+name: publish
+
+on:
+  push:
+    branches: 
+      - develop
+      - master
+      - '**'
+    tags: 
+      - v[0-9]+.[0-9]+.[0-9]+
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - uses: azure/docker-login@v1
+      with:
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+    - uses: rlespinasse/github-slug-action@v2.x
+    - name: Build Docker image
+      run: docker build --tag ${{ github.repository }}:${{ env.GITHUB_REF_SLUG }} .
+    - name: Publish to DockerHub
+      run: docker push ${{ github.repository }}:${{ env.GITHUB_REF_SLUG }}

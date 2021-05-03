@@ -2,7 +2,7 @@ from converter.items import *
 import time
 from .base_classes import LrmiBase
 import json
-from html.parser import HTMLParser
+import html
 from converter.valuespace_helper import ValuespaceHelper
 from converter.constants import Constants
 import scrapy
@@ -83,10 +83,10 @@ class DigitallearninglabSpider(scrapy.Spider, LrmiBase):
     def getLOMGeneral(self, response):
         general = LrmiBase.getLOMGeneral(self, response)
         general.replace_value(
-            "title", HTMLParser().unescape(response.meta["item"].get("name").strip())
+            "title", html.unescape(response.meta["item"].get("name").strip())
         )
         general.add_value(
-            "description", HTMLParser().unescape(response.meta["item"].get("teaser"))
+            "description", html.unescape(response.meta["item"].get("teaser"))
         )
         # general.add_value('keyword', list(filter(lambda x: x,map(lambda x: x.strip(), response.xpath('//*[@id="ContentModuleApp"]//*[@class="topic-name"]//text()').getall()))))
         return general
