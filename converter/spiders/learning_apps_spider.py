@@ -4,7 +4,7 @@ from scrapy.http import Response
 from converter import items
 from converter.items import *
 from .base_classes import LomBase
-from html.parser import HTMLParser
+import html
 import scrapy
 
 class LearningAppsSpider(scrapy.Spider, LomBase):
@@ -99,7 +99,7 @@ class LearningAppsSpider(scrapy.Spider, LomBase):
         general = LomBase.getLOMGeneral(self, response)
         general.add_value(
             "title",
-            HTMLParser().unescape(response.meta["item"].xpath("@title").get()),
+            html.unescape(response.meta["item"].xpath("@title").get()),
         )
         general.add_value(
             "description", self.html2Text(response.meta["item"].xpath("@task").get())

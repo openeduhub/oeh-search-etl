@@ -2,7 +2,7 @@ from converter.items import *
 from .base_classes import LomBase
 from converter.valuespace_helper import Valuespaces
 import requests
-from html.parser import HTMLParser
+import html
 from converter.constants import Constants
 import scrapy
 
