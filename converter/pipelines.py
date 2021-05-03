@@ -7,6 +7,7 @@ import base64
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 import csv
+import dateparser
 import io
 import logging
 import time
@@ -172,6 +173,8 @@ class NormLicensePipeline(BasicPipeline):
             internal = item["license"]["internal"].lower()
             if "cc-by-sa" in internal or "cc-0" in internal or "pdm" in internal:
                 item["license"]["oer"] = OerType.ALL
+        if "expirationDate" in item["license"]:
+            item["license"]["expirationDate"] = dateparser.parse(item["license"]["expirationDate"])
         return item
 
 
