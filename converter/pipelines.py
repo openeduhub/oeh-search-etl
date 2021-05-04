@@ -177,7 +177,9 @@ class NormLicensePipeline(BasicPipeline):
             item["license"]["expirationDate"] = dateparser.parse(item["license"]["expirationDate"])
         if "lifecycle" in item["lom"]:
             for contribute in item["lom"]["lifecycle"]:
-                contribute["date"] = dateparser.parse(contribute["date"])
+                if "date" in contribute:
+                    contribute["date"] = dateparser.parse(contribute["date"])
+
         return item
 
 
