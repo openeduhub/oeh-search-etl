@@ -74,6 +74,7 @@ class RSSBase(CrawlSpider, LomBase):
         # technical.add_value('size', item.xpath('enclosure/@length').get())
         # technical.add_value('location', item.xpath('enclosure/@url').get())
         technical.add_value("format", "text/html")
+        technical.add_value("duration", response.meta["item"].xpath("duration//text()").get().strip())
         technical.add_value(
             "location", response.meta["item"].xpath("link//text()").get()
         )

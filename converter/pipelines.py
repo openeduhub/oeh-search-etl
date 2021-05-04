@@ -9,6 +9,7 @@ import base64
 import csv
 import dateparser
 import io
+import isodate
 import logging
 import time
 from io import BytesIO
@@ -141,7 +142,6 @@ class FilterSparsePipeline(BasicPipeline):
         except KeyError:
             raise DropItem(f'Item {item} was dropped for not providing enough metadata')
 
-
 class NormLicensePipeline(BasicPipeline):
     def process_item(self, item, spider):
         if "url" in item["license"] and not item["license"]["url"] in Constants.VALID_LICENSE_URLS:
@@ -180,7 +180,8 @@ class NormLicensePipeline(BasicPipeline):
 
 class ConvertTimePipeline(BasicPipeline):
     """
-    convert typicalLearningTime into a integer representing seconds
+    convert typicalLearningTime into an integer representing seconds
+    + convert duration into an integer
     """
     def process_item(self, item, spider):
         # map lastModified
@@ -215,6 +216,21 @@ class ConvertTimePipeline(BasicPipeline):
                     + " to numeric value"
                 )
             item["lom"]["educational"]["typicalLearningTime"] = mapped
+        if "technical" in item["lom"]:
+            duration = item["lom"]["technical"]["duration"]
+            if duration:
+                if duration.split(":").count == 2:
+                    duration = isodate.parse_time(duration)
+                    duration = duration.hour*60*60 + duration.minute*60 + duration.second
+                elif duration.startswith("PT"):
+                    duration = int(isodate.parse_duration(duration).total_seconds())
+                else:
+                    try:
+                        duration = int(duration)
+                    except:
+                        duration = None
+                        logging.warning("duration {} could not be normalized to seconds".format(duration))
+                item["lom"]["technical"]["duration"] = duration
         return item
 
 

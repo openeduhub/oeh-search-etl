@@ -261,6 +261,9 @@ class EduSharing:
             spaces["cclom:general_keyword"] = (item["lom"]["general"]["keyword"],)
         else:
             spaces["cclom:general_keyword"] = []
+        if "technical" in item["lom"]:
+            spaces["cclom:duration"] = item["lom"]["technical"]["duration"]
+
         # TODO: this does currently not support multiple values per role
         if "lifecycle" in item["lom"]:
             for person in item["lom"]["lifecycle"]:

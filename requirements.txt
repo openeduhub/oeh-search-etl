@@ -1,6 +1,7 @@
 wheel
 image
 dateparser==1.0.0
+isodate==0.6.0
 html2text
 scrapy-splash
 python-dateutil
