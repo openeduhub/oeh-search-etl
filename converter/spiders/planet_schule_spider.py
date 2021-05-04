@@ -1,7 +1,15 @@
-from converter.items import *
-from .base_classes import LomBase, RSSBase
-from converter.valuespace_helper import ValuespaceHelper
+import logging
+import re
+from typing import Optional
+
+import dateparser
+import requests
+import scrapy
+
 from converter.constants import Constants
+from converter.valuespace_helper import ValuespaceHelper
+from .base_classes import LomBase, RSSBase
+
 
 # Spider to fetch RSS from planet schule
 class PlanetSchuleSpider(RSSBase):
@@ -11,7 +19,7 @@ class PlanetSchuleSpider(RSSBase):
     start_urls = [
         "https://www.planet-schule.de/data/planet-schule-vodcast-komplett.rss"
     ]
-    version = "0.1"
+    version = "0.1.1"
 
     def __init__(self, **kwargs):
         RSSBase.__init__(self, **kwargs)
@@ -56,6 +64,11 @@ class PlanetSchuleSpider(RSSBase):
     def getLicense(self, response):
         license = LomBase.getLicense(self, response)
         license.add_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
+        # since expirationDate is only found in the html body, we need to crawl the site itself as well:
+        page_content = scrapy.Selector(requests.get(response.url))
+        date = self.get_expiration_date(page_content)
+        if date:
+            license.add_value('expirationDate', date)
         return license
 
     def getValuespaces(self, response):
@@ -80,3 +93,21 @@ class PlanetSchuleSpider(RSSBase):
         if lrt:
             valuespaces.add_value("learningResourceType", lrt)
         return valuespaces
+
+    @staticmethod
+    def get_expiration_date(response) -> Optional[str]:
+        # "Film online bis ..."-XPath:
+        # response.xpath('//*[@id="container_mitte"]/div[2]/div[2]/div/div/div[3]/div[2]')
+        # or by its class name "licence_info" (sic!) - watch out for the typo on the website itself!
+        # (this might get fixed in the future and break the spider!)
+        logging.debug("current URL inside the get_expiration_date method: ", response)
+        if response is not None:
+            temp_string = response.xpath('//div[@class="licence_info"]/text()').get().strip()
+            if temp_string is not None:
+                temp_string = temp_string.strip()
+                date_reg_ex = re.compile(r'(\d{1,2}).\s(\w+)\s(\d{4})')
+                date_only = date_reg_ex.search(temp_string)
+                parsed_date = dateparser.parse(date_only.group())
+                date_in_iso = parsed_date.isoformat()
+                return date_in_iso
+        return None
