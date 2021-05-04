@@ -35,7 +35,7 @@ class ZDFRSSSpider(RSSListBase):
         # grabbing the expiration date from the "other-infos"-container:
         # XPath: /html/body/div[1]/div/main/article/article[1]/div/div/div[2]/div/div[1]/div/dl[2]/dd
         # using the container-name instead to grab the 'verfügbar bis <datum>'-string:
-        logging.debug("current URL inside the get_expiration_date method: ", response)
+        # logging.debug("current URL inside the get_expiration_date method: ", response)
         if response is not None:
             temp_string = response.xpath(
                 '//div[contains(@class,"other-infos")]/dl[2]/dd[contains(@class,"desc-text")]/text()'
