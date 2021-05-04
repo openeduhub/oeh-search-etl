@@ -155,7 +155,13 @@ class LomBase:
     def getLOM(self, response) -> LomBaseItemloader:
         lom = LomBaseItemloader(response=response)
         lom.add_value("general", self.getLOMGeneral(response).load_item())
-        lom.add_value("lifecycle", self.getLOMLifecycle(response).load_item())
+        lifecycle = self.getLOMLifecycle(response)
+        if isinstance(lifecycle, LomLifecycleItemloader):
+            lom.add_value("lifecycle", lifecycle.load_item())
+        else:
+            # support yield and generator for multiple values
+            for contribute in lifecycle:
+                lom.add_value("lifecycle" ,contribute.load_item())
         lom.add_value("technical", self.getLOMTechnical(response).load_item())
         lom.add_value("educational", self.getLOMEducational(response).load_item())
         lom.add_value("classification", self.getLOMClassification(response).load_item())
@@ -172,6 +178,10 @@ class LomBase:
     def getLOMGeneral(self, response=None) -> LomGeneralItemloader:
         return LomGeneralItemloader(response=response)
 
+    """
+    return one or more lifecycle element
+    If you want to return more than one, use yield and generate multiple LomLifecycleItemloader
+    """
     def getLOMLifecycle(self, response=None) -> LomLifecycleItemloader:
         return LomLifecycleItemloader(response=response)
 

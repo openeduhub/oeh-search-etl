@@ -314,7 +314,11 @@ class YoutubeLomLoader(LomBase):
             "organization", response.meta["item"]["snippet"]["channelTitle"]
         )
         lifecycle.add_value("url", self.getChannelUrl(response))
-        return lifecycle
+        yield lifecycle
+        lifecycle = LomBase.getLOMLifecycle(self, response)
+        lifecycle.add_value("role", "publisher")
+        lifecycle.add_value("date", response.meta["item"]["snippet"]["publishedAt"])
+        yield lifecycle
 
     def getChannelUrl(self, response: Response) -> str:
         channel_id = response.meta["item"]["snippet"]["channelId"]
