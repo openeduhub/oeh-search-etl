@@ -289,7 +289,7 @@ class EduSharing:
                     person["organization"] if "organization" in person else ""
                 )
                 url = person["url"] if "url" in person else ""
-                date = person["date"]
+                date = person["date"] if "date" in person else None
                 vcard = vobject.vCard()
                 vcard.add("n").value = vobject.vcard.Name(
                     family=lastName, given=firstName
