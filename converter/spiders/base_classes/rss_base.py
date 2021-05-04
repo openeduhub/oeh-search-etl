@@ -79,3 +79,10 @@ class RSSBase(CrawlSpider, LomBase):
             "location", response.meta["item"].xpath("link//text()").get()
         )
         return technical
+
+    def getLOMLifecycle(self, response):
+        lifecycle = LomBase.getLOMLifecycle(self, response)
+        lifecycle.add_value('role', 'publisher')
+        lifecycle.add_value('organization', response.meta["item"].xpath("*[name()='itunes:author']/text()").get())
+        lifecycle.add_value('date', response.meta["item"].xpath("pubDate//text()").get())
+        return lifecycle

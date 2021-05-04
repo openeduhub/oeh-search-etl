@@ -273,7 +273,7 @@ class EduSharing:
                     not person["role"].lower()
                     in EduSharingConstants.LIFECYCLE_ROLES_MAPPING
                 ):
-                    logging.warn(
+                    logging.warning(
                         "The lifecycle role "
                         + person["role"]
                         + " is currently not supported by the edu-sharing connector"
@@ -289,6 +289,7 @@ class EduSharing:
                     person["organization"] if "organization" in person else ""
                 )
                 url = person["url"] if "url" in person else ""
+                date = person["date"]
                 vcard = vobject.vCard()
                 vcard.add("n").value = vobject.vcard.Name(
                     family=lastName, given=firstName
@@ -298,6 +299,10 @@ class EduSharing:
                     if organization
                     else (firstName + " " + lastName).strip()
                 )
+                if date:
+                    vcard.add("X-ES-LOM-CONTRIBUTE-DATE").value = date.isoformat()
+                    if person["role"].lower() == 'publisher':
+                        spaces["ccm:published_date"] = date.isoformat()
                 if organization:
                     vcard.add("org")
                     # fix a bug of splitted org values

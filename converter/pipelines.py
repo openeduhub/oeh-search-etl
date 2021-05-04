@@ -175,6 +175,9 @@ class NormLicensePipeline(BasicPipeline):
                 item["license"]["oer"] = OerType.ALL
         if "expirationDate" in item["license"]:
             item["license"]["expirationDate"] = dateparser.parse(item["license"]["expirationDate"])
+        if "lifecycle" in item["lom"]:
+            for contribute in item["lom"]["lifecycle"]:
+                contribute["date"] = dateparser.parse(contribute["date"])
         return item
 
 

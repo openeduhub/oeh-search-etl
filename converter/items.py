@@ -49,7 +49,8 @@ class LomLifecycleItem(Item):
     organization = Field()
     url = Field()
     uuid = Field()
-
+    date = Field()
+    "the date of contribution. Will be automatically transformed/parsed"
 
 class LomTechnicalItem(Item):
     format = Field()
