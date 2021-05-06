@@ -20,6 +20,11 @@ class PlanetSchuleSpider(RSSBase):
         "https://www.planet-schule.de/data/planet-schule-vodcast-komplett.rss"
     ]
     version = "0.1.1"
+    # Planet Schule allows us to crawl their site, therefore ignore the robots.txt directions
+    custom_settings = {
+        'ROBOTSTXT_OBEY': False,
+        'AUTOTHROTTLE_ENABLED': True
+    }
 
     def __init__(self, **kwargs):
         RSSBase.__init__(self, **kwargs)
@@ -96,7 +101,7 @@ class PlanetSchuleSpider(RSSBase):
 
     @staticmethod
     def get_expiration_date(response) -> Optional[str]:
-        # "Film online bis ..."-XPath:
+        # "Film online bis ..." is a string inside a div container. The XPath to it is:
         # response.xpath('//*[@id="container_mitte"]/div[2]/div[2]/div/div/div[3]/div[2]')
         # or by its class name "licence_info" (sic!) - watch out for the typo on the website itself!
         # (this might get fixed in the future and break the spider!)
@@ -104,9 +109,11 @@ class PlanetSchuleSpider(RSSBase):
         if response is not None:
             temp_string = response.xpath('//div[@class="licence_info"]/text()').get().strip()
             if temp_string is not None:
+                # fetch the date from the
                 temp_string = temp_string.strip()
                 date_reg_ex = re.compile(r'(\d{1,2}).\s(\w+)\s(\d{4})')
                 date_only = date_reg_ex.search(temp_string)
+                # parse the date and give it back as ISO-formatted string
                 parsed_date = dateparser.parse(date_only.group())
                 date_in_iso = parsed_date.isoformat()
                 return date_in_iso
