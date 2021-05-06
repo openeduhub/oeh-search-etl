@@ -61,6 +61,7 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         # title: str = response.css('.entry-title span::text').get()
         response.meta['sitemap_entry'] = sitemap_entry
         base = super().getBase(response=response)
+        base.add_value("response", super().mapResponse(response).load_item())
         # we assume that content is imported. Please use replace_value if you import something different
         base.add_value("type", Constants.TYPE_MATERIAL)
         base.add_css('thumbnail', '.post-thumbnail img::attr(src)')
