@@ -105,11 +105,16 @@ class FilterSparsePipeline(BasicPipeline):
     def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
         try:
+            if "title" not in item["lom"]["general"]:
+                raise DropItem(
+                    "Entry {} has no title location".format(item["sourceId"])
+                )
+        except KeyError:
+            raise DropItem(f'Item {item} has no lom.technical.location')
+        try:
             if "location" not in item["lom"]["technical"]:
                 raise DropItem(
-                    "Entry "
-                    + item["lom"]["general"]["title"]
-                    + " has no technical location"
+                    "Entry {} has no technical location".format(item["lom"]["general"]["title"])
                 )
         except KeyError:
             raise DropItem(f'Item {item} has no lom.technical.location')
@@ -510,22 +515,6 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
 
     def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
-        output = io.BytesIO()
-        exporter = JsonItemExporter(
-            output,
-            fields_to_export=[
-                "lom",
-                "valuespaces",
-                "license",
-                "type",
-                "origin",
-                "fulltext",
-                "ranking",
-                "lastModified",
-                "thumbnail",
-            ],
-        )
-        exporter.export_item(raw_item)
         title = "<no title>"
         if "title" in item["lom"]["general"]:
             title = str(item["lom"]["general"]["title"])
@@ -563,7 +552,6 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         #         item['hash'], # hash
         #         json,
         #     ))
-        output.close()
         return raw_item
 
 
