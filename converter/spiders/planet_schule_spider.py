@@ -20,7 +20,7 @@ class PlanetSchuleSpider(RSSBase):
     start_urls = [
         "https://www.planet-schule.de/data/planet-schule-vodcast-komplett.rss"
     ]
-    version = "0.1.1"
+    version = "0.1.2"
     # Planet Schule allows us to crawl their site, therefore ignore the robots.txt directions
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
@@ -41,7 +41,8 @@ class PlanetSchuleSpider(RSSBase):
                 yield scrapy.Request(
                     url=item.xpath("link//text()").get(),
                     callback=self.handleLink,
-                    meta={"item": item},
+                    meta={"item": item,
+                          "duration": item.xpath("duration//text()").get()},
                 )
 
     def handleLink(self, response):
@@ -65,6 +66,12 @@ class PlanetSchuleSpider(RSSBase):
         technical = LomBase.getLOMTechnical(self, response)
         technical.add_value("format", "text/html")
         technical.add_value("location", response.url)
+
+        # TODO: Fix me, async problem?
+        # duration_temp = response.meta["item"].xpath("//duration//text()").get()
+        # duration_temp = response.meta["item"].xpath("*[name()='duration']//text()").get()
+        duration_temp = response.meta["duration"]
+        technical.add_value("duration", duration_temp)
         return technical
 
     def getLicense(self, response):
@@ -106,7 +113,6 @@ class PlanetSchuleSpider(RSSBase):
         # response.xpath('//*[@id="container_mitte"]/div[2]/div[2]/div/div/div[3]/div[2]')
         # or by its class name "licence_info" (sic!) - watch out for the typo on the website itself!
         # (this might get fixed in the future and break the spider!)
-        logging.debug("current URL inside the get_expiration_date method: ", response)
         if response is not None:
             temp_string = response.xpath('//div[@class="licence_info"]/text()').get().strip()
             if temp_string is not None:
@@ -122,7 +128,8 @@ class PlanetSchuleSpider(RSSBase):
 
     @staticmethod
     def get_embed_code(response) -> Optional[str]:
-        logging.debug("current URL inside the get_embed_code method: ", response)
+        # work in progress (non-functional atm), grabs the <div><iframe> container as a string
+        # that you get after clicking on the embed button
         if response is not None:
             # grab embed script from the content page itself:
             # example url that has an embed element: https://www.planet-schule.de/sf/php/sendungen.php?sendung=11142
