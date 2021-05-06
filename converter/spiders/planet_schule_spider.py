@@ -1,3 +1,4 @@
+import html
 import logging
 import re
 from typing import Optional
@@ -118,3 +119,21 @@ class PlanetSchuleSpider(RSSBase):
                 date_in_iso = parsed_date.isoformat()
                 return date_in_iso
         return None
+
+    @staticmethod
+    def get_embed_code(response) -> Optional[str]:
+        logging.debug("current URL inside the get_embed_code method: ", response)
+        if response is not None:
+            # grab embed script from the content page itself:
+            # example url that has an embed element: https://www.planet-schule.de/sf/php/sendungen.php?sendung=11142
+            # important: not every video has embed-codes enabled!
+
+            # find the "film_embed"-button/link:
+            # //*[@id="container_mitte"]/div[2]/div[2]/div/div/div[3]/a[4]
+            film_embed_link = response.xpath('//a[@class="film_embed_link"]').get()
+            if film_embed_link is not None:
+                # the embed code itself:
+                embed_code = response.xpath('//*[@id="film_embed_code"]/text()').get()
+                if embed_code is not None:
+                    embed_code = html.unescape(embed_code)
+                    return embed_code
