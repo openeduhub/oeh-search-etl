@@ -9,4 +9,4 @@ class BRRSSSpider(RSSListBase):
     version = "0.1.0"
 
     def __init__(self, **kwargs):
-        RSSListBase.__init__(self, "csv/br_rss.csv", **kwargs)
+        RSSListBase.__init__(self, "../csv/br_rss.csv", **kwargs)

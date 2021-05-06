@@ -44,7 +44,7 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
     name = "geogebra_spider"
     friendlyName = "GeoGebra"
     url = "https://www.geogebra.org"
-    version = "0.1"
+    version = "0.1.1"
     start_urls = [
         "https://www.geogebra.org/m-sitemap-1.xml",
         "https://www.geogebra.org/m-sitemap-2.xml",
@@ -63,6 +63,11 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
+        CrawlSpider.__init__(self, **kwargs)
+
+    def start_requests(self):
+        for url in self.start_urls:
+            yield Request(url = url, callback = self.parse)
 
     def parse(self, response, **kwargs):
         """
@@ -157,7 +162,7 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
 
     def getLicense(self, response=None):
         license = super().getLicense(response)
-        license.add_value("url", Constants.LICENSE_CC_BY_SA_30)
+        license.add_value("url", Constants.LICENSE_CC_BY_NC_SA_30)
         return license
 
     def getLOMTechnical(self, response=None):

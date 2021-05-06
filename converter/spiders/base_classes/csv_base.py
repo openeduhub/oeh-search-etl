@@ -104,7 +104,6 @@ class CSVBase(LomBase):
     def getLOMEducational(self, response):
         educational = LomBase.getLOMEducational(self, response)
         tar = LomAgeRangeItemLoader()
-        response.meta["row"][CSVBase.COLUMN_TYPICAL_AGE_RANGE_TO]["text"]
         tar.add_value(
             "fromRange",
             response.meta["row"][CSVBase.COLUMN_TYPICAL_AGE_RANGE_FROM]["text"],

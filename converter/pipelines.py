@@ -7,7 +7,9 @@ import base64
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 import csv
+import dateparser
 import io
+import isodate
 import logging
 import time
 from io import BytesIO
@@ -143,7 +145,6 @@ class FilterSparsePipeline(BasicPipeline):
         except KeyError:
             raise DropItem(f'Item {item} was dropped for not providing enough metadata')
 
-
 class NormLicensePipeline(BasicPipeline):
     def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
@@ -176,12 +177,20 @@ class NormLicensePipeline(BasicPipeline):
             internal = item["license"]["internal"].lower()
             if "cc-by-sa" in internal or "cc-0" in internal or "pdm" in internal:
                 item["license"]["oer"] = OerType.ALL
+        if "expirationDate" in item["license"]:
+            item["license"]["expirationDate"] = dateparser.parse(item["license"]["expirationDate"])
+        if "lifecycle" in item["lom"]:
+            for contribute in item["lom"]["lifecycle"]:
+                if "date" in contribute:
+                    contribute["date"] = dateparser.parse(contribute["date"])
+
         return raw_item
 
 
 class ConvertTimePipeline(BasicPipeline):
     """
-    convert typicalLearningTime into a integer representing seconds
+    convert typicalLearningTime into an integer representing seconds
+    + convert duration into an integer
     """
     def process_item(self, raw_item, spider):
         # map lastModified
@@ -217,6 +226,22 @@ class ConvertTimePipeline(BasicPipeline):
                     + " to numeric value"
                 )
             item["lom"]["educational"]["typicalLearningTime"] = mapped
+        if "technical" in item["lom"]:
+            if "duration" in item["lom"]["technical"]:
+                duration = item["lom"]["technical"]["duration"]
+                if duration:
+                    if duration.split(":").count == 2:
+                        duration = isodate.parse_time(duration)
+                        duration = duration.hour*60*60 + duration.minute*60 + duration.second
+                    elif duration.startswith("PT"):
+                        duration = int(isodate.parse_duration(duration).total_seconds())
+                    else:
+                        try:
+                            duration = int(duration)
+                        except:
+                            duration = None
+                            logging.warning("duration {} could not be normalized to seconds".format(duration))
+                    item["lom"]["technical"]["duration"] = duration
         return raw_item
 
 
@@ -500,7 +525,7 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
                 "thumbnail",
             ],
         )
-        exporter.export_item(item)
+        exporter.export_item(raw_item)
         title = "<no title>"
         if "title" in item["lom"]["general"]:
             title = str(item["lom"]["general"]["title"])

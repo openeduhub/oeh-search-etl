@@ -200,6 +200,9 @@ class EduSharing:
             if license["url"] == Constants.LICENSE_CC_BY_SA_30:
                 spaces["ccm:commonlicense_key"] = "CC_BY_SA"
                 spaces["ccm:commonlicense_cc_version"] = "3.0"
+            if license["url"] == Constants.LICENSE_CC_BY_NC_SA_30:
+                spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
+                spaces["ccm:commonlicense_cc_version"] = "3.0"
             if license["url"] == Constants.LICENSE_CC_BY_SA_40:
                 spaces["ccm:commonlicense_key"] = "CC_BY_SA"
                 spaces["ccm:commonlicense_cc_version"] = "4.0"
@@ -224,6 +227,9 @@ class EduSharing:
 
         if "author" in license:
             spaces["ccm:author_freetext"] = license["author"]
+
+        if "expirationDate" in license:
+            spaces["ccm:license_to"] = [license["expirationDate"].isoformat()]
 
     def transformItem(self, uuid, spider, item):
         spaces = {
@@ -255,6 +261,10 @@ class EduSharing:
             spaces["cclom:general_keyword"] = (item["lom"]["general"]["keyword"],)
         else:
             spaces["cclom:general_keyword"] = []
+        if "technical" in item["lom"]:
+            if "duration" in item["lom"]["technical"]:
+                spaces["cclom:duration"] = item["lom"]["technical"]["duration"]
+
         # TODO: this does currently not support multiple values per role
         if "lifecycle" in item["lom"]:
             for person in item["lom"]["lifecycle"]:
@@ -264,7 +274,7 @@ class EduSharing:
                     not person["role"].lower()
                     in EduSharingConstants.LIFECYCLE_ROLES_MAPPING
                 ):
-                    logging.warn(
+                    logging.warning(
                         "The lifecycle role "
                         + person["role"]
                         + " is currently not supported by the edu-sharing connector"
@@ -280,6 +290,7 @@ class EduSharing:
                     person["organization"] if "organization" in person else ""
                 )
                 url = person["url"] if "url" in person else ""
+                date = person["date"] if "date" in person else None
                 vcard = vobject.vCard()
                 vcard.add("n").value = vobject.vcard.Name(
                     family=lastName, given=firstName
@@ -289,6 +300,10 @@ class EduSharing:
                     if organization
                     else (firstName + " " + lastName).strip()
                 )
+                if date:
+                    vcard.add("X-ES-LOM-CONTRIBUTE-DATE").value = date.isoformat()
+                    if person["role"].lower() == 'publisher':
+                        spaces["ccm:published_date"] = date.isoformat()
                 if organization:
                     vcard.add("org")
                     # fix a bug of splitted org values
@@ -523,7 +538,7 @@ class EduSharing:
                         )["groups"],
                     )
                 )
-                logging.debug("Built up edu-sharing group cache", EduSharing.groupCache)
+                logging.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
                 return
             logging.warning(auth.text)
             raise Exception(

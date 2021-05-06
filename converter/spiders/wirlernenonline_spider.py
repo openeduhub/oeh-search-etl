@@ -4,7 +4,7 @@ from .base_classes import JSONBase
 import json
 import logging
 import requests
-from html.parser import HTMLParser
+import html
 from converter.constants import *
 import scrapy
 
@@ -109,7 +109,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
         )
         base.replace_value("type", self.getType(response))
         fulltext = self.get("acf.long_text", json=response.meta["item"])
-        base.replace_value("fulltext", HTMLParser().unescape(fulltext))
+        base.replace_value("fulltext", html.unescape(fulltext))
         try:
             notes = '\n'.join(list(map(lambda x: x['notes'], self.get('acf.notizen', json=response.meta["item"]))))
             base.replace_value('notes', notes)
@@ -121,7 +121,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
         general = LomBase.getLOMGeneral(self, response)
         general.replace_value(
             "title",
-            HTMLParser().unescape(
+            html.unescape(
                 self.get("title.rendered", json=response.meta["item"])
             ),
         )
@@ -131,7 +131,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
             general.add_value("keyword", keywords)
         general.add_value(
             "description",
-            HTMLParser().unescape(
+            html.unescape(
                 self.get("acf.short_text", json=response.meta["item"])
             ),
         )

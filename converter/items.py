@@ -49,7 +49,8 @@ class LomLifecycleItem(Item):
     organization = Field()
     url = Field()
     uuid = Field()
-
+    date = Field()
+    "the date of contribution. Will be automatically transformed/parsed"
 
 class LomTechnicalItem(Item):
     format = Field()
@@ -59,6 +60,7 @@ class LomTechnicalItem(Item):
     installationRemarks = Field()
     otherPlatformRequirements = Field()
     duration = Field()
+    "Duration of the element (e.g. for video or audio). Supported formats for automatic transforming include seconds, HH:MM:SS and ISO 8601 duration (PT0H0M0S)"
 
 
 class LomAgeRangeItem(Item):
@@ -147,6 +149,8 @@ class LicenseItem(Item):
     "a value of OerType (if empty, will be mapped via the given url or internal value)"
     author = Field()
     "an author freetext (basically, how the author should be named in case this is a by-license"
+    expirationDate = Field()
+    "a date at which any content license expires and the content shouldn't be delivered anymore"
 
 
 class PermissionItem(Item):
