@@ -21,14 +21,15 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
     https://kindoergarten.wordpress.com/sitemap.xml
     """
 
-    def getId(self, response: scrapy.http.Response = None) -> str:
-        pass
-
-    def getHash(self, response: scrapy.http.Response = None) -> str:
-        pass
-
     start_urls = ['https://kindoergarten.wordpress.com/sitemap.xml']
     name = 'kindoergarten_spider'
+    version = '0.1.0'
+
+    def getId(self, response: scrapy.http.Response = None) -> str:
+        return parse.urlparse(response.meta["sitemap_entry"].loc).path
+
+    def getHash(self, response: scrapy.http.Response = None) -> str:
+        return response.meta["sitemap_entry"].lastmod + self.version
 
     def parse(self, response: scrapy.http.XmlResponse, **kwargs):
         """
@@ -47,7 +48,10 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         items = from_xml_response(response)
         # yield from items
         for item in items:
-            yield response.follow(item.loc, callback=self.parse_site, cb_kwargs={'sitemap_entry': item})
+            response = response.copy()
+            response.meta['sitemap_entry'] = item
+            if self.hasChanged(response):
+                yield response.follow(item.loc, callback=self.parse_site, cb_kwargs={'sitemap_entry': item})
 
     def parse_site(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None):
         # content = response.css('.entry-content')
@@ -56,9 +60,7 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         # thumbnail_href = response.css('.post-thumbnail img::attr(src)').get()
         # title: str = response.css('.entry-title span::text').get()
         response.meta['sitemap_entry'] = sitemap_entry
-        base = BaseItemLoader(response=response)
-        base.add_value("sourceId", parse.urlparse(sitemap_entry.loc).path)  # id der Seite
-        base.add_value("hash", sitemap_entry.lastmod)  # version/Datum der Seite
+        base = super().getBase(response=response)
         # we assume that content is imported. Please use replace_value if you import something different
         base.add_value("type", Constants.TYPE_MATERIAL)
         base.add_css('thumbnail', '.post-thumbnail img::attr(src)')
@@ -81,26 +83,16 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         # lom.add_value("classification", classification.load_item())
         base.add_value("lom", lom.load_item())
         vs = ValuespaceItemLoader()
-        vs.add_value('conditionsOfAccess', 'no_login')
-        vs.add_value('containsAdvertisement', 'no')
-        vs.add_value('price', 'no')
-        vs.add_value('accessibilitySummary', 'none')
-        vs.add_value('dataProtectionConformity', 'noGeneralDataProtectionRegulation')
-        vs.add_value('fskRating', '0')
-        vs.add_value('oer', '0')  # all
         vs.add_value('intendedEndUserRole', 'teacher')
-        vs.add_value('discipline', '720')  # allgemein
-        vs.add_value('educationalContext', 'elementarbereich')
-        vs.add_value('sourceContentType', '004')  # Material/Aufgabensammlung
+        vs.add_value('discipline', 'Allgemein')
+        vs.add_value('educationalContext', 'Elementarbereich')
         # vs.add_value('toolCategory', 'noGeneralDataProtectionRegulation')
         vs.add_value('learningResourceType', 'other_asset_type')
         base.add_value("valuespaces", vs.load_item())
         lic = LicenseItemLoader()
         lic.add_value('url', Constants.LICENSE_CC_ZERO_10)
         base.add_value("license", lic.load_item())
-        permissions = PermissionItemLoader(response=response)
-        # default all materials to public, needs to be changed depending on the spider!
-        permissions.add_value("public", self.settings.get("DEFAULT_PUBLIC_STATE"))
+        permissions = super().getPermissions(response)
 
         base.add_value("permissions", permissions.load_item())
         response_loader = ResponseItemLoader()

@@ -230,7 +230,7 @@ class LomBase:
         return lom
 
     def getBase(self, response=None) -> BaseItemLoader:
-        base = BaseItemLoader()
+        base = BaseItemLoader(response=response)
         base.add_value("sourceId", self.getId(response))
         base.add_value("hash", self.getHash(response))
         # we assume that content is imported. Please use replace_value if you import something different
