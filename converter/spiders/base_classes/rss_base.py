@@ -1,4 +1,6 @@
+import scrapy
 from scrapy.spiders import CrawlSpider
+
 from .lom_base import LomBase
 
 
@@ -9,6 +11,11 @@ class RSSBase(CrawlSpider, LomBase):
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
+        # CrawlSpider.__init__(self, **kwargs)
+
+    def start_requests(self):
+        for url in self.start_urls:
+            yield scrapy.Request(url=url, callback=self.parse)
 
     def parse(self, response):
         response.selector.remove_namespaces()
