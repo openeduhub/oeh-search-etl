@@ -13,6 +13,9 @@ from .base_classes import LomBase, RSSBase
 
 
 # Spider to fetch RSS from planet schule
+from ..items import LomTechnicalItemLoader
+
+
 class PlanetSchuleSpider(RSSBase):
     name = "planet_schule_spider"
     friendlyName = "planet schule"
@@ -26,9 +29,15 @@ class PlanetSchuleSpider(RSSBase):
         'ROBOTSTXT_OBEY': False,
         'AUTOTHROTTLE_ENABLED': True
     }
+    forceUpdate = True
+    urls_and_durations = dict()
 
     def __init__(self, **kwargs):
         RSSBase.__init__(self, **kwargs)
+
+    def start_requests(self):
+        for url in self.start_urls:
+            yield scrapy.Request(url=url, callback=self.parse)
 
     def mapResponse(self, response):
         return LomBase.mapResponse(self, response)
@@ -36,16 +45,27 @@ class PlanetSchuleSpider(RSSBase):
     def startHandler(self, response):
         for item in response.xpath("//rss/channel/item"):
             copyResponse = response.copy()
+            # building up a dictionary with <url> : <duration> key-value-pairs
+            self.urls_and_durations.update({item.xpath("link//text()").get(): item.xpath("duration//text()").get()})
+            # TODO: Rebuild copyResponse.meta["item"] with scrapy's more modern solution to handling additional data
+            #  in callbacks, see:
+            # https://docs.scrapy.org/en/latest/topics/request-response.html#topics-request-response-ref-request-callback-arguments
             copyResponse.meta["item"] = item
             if self.hasChanged(copyResponse):
                 yield scrapy.Request(
                     url=item.xpath("link//text()").get(),
                     callback=self.handleLink,
-                    meta={"item": item,
-                          "duration": item.xpath("duration//text()").get()},
+                    meta={"item": item},
+                    cb_kwargs=dict({
+                        item.xpath("link//text()").get(): item.xpath("duration//text()").get()
+                    })
                 )
 
-    def handleLink(self, response):
+    def handleLink(self, response, **urls_and_durations_dict):
+        duration = urls_and_durations_dict.get(response.url)
+        # logging.debug("ANDI DEBUG HANDLELINK: duration = ", duration)
+        # self.urls_and_durations.update({response.url: duration})
+
         return LomBase.parse(self, response)
 
     # thumbnail is always the same, do not use the one from rss
@@ -62,15 +82,18 @@ class PlanetSchuleSpider(RSSBase):
         )
         return general
 
-    def getLOMTechnical(self, response):
+    def getLOMTechnical(self, response) -> LomTechnicalItemLoader:
+        duration_temp = self.urls_and_durations.get(response.url)
+        # logging.debug("ANDI DEBUG TECHNICAL: duration = ", duration)
+
         technical = LomBase.getLOMTechnical(self, response)
         technical.add_value("format", "text/html")
         technical.add_value("location", response.url)
-
         # TODO: Fix me, async problem?
         # duration_temp = response.meta["item"].xpath("//duration//text()").get()
         # duration_temp = response.meta["item"].xpath("*[name()='duration']//text()").get()
-        duration_temp = response.meta["duration"]
+        # duration_temp = response.meta["duration"]
+
         technical.add_value("duration", duration_temp)
         return technical
 
@@ -128,8 +151,8 @@ class PlanetSchuleSpider(RSSBase):
 
     @staticmethod
     def get_embed_code(response) -> Optional[str]:
-        # work in progress (non-functional atm), grabs the <div><iframe> container as a string
-        # that you get after clicking on the embed button
+        # work in progress (not used anywhere at the moment), grabs the <div><iframe> container as a string
+        # (the one that you get after clicking on the embed button)
         if response is not None:
             # grab embed script from the content page itself:
             # example url that has an embed element: https://www.planet-schule.de/sf/php/sendungen.php?sendung=11142
