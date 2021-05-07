@@ -13,7 +13,7 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
     name = "schule_im_aufbruch_spider"
     friendlyName = "Schule im Aufbruch"
     url = "https://vimeo.com/user12637410/videos"
-    version = "0.1.1"
+    version = "0.1.2"
 
     # this list will be filled with urls to crawl through, (currently it's only used for debugging purposes)
     video_urls_to_crawl = list()
@@ -53,13 +53,12 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
 
         """
 
-        # TODO: acquire thumbnail from the overview?
+        # there's an alternative way to acquire thumbnails from the overview as well:
         # thumbnails can be acquired using the 'srcset' attribute on each thumbnail, e.g.:
         # response.xpath('//*[@id="clip_412230600"]/a/img/@srcset').get()
 
         # acquire current URLs from <script type="application/ld+json"> block
-        current_page_ld = response.xpath('/html/body/script[1]/text()').get().strip()
-        current_page_json = json.loads(current_page_ld)
+        current_page_json = self.get_ld_json(response)
 
         # the urls we need are inside a nested dictionary
         current_page_nested = json.dumps(current_page_json[1]["itemListElement"])
@@ -158,6 +157,7 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
         # grabs the video type from the metadata header - most of the times it'll be video.other
         technical.add_value('format', response.xpath('/html/head/meta[18]/@content').get())
         technical.add_value('location', ld_json[0]["url"])
+        technical.add_value('duration', ld_json[0]["duration"])
         return technical
 
     def getValuespaces(self, response) -> ValuespaceItemLoader:
@@ -169,10 +169,9 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
         #   - educationalContext
         #   - educationalContentType
         vs.add_value('conditionsOfAccess', 'no_login')
-        # vs.add_value('containsAdvertisement', 'no')  # do vimeo-advertisements for their own vimeo-plans count?
+        vs.add_value('containsAdvertisement', 'yes')  # set to yes because of vimeos own advertisements
         vs.add_value('price', 'no')
         vs.add_value('intendedEndUserRole', 'teacher')
-        vs.add_value('discipline', '720')  # is this the correct category? (allgemein)
         vs.add_value('learningResourceType', 'video')
         return vs
 
