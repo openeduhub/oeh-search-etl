@@ -49,7 +49,8 @@ class LomLifecycleItem(Item):
     organization = Field()
     url = Field()
     uuid = Field()
-
+    date = Field()
+    "the date of contribution. Will be automatically transformed/parsed"
 
 class LomTechnicalItem(Item):
     format = Field()
@@ -59,6 +60,7 @@ class LomTechnicalItem(Item):
     installationRemarks = Field()
     otherPlatformRequirements = Field()
     duration = Field()
+    "Duration of the element (e.g. for video or audio). Supported formats for automatic transforming include seconds, HH:MM:SS and ISO 8601 duration (PT0H0M0S)"
 
 
 class LomAgeRangeItem(Item):
