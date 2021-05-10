@@ -1,9 +1,7 @@
+import re
 from typing import Optional
 
-import logging
-import re
 import requests
-
 import scrapy
 
 from .base_classes import RSSListBase, LomBase, CSVBase
