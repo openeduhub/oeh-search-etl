@@ -24,12 +24,13 @@ class PlanetSchuleSpider(RSSBase):
         "https://www.planet-schule.de/data/planet-schule-vodcast-komplett.rss"
     ]
     version = "0.1.2"
-    # Planet Schule allows us to crawl their site, therefore ignore the robots.txt directions
+    # Planet Schule allows us to crawl their site, therefore ignore the robots.txt directions, but don't hammer the
+    # site while debugging
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
         'AUTOTHROTTLE_ENABLED': True
     }
-    forceUpdate = True
+    # forceUpdate = True        # for debugging purposes (or forcing a "duration"-update on every video entry)
     urls_and_durations = dict()
 
     def __init__(self, **kwargs):
@@ -45,9 +46,10 @@ class PlanetSchuleSpider(RSSBase):
     def startHandler(self, response):
         for item in response.xpath("//rss/channel/item"):
             copyResponse = response.copy()
-            # building up a dictionary with <url> : <duration> key-value-pairs
+            # building up a (temporary) dictionary with <url> : <duration> key-value-pairs
+            # this is going to be used in getLOMTechnical to fetch the durations of a video
             self.urls_and_durations.update({item.xpath("link//text()").get(): item.xpath("duration//text()").get()})
-            # TODO: Rebuild copyResponse.meta["item"] with scrapy's more modern solution to handling additional data
+            # TODO: rebuild copyResponse.meta["item"] with scrapy's more modern solution to handling additional data
             #  in callbacks, see:
             # https://docs.scrapy.org/en/latest/topics/request-response.html#topics-request-response-ref-request-callback-arguments
             copyResponse.meta["item"] = item
@@ -56,16 +58,12 @@ class PlanetSchuleSpider(RSSBase):
                     url=item.xpath("link//text()").get(),
                     callback=self.handleLink,
                     meta={"item": item},
-                    cb_kwargs=dict({
-                        item.xpath("link//text()").get(): item.xpath("duration//text()").get()
-                    })
+                    # cb_kwargs=dict({
+                    #     item.xpath("link//text()").get(): item.xpath("duration//text()").get()
+                    # })
                 )
 
-    def handleLink(self, response, **urls_and_durations_dict):
-        duration = urls_and_durations_dict.get(response.url)
-        # logging.debug("ANDI DEBUG HANDLELINK: duration = ", duration)
-        # self.urls_and_durations.update({response.url: duration})
-
+    def handleLink(self, response):
         return LomBase.parse(self, response)
 
     # thumbnail is always the same, do not use the one from rss
@@ -83,17 +81,11 @@ class PlanetSchuleSpider(RSSBase):
         return general
 
     def getLOMTechnical(self, response) -> LomTechnicalItemLoader:
-        duration_temp = self.urls_and_durations.get(response.url)
-        # logging.debug("ANDI DEBUG TECHNICAL: duration = ", duration)
+        duration_temp = self.urls_and_durations.pop(response.url)
 
         technical = LomBase.getLOMTechnical(self, response)
         technical.add_value("format", "text/html")
         technical.add_value("location", response.url)
-        # TODO: Fix me, async problem?
-        # duration_temp = response.meta["item"].xpath("//duration//text()").get()
-        # duration_temp = response.meta["item"].xpath("*[name()='duration']//text()").get()
-        # duration_temp = response.meta["duration"]
-
         technical.add_value("duration", duration_temp)
         return technical
 
