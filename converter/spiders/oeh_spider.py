@@ -38,7 +38,7 @@ class OEHSpider(EduSharingBase):
             source = None
             if "ccm:replicationsource" in response.meta["item"]["properties"]:
                 source = response.meta["item"]["properties"]["ccm:replicationsource"]
-                source = source[0] if source else "oeh"
+                source = source[0] if source and source[0] else "oeh"
             if source not in self.importWhitelist:
                 logging.info(
                     "Skipping item {} because it has no whitelisted source {}".format(
