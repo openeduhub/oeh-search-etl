@@ -223,9 +223,10 @@ class ConvertTimePipeline(BasicPipeline):
             item["lom"]["educational"]["typicalLearningTime"] = mapped
         if "technical" in item["lom"]:
             if "duration" in item["lom"]["technical"]:
-                duration = item["lom"]["technical"]["duration"]
+                raw_duration = item["lom"]["technical"]["duration"]
+                duration = raw_duration.strip()
                 if duration:
-                    if duration.split(":").count == 2:
+                    if len(duration.split(":")) == 3:
                         duration = isodate.parse_time(duration)
                         duration = duration.hour*60*60 + duration.minute*60 + duration.second
                     elif duration.startswith("PT"):
@@ -235,7 +236,7 @@ class ConvertTimePipeline(BasicPipeline):
                             duration = int(duration)
                         except:
                             duration = None
-                            logging.warning("duration {} could not be normalized to seconds".format(duration))
+                            logging.warning("duration {} could not be normalized to seconds".format(raw_duration))
                     item["lom"]["technical"]["duration"] = duration
         return item
 
