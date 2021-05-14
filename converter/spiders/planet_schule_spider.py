@@ -1,5 +1,4 @@
 import html
-import logging
 import re
 from typing import Optional
 
@@ -13,9 +12,6 @@ from .base_classes import LomBase, RSSBase
 
 
 # Spider to fetch RSS from planet schule
-from ..items import LomTechnicalItemLoader
-
-
 class PlanetSchuleSpider(RSSBase):
     name = "planet_schule_spider"
     friendlyName = "planet schule"
@@ -28,10 +24,10 @@ class PlanetSchuleSpider(RSSBase):
     # site while debugging
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
-        'AUTOTHROTTLE_ENABLED': True
+        # 'AUTOTHROTTLE_ENABLED': True
     }
+
     # forceUpdate = True        # for debugging purposes (or forcing a "duration"-update on every video entry)
-    urls_and_durations = dict()
 
     def __init__(self, **kwargs):
         RSSBase.__init__(self, **kwargs)
@@ -46,9 +42,6 @@ class PlanetSchuleSpider(RSSBase):
     def startHandler(self, response):
         for item in response.xpath("//rss/channel/item"):
             copyResponse = response.copy()
-            # building up a (temporary) dictionary with <url> : <duration> key-value-pairs
-            # this is going to be used in getLOMTechnical to fetch the durations of a video
-            self.urls_and_durations.update({item.xpath("link//text()").get(): item.xpath("duration//text()").get()})
             # TODO: rebuild copyResponse.meta["item"] with scrapy's more modern solution to handling additional data
             #  in callbacks, see:
             # https://docs.scrapy.org/en/latest/topics/request-response.html#topics-request-response-ref-request-callback-arguments
@@ -79,15 +72,6 @@ class PlanetSchuleSpider(RSSBase):
             ).getall(),
         )
         return general
-
-    def getLOMTechnical(self, response) -> LomTechnicalItemLoader:
-        duration_temp = self.urls_and_durations.pop(response.url)
-
-        technical = LomBase.getLOMTechnical(self, response)
-        technical.add_value("format", "text/html")
-        technical.add_value("location", response.url)
-        technical.add_value("duration", duration_temp)
-        return technical
 
     def getLicense(self, response):
         license = LomBase.getLicense(self, response)
