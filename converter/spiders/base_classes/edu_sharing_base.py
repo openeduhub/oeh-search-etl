@@ -49,7 +49,7 @@ class EduSharingBase(Spider, LomBase):
         yield self.search()
 
     def parse(self, response):
-        data = json.loads(response.body_as_unicode())
+        data = json.loads(response.text)
         if len(data["nodes"]) > 0:
             for item in data["nodes"]:
                 copyResponse = response.replace(url=item["content"]["url"])
