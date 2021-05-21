@@ -143,6 +143,7 @@ class EduSharingBase(Spider, LomBase):
         technical = LomBase.getLOMTechnical(self, response)
         technical.replace_value("format", "text/html")
         technical.replace_value("location", response.url)
+        technical.replace_value("duration", self.getProperty("cclom:duration", response))
         return technical
 
     def getLicense(self, response):
