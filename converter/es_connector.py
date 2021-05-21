@@ -258,7 +258,6 @@ class EduSharing:
             spaces["cclom:general_language"] = item["lom"]["general"]["language"]
 
         if "keyword" in item["lom"]["general"]:
-            print(item["lom"]["general"]["keyword"])
             spaces["cclom:general_keyword"] = (item["lom"]["general"]["keyword"],)
         else:
             spaces["cclom:general_keyword"] = None
