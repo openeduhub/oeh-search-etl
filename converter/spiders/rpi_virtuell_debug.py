@@ -1,15 +1,18 @@
+import html
 import json
 import logging
 import re
+from typing import Optional
 
-
+import requests
 import scrapy.http
 from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
+from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
+    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader, \
+    BaseItemLoader
 from converter.spiders.base_classes import LomBase
-from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
 
 
 class RpiVirtuellSpider(CrawlSpider, LomBase):
@@ -31,10 +34,12 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
     wp_json_pagination_parameters = {
         # wp-json API returns up to 100 records per request, with the amount of pages total depending on the chosen
         # pagination parameters, see https://developer.wordpress.org/rest-api/using-the-rest-api/pagination/
-        'start_page_number': 1,
+        'start_page_number': 109,
         # number of records that should be returned per request:
         'per_page_elements': 100
     }
+    # Helper dictionary:
+    wp_json_dict = dict()
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -43,17 +48,33 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         """
         returns the review_url of the element
         """
-        for items in response:
-            print(items)
-        # print("DEBUG getID: ", item, type(item))
-        # return item.get("material_review_url")
+        # return response.url
+        pass
 
-    def getHash(self, response=None) -> str:
+    def getHash(self, response=None) -> Optional[str]:
         """
         returns a string of the date + version of the crawler
         """
-        if type(response) == dict:
-            return response.get("date") + "v" + self.version
+        # ld_json = self.get_ld_json(response)
+        # if ld_json is not None:
+        #     hash_temp = ld_json.get("@graph")[2].get("dateModified") + self.version
+        #     logging.debug("getHash: hash_temp =", hash_temp)
+        #     # # TODO: get_json_ld -> dateModified
+        #     return hash_temp
+        # else:
+        #     return None
+        pass
+
+    def get_the_goddamn_id(self, **kwargs):
+        response = kwargs.get("response")
+        temp = kwargs.get("wp_json_item")
+        # print("DEBUG temp inside get_the_goddamn_id: ", temp, type(temp))
+        # logging.debug("get_the_goddamn_id get(id): ", temp.get("id"))
+        item = temp.get("item")
+        temp_url = item.get("material_review_url")
+
+        logging.debug("DEBUG get_the_goddamn_id temp_url: ", temp_url)
+        return temp_url
 
     def start_requests(self):
         # typically we want to iterate through all pages, starting at 1:
@@ -138,22 +159,49 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         current_page_json = json.loads(response.body)
         # the response.body is pure JSON, each item can be accessed directly:
         for item in current_page_json:
-            self.getId(item)
-            self.getHash(item)
+            item_copy = item.copy()
+            wp_json_item = {
+                "id": item.get("material_review_url"),
+                "item": dict(item_copy)
+            }
+            self.wp_json_dict.update(wp_json_item)
+            # self.getId(item)
+            # self.get_the_goddamn_id(wp_json_item=wp_json_item)
+            # self.getHash(item)
+
+            review_url = item.get("material_review_url")
+
+            # temp_request = scrapy.http.Response(url=review_url)
+            yield scrapy.Request(url=review_url, callback=self.get_more_metadata, cb_kwargs=wp_json_item)
+            # self.get_more_metadata(response=review_url_content)
+            # TODO: sometimes the scrapy.Request isn't ready yet and the hash will result in "None0.0.1"
+            # TODO: Extract get_page_content method
+            page_content = scrapy.Selector(requests.get(review_url))
+            ld_json_string = page_content.xpath('/html/head/script[@type="application/ld+json"]/text()').get().strip()
+            if ld_json_string is not None:
+                ld_json = json.loads(ld_json_string)
+                date_modified = str(ld_json.get("@graph")[2].get("dateModified"))
+                if date_modified is not None:
+                    hash_temp = date_modified + self.version
+            else:
+                hash_temp = item.get("date") + self.version
 
             # TODO: use hasChanged here?
-            base = super().getBase(response=response)
-            base.add_value("response", super().mapResponse(response).load_item())
-            base.add_value("type", Constants.TYPE_MATERIAL)     # TODO: is this correct?
-            base.add_value("thumbnail", item.get("material_screenshot"))
+            base = BaseItemLoader()
+            base.add_value("sourceId", review_url)
+            base.add_value("hash", hash_temp)
+            # base.add_value("response", super().mapResponse(response).load_item())
+            base.add_value("type", Constants.TYPE_MATERIAL)  # TODO: is this correct?
+            # TODO: enable thumbnail when done with debugging
+            # base.add_value("thumbnail", item.get("material_screenshot"))
             # TODO: use date here or in lifecycle?
-            #  - there's a "dateModified"-Element inside the ld+json on each review_url
-            base.add_value("lastModified", item.get("date"))    # correct?
+            #  - there's a "dateModified"-Element inside the ld+json block, but only for some elements (not all!)
+            base.add_value("lastModified", item.get("date"))  # correct?
 
             lom = LomBaseItemloader()
             general = LomGeneralItemloader(response=response)
             general.add_value("title", item.get("material_titel"))
-            general.add_value("description", item.get("material_beschreibung"))
+            general.add_value("description", html.unescape(item.get("material_beschreibung")))
             general.add_value("identifier", item.get("id"))
             # TODO: language (-> json+ld: "inLanguage")
             # TODO: keywords (-> mapping needed from "material_schlagworte"-dictionary)
@@ -189,5 +237,16 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
             yield base.load_item()
 
-
         # return LomBase.parse(self, response)
+
+    def get_more_metadata(self, response=None, **kwargs):
+        # logging.debug("INSIDE GET_MORE_METADATA: response type = ", type(response))
+        # logging.debug("INSIDE GET_MORE_METADATA: response.url = ", response.url)
+        # page_content = scrapy.Selector(requests.get(response.url))
+        # self.getId(page_content)
+        # copy_response = response.copy()
+        # self.getId(copy_response)
+        # self.getHash(copy_response)
+        # self.getHash(page_content)
+        pass
+
