@@ -65,17 +65,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         #     return None
         pass
 
-    def get_the_goddamn_id(self, **kwargs):
-        response = kwargs.get("response")
-        temp = kwargs.get("wp_json_item")
-        # print("DEBUG temp inside get_the_goddamn_id: ", temp, type(temp))
-        # logging.debug("get_the_goddamn_id get(id): ", temp.get("id"))
-        item = temp.get("item")
-        temp_url = item.get("material_review_url")
-
-        logging.debug("DEBUG get_the_goddamn_id temp_url: ", temp_url)
-        return temp_url
-
     def start_requests(self):
         # typically we want to iterate through all pages, starting at 1:
         # https://material.rpi-virtuell.de/wp-json/mymaterial/v1/material/?page=1&per_page=100
@@ -106,6 +95,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         first_run_page_number = self.get_current_page_number(response)
         # for i in range(first_page, last_page + 1):
         # for i in range(first_page, (10 + 1)):
+        # TODO: fix hardcoded iteration
         for i in range(108, 109):
             if i == first_run_page_number:
                 # since we don't want to create a duplicate scrapy.Request, we can simply parse_page straight away
@@ -154,8 +144,8 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             return total_pages
 
     def parse_page(self, response: scrapy.http.Response = None):
-        temp_url = str(response.url)
-        print("DEBUG - INSIDE parse_page: ", temp_url)
+        # temp_url = str(response.url)
+        # print("DEBUG - INSIDE parse_page: ", temp_url)
         current_page_json = json.loads(response.body)
         # the response.body is pure JSON, each item can be accessed directly:
         for item in current_page_json:
@@ -164,89 +154,80 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
                 "id": item.get("material_review_url"),
                 "item": dict(item_copy)
             }
-            self.wp_json_dict.update(wp_json_item)
-            # self.getId(item)
-            # self.get_the_goddamn_id(wp_json_item=wp_json_item)
-            # self.getHash(item)
-
             review_url = item.get("material_review_url")
-
-            # temp_request = scrapy.http.Response(url=review_url)
-            yield scrapy.Request(url=review_url, callback=self.get_more_metadata, cb_kwargs=wp_json_item)
-            # self.get_more_metadata(response=review_url_content)
-            # TODO: sometimes the scrapy.Request isn't ready yet and the hash will result in "None0.0.1"
-            # TODO: Extract get_page_content method
-            page_content = scrapy.Selector(requests.get(review_url))
-            ld_json_string = page_content.xpath('/html/head/script[@type="application/ld+json"]/text()').get().strip()
-            if ld_json_string is not None:
-                ld_json = json.loads(ld_json_string)
-                date_modified = str(ld_json.get("@graph")[2].get("dateModified"))
-                if date_modified is not None:
-                    hash_temp = date_modified + self.version
-            else:
-                hash_temp = item.get("date") + self.version
-
-            # TODO: use hasChanged here?
-            base = BaseItemLoader()
-            base.add_value("sourceId", review_url)
-            base.add_value("hash", hash_temp)
-            # base.add_value("response", super().mapResponse(response).load_item())
-            base.add_value("type", Constants.TYPE_MATERIAL)  # TODO: is this correct?
-            # TODO: enable thumbnail when done with debugging
-            # base.add_value("thumbnail", item.get("material_screenshot"))
-            # TODO: use date here or in lifecycle?
-            #  - there's a "dateModified"-Element inside the ld+json block, but only for some elements (not all!)
-            base.add_value("lastModified", item.get("date"))  # correct?
-
-            lom = LomBaseItemloader()
-            general = LomGeneralItemloader(response=response)
-            general.add_value("title", item.get("material_titel"))
-            general.add_value("description", html.unescape(item.get("material_beschreibung")))
-            general.add_value("identifier", item.get("id"))
-            # TODO: language (-> json+ld: "inLanguage")
-            # TODO: keywords (-> mapping needed from "material_schlagworte"-dictionary)
-            lom.add_value("general", general.load_item())
-
-            technical = LomTechnicalItemLoader()
-            # technical.add_value("format", )   # -> json+ld?
-            technical.add_value("location", item.get("material_review_url"))
-            lom.add_value("technical", technical.load_item())
-
-            lifecycle = LomLifecycleItemloader()
-            lom.add_value("lifecycle", lifecycle.load_item())
-
-            educational = LomEducationalItemLoader()
-            lom.add_value("educational", educational.load_item())
-            base.add_value("lom", lom.load_item())
-
-            vs = ValuespaceItemLoader()
-            # TODO: audience, discipline, learningResourceType
-            base.add_value("valuespaces", vs.load_item())
-
-            lic = LicenseItemLoader()
-            # TODO:
-            #  - license-url
-            #  - material_authoren -> author
-            base.add_value("license", lic.load_item())
-
-            permissions = super().getPermissions(response)
-            base.add_value("permissions", permissions.load_item())
-
-            response_loader = ResponseItemLoader()
-            base.add_value("response", response_loader.load_item())
-
-            yield base.load_item()
+            yield scrapy.Request(url=review_url, callback=self.get_metadata_from_review_url, cb_kwargs=wp_json_item)
 
         # return LomBase.parse(self, response)
 
-    def get_more_metadata(self, response=None, **kwargs):
-        # logging.debug("INSIDE GET_MORE_METADATA: response type = ", type(response))
-        # logging.debug("INSIDE GET_MORE_METADATA: response.url = ", response.url)
-        # page_content = scrapy.Selector(requests.get(response.url))
-        # self.getId(page_content)
-        # copy_response = response.copy()
-        # self.getId(copy_response)
-        # self.getHash(copy_response)
-        # self.getHash(page_content)
-        pass
+    def get_metadata_from_review_url(self, response, **kwargs):
+        # logging.debug("DEBUG inside get_metadata_from_review_url: wp_json_item id", kwargs.get("id"))
+        wp_json_item = kwargs.get("item")
+        # logging.debug("DEBUG inside get_metadata_from_review_url: response type = ", type(response),
+        #               "url =", response.url)
 
+        # # TODO: sometimes the scrapy.Request isn't ready yet and the hash will result in "None0.0.1"
+        # # TODO: Extract get_page_content method
+        ld_json_string = response.xpath('/html/head/script[@type="application/ld+json"]/text()').get().strip()
+
+        ld_json = json.loads(ld_json_string)
+
+        hash_temp: Optional[str] = None
+        # this is a workaround to make sure that we actually grab the "dateModified"-Element, no matter where it is:
+        # since there seems to be fluctuation how many elements the "@graph"-Array holds, we can't be sure
+        # which position "dateModified" actually has:
+        # sometimes it's ld_json.get("@graph")[2], sometimes on [3] etc., therefore we must check all of them
+        ld_graph_items = ld_json.get("@graph")
+        for item in ld_graph_items:
+            if item.get("dateModified") is not None:
+                hash_temp = item.get("dateModified") + self.version
+
+        # TODO: use hasChanged here?
+        base = BaseItemLoader()
+        base.add_value("sourceId", response.url)
+        base.add_value("hash", hash_temp)
+        # base.add_value("response", super().mapResponse(response).load_item())
+        base.add_value("type", Constants.TYPE_MATERIAL)  # TODO: is this correct?
+        # TODO: enable thumbnail when done with debugging
+        # base.add_value("thumbnail", item.get("material_screenshot"))
+        # TODO: use date here or in lifecycle?
+        #  - there's a "dateModified"-Element inside the ld+json block, but only for some elements (not all!)
+        base.add_value("lastModified", wp_json_item.get("date"))  # correct?
+
+        lom = LomBaseItemloader()
+        general = LomGeneralItemloader(response=response)
+        general.add_value("title", wp_json_item.get("material_titel"))
+        general.add_value("description", html.unescape(wp_json_item.get("material_beschreibung")))
+        general.add_value("identifier", wp_json_item.get("id"))
+        # TODO: language (-> json+ld: "inLanguage")
+        # TODO: keywords (-> mapping needed from "material_schlagworte"-dictionary)
+        lom.add_value("general", general.load_item())
+
+        technical = LomTechnicalItemLoader()
+        # technical.add_value("format", )   # -> json+ld?
+        technical.add_value("location", wp_json_item.get("material_review_url"))
+        lom.add_value("technical", technical.load_item())
+
+        lifecycle = LomLifecycleItemloader()
+        lom.add_value("lifecycle", lifecycle.load_item())
+
+        educational = LomEducationalItemLoader()
+        lom.add_value("educational", educational.load_item())
+        base.add_value("lom", lom.load_item())
+
+        vs = ValuespaceItemLoader()
+        # TODO: audience, discipline, learningResourceType
+        base.add_value("valuespaces", vs.load_item())
+
+        lic = LicenseItemLoader()
+        # TODO:
+        #  - license-url
+        #  - material_authoren -> author
+        base.add_value("license", lic.load_item())
+
+        permissions = super().getPermissions(response)
+        base.add_value("permissions", permissions.load_item())
+
+        response_loader = ResponseItemLoader()
+        base.add_value("response", response_loader.load_item())
+
+        yield base.load_item()
