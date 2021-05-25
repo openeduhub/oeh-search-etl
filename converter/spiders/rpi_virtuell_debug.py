@@ -4,7 +4,6 @@ import logging
 import re
 from typing import Optional
 
-import requests
 import scrapy.http
 from scrapy.spiders import CrawlSpider
 
@@ -48,21 +47,12 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         """
         returns the review_url of the element
         """
-        # return response.url
         pass
 
     def getHash(self, response=None) -> Optional[str]:
         """
         returns a string of the date + version of the crawler
         """
-        # ld_json = self.get_ld_json(response)
-        # if ld_json is not None:
-        #     hash_temp = ld_json.get("@graph")[2].get("dateModified") + self.version
-        #     logging.debug("getHash: hash_temp =", hash_temp)
-        #     # # TODO: get_json_ld -> dateModified
-        #     return hash_temp
-        # else:
-        #     return None
         pass
 
     def start_requests(self):
@@ -91,21 +81,19 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         first_page = int(self.get_first_page_parameter())
         last_page = int(self.get_total_pages(response))
         print("LAST PAGE will be: ", last_page)
-        # first_run_page_number helps us to avoid duplicate requests
+        # first_run_page_number helps avoiding duplicate requests
         first_run_page_number = self.get_current_page_number(response)
-        # for i in range(first_page, last_page + 1):
-        # for i in range(first_page, (10 + 1)):
-        # TODO: fix hardcoded iteration
-        for i in range(108, 109):
+        for i in range(first_page, (last_page + 1)):
             if i == first_run_page_number:
                 # since we don't want to create a duplicate scrapy.Request, we can simply parse_page straight away
-                yield self.parse_page(response)
+                i += 1
+                yield from self.parse_page(response)
             else:
                 url_temp = response.urljoin(
                     f'?page={i}&per_page={self.get_per_page_parameter()}')
                 yield response.follow(url=url_temp, callback=self.parse_page)
 
-        # only use this iteration method if you want to go through pages one-by-one:
+        # only use this iteration method if you want to (slowly) go through pages one-by-one:
         # yield from self.iterate_through_pages_slowly(current_url, response)
 
     def iterate_through_pages_slowly(self, current_url, response):
@@ -156,8 +144,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             }
             review_url = item.get("material_review_url")
             yield scrapy.Request(url=review_url, callback=self.get_metadata_from_review_url, cb_kwargs=wp_json_item)
-
-        # return LomBase.parse(self, response)
 
     def get_metadata_from_review_url(self, response, **kwargs):
         # logging.debug("DEBUG inside get_metadata_from_review_url: wp_json_item id", kwargs.get("id"))
