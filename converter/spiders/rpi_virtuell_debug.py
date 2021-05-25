@@ -151,13 +151,14 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # logging.debug("DEBUG inside get_metadata_from_review_url: response type = ", type(response),
         #               "url =", response.url)
 
-        # # TODO: sometimes the scrapy.Request isn't ready yet and the hash will result in "None0.0.1"
-        # # TODO: Extract get_page_content method
         ld_json_string = response.xpath('/html/head/script[@type="application/ld+json"]/text()').get().strip()
+        ld_json_string = html.unescape(ld_json_string)
 
         ld_json = json.loads(ld_json_string)
 
         hash_temp: Optional[str] = None
+        language_temp: Optional[str] = None
+        pub_date: Optional[str] = None
         # this is a workaround to make sure that we actually grab the "dateModified"-Element, no matter where it is:
         # since there seems to be fluctuation how many elements the "@graph"-Array holds, we can't be sure
         # which position "dateModified" actually has:
@@ -166,6 +167,10 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         for item in ld_graph_items:
             if item.get("dateModified") is not None:
                 hash_temp = item.get("dateModified") + self.version
+            if item.get("@type") == "WebSite":
+                language_temp = item.get("inLanguage")
+            if item.get("@type") == "WebPage":
+                pub_date = item.get("datePublished")
 
         # TODO: use hasChanged here?
         base = BaseItemLoader()
@@ -175,25 +180,35 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         base.add_value("type", Constants.TYPE_MATERIAL)  # TODO: is this correct?
         # TODO: enable thumbnail when done with debugging
         # base.add_value("thumbnail", item.get("material_screenshot"))
-        # TODO: use date here or in lifecycle?
-        #  - there's a "dateModified"-Element inside the ld+json block, but only for some elements (not all!)
-        base.add_value("lastModified", wp_json_item.get("date"))  # correct?
+        base.add_value("lastModified", wp_json_item.get("date"))  # TODO: is date for lastModified correct?
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
         general.add_value("title", wp_json_item.get("material_titel"))
         general.add_value("description", html.unescape(wp_json_item.get("material_beschreibung")))
         general.add_value("identifier", wp_json_item.get("id"))
-        # TODO: language (-> json+ld: "inLanguage")
+        if language_temp is not None:
+            general.add_value("language", language_temp)
         # TODO: keywords (-> mapping needed from "material_schlagworte"-dictionary)
+        #   - wp_json_item.get("material_schlagworte") -> list
+        kw_temp = list()
+        for item in wp_json_item.get("material_schlagworte"):
+            kw_temp.append(item.get("name"))
+        general.add_value("keyword", kw_temp)
         lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
+        # TODO: technical format -> text/html?
         # technical.add_value("format", )   # -> json+ld?
         technical.add_value("location", wp_json_item.get("material_review_url"))
         lom.add_value("technical", technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
+        # TODO: lifecycle metadata
+        #   - organization
+        #   - pubDate
+        if pub_date is not None:
+            lifecycle.add_value("date", pub_date)
         lom.add_value("lifecycle", lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
@@ -202,12 +217,27 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
         vs = ValuespaceItemLoader()
         # TODO: audience, discipline, learningResourceType
+        #   wp_json_item.get("material_altersstufe") -> list
+        #   wp_json_item.get("material_medientyp") -> list
+        #   wp_json_item.get("material_bildungsstufe") -> list
+        #   wp_json_item.get("material_kompetenzen") -> list
+        vs.add_value("intendedEndUserRole", "teacher")
+
         base.add_value("valuespaces", vs.load_item())
 
         lic = LicenseItemLoader()
+
+        license_description = response.xpath('//div[@class="material-detail-meta-access material-meta"]'
+                                             '/div[@class="material-meta-content-entry"]/text()').get()
+        if license_description is not None:
+            license_description = html.unescape(license_description.strip())
+            lic.add_value("description", license_description)
         # TODO:
         #  - license-url
-        #  - material_authoren -> author
+        #  - material_autoren -> author
+        #   - wp_json_item.get("material_autoren") -> list
+        #       dict: post_id, name
+
         base.add_value("license", lic.load_item())
 
         permissions = super().getPermissions(response)
