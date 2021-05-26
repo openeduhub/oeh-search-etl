@@ -37,8 +37,23 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # number of records that should be returned per request:
         'per_page_elements': 100
     }
-    # Helper dictionary:
-    wp_json_dict = dict()
+    # Mapping "material_bildungsstufe" -> edu-sharing
+    mapping_edu_context = {
+        "Arbeit mit Jugendlichen": "",
+        "Arbeit mit Kindern": "",
+        "Ausbildung": "",
+        "Berufsschule": "",
+        "Elementarbereich": "",
+        "Erwachsenenbildung": "",
+        "Gemeinde": "",
+        "Grundschule": "",
+        "Kindergottesdienst": "",
+        "Konfirmandenarbeit": "",
+        "Oberstufe": "",
+        "Sekundarstufe": "",
+        "Schulstufen": "",   # alle Schulstufen?
+        "Unterrichtsende": "",
+    }
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -159,6 +174,9 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         hash_temp: Optional[str] = None
         language_temp: Optional[str] = None
         pub_date: Optional[str] = None
+        organization_id: Optional[str] = None
+        organization_name: Optional[str] = None
+        date_modified: Optional[str] = None
         # this is a workaround to make sure that we actually grab the "dateModified"-Element, no matter where it is:
         # since there seems to be fluctuation how many elements the "@graph"-Array holds, we can't be sure
         # which position "dateModified" actually has:
@@ -166,21 +184,26 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         ld_graph_items = ld_json.get("@graph")
         for item in ld_graph_items:
             if item.get("dateModified") is not None:
+                date_modified = item.get("dateModified")    # TODO: this could be used instead of "date" in lastModified
                 hash_temp = item.get("dateModified") + self.version
             if item.get("@type") == "WebSite":
                 language_temp = item.get("inLanguage")
             if item.get("@type") == "WebPage":
                 pub_date = item.get("datePublished")
+            if item.get("@type") == "Organization":
+                organization_id = item.get("@id")
+                organization_name = item.get("name")
 
         # TODO: use hasChanged here?
         base = BaseItemLoader()
         base.add_value("sourceId", response.url)
         base.add_value("hash", hash_temp)
         # base.add_value("response", super().mapResponse(response).load_item())
-        base.add_value("type", Constants.TYPE_MATERIAL)  # TODO: is this correct?
+        base.add_value("type", Constants.TYPE_MATERIAL)  # TODO: is this correct? use mapping for edu-context?
         # TODO: enable thumbnail when done with debugging
         # base.add_value("thumbnail", item.get("material_screenshot"))
-        base.add_value("lastModified", wp_json_item.get("date"))  # TODO: is date for lastModified correct?
+        # base.add_value("lastModified", wp_json_item.get("date"))  # TODO: is date for lastModified correct?
+        base.add_value("lastModified", date_modified)   # or is this one better?
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
@@ -189,24 +212,27 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         general.add_value("identifier", wp_json_item.get("id"))
         if language_temp is not None:
             general.add_value("language", language_temp)
-        # TODO: keywords (-> mapping needed from "material_schlagworte"-dictionary)
-        #   - wp_json_item.get("material_schlagworte") -> list
-        kw_temp = list()
+
+        kw_temp = list()    # TODO: keywords (-> is mapping needed from "material_schlagworte"-dictionary?)
         for item in wp_json_item.get("material_schlagworte"):
             kw_temp.append(item.get("name"))
         general.add_value("keyword", kw_temp)
         lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
-        # TODO: technical format -> text/html?
-        # technical.add_value("format", )   # -> json+ld?
+        # TODO: technical format -> hardcode to text/html? or grab from "material_medientyp"
+        medien_typ = list()
+        for item in wp_json_item.get("material_medientyp"):
+            medien_typ.append(item.get("name"))
+        # technical.add_value("format", )   # TODO: format
         technical.add_value("location", wp_json_item.get("material_review_url"))
         lom.add_value("technical", technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
-        # TODO: lifecycle metadata
-        #   - organization
-        #   - pubDate
+        if organization_name is not None:
+            lifecycle.add_value("organization", organization_name)
+        if organization_id is not None:
+            lifecycle.add_value("url", organization_id)
         if pub_date is not None:
             lifecycle.add_value("date", pub_date)
         lom.add_value("lifecycle", lifecycle.load_item())
@@ -226,7 +252,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         base.add_value("valuespaces", vs.load_item())
 
         lic = LicenseItemLoader()
-
         license_description = response.xpath('//div[@class="material-detail-meta-access material-meta"]'
                                              '/div[@class="material-meta-content-entry"]/text()').get()
         if license_description is not None:
@@ -234,9 +259,11 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             lic.add_value("description", license_description)
         # TODO:
         #  - license-url
-        #  - material_autoren -> author
-        #   - wp_json_item.get("material_autoren") -> list
-        #       dict: post_id, name
+        authors = list()
+        for item in wp_json_item.get("material_autoren"):
+            if item.get("name") is not None or item.get("name").strip() is not "":
+                authors.append(item.get("name"))
+        lic.add_value("author", authors)    # TODO: material_autoren -> LOM license or lifecycle?
 
         base.add_value("license", lic.load_item())
 
