@@ -1,6 +1,5 @@
 import html
 import json
-import logging
 import re
 from typing import Optional
 
@@ -10,7 +9,7 @@ from scrapy.spiders import CrawlSpider
 from converter.constants import Constants
 from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader, \
-    BaseItemLoader
+    BaseItemLoader, LomAgeRangeItemLoader
 from converter.spiders.base_classes import LomBase
 
 
@@ -51,7 +50,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         "Konfirmandenarbeit": "",
         "Oberstufe": "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_2",
         "Sekundarstufe": "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1",
-        "Schulstufen": "",   # alle Schulstufen? age range?
+        "Schulstufen": "",  # alle Schulstufen? age range?
         "Unterrichtsende": "",
     }
     # "Zur Wiederverwendung und Veränderung gekennzeichnet\t        \t        \t\t        frei zugänglich"
@@ -195,7 +194,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         ld_graph_items = ld_json.get("@graph")
         for item in ld_graph_items:
             if item.get("dateModified") is not None:
-                date_modified = item.get("dateModified")    # TODO: this could be used instead of "date" in lastModified
+                date_modified = item.get("dateModified")  # this can be used instead of 'date' in lastModified
                 hash_temp = item.get("dateModified") + self.version
             if item.get("@type") == "WebSite":
                 language_temp = item.get("inLanguage")
@@ -213,8 +212,8 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         base.add_value("type", Constants.TYPE_MATERIAL)  # TODO: is this correct? use mapping for edu-context?
         # TODO: enable thumbnail when done with debugging
         # base.add_value("thumbnail", item.get("material_screenshot"))
-        # base.add_value("lastModified", wp_json_item.get("date"))  # TODO: is date for lastModified correct?
-        base.add_value("lastModified", date_modified)   # or is this one better?
+        # base.add_value("lastModified", wp_json_item.get("date"))  # is date from wp_json for lastModified correct?
+        base.add_value("lastModified", date_modified)  # or is this one better (grabbed from from material_review_url)?
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
@@ -231,10 +230,12 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
+
         # TODO: use media_type for...?
         media_type = list()
         for item in wp_json_item.get("material_medientyp"):
             media_type.append(item.get("name"))
+
         technical.add_value("format", "text/html")
         technical.add_value("location", wp_json_item.get("material_review_url"))
         lom.add_value("technical", technical.load_item())
@@ -250,13 +251,29 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         lom.add_value("lifecycle", lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
+
+        # age range is returned as a list of <from_age>-<to_age>-Strings, possible return values are:
+        # e.g. "01-05", "05-10", "10-13", "13-15", "15-19" and "18-99"
+        age_regex = re.compile(r'(\d{1,2})-(\d{1,2})')
+        age_range = set()
+        age_range_item_loader = LomAgeRangeItemLoader()
+        for item in wp_json_item.get("material_altersstufe"):
+            age_range_temp = item.get("name")
+            age_from = str(age_regex.search(age_range_temp).group(1))
+            age_to = str(age_regex.search(age_range_temp).group(2))
+            age_range.add(age_from)
+            age_range.add(age_to)
+        print("FINAL AGE_RANGE: min = ", min(age_range), " max = ", max(age_range))
+        age_range_item_loader.add_value("fromRange", min(age_range))
+        age_range_item_loader.add_value("toRange", max(age_range))
+        educational.add_value("typicalAgeRange", age_range_item_loader.load_item())
+
         lom.add_value("educational", educational.load_item())
         base.add_value("lom", lom.load_item())
 
         vs = ValuespaceItemLoader()
         vs.add_value("discipline", "http://w3id.org/openeduhub/vocabs/discipline/520")  # Religion
         # TODO: audience, learningResourceType
-        #   wp_json_item.get("material_altersstufe") -> list - MAPPING needed!
         #   wp_json_item.get("material_medientyp") -> list - MAPPING needed!
         #   wp_json_item.get("material_bildungsstufe") -> list - MAPPING needed!
 
