@@ -41,18 +41,24 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
     mapping_edu_context = {
         "Arbeit mit Jugendlichen": "",
         "Arbeit mit Kindern": "",
-        "Ausbildung": "",
-        "Berufsschule": "",
-        "Elementarbereich": "",
-        "Erwachsenenbildung": "",
+        "Ausbildung": "http://w3id.org/openeduhub/vocabs/educationalContext/berufliche_bildung",
+        "Berufsschule": "http://w3id.org/openeduhub/vocabs/educationalContext/berufliche_bildung",
+        "Elementarbereich": "http://w3id.org/openeduhub/vocabs/educationalContext/elementarbereich",
+        "Erwachsenenbildung": "http://w3id.org/openeduhub/vocabs/educationalContext/erwachsenenbildung",
         "Gemeinde": "",
-        "Grundschule": "",
+        "Grundschule": "http://w3id.org/openeduhub/vocabs/educationalContext/grundschule",
         "Kindergottesdienst": "",
         "Konfirmandenarbeit": "",
-        "Oberstufe": "",
-        "Sekundarstufe": "",
-        "Schulstufen": "",   # alle Schulstufen?
+        "Oberstufe": "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_2",
+        "Sekundarstufe": "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1",
+        "Schulstufen": "",   # alle Schulstufen? age range?
         "Unterrichtsende": "",
+    }
+    # "Zur Wiederverwendung und Veränderung gekennzeichnet\t        \t        \t\t        frei zugänglich"
+    mapping_copyright = {
+        "frei zugänglich": "",
+        "kostenpflichtig": "",
+        "Zur Wiederverwendung und Veränderung gekennzeichnet": "",
     }
 
     def __init__(self, **kwargs):
@@ -177,8 +183,13 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         organization_id: Optional[str] = None
         organization_name: Optional[str] = None
         date_modified: Optional[str] = None
-        # this is a workaround to make sure that we actually grab the "dateModified"-Element, no matter where it is:
-        # since there seems to be fluctuation how many elements the "@graph"-Array holds, we can't be sure
+        # this is a workaround to make sure that we actually grab the following data,
+        # no matter where they are positioned in the list:
+        #   - dateModified
+        #   - inLanguage
+        #   - datePublished
+        #   - organization_name and url
+        # e.g.: since there seems to be fluctuation how many elements the "@graph"-Array holds, we can't be sure
         # which position "dateModified" actually has:
         # sometimes it's ld_json.get("@graph")[2], sometimes on [3] etc., therefore we must check all of them
         ld_graph_items = ld_json.get("@graph")
@@ -213,18 +224,18 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         if language_temp is not None:
             general.add_value("language", language_temp)
 
-        kw_temp = list()    # TODO: keywords (-> is mapping needed from "material_schlagworte"-dictionary?)
+        kw_temp = list()
         for item in wp_json_item.get("material_schlagworte"):
             kw_temp.append(item.get("name"))
         general.add_value("keyword", kw_temp)
         lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
-        # TODO: technical format -> hardcode to text/html? or grab from "material_medientyp"
-        medien_typ = list()
+        # TODO: use media_type for...?
+        media_type = list()
         for item in wp_json_item.get("material_medientyp"):
-            medien_typ.append(item.get("name"))
-        # technical.add_value("format", )   # TODO: format
+            media_type.append(item.get("name"))
+        technical.add_value("format", "text/html")
         technical.add_value("location", wp_json_item.get("material_review_url"))
         lom.add_value("technical", technical.load_item())
 
@@ -235,6 +246,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             lifecycle.add_value("url", organization_id)
         if pub_date is not None:
             lifecycle.add_value("date", pub_date)
+
         lom.add_value("lifecycle", lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
@@ -242,14 +254,17 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         base.add_value("lom", lom.load_item())
 
         vs = ValuespaceItemLoader()
-        # TODO: audience, discipline, learningResourceType
-        #   wp_json_item.get("material_altersstufe") -> list
-        #   wp_json_item.get("material_medientyp") -> list
-        #   wp_json_item.get("material_bildungsstufe") -> list
-        #   wp_json_item.get("material_kompetenzen") -> list
-        vs.add_value("intendedEndUserRole", "teacher")
+        vs.add_value("discipline", "http://w3id.org/openeduhub/vocabs/discipline/520")  # Religion
+        # TODO: audience, learningResourceType
+        #   wp_json_item.get("material_altersstufe") -> list - MAPPING needed!
+        #   wp_json_item.get("material_medientyp") -> list - MAPPING needed!
+        #   wp_json_item.get("material_bildungsstufe") -> list - MAPPING needed!
 
-        base.add_value("valuespaces", vs.load_item())
+        # there's metadata for "Kompetenzen" (e.g.: "Deuten", "Gestalten", "Reflexion") within the returned wp_json
+        # that our data-model doesn't support yet. for future reference though:
+        #   wp_json_item.get("material_kompetenzen") -> list
+
+        vs.add_value("intendedEndUserRole", "teacher")
 
         lic = LicenseItemLoader()
         license_description = response.xpath('//div[@class="material-detail-meta-access material-meta"]'
@@ -257,13 +272,21 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         if license_description is not None:
             license_description = html.unescape(license_description.strip())
             lic.add_value("description", license_description)
-        # TODO:
-        #  - license-url
+            if license_description == "kostenpflichtig":
+                vs.add_value("price", "ja")
         authors = list()
+        # the author should end up in LOM lifecycle, but the metadata are too messy to parse them by
+        # (first name) + (last name)
         for item in wp_json_item.get("material_autoren"):
-            if item.get("name") is not None or item.get("name").strip() is not "":
+            if item.get("name") is not None and item.get("name").strip() is not "":
                 authors.append(item.get("name"))
-        lic.add_value("author", authors)    # TODO: material_autoren -> LOM license or lifecycle?
+        lic.add_value("author", authors)
+        # TODO:
+        #   - license-url?
+        #   - kostenpflichtig -> copyright + price (valuespaces)
+        #   - mapping needed for copyright descriptions!
+
+        base.add_value("valuespaces", vs.load_item())
 
         base.add_value("license", lic.load_item())
 
