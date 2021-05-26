@@ -53,11 +53,15 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         "Schulstufen": "",  # alle Schulstufen? age range?
         "Unterrichtsende": "",
     }
-    # "Zur Wiederverwendung und Veränderung gekennzeichnet\t        \t        \t\t        frei zugänglich"
+    # copyright is only available as a String (description), therefore mapping:
     mapping_copyright = {
-        "frei zugänglich": "",
-        "kostenpflichtig": "",
-        "Zur Wiederverwendung und Veränderung gekennzeichnet": "",
+        'Zur nicht kommerziellen Wiederverwendung gekennzeichnet': "",
+        'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet': "",
+        'Zur nicht kommerziellen Wiederverwendung gekennzeichnet\t        \t        \t\t        frei zugänglich': "",
+        'Zur Wiederverwendung und Veränderung gekennzeichnet\t        \t        \t\t        frei zugänglich': "",
+        'kostenpflichtig': "", 'Zur Wiederverwendung und Veränderung gekennzeichnet': "",
+        'kostenfrei nach Anmeldung': "", 'frei zugänglich': "",
+        'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet\t        \t        \t\t        frei zugänglich': ""
     }
 
     def __init__(self, **kwargs):
@@ -252,21 +256,23 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
         educational = LomEducationalItemLoader()
 
-        # age range is returned as a list of <from_age>-<to_age>-Strings, possible return values are:
-        # e.g. "01-05", "05-10", "10-13", "13-15", "15-19" and "18-99"
-        age_regex = re.compile(r'(\d{1,2})-(\d{1,2})')
-        age_range = set()
-        age_range_item_loader = LomAgeRangeItemLoader()
-        for item in wp_json_item.get("material_altersstufe"):
-            age_range_temp = item.get("name")
-            age_from = str(age_regex.search(age_range_temp).group(1))
-            age_to = str(age_regex.search(age_range_temp).group(2))
-            age_range.add(age_from)
-            age_range.add(age_to)
-        print("FINAL AGE_RANGE: min = ", min(age_range), " max = ", max(age_range))
-        age_range_item_loader.add_value("fromRange", min(age_range))
-        age_range_item_loader.add_value("toRange", max(age_range))
-        educational.add_value("typicalAgeRange", age_range_item_loader.load_item())
+        # TODO: if there's no age-range, skip this procedure
+        if wp_json_item.get("material_altersstufe") is not None:
+            # age range is returned as a list of <from_age>-<to_age>-Strings, possible return values are:
+            # e.g. "01-05", "05-10", "10-13", "13-15", "15-19" and "18-99"
+            age_regex = re.compile(r'(\d{1,2})-(\d{1,2})')
+            age_range = set()
+            age_range_item_loader = LomAgeRangeItemLoader()
+            for item in wp_json_item.get("material_altersstufe"):
+                age_range_temp = item.get("name")
+                age_from = str(age_regex.search(age_range_temp).group(1))
+                age_to = str(age_regex.search(age_range_temp).group(2))
+                age_range.add(age_from)
+                age_range.add(age_to)
+            # print("FINAL AGE_RANGE: min = ", min(age_range), " max = ", max(age_range))
+            age_range_item_loader.add_value("fromRange", min(age_range))
+            age_range_item_loader.add_value("toRange", max(age_range))
+            educational.add_value("typicalAgeRange", age_range_item_loader.load_item())
 
         lom.add_value("educational", educational.load_item())
         base.add_value("lom", lom.load_item())
@@ -284,13 +290,24 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         vs.add_value("intendedEndUserRole", "teacher")
 
         lic = LicenseItemLoader()
+
+        license_regex_free_access = re.compile(r'frei zugänglich')
+        license_regex_free_after_signup = re.compile(r'kostenfrei nach Anmeldung')
+        license_regex_with_costs = re.compile(r'kostenpflichtig')
+
         license_description = response.xpath('//div[@class="material-detail-meta-access material-meta"]'
                                              '/div[@class="material-meta-content-entry"]/text()').get()
         if license_description is not None:
             license_description = html.unescape(license_description.strip())
             lic.add_value("description", license_description)
-            if license_description == "kostenpflichtig":
-                vs.add_value("price", "ja")
+            if license_regex_free_access.search(license_description) is not None:
+                vs.add_value("price", "no")
+            if license_regex_with_costs.search(license_description):
+                lic.add_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
+                vs.add_value("price", "yes")
+            if license_regex_free_after_signup.search(license_description):
+                vs.add_value("price", "yes")
+                vs.add_value("conditionsOfAccess", "login")
         authors = list()
         # the author should end up in LOM lifecycle, but the metadata are too messy to parse them by
         # (first name) + (last name)
@@ -300,7 +317,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         lic.add_value("author", authors)
         # TODO:
         #   - license-url?
-        #   - kostenpflichtig -> copyright + price (valuespaces)
         #   - mapping needed for copyright descriptions!
 
         base.add_value("valuespaces", vs.load_item())
@@ -311,6 +327,8 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         base.add_value("permissions", permissions.load_item())
 
         response_loader = ResponseItemLoader()
+        response_loader.add_value("url", response.url)
         base.add_value("response", response_loader.load_item())
+
 
         yield base.load_item()
