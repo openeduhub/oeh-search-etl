@@ -4,6 +4,7 @@ import re
 from typing import Optional
 
 import scrapy.http
+import w3lib.html
 from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
@@ -258,7 +259,16 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
         general.add_value("title", wp_json_item.get("material_titel"))
-        general.add_value("description", html.unescape(wp_json_item.get("material_beschreibung")))
+
+        # TODO: fix broken formatting (from source) in description
+        # the source material heavily fluctuates between perfectly fine strings and messy (hardcoded) html tags
+        # as well as "\n" and "\t", therefore we need to clean up that String first:
+        raw_description = wp_json_item.get("material_beschreibung")
+        raw_description = w3lib.html.remove_tags(raw_description)
+        raw_description = w3lib.html.strip_html5_whitespace(raw_description)
+        clean_description = w3lib.html.replace_escape_chars(raw_description)
+        general.add_value("description", clean_description)
+
         general.add_value("identifier", wp_json_item.get("id"))
         if language_temp is not None:
             general.add_value("language", language_temp)
