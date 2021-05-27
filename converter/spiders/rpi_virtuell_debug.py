@@ -26,43 +26,72 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
-        'AUTOTHROTTLE_ENABLED': True,
+        'AUTOTHROTTLE_ENABLED': False,
         # 'DUPEFILTER_DEBUG': True
     }
     wp_json_pagination_parameters = {
         # wp-json API returns up to 100 records per request, with the amount of pages total depending on the chosen
         # pagination parameters, see https://developer.wordpress.org/rest-api/using-the-rest-api/pagination/
-        'start_page_number': 109,
+        'start_page_number': 0,
         # number of records that should be returned per request:
         'per_page_elements': 100
     }
-    # Mapping "material_bildungsstufe" -> edu-sharing
+    # Mapping "material_bildungsstufe" -> SkoHub:
+    # see https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/educationalContext/index.html
+
     mapping_edu_context = {
-        "Arbeit mit Jugendlichen": "",
-        "Arbeit mit Kindern": "",
-        "Ausbildung": "http://w3id.org/openeduhub/vocabs/educationalContext/berufliche_bildung",
-        "Berufsschule": "http://w3id.org/openeduhub/vocabs/educationalContext/berufliche_bildung",
-        "Elementarbereich": "http://w3id.org/openeduhub/vocabs/educationalContext/elementarbereich",
-        "Erwachsenenbildung": "http://w3id.org/openeduhub/vocabs/educationalContext/erwachsenenbildung",
-        "Gemeinde": "",
-        "Grundschule": "http://w3id.org/openeduhub/vocabs/educationalContext/grundschule",
-        "Kindergottesdienst": "",
-        "Konfirmandenarbeit": "",
-        "Oberstufe": "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_2",
-        "Sekundarstufe": "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1",
-        "Schulstufen": "",  # alle Schulstufen? age range?
-        "Unterrichtsende": "",
+        'Arbeit mit Jugendlichen': "", 'Arbeit mit Kindern': "",
+        'Ausbildung': "http://w3id.org/openeduhub/vocabs/educationalContext/berufliche_bildung",
+        'Berufsschule': "http://w3id.org/openeduhub/vocabs/educationalContext/berufliche_bildung",
+        'Elementarbereich': "http://w3id.org/openeduhub/vocabs/educationalContext/elementarbereich",
+        'Erwachsenenbildung': "http://w3id.org/openeduhub/vocabs/educationalContext/erwachsenenbildung", 'Gemeinde': "",
+        'Grundschule': "http://w3id.org/openeduhub/vocabs/educationalContext/grundschule", 'Kindergottesdienst': "",
+        'Konfirmandenarbeit': "",
+        'Oberstufe': "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_2",
+        'Schulstufen': "",  # alle Schulstufen? age range?
+        'Sekundarstufe': "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1", 'Unterrichtende': ""
     }
     # copyright is only available as a String (description), therefore mapping:
     mapping_copyright = {
-        'Zur nicht kommerziellen Wiederverwendung gekennzeichnet': "",
-        'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet': "",
-        'Zur nicht kommerziellen Wiederverwendung gekennzeichnet\t        \t        \t\t        frei zugänglich': "",
+        'Zur Wiederverwendung und Veränderung gekennzeichnet': "",
         'Zur Wiederverwendung und Veränderung gekennzeichnet\t        \t        \t\t        frei zugänglich': "",
-        'kostenpflichtig': "", 'Zur Wiederverwendung und Veränderung gekennzeichnet': "",
-        'kostenfrei nach Anmeldung': "", 'frei zugänglich': "",
-        'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet\t        \t        \t\t        frei zugänglich': ""
+        'Zur nicht kommerziellen Wiederverwendung gekennzeichnet': "",
+        'Zur nicht kommerziellen Wiederverwendung gekennzeichnet\t        \t        \t\t        frei zugänglich': "",
+        'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet': "",
+        'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet'
+        '\t        \t        \t\t        frei zugänglich': "",
+        'frei zugänglich': "",
+        'kostenfrei nach Anmeldung': "",
+        'kostenpflichtig': ""
     }
+
+    mapping_media_types = {'Anforderungssituation': "",
+                           'Arbeitsblatt': "worksheet",
+                           'Audio': "audio",
+                           'Aufgabenstellung': "",
+                           'Bild': "image",
+                           'Dossier': "",
+                           'E-Learning': "",
+                           'Erzählung': "",
+                           'Fachinformation': "",  # reference (Primärquelle?)
+                           'Gamification': "",  # educational game ?
+                           'Gebet/Lied': "",
+                           'Gottesdienstentwurf': "",
+                           'Internetportal': "web page",
+                           'Lernorte': "", 'Lernstationen': "",
+                           'Lokale Einrichtung': "",
+                           'Medien': "audiovisual medium",
+                           'Online Lesson': "",
+                           'Praxishilfen': "",
+                           'Projektplanung': "",
+                           'Präsentation': "presentation",
+                           'Text/Aufsatz': "text",
+                           'Unterrichtsentwurf': "lesson plan",
+                           'Video': "video",
+                           'Video im Medienportal': "video",
+                           'Virtueller Lernort': "",
+                           'Vorbereitung': "lesson plan",
+                           'Zeitschrift/Buch': "text"}
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -215,7 +244,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # base.add_value("response", super().mapResponse(response).load_item())
         base.add_value("type", Constants.TYPE_MATERIAL)  # TODO: is this correct? use mapping for edu-context?
         # TODO: enable thumbnail when done with debugging
-        # base.add_value("thumbnail", item.get("material_screenshot"))
+        base.add_value("thumbnail", wp_json_item.get("material_screenshot"))
         # base.add_value("lastModified", wp_json_item.get("date"))  # is date from wp_json for lastModified correct?
         base.add_value("lastModified", date_modified)  # or is this one better (grabbed from from material_review_url)?
 
@@ -235,11 +264,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
         technical = LomTechnicalItemLoader()
 
-        # TODO: use media_type for...?
-        media_type = list()
-        for item in wp_json_item.get("material_medientyp"):
-            media_type.append(item.get("name"))
-
         technical.add_value("format", "text/html")
         technical.add_value("location", wp_json_item.get("material_review_url"))
         lom.add_value("technical", technical.load_item())
@@ -256,7 +280,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
         educational = LomEducationalItemLoader()
 
-        # TODO: if there's no age-range, skip this procedure
         if wp_json_item.get("material_altersstufe") is not None:
             # age range is returned as a list of <from_age>-<to_age>-Strings, possible return values are:
             # e.g. "01-05", "05-10", "10-13", "13-15", "15-19" and "18-99"
@@ -279,15 +302,33 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
         vs = ValuespaceItemLoader()
         vs.add_value("discipline", "http://w3id.org/openeduhub/vocabs/discipline/520")  # Religion
-        # TODO: audience, learningResourceType
-        #   wp_json_item.get("material_medientyp") -> list - MAPPING needed!
-        #   wp_json_item.get("material_bildungsstufe") -> list - MAPPING needed!
+        # TODO: audience
+        # mapping educationalContext
+        educational_context = list()
+        for edu_con_item in wp_json_item.get("material_bildungsstufe"):
+            educational_context.append(edu_con_item.get("name"))
+        for edu_item in educational_context:
+            if edu_item in self.mapping_edu_context.keys():
+                edu_item = self.mapping_edu_context.get(edu_item)
+            if edu_item != "":
+                vs.add_value("educationalContext", edu_item)
+
+        # using mapped media_type_list for valuespaces -> learningResourceType
+        media_type_list = list()
+        for item in wp_json_item.get("material_medientyp"):
+            media_type_list.append(item.get("name"))
+        for media_type_item in media_type_list:
+            if media_type_item in self.mapping_media_types.keys():
+                media_type_item = self.mapping_media_types.get(media_type_item)
+            if media_type_item != "":
+                vs.add_value("learningResourceType", media_type_item)
+        # see: https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/learningResourceType/index.html
 
         # there's metadata for "Kompetenzen" (e.g.: "Deuten", "Gestalten", "Reflexion") within the returned wp_json
         # that our data-model doesn't support yet. for future reference though:
         #   wp_json_item.get("material_kompetenzen") -> list
 
-        vs.add_value("intendedEndUserRole", "teacher")
+        vs.add_value("intendedEndUserRole", "teacher")  # TODO: is it correct to hardcode this value?
 
         lic = LicenseItemLoader()
 
@@ -309,7 +350,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
                 vs.add_value("price", "yes")
                 vs.add_value("conditionsOfAccess", "login")
         authors = list()
-        # the author should end up in LOM lifecycle, but the metadata are too messy to parse them by
+        # the author should end up in LOM lifecycle, but the metadata returned are too messy to parse them by
         # (first name) + (last name)
         for item in wp_json_item.get("material_autoren"):
             if item.get("name") is not None and item.get("name").strip() is not "":
@@ -329,6 +370,5 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         response_loader = ResponseItemLoader()
         response_loader.add_value("url", response.url)
         base.add_value("response", response_loader.load_item())
-
 
         yield base.load_item()
