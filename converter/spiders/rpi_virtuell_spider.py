@@ -19,15 +19,15 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
     scrapes materials from https://material.rpi-virtuell.de
     via wp-json API: https://material.rpi-virtuell.de/wp-json/
     """
-    name = "rpi_virtuell_debug"
-    friendlyName = "rpi-virtuell-debug"
+    name = "rpi_virtuell_spider"
+    friendlyName = "rpi-virtuell"
     start_urls = ['https://material.rpi-virtuell.de/wp-json/mymaterial/v1/material/']
 
     version = "0.0.1"
 
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
-        'AUTOTHROTTLE_ENABLED': False,
+        # 'AUTOTHROTTLE_ENABLED': False,
         # 'DUPEFILTER_DEBUG': True
     }
     wp_json_pagination_parameters = {
@@ -344,6 +344,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # there's metadata for "Kompetenzen" (e.g.: "Deuten", "Gestalten", "Reflexion") within the returned wp_json
         # that our data-model doesn't support yet. for future reference though:
         #   wp_json_item.get("material_kompetenzen") -> list
+
         # TODO: is it correct to hardcode this value? since source is meant for "Religionspädagogen"
         vs.add_value("intendedEndUserRole", "teacher")
 
