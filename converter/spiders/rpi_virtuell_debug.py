@@ -51,8 +51,9 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         'Schulstufen': "",  # alle Schulstufen? age range?
         'Sekundarstufe': "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1", 'Unterrichtende': ""
     }
-    # copyright is only available as a String (description), therefore mapping:
-    mapping_copyright = {
+    # copyright is only available as a String (description) on the material_review_url itself, this debug list can be
+    # deleted once its confirmed with rpi-virtuell which OER model they actually use here:
+    copyright_debug_list = {
         'Zur Wiederverwendung und Veränderung gekennzeichnet': "",
         'Zur Wiederverwendung und Veränderung gekennzeichnet\t        \t        \t\t        frei zugänglich': "",
         'Zur nicht kommerziellen Wiederverwendung gekennzeichnet': "",
@@ -63,6 +64,12 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         'frei zugänglich': "",
         'kostenfrei nach Anmeldung': "",
         'kostenpflichtig': ""
+    }
+    # TODO: this mapping is TEMPORARY, rpi-virtuell still needs to get back to us before this mapping can go live
+    mapping_copyright = {
+        'Zur Wiederverwendung und Veränderung gekennzeichnet': Constants.LICENSE_CC_BY_40,
+        'Zur nicht kommerziellen Wiederverwendung gekennzeichnet': Constants.LICENSE_CC_BY_NC_ND_40,
+        'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet': Constants.LICENSE_CC_BY_NC_SA_30,
     }
 
     mapping_media_types = {'Anforderungssituation': "",
@@ -327,10 +334,15 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # there's metadata for "Kompetenzen" (e.g.: "Deuten", "Gestalten", "Reflexion") within the returned wp_json
         # that our data-model doesn't support yet. for future reference though:
         #   wp_json_item.get("material_kompetenzen") -> list
-
-        vs.add_value("intendedEndUserRole", "teacher")  # TODO: is it correct to hardcode this value?
+        # TODO: is it correct to hardcode this value? since source is meant for "Religionspädagogen"
+        vs.add_value("intendedEndUserRole", "teacher")
 
         lic = LicenseItemLoader()
+
+        license_regex_reuse_and_change = re.compile(r'Zur Wiederverwendung und Veränderung gekennzeichnet')
+        license_regex_nc_reuse = re.compile(r'Zur nicht kommerziellen Wiederverwendung gekennzeichnet')
+        license_regex_nc_reuse_and_change = re.compile(
+            r'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet')
 
         license_regex_free_access = re.compile(r'frei zugänglich')
         license_regex_free_after_signup = re.compile(r'kostenfrei nach Anmeldung')
@@ -341,6 +353,19 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         if license_description is not None:
             license_description = html.unescape(license_description.strip())
             lic.add_value("description", license_description)
+
+            cc_by = license_regex_reuse_and_change.search(license_description)
+            cc_by_nc_nd = license_regex_nc_reuse.search(license_description)
+            cc_by_nc_sa = license_regex_nc_reuse_and_change.search(license_description)
+            # if the RegEx search finds something, it returns a match-object. otherwise by default it returns None
+            # TODO: use mapping once rpi-virtuell confirmed its license model
+            if cc_by is not None:
+                lic.add_value("internal", Constants.LICENSE_CC_BY_40)
+            if cc_by_nc_nd is not None:
+                lic.add_value("internal", Constants.LICENSE_CC_BY_NC_ND_40)
+            if cc_by_nc_sa is not None:
+                lic.add_value("internal", Constants.LICENSE_CC_BY_NC_SA_30)
+
             if license_regex_free_access.search(license_description) is not None:
                 vs.add_value("price", "no")
             if license_regex_with_costs.search(license_description):
@@ -350,8 +375,8 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
                 vs.add_value("price", "yes")
                 vs.add_value("conditionsOfAccess", "login")
         authors = list()
-        # the author should end up in LOM lifecycle, but the metadata returned are too messy to parse them by
-        # (first name) + (last name)
+        # the author should end up in LOM lifecycle, but the returned metadata are too messily formatted to parse them
+        # by easy patterns like (first name) + (last name)
         for item in wp_json_item.get("material_autoren"):
             if item.get("name") is not None and item.get("name").strip() is not "":
                 authors.append(item.get("name"))
