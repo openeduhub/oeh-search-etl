@@ -117,6 +117,10 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         pass
 
     def start_requests(self):
+        """
+        Before starting the actual parsing this method determines in which format the url in start_urls was provided.
+        If "?page="-query-parameters are missing, it attaches these via urljoin before parsing.
+        """
         # typically we want to iterate through all pages, starting at 1:
         # https://material.rpi-virtuell.de/wp-json/mymaterial/v1/material/?page=1&per_page=100
         # the following method checks if the urls listed in start_urls are in a format that we can use, e.g. either ends
@@ -134,6 +138,11 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
                 yield scrapy.Request(url=url, callback=self.parse)
 
     def parse(self, response, **kwargs):
+        """
+        Checks how many pages need to be parsed with the currently set parameters (per_page items) first
+        then yields all following scrapy.http.Requests that are needed to iterate through all wp_json pages.
+        The individual wp_json-pages are parsed with the "parse_page"-callback
+        """
         # to find out the maximum number of elements that need to be parsed, we can take a look at the header:
         # response.headers.get("X-WP-TotalPages")
         # depending on the pagination setting (per_page parameter)
@@ -158,6 +167,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # yield from self.iterate_through_pages_slowly(current_url, response)
 
     def iterate_through_pages_slowly(self, current_url, response):
+        # this was initially used for debugging purposes and currently isn't used at all anymore
         last_page = int(self.get_total_pages(response))
         current_page_number = self.get_current_page_number(response)
         yield response.follow(current_url, callback=self.parse_page)
@@ -168,14 +178,30 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             print("Next URL will be: ", next_url)
             yield response.follow(next_url, callback=self.parse)
 
-    def get_first_page_parameter(self):
+    def get_first_page_parameter(self) -> int:
+        """
+        :return: first page to crawl as Integer
+        """
         return self.wp_json_pagination_parameters.get("start_page_number")
 
-    def get_per_page_parameter(self):
+    def get_per_page_parameter(self) -> int:
+        """
+        getter for the provided "?per_page"-query-parameter, see:
+        https://developer.wordpress.org/rest-api/using-the-rest-api/pagination/
+        :return: the "?per_page="-parameter as Integer
+        """
         return self.wp_json_pagination_parameters["per_page_elements"]
 
     @staticmethod
-    def get_current_page_number(response):
+    def get_current_page_number(response) -> int:
+        """
+        use response.url to grab the current position of the crawler from the current url,
+        e.g. from: '?page=1&per_page=10' this method will grab the ?page= query parameter
+
+        relevant docs: https://developer.wordpress.org/rest-api/using-the-rest-api/pagination/
+
+        :return: number of the current "wp_json"-page as Integer
+        """
         # last part of the current url will look like this: '?page=1&per_page=10'
         last_part_of_url = response.url.split('/')[-1]
         page_regex = re.compile(r'(\?page=)(\d+)')
@@ -184,7 +210,18 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         return current_page_number
 
     @staticmethod
-    def get_total_pages(response):
+    def get_total_pages(response) -> str:
+        """
+        the number of total_pages that are returned by the "wp_json"-API are dependant on which
+        "?per_page"-query-parameter was used during a GET-Request.
+
+        This method grabs "X-WP-TotalPages" from the header to determine how many "wp_json"-pages need to be parsed in
+        total.
+
+        relevant docs: https://developer.wordpress.org/rest-api/using-the-rest-api/pagination/
+
+        :return: the amount of pages that can be returned by the API
+        """
         # the number of total_pages is dependant on how many elements per_page are served during a GET-Request
         if response.headers.get("X-WP-TotalPages") is not None:
             # X-WP-TotalPages is returned as a byte, therefore we need to decode it first
@@ -193,8 +230,12 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             return total_pages
 
     def parse_page(self, response: scrapy.http.Response = None):
-        # temp_url = str(response.url)
-        # print("DEBUG - INSIDE parse_page: ", temp_url)
+        """
+        Parses a "wp_json"-page for individual json items. After fetching an json-item, a dictionary consisting of the
+        "material_review_url" and a copy of the json item is passed on to the "get_metadata_from_review_url"-method.
+
+        :param response: the current "wp_json"-page that needs to be parsed for individual json items
+        """
         current_page_json = json.loads(response.body)
         # the response.body is pure JSON, each item can be accessed directly:
         for item in current_page_json:
@@ -206,7 +247,14 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             review_url = item.get("material_review_url")
             yield scrapy.Request(url=review_url, callback=self.get_metadata_from_review_url, cb_kwargs=wp_json_item)
 
-    def get_metadata_from_review_url(self, response, **kwargs):
+    def get_metadata_from_review_url(self, response: scrapy.http.Response, **kwargs):
+        """
+        grabs metadata from the "material_review_url"-page and uses the wp_json_item from the
+        "parse_page"-method to return a BaseItemLoader with the combined metadata from both sources.
+
+        :param response: the scrapy.http.Response object for the currently parsed page
+        :param kwargs: wp_json_item-dictionary
+        """
         # logging.debug("DEBUG inside get_metadata_from_review_url: wp_json_item id", kwargs.get("id"))
         wp_json_item = kwargs.get("item")
         # logging.debug("DEBUG inside get_metadata_from_review_url: response type = ", type(response),
@@ -249,18 +297,19 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         base = BaseItemLoader()
         base.add_value("sourceId", response.url)
         base.add_value("hash", hash_temp)
+
         # base.add_value("response", super().mapResponse(response).load_item())
+
         base.add_value("type", Constants.TYPE_MATERIAL)  # TODO: is this correct? use mapping for edu-context?
         # TODO: enable thumbnail when done with debugging
         base.add_value("thumbnail", wp_json_item.get("material_screenshot"))
-        # base.add_value("lastModified", wp_json_item.get("date"))  # is date from wp_json for lastModified correct?
+        # base.add_value("lastModified", wp_json_item.get("date"))  # is "date" from wp_json for lastModified correct?
         base.add_value("lastModified", date_modified)  # or is this one better (grabbed from from material_review_url)?
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
         general.add_value("title", wp_json_item.get("material_titel"))
 
-        # TODO: fix broken formatting (from source) in description
         # the source material heavily fluctuates between perfectly fine strings and messy (hardcoded) html tags
         # as well as "\n" and "\t", therefore we need to clean up that String first:
         raw_description = wp_json_item.get("material_beschreibung")
@@ -319,7 +368,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
         vs = ValuespaceItemLoader()
         vs.add_value("discipline", "http://w3id.org/openeduhub/vocabs/discipline/520")  # Religion
-        # TODO: audience
+        # TODO: audience?
         # mapping educationalContext
         educational_context = list()
         for edu_con_item in wp_json_item.get("material_bildungsstufe"):
@@ -394,7 +443,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         lic.add_value("author", authors)
         # TODO:
         #   - license-url?
-        #   - mapping needed for copyright descriptions!
 
         base.add_value("valuespaces", vs.load_item())
 
