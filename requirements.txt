@@ -15,3 +15,11 @@ jmespath
 flake8==3.9.1
 pytest==6.2.3
 extruct
+lxml
+w3lib
+itemloaders
+Pillow
+itemadapter
+six
+certifi
+urllib3
