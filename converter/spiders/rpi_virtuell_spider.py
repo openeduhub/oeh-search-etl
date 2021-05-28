@@ -23,7 +23,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
     friendlyName = "rpi-virtuell"
     start_urls = ['https://material.rpi-virtuell.de/wp-json/mymaterial/v1/material/']
 
-    version = "0.0.1"
+    version = "0.0.2"
 
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
@@ -52,7 +52,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         'Schulstufen': "",  # alle Schulstufen? age range?
         'Sekundarstufe': "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1", 'Unterrichtende': ""
     }
-    # copyright is only available as a String (description) on the material_review_url itself, this debug list can be
+    # copyright is only available as a String (description) on the material_review_url itself, this debug list could be
     # deleted once its confirmed with rpi-virtuell which OER model they actually use here:
     copyright_debug_list = {
         'Zur Wiederverwendung und Veränderung gekennzeichnet': "",
@@ -66,9 +66,11 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         'kostenfrei nach Anmeldung': "",
         'kostenpflichtig': ""
     }
-    # TODO: this mapping is TEMPORARY, rpi-virtuell still needs to get back to us before this mapping can go live
+    #   rpi-virtuell has clarified their license-description:
+    #   'Zur Wiederverwendung und Veränderung gekennzeichnet' can be both CC_BY and CC_BY_SA
+    #       since CC_BY_SA is slightly more restricting, we choose this mapping rather than the more liberal CC_BY
     mapping_copyright = {
-        'Zur Wiederverwendung und Veränderung gekennzeichnet': Constants.LICENSE_CC_BY_40,
+        'Zur Wiederverwendung und Veränderung gekennzeichnet': Constants.LICENSE_CC_BY_SA_40,
         'Zur nicht kommerziellen Wiederverwendung gekennzeichnet': Constants.LICENSE_CC_BY_NC_ND_40,
         'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet': Constants.LICENSE_CC_BY_NC_SA_30,
     }
@@ -82,7 +84,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
                            'E-Learning': "",
                            'Erzählung': "",
                            'Fachinformation': "",  # reference (Primärquelle?)
-                           'Gamification': "",  # educational game ?
+                           'Gamification': "",  # maybe map to educational game ?
                            'Gebet/Lied': "",
                            'Gottesdienstentwurf': "",
                            'Internetportal': "web page",
@@ -301,7 +303,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # base.add_value("response", super().mapResponse(response).load_item())
 
         base.add_value("type", Constants.TYPE_MATERIAL)  # TODO: is this correct? use mapping for edu-context?
-        # TODO: enable thumbnail when done with debugging
         base.add_value("thumbnail", wp_json_item.get("material_screenshot"))
         # base.add_value("lastModified", wp_json_item.get("date"))  # is "date" from wp_json for lastModified correct?
         base.add_value("lastModified", date_modified)  # or is this one better (grabbed from from material_review_url)?
@@ -404,6 +405,9 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         license_regex_nc_reuse_and_change = re.compile(
             r'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet')
 
+        # important clarification from rpi-virtuell:
+        #   'frei zugänglich' describes 'ungeklärte Lizenz' / 'volles Urheberrecht'
+        #   CC licenses > 'frei zugänglich' if both values are found in the license description
         license_regex_free_access = re.compile(r'frei zugänglich')
         license_regex_free_after_signup = re.compile(r'kostenfrei nach Anmeldung')
         license_regex_with_costs = re.compile(r'kostenpflichtig')
@@ -414,20 +418,23 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             license_description = html.unescape(license_description.strip())
             lic.add_value("description", license_description)
 
-            cc_by = license_regex_reuse_and_change.search(license_description)
+            cc_by_sa = license_regex_reuse_and_change.search(license_description)
             cc_by_nc_nd = license_regex_nc_reuse.search(license_description)
             cc_by_nc_sa = license_regex_nc_reuse_and_change.search(license_description)
             # if the RegEx search finds something, it returns a match-object. otherwise by default it returns None
             # TODO: use mapping once rpi-virtuell confirmed its license model
-            if cc_by is not None:
-                lic.add_value("internal", Constants.LICENSE_CC_BY_40)
+            if cc_by_sa is not None:
+                lic.add_value("internal", Constants.LICENSE_CC_BY_SA_40)
             if cc_by_nc_nd is not None:
                 lic.add_value("internal", Constants.LICENSE_CC_BY_NC_ND_40)
             if cc_by_nc_sa is not None:
                 lic.add_value("internal", Constants.LICENSE_CC_BY_NC_SA_30)
-
+            # if a material is "frei zugänglich", set price to none, but don't override a previously set CC-license
             if license_regex_free_access.search(license_description) is not None:
                 vs.add_value("price", "no")
+                # only if "frei zugänglich" is the only license-description this will trigger:
+                if license_regex_free_access.match(license_description) is not None:
+                    lic.add_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
             if license_regex_with_costs.search(license_description):
                 lic.add_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
                 vs.add_value("price", "yes")
@@ -441,8 +448,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             if item.get("name") is not None and item.get("name").strip() is not "":
                 authors.append(item.get("name"))
         lic.add_value("author", authors)
-        # TODO:
-        #   - license-url?
 
         base.add_value("valuespaces", vs.load_item())
 
