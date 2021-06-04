@@ -1,5 +1,6 @@
 import html
 import json
+import logging
 import re
 from typing import Optional
 
@@ -23,7 +24,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
     friendlyName = "rpi-virtuell"
     start_urls = ['https://material.rpi-virtuell.de/wp-json/mymaterial/v1/material/']
 
-    version = "0.0.2"
+    version = "0.0.3"
 
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
@@ -433,8 +434,9 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             if license_regex_free_access.search(license_description) is not None:
                 vs.add_value("price", "no")
                 # only if "frei zugänglich" is the only license-description this will trigger:
+                # see https://rpi-virtuell.de/nutzungsbedingungen/ (5.)
                 if license_regex_free_access.match(license_description) is not None:
-                    lic.add_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
+                    lic.add_value("internal", Constants.LICENSE_CC_BY_SA_40)
             if license_regex_with_costs.search(license_description):
                 lic.add_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
                 vs.add_value("price", "yes")
