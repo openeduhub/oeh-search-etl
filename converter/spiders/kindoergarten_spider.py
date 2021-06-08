@@ -42,20 +42,22 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
 
     def parse(self, response: scrapy.http.XmlResponse, **kwargs):
         """
-        one url element usually looks like this:
-        <url>
-            <loc>https://kindoergarten.wordpress.com/2017/10/20/wuerfelblatt-trauben-bis-3-0047/</loc>
-            <mobile:mobile/>
-            <image:image>
-            <image:loc>https://kindoergarten.files.wordpress.com/2017/08/ankuendigung-wuerfelblatt_trauben_bis3.jpg</image:loc>
-            <image:title>Ankuendigung-Wuerfelblatt_Trauben_bis3</image:title>
-            </image:image>
-            <lastmod>2018-05-29T20:47:12+00:00</lastmod>
-            <changefreq>monthly</changefreq>
-        </url>
+        parse XML sitemap for items and afterwards follow individual items by their item.loc (url)
+        with a callback to parse_site
         """
+        # one url element usually looks like this:
+        # <url>
+        #     <loc>https://kindoergarten.wordpress.com/2017/10/20/wuerfelblatt-trauben-bis-3-0047/</loc>
+        #     <mobile:mobile/>
+        #     <image:image>
+        #     <image:loc>https://kindoergarten.files.wordpress.com/2017/08/ankuendigung-wuerfelblatt_trauben_bis3.jpg</image:loc>
+        #     <image:title>Ankuendigung-Wuerfelblatt_Trauben_bis3</image:title>
+        #     </image:image>
+        #     <lastmod>2018-05-29T20:47:12+00:00</lastmod>
+        #     <changefreq>monthly</changefreq>
+        # </url>
+
         items = from_xml_response(response)
-        # yield from items
         for item in items:
             response = response.copy()
             response.meta['sitemap_entry'] = item
@@ -66,17 +68,24 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
                 if current_regex.search(item.loc) is not None:
                     skip_check = True
                     break
+            # only if the current url doesn't appear in the skip_these_urls list, the parse request will be triggered
             if self.hasChanged(response) and skip_check is False:
                 yield response.follow(item.loc, callback=self.parse_site, cb_kwargs={'sitemap_entry': item})
 
     def parse_site(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None):
-        # thumbnail_href = response.css('.post-thumbnail img::attr(src)').get()
-        # title: str = response.css('.entry-title span::text').get()
+        """
+        parses metadata from an individual item both by its HtmlResponse and its sitemap tags
+
+        :param response: the current scrapy.http.HtmlResponse (needed for xpath and css selectors)
+        :param sitemap_entry: a copy of the original sitemap entry for this item
+        :return: yields a BaseItemLoader
+        """
         response.meta['sitemap_entry'] = sitemap_entry
         base = super().getBase(response=response)
         base.add_value("response", super().mapResponse(response).load_item())
         # we assume that content is imported. Please use replace_value if you import something different
         base.add_value("type", Constants.TYPE_MATERIAL)
+        # thumbnail_href = response.css('.post-thumbnail img::attr(src)').get()
         base.add_value('thumbnail', response.css('.post-thumbnail img::attr(src)').get())
         base.add_value('lastModified', sitemap_entry.lastmod)
 
