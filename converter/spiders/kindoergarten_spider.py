@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import scrapy
 import w3lib.html
 
@@ -19,7 +21,18 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
 
     start_urls = ['https://kindoergarten.wordpress.com/sitemap.xml']
     name = 'kindoergarten_spider'
-    version = '0.1.1'
+    version = '0.1.2'
+    # TODO:
+    #   do additional urls need to be skipped?
+    skip_these_urls = [
+        '/impressum/',
+        '/nutzungsbedingungen/',
+        '/robin-hood-prinzip/',
+        '/sponsor-wie/',
+        '/fachredaktion-und-produktion/',
+        '/category/ueber-kindoergarten/'
+    ]
+    debug_skip_counter = int()
 
     def getId(self, response: scrapy.http.Response = None) -> str:
         return response.url
@@ -46,7 +59,14 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         for item in items:
             response = response.copy()
             response.meta['sitemap_entry'] = item
-            if self.hasChanged(response):
+            # if url is on the undesired urls list, skip parsing the current item
+            skip_check = False
+            for url_pattern in self.skip_these_urls:
+                current_regex = re.compile(url_pattern)
+                if current_regex.search(item.loc) is not None:
+                    skip_check = True
+                    break
+            if self.hasChanged(response) and skip_check is False:
                 yield response.follow(item.loc, callback=self.parse_site, cb_kwargs={'sitemap_entry': item})
 
     def parse_site(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None):
@@ -73,15 +93,16 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         content = response.css('.entry-content')
         # remove the sharedaddy-buttons before parsing the description text
         content.css('.sharedaddy').remove()
-        # TODO: attach pdf links (if available) to description?
+        # TODO: attach pdf links (if available) to new items.py ItemLoader for deep-links (not yet implemented)
         # pdf_links = content.css('ul li a::attr(href)').getall()
         description_temp = content.xpath('//*[@class="entry-content"]//descendant::*/text()').getall()
-        raw_description = str(description_temp)
+        raw_description = str()
+        raw_description = raw_description.join(description_temp)
 
-        # alternative method: without removing the "sharedaddy"-css
-        # even though the <div id="jp-post-flair">-container is completely separate from the "entry-content"-div
-        # it will grab the share-button descriptions. As a workaround, we're grabbing all descriptions, but manually
-        # break the loop as soon as we reach the "Teilen mit:"-String
+        # hacky, alternative method without removing the "sharedaddy"-container:
+        #   even though the <div id="jp-post-flair">-container is completely separate from the "entry-content"-div
+        #   it will grab the share-button descriptions. As a workaround, we're grabbing all descriptions, but manually
+        #   break the loop as soon as we reach the "Teilen mit:"-String
         # raw_description = str()
         # for item in description_temp:
         #     if item.get() == "Teilen mit:":
@@ -89,7 +110,6 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         #     raw_description += item.get()
 
         raw_description = w3lib.html.remove_tags(raw_description)
-        # general.add_value('description', response.css('.entry-content p::text').getall())
         general.add_value('description', raw_description)
 
         general.add_value('keyword', response.css('.post-categories a::text').getall())
