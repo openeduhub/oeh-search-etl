@@ -32,7 +32,6 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         '/fachredaktion-und-produktion/',
         '/category/ueber-kindoergarten/'
     ]
-    debug_skip_counter = int()
 
     def getId(self, response: scrapy.http.Response = None) -> str:
         return response.url
