@@ -1,7 +1,7 @@
 import re
 
-import requests
 import scrapy
+import w3lib.html
 
 from converter.constants import Constants
 from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, LomLifecycleItemloader, \
@@ -200,11 +200,14 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         # response.xpath('//table[@class="smalltable"]')
 
         table_body = response.xpath('//table[@class="smalltable"]')
+        description_temp = str()
         if table_body is not None:
             for table_item in table_body:
                 # print(table_item.get())
                 map_title = table_item.xpath('tr/td[1]/a[2]/text()').get()
+                map_design_heading = table_item.xpath('tr/td[2]/u[1]/text()').get()
                 map_design = table_item.xpath('tr/td[2]/p[1]/text()').get()
+                map_content_heading = table_item.xpath('tr/td[2]/u[2]/text()').get()
                 map_content = table_item.xpath('tr/td[2]/p[2]/text()').get()
                 map_thumbnail = response.urljoin(table_item.xpath('tr/td[1]/a[1]/img/@src').get())
                 map_thumbnail_description = table_item.xpath('tr/td[1]/a[1]/img/@alt').get()
@@ -215,6 +218,12 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
                 jpeg_download_medium_description = table_item.xpath('tr/td[2]/p[4]/a[2]/text()').get()
                 jpeg_download_high_url = response.urljoin(table_item.xpath('tr/td[2]/p[5]/a[2]/@href').get())
                 jpeg_download_high_description = table_item.xpath('tr/td[2]/p[5]/a[2]/text()').get()
+
+                description_temp += map_title + "\n" \
+                    + map_content_heading + map_design \
+                    + map_content_heading + map_content
+
+        description_temp = w3lib.html.strip_html5_whitespace(description_temp)
 
         base = super().getBase(response=response)
         base.add_value('sourceId', response.url)
@@ -233,6 +242,7 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         #   - description
         #   - identifier
         #   - language
+        general.add_value('description', description_temp)
         general.add_value('title', response.xpath('/html/head/title/text()').get())
         # keywords are stored inside a String, separated by commas with (sometimes multiple) whitespaces,
         # therefore RegEx is needed to provide a list with individual keywords
