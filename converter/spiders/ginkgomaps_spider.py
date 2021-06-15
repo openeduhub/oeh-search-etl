@@ -239,22 +239,20 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
         # TODO: general
-        #   - description
+        #   - description (WIP)
         #   - identifier
         #   - language
         general.add_value('description', description_temp)
         general.add_value('title', response.xpath('/html/head/title/text()').get())
         # keywords are stored inside a String, separated by commas with (sometimes multiple) whitespaces,
-        # therefore RegEx is needed to provide a list with individual keywords
-        keyword_string = response.xpath('/html/head/meta[4]/@content').get()
-        kw_regex = re.compile(r'(\w+\s*\w+)')
-        kw_list = kw_regex.findall(keyword_string)
-        general.add_value('keyword', kw_list)
+        # therefore RegEx is needed to provide a list with individual keywords since a String.split() isn't enough:
+        keyword_string = response.xpath('/html/head/meta[@name="keywords"]/@content').get()
+        kw_regex_split = re.split(r'\s*,\s*', keyword_string)
+        general.add_value('keyword', kw_regex_split)
         lom.add_value('general', general.load_item())
 
         technical = LomTechnicalItemLoader()
-        # TODO: technical
-        #   - format
+        technical.add_value('format', 'text/html')
         technical.add_value('location', response.url)
         lom.add_value('technical', technical.load_item())
 
@@ -272,17 +270,20 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
 
         vs = ValuespaceItemLoader()
         # TODO: Valuespaces
-        #   - discipline
         #   - educationalContext
-        #   - learningResourceType
         #   - intendedEndUserRole
+        vs.add_value('discipline', 'http://w3id.org/openeduhub/vocabs/discipline/220')  # Geografie
+        vs.add_value('learningResourceType', 'http://w3id.org/openeduhub/vocabs/learningResourceType/map')  # Karte
 
         lic = LicenseItemLoader()
         # TODO: license
-        #   - url
         #   - description?
         #   - conditionsOfAccess
-        lic.add_value('url', response.xpath('/html/body/center/table[1]/tr[5]/td[2]/p/a/@href').get())
+        license_url: str = response.xpath('/html/body/center/table[1]/tr[5]/td[2]/p/a/@href').get()
+        if (license_url is not None) and (license_url.endswith("deed.de")):
+            license_url = license_url[:-len("deed.de")]
+            license_url = license_url.replace("http://", "https://")
+            lic.add_value('url', license_url)
         lic.add_value('author', response.xpath('/html/head/meta[3]/@content').get())
 
         base.add_value('valuespaces', vs.load_item())
