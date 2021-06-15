@@ -15,14 +15,11 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
     allowed_domains = ["ginkgomaps.com"]
     start_urls = [
         "http://ginkgomaps.com/index_de.html"
-        # "http://ginkgomaps.com/landkarten_welt.html"
     ]
-    version = "0.0.1"
+    version = "0.0.1"  # reflects the structure of Ginkgomaps.com on 2021-06-14
 
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
-        # 'AUTOTHROTTLE_ENABLED': False,
-        # 'DUPEFILTER_DEBUG': True
     }
     skip_these_urls = [
         "index_de.html",
@@ -37,9 +34,6 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
-
-    # def __init__(self, **kwargs):
-    #     LomBase.__init__(self, **kwargs)
 
     def start_requests(self):
         for url in self.start_urls:
@@ -68,7 +62,6 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
                         yield scrapy.Request(url=temp_url, callback=self.get_navigation_urls_third_level)
                     if url_depth == 3:
                         yield scrapy.Request(url=temp_url, callback=self.get_navigation_urls_fourth_level)
-                # print("The amount of URLs gathered so far: " + str(len(self.navigation_urls)))
 
     def check_for_dead_ends_before_parsing(self, response: scrapy.http.Response):
         """
@@ -105,7 +98,6 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
                             self.debug_parsed_urls.add(response.url)
                             response_copy = response.copy()
                             yield from self.parse(response_copy)
-                            # yield scrapy.Request(url=response_copy.url, callback=self.parse(response_copy))
 
     def getHash(self, response=None) -> str:
         pass
@@ -177,14 +169,8 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         #       len(self.navigation_urls))
 
     def parse(self, response: scrapy.http.Response, **kwargs):
-        # page_content = scrapy.Selector(requests.get(response.url))
         # making sure that the current url is marked as parsed:
         self.debug_parsed_urls.add(response.url)
-
-        # for debugging:
-        # print("parse METHOD: current url = ", response.url)
-        # print("parse Method: crawled URLs = ", len(self.debug_parsed_urls), " gathered urls = ",
-        #       len(self.navigation_urls))
 
         # IMPORTANT: modern browsers add "tbody"-elements into tables, scrapy doesn't see those tags!
         #   Remember: whatever request you see with the developer tools in your browser, you need to manually remove
@@ -197,7 +183,6 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         table_body = response.xpath('//table[@class="smalltable"]')
         description_temp = str()
         first_thumbnail = str()
-        # first_thumbnail = str()
         if table_body is not None:
             for table_item in table_body:
                 # print(table_item.get())
@@ -240,7 +225,8 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         general = LomGeneralItemloader(response=response)
         general.add_value('language', 'de')
         general.add_value('identifier', response.url)
-        # the description could be extended with infos about the map-formats and their resolutions, if necessary
+        # the description could be extended with additional infos about the map-formats and their resolutions,
+        # (if necessary)
         general.add_value('description', description_temp)
         general.add_value('title', response.xpath('/html/head/title/text()').get())
         # keywords are stored inside a String, separated by commas with (sometimes multiple) whitespaces,
@@ -299,10 +285,6 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value('permissions', permissions.load_item())
 
-        # either fill ResponseItemLoader() manually or by calling super()
         base.add_value('response', super().mapResponse(response).load_item())
-        # response_loader = ResponseItemLoader()
-        # response_loader.add_value('url', response.url)
-        # base.add_value('response', response_loader.load_item())
 
         yield base.load_item()
