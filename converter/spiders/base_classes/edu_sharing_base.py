@@ -67,15 +67,16 @@ class EduSharingBase(Spider, LomBase):
         if self.getProperty("ccm:replicationsource", response):
             # imported objects usually have the content as binary text
             # TODO: Sometimes, edu-sharing redirects if no local content is found, and this should be html-parsed
-            try:
-                r = requests.get(response.meta["item"]["downloadUrl"])
-                if r.status_code == 200:
-                    base.replace_value("fulltext", r.text)
-            except:
-                logging.warning(
-                    "error fetching data from " + response.meta["item"]["downloadUrl"],
-                    sys.exc_info()[0],
-                )
+            if response.meta["item"]["downloadUrl"]:
+                try:
+                    r = requests.get(response.meta["item"]["downloadUrl"])
+                    if r.status_code == 200:
+                        base.replace_value("fulltext", r.text)
+                except:
+                    logging.warning(
+                        "error fetching data from " + str(response.meta["item"]["downloadUrl"]),
+                        sys.exc_info()[0],
+                    )
         else:
             # try to transform using alfresco
             r = requests.get(
