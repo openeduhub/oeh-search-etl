@@ -100,7 +100,7 @@ class EduSharingBase(Spider, LomBase):
         return response.meta["item"]["ref"]["id"]
 
     def getHash(self, response=None) -> str:
-        return self.version + response.meta["item"]["modifiedAt"]
+        return self.version + response.meta["item"]["properties"]["cm:modified"][0]
 
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
