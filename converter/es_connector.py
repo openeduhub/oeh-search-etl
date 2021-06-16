@@ -11,6 +11,7 @@ import logging
 
 from vobject.vcard import VCardBehavior
 
+from converter import env
 from converter.constants import Constants
 from edu_sharing_client.api_client import ApiClient
 from edu_sharing_client.configuration import Configuration
@@ -101,9 +102,12 @@ class EduSharing:
     mediacenterApi: MEDIACENTERV1Api
     nodeApi: NODEV1Api
     groupCache: List[str]
+    enabled: bool
 
     def __init__(self):
-        self.initApiClient()
+        self.enabled = env.get("MODE", default="edu-sharing") == "edu-sharing"
+        if self.enabled:
+            self.initApiClient()
 
     def getHeaders(self, contentType="application/json"):
         return {
@@ -546,13 +550,16 @@ class EduSharing:
                 + settings.get("EDU_SHARING_BASE_URL")
             )
 
-    def buildUUID(self, url):
+    @staticmethod
+    def buildUUID(url):
         return str(uuid.uuid5(uuid.NAMESPACE_URL, url))
 
     def uuidExists(self, uuid):
         return False
 
     def findItem(self, id, spider):
+        if not self.enabled:
+            return None
         properties = {
             "ccm:replicationsource": [spider.name],
             "ccm:replicationsourceid": [id],

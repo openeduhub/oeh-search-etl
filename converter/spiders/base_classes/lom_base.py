@@ -57,7 +57,7 @@ class LomBase:
         return response.url
 
     def getUUID(self, response=None) -> str:
-        return EduSharing().buildUUID(self.getUri(response))
+        return EduSharing.buildUUID(self.getUri(response))
 
     def hasChanged(self, response=None) -> bool:
         if self.forceUpdate:
