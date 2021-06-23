@@ -1,15 +1,16 @@
 import json
+from typing import Optional
 
 import scrapy.http
 from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
-
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
+from converter.spiders.base_classes import LomBase
 
 
-class MaterialNetzwerkSpider(CrawlSpider):
+class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     name = "materialnetzwerk_spider"
     friendlyName = "Materialnetzwerk.org"
     version = "0.0.1"
@@ -39,11 +40,11 @@ class MaterialNetzwerkSpider(CrawlSpider):
     def __init__(self, **kwargs):
         CrawlSpider.__init__(self, **kwargs)
 
-    # def getId(self, response = None) -> str:
-    #     pass
-    #
-    # def getHash(self, response=None) -> Optional[str]:
-    #     pass
+    def getId(self, response=None) -> Optional[str]:
+        pass
+
+    def getHash(self, response=None) -> Optional[str]:
+        pass
 
     def start_requests(self):
         for start_url in self.start_urls:
@@ -65,7 +66,7 @@ class MaterialNetzwerkSpider(CrawlSpider):
         # bundle_urls.sort()
         # print(bundle_urls)
 
-    def parse_bundle_overview(self, response: scrapy.http.Response, **kwargs):
+    def parse_bundle_overview(self, response: scrapy.http.Response):
         bundle_title = response.xpath('//div[@class="l-container content"]/h2/text()').get()
         bundle_description = response.xpath('/html/head/meta[@property="description"]/@content').get()
         # div class tutoryMark holds the same content as the description in the header
@@ -84,11 +85,11 @@ class MaterialNetzwerkSpider(CrawlSpider):
         if meta_values_phase == "Phase":
             meta_values_phase_value = response.xpath('//dl[@class="metaValues"]/dd[2]/text()').get()
             edu_level_temp = meta_values_phase_value.replace(" ", "")  # stripping empty spaces between the comma
-            education_level = edu_level_temp.split(',')    # these values will be used for educationLevel
+            education_level = edu_level_temp.split(',')  # these values will be used for educationLevel
         # materialnetzwerk lists 3 "Niveaustufen": M, R, E
-        meta_values_niveaustufe = response.xpath('//dl[@class="metaValues"]/dt[3]/text()').get()
-        if meta_values_niveaustufe == "Niveaustufe":
-            meta_values_niveaustufe_value = response.xpath('//dl[@class="metaValues"]/dd[3]/text()').get()
+        # meta_values_niveaustufe = response.xpath('//dl[@class="metaValues"]/dt[3]/text()').get()
+        # if meta_values_niveaustufe == "Niveaustufe":
+        #     meta_values_niveaustufe_value = response.xpath('//dl[@class="metaValues"]/dd[3]/text()').get()
 
         # all worksheets that belong to the current url are listed within
         # /html/body/main/div/ul
@@ -101,8 +102,9 @@ class MaterialNetzwerkSpider(CrawlSpider):
             if material_meta_name is not None:
                 worksheet_descriptions.append(material_meta_name)
             worksheet_descriptions.append("\n")
-            worksheet_url = worksheet.xpath('@href').get()
-        print(worksheet_descriptions)
+            # TODO: use worksheet_url once we can link it to the bundle in our metadata model
+            # worksheet_url = worksheet.xpath('@href').get()
+        # print(worksheet_descriptions)
         worksheet_description_string: str = ''.join(worksheet_descriptions)
 
         # debug output to check if there are new disciplines that need to be mapped:
@@ -137,14 +139,15 @@ class MaterialNetzwerkSpider(CrawlSpider):
             'bundle_discipline': bundle_discipline,
             'bundle_education_level': education_level,
             'bundle_ld_json_organization': ld_json_organization,
-            'bundle_ld_json_local_business': ld_json_local_business
+            'bundle_ld_json_local_business': ld_json_local_business,
+            'bundle_thumbnail': first_worksheet_thumbnail
         }
         if first_worksheet_url is not None:
-            yield scrapy.Request(url=first_worksheet_url, callback=self.parse_bundle_page, cb_kwargs=bundle_dict)
-        print(debug_disciplines_sorted)
+            yield scrapy.Request(url=first_worksheet_url, callback=self.parse, cb_kwargs=bundle_dict)
+        # print(debug_disciplines_sorted)
         pass
 
-    def parse_bundle_page(self, response: scrapy.http.Response, **kwargs):
+    def parse(self, response: scrapy.http.Response, **kwargs):
         # since we're only parsing the first worksheet for some additional metadata, the metadata object will be
         # centered around a bundle, not the individual pages
 
@@ -155,8 +158,11 @@ class MaterialNetzwerkSpider(CrawlSpider):
         base.add_value("sourceId", kwargs.get('bundle_url'))
         hash_temp = str(date_published + self.version)
         base.add_value("hash", hash_temp)
-        # TODO: base
-        #   - thumbnail
+        # TODO: this might be a place where we might actually prefer SPLASH screenshots for thumbnails
+        # this is a hacky solution: the thumbnail is the miniature preview of the bundle's first worksheet
+        bundle_thumbnail = kwargs.get('bundle_thumbnail')
+        if bundle_thumbnail is not None:
+            base.add_value('thumbnail', bundle_thumbnail)
         base.add_value('type', Constants.TYPE_MATERIAL)
         base.add_value('lastModified', date_published)
 
@@ -208,12 +214,12 @@ class MaterialNetzwerkSpider(CrawlSpider):
         bundle_discipline = kwargs.get('bundle_discipline')
         if bundle_discipline is not None:
             bundle_discipline = self.discipline_mapping.get(bundle_discipline)
-        vs.add_value('discipline', bundle_discipline)
+            vs.add_value('discipline', bundle_discipline)
         vs.add_value('intendedEndUserRole', 'http://w3id.org/openeduhub/vocabs/intendedEndUserRole/teacher')
         #  logged in users can manipulate the worksheets and fit them to their needs,
         #  but there's no login required for just downloading the pdf of an available worksheet
         vs.add_value('conditionsOfAccess',
-                      'http://w3id.org/openeduhub/vocabs/conditionsOfAccess/login_for_additional_features')
+                     'http://w3id.org/openeduhub/vocabs/conditionsOfAccess/login_for_additional_features')
         vs.add_value('price', 'http://w3id.org/openeduhub/vocabs/price/no')
 
         lic = LicenseItemLoader()
@@ -229,4 +235,3 @@ class MaterialNetzwerkSpider(CrawlSpider):
         base.add_value('response', response_loader.load_item())
 
         yield base.load_item()
-        pass
