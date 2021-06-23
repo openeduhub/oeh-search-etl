@@ -35,7 +35,7 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         'English': 'http://w3id.org/openeduhub/vocabs/discipline/20001',  # Englisch
         'Mathematik': 'http://w3id.org/openeduhub/vocabs/discipline/380',  # Mathematik
     }
-    debug_disciplines = set()
+    # debug_disciplines = set()
 
     def __init__(self, **kwargs):
         CrawlSpider.__init__(self, **kwargs)
@@ -53,7 +53,7 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     def parse_start_url(self, response: scrapy.http.Response, **kwargs):
         api_response = json.loads(response.body)
         amount_of_bundles = api_response["total"]
-        print("Total amount of material bundles to crawl:", amount_of_bundles, type(amount_of_bundles))
+        # print("Total amount of material bundles to crawl:", amount_of_bundles, type(amount_of_bundles))
         # the API returns a list of bundles and within each bundle object is a "slug"-key, whose value is part of the
         # unique URL that we need to parse later
         bundle_urls = list()
@@ -67,6 +67,9 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         # print(bundle_urls)
 
     def parse_bundle_overview(self, response: scrapy.http.Response):
+        # a typical bundle_overview looks like this: https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78
+        # there's minimal metadata to be found, but we can grab the descriptions of each worksheet and use the
+        # accumulated strings as our description for the bundle page
         bundle_title = response.xpath('//div[@class="l-container content"]/h2/text()').get()
         bundle_description = response.xpath('/html/head/meta[@property="description"]/@content').get()
         # div class tutoryMark holds the same content as the description in the header
@@ -78,7 +81,7 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         if meta_values_fach == "Fach":
             meta_values_fach_value = response.xpath('//dl[@class="metaValues"]/dd[1]/text()').get()
             if meta_values_fach_value is not None:
-                self.debug_disciplines.add(meta_values_fach_value)
+                # self.debug_disciplines.add(meta_values_fach_value)
                 bundle_discipline = meta_values_fach_value
         # "phase" is their term for "Klassenstufe"
         meta_values_phase = response.xpath('//dl[@class="metaValues"]/dt[2]/text()').get()
@@ -107,9 +110,9 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         # print(worksheet_descriptions)
         worksheet_description_string: str = ''.join(worksheet_descriptions)
 
-        # debug output to check if there are new disciplines that need to be mapped:
-        debug_disciplines_sorted = list(self.debug_disciplines)
-        debug_disciplines_sorted.sort()
+        # debug output to check if there are new disciplines that still need to be mapped:
+        # debug_disciplines_sorted = list(self.debug_disciplines)
+        # debug_disciplines_sorted.sort()
 
         # There are two "application/ld+json"-scripts on the website -> XPath: /html/body/script[1]
         # one is of @type Organization, the other of @type LocalBusiness
@@ -130,7 +133,7 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         first_worksheet_url = response.xpath('//a[@class="worksheet"]/@href').get()
         first_worksheet_thumbnail = response.xpath('/html/body/main/div/ul/a[1]/div[1]/img/@data-src').get()
         # there isn't a lot of metadata available on the bundle overview page, but we still need to carry it over to
-        # the parse_bundle_page method since that's where the BaseItemLoader is built
+        # the parse method since that's where the BaseItemLoader is built
         bundle_dict = {
             'bundle_title': bundle_title,
             'bundle_description': bundle_description,
@@ -158,7 +161,6 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         base.add_value("sourceId", kwargs.get('bundle_url'))
         hash_temp = str(date_published + self.version)
         base.add_value("hash", hash_temp)
-        # TODO: this might be a place where we might actually prefer SPLASH screenshots for thumbnails
         # this is a hacky solution: the thumbnail is the miniature preview of the bundle's first worksheet
         bundle_thumbnail = kwargs.get('bundle_thumbnail')
         if bundle_thumbnail is not None:
@@ -190,8 +192,6 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         lom.add_value('technical', technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
-        # TODO: lifecycle
-        #   - url necessary? since it's already part of the Organization schema
         bundle_organization = kwargs.get('bundle_ld_json_organization')
         if bundle_organization is not None:
             lifecycle.add_value('organization', bundle_organization)
@@ -207,9 +207,6 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
-        # TODO: vs - no educationalContext given, but maybe map it with "Phase"?
-
-        # TODO: Confirm which type is the correct learningResourceType for a "Lernpaket" / Bundle
         vs.add_value('learningResourceType', 'http://w3id.org/openeduhub/vocabs/learningResourceType/teaching_module')
         bundle_discipline = kwargs.get('bundle_discipline')
         if bundle_discipline is not None:
@@ -227,7 +224,6 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         lic.add_value('url', Constants.LICENSE_CC_BY_SA_30)
         base.add_value('license', lic.load_item())
 
-        # TODO: PermissionsItemLoader
         response_loader = ResponseItemLoader()
         response_loader.add_value('url', kwargs.get('bundle_url'))
 
