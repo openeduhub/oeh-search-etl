@@ -120,8 +120,8 @@ class EduSharingBase(Spider, LomBase):
         tar_to = self.getProperty("ccm:educationaltypicalagerange_to", response)
         if tar_from and tar_to:
             range = LomAgeRangeItemLoader()
-            range.add_value("from", tar_from)
-            range.add_value("to", tar_to)
+            range.add_value("fromRange", tar_from)
+            range.add_value("toRange", tar_to)
             educational.add_value("typicalAgeRange", range.load_item())
         return educational
 

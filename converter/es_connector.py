@@ -336,10 +336,10 @@ class EduSharing:
         if "typicalagerange" in item["lom"]["educational"]:
             spaces["ccm:educationaltypicalagerange_from"] = item["lom"]["educational"][
                 "typicalagerange"
-            ]["from"]
+            ]["fromRange"]
             spaces["ccm:educationaltypicalagerange_to"] = item["lom"]["educational"][
                 "typicalagerange"
-            ]["to"]
+            ]["toRange"]
         # intendedEndUserRole = Field(output_processor=JoinMultivalues())
         # discipline = Field(output_processor=JoinMultivalues())
         # educationalContext = Field(output_processor=JoinMultivalues())
