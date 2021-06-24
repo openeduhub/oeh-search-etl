@@ -52,9 +52,9 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         if diff_set.issubset(self.navigation_urls) is False:
             self.navigation_urls.update(diff_set)
             if len(diff_set) > 0:
-                print("Found", (len(diff_set)), "new URLs to crawl on url_depth =", url_depth)
+                # print("Found", (len(diff_set)), "new URLs to crawl on url_depth =", url_depth)
                 for diff_item in diff_set:
-                    print(diff_item)
+                    # print(diff_item)
                     temp_url = response.urljoin(diff_item)
                     if url_depth == 1:
                         yield scrapy.Request(url=temp_url, callback=self.get_navigation_urls_second_level)
@@ -79,10 +79,10 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
                 for table_item in table_body:
                     if (no_entry_regex.search(table_item.get())) is not None:
                         self.debug_dead_end_counter += 1
-                        print("The URL", response.url, "is a 'Bisher kein Eintrag'-dead-end.")
-                        print("check_for_dead_ends... Method: already parsed URLs =", len(self.debug_parsed_urls),
-                              "| gathered urls =", len(self.navigation_urls), "| skip_these_urls =",
-                              len(self.skip_these_urls), "| Total amount of dead-ends:", self.debug_dead_end_counter)
+                        # print("The URL", response.url, "is a 'Bisher kein Eintrag'-dead-end.")
+                        # print("check_for_dead_ends... Method: already parsed URLs =", len(self.debug_parsed_urls),
+                        #       "| gathered urls =", len(self.navigation_urls), "| skip_these_urls =",
+                        #       len(self.skip_these_urls), "| Total amount of dead-ends:", self.debug_dead_end_counter)
 
                     # check if the current url has already been parsed:
                     elif (response.url not in self.debug_parsed_urls) and (response is not None):
