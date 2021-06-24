@@ -8,12 +8,13 @@ from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
 from converter.spiders.base_classes import LomBase
+from converter.valuespace_helper import ValuespaceHelper
 
 
 class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     name = "materialnetzwerk_spider"
     friendlyName = "Materialnetzwerk.org"
-    version = "0.0.1"
+    version = "0.0.2"
     start_urls = [
         # 'https://editor.mnweg.org/?p=1&materialType=bundle',
         # this doesn't list any materials since they're loaded dynamically
@@ -218,6 +219,9 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         vs.add_value('conditionsOfAccess',
                      'http://w3id.org/openeduhub/vocabs/conditionsOfAccess/login_for_additional_features')
         vs.add_value('price', 'http://w3id.org/openeduhub/vocabs/price/no')
+        # we can map "Phase" to our educationalContext with the following ValuespaceHelper method:
+        if educational_level is not None:
+            vs.add_value("educationalContext", ValuespaceHelper.educationalContextByGrade(educational_level))
 
         lic = LicenseItemLoader()
         # everything is CC-BY-SA 3.0 according to the FAQs: https://mnweg.org/faqs
