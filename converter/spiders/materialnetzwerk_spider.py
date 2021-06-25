@@ -14,7 +14,7 @@ from converter.valuespace_helper import ValuespaceHelper
 class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     name = "materialnetzwerk_spider"
     friendlyName = "Materialnetzwerk.org"
-    version = "0.0.2"
+    version = "0.0.3"
     start_urls = [
         # 'https://editor.mnweg.org/?p=1&materialType=bundle',
         # this doesn't list any materials since they're loaded dynamically
@@ -29,12 +29,7 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         'ROBOTSTXT_OBEY': False
     }
     discipline_mapping = {
-        'AES': 'http://w3id.org/openeduhub/vocabs/discipline/04006',  # Ernährung und Hauswirtschaft
-        'Biologie': 'http://w3id.org/openeduhub/vocabs/discipline/080',  # Biologie
-        'Deutsch': 'http://w3id.org/openeduhub/vocabs/discipline/120',  # Deutsch
-        'Erdkunde': 'http://w3id.org/openeduhub/vocabs/discipline/220',  # Geografie
-        'English': 'http://w3id.org/openeduhub/vocabs/discipline/20001',  # Englisch
-        'Mathematik': 'http://w3id.org/openeduhub/vocabs/discipline/380',  # Mathematik
+        'AES': "Ernährung und Hauswirtschaft",  # Ernährung und Hauswirtschaft
     }
     # debug_disciplines = set()
 
@@ -208,17 +203,18 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
-        vs.add_value('learningResourceType', 'http://w3id.org/openeduhub/vocabs/learningResourceType/teaching_module')
+        vs.add_value('learningResourceType', 'teaching module')
         bundle_discipline = kwargs.get('bundle_discipline')
         if bundle_discipline is not None:
-            bundle_discipline = self.discipline_mapping.get(bundle_discipline)
+            if self.discipline_mapping.get(bundle_discipline) is not None:
+                bundle_discipline = self.discipline_mapping.get(bundle_discipline)
             vs.add_value('discipline', bundle_discipline)
-        vs.add_value('intendedEndUserRole', 'http://w3id.org/openeduhub/vocabs/intendedEndUserRole/teacher')
+        vs.add_value('intendedEndUserRole', 'teacher')
         #  logged in users can manipulate the worksheets and fit them to their needs,
         #  but there's no login required for just downloading the pdf of an available worksheet
         vs.add_value('conditionsOfAccess',
-                     'http://w3id.org/openeduhub/vocabs/conditionsOfAccess/login_for_additional_features')
-        vs.add_value('price', 'http://w3id.org/openeduhub/vocabs/price/no')
+                     "login required for additional features")
+        vs.add_value('price', 'no')
         # we can map "Phase" to our educationalContext with the following ValuespaceHelper method:
         if educational_level is not None:
             vs.add_value("educationalContext", ValuespaceHelper.educationalContextByGrade(educational_level))
