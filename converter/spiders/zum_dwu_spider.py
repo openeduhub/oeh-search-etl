@@ -1,14 +1,14 @@
 import re
+from datetime import datetime
 
 import scrapy
 import w3lib.html
-from datetime import datetime
 from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
-from converter.spiders.base_classes import LomBase
 from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, LomLifecycleItemloader, \
     LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
+from converter.spiders.base_classes import LomBase
 
 
 class ZumDwuSpider(CrawlSpider, LomBase):
@@ -17,7 +17,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
     start_urls = [
         # "http://www.zum.de/dwu/",
         "http://www.zum.de/dwu/umamtg.htm",  # Mathematik-Teilgebiete
-        # "http://www.zum.de/dwu/umaptg.htm"      # Physik-Teilgebiete
+        "http://www.zum.de/dwu/umaptg.htm"      # Physik-Teilgebiete
     ]
     version = "0.0.1"
     parsed_urls = set()  # holds the already parsed urls to minimize the amount of duplicate requests
@@ -41,7 +41,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
             yield scrapy.Request(url=url, callback=self.parse_section_overview)
         pass
 
-    def parse_section_overview(self, response, **kwargs):
+    def parse_section_overview(self, response: scrapy.http.Response):
         # Each section (e.g. "Mathematik Teilgebiete") holds a list of individual topic-categories (e.g. "Kreislehre")
         section_urls = response.xpath('/html/body/table/tr/td/a/@href').getall()
         section_urls.sort()
@@ -52,7 +52,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
             yield scrapy.Request(url=current_url, callback=self.parse_topic_overview)
         pass
 
-    def parse_topic_overview(self, response, **kwargs):
+    def parse_topic_overview(self, response: scrapy.http.Response):
         # Each topic (e.g. "Bruchzahlen / Bruchrechnen") holds a list of sub-topics that are either individual
         #   .htm-pages with explanations about a specific topic
         #   eLearning-exercises or
@@ -85,8 +85,8 @@ class ZumDwuSpider(CrawlSpider, LomBase):
                 current_url = response.urljoin(js_url)
                 url_set.add(current_url)
 
-        print("debug XLS set length:", len(self.debug_xls_set))
-        print(self.debug_xls_set)
+        # print("debug XLS set length:", len(self.debug_xls_set))
+        # print(self.debug_xls_set)
         # TODO: further optimize the dupefilter?
         for url in url_set:
             # only yield a scrapy Request if the url hasn't been parsed yet, this should help with duplicate links
@@ -96,9 +96,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
                 self.parsed_urls.add(url)
         pass
 
-    def parse(self, response, **kwargs):
-        print("DEBUG PARSE Method:", response.url)
-
+    def parse(self, response: scrapy.http.Response, **kwargs):
         date_now = datetime.now()
         date_now_iso = date_now.isoformat()
 
@@ -133,8 +131,6 @@ class ZumDwuSpider(CrawlSpider, LomBase):
                 # if the first attempt at grabbing a description fails, we try it at another place
                 desc_list = response.xpath('//td[@class="sg12"]/text()').get()
             if desc_list is not None:
-                for item in desc_list:
-                    item = item.strip()
                 description_raw = ''.join(desc_list)
                 # if there's multiple whitespaces within the description, replace them by a single whitespace:
                 description_raw = re.sub(' +', ' ', description_raw)
@@ -158,7 +154,18 @@ class ZumDwuSpider(CrawlSpider, LomBase):
             keyword_string = response.xpath('/html/head/meta[@name="keywords"]/@content').get()
         if keyword_string is not None:
             keyword_list = keyword_string.rsplit(", ")
-            kw_set = set(keyword_list)
+            # trying to catch the completely broken keyword strings to clean them up manually
+            # e.g. at http://www.zum.de/dwu/depothp/hp-math/hpmz21.htm check XPath: /html/head/meta[2]
+            kw_set = set()
+            if keyword_list[0].endswith(","):
+                # broken keyword list detected, now we have to manually clean the string up
+                broken_keyword_string: str = response.xpath('//meta[@name="keywords"]').get()
+                broken_keyword_list = broken_keyword_string.replace('<meta name="keywords" content=', "").rsplit(",")
+                for item in broken_keyword_list:
+                    kw_set.add(item.replace('"', "").replace("=", "").strip())
+            if len(kw_set) == 0:
+                # if there was no broken keyword meta field found, this condition always triggers
+                kw_set = set(keyword_list)
             # checking if the keywords appear on the set of unwanted keywords, if they do, throw them away and only
             # keep the valid ones
             kw_set.difference_update(self.keywords_to_ignore)
@@ -187,11 +194,11 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         lifecycle.add_value('firstName', 'Dieter')
         lifecycle.add_value('lastName', 'Welz')
         lifecycle.add_value('url', 'dwu@zum.de')
-        lifecycle.add_value('organization', response.xpath('/html/head/meta[@http-equiv="organization"]/@content').get())
+        lifecycle.add_value('organization',
+                            response.xpath('/html/head/meta[@http-equiv="organization"]/@content').get())
         lom.add_value('lifecycle', lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
-        # TODO: educational?
         lom.add_value('educational', educational.load_item())
 
         base.add_value('lom', lom.load_item())
