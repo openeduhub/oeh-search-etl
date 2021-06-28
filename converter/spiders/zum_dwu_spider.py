@@ -12,34 +12,36 @@ from converter.spiders.base_classes import LomBase
 
 
 class ZumDwuSpider(CrawlSpider, LomBase):
+    # Crawler for http://www.zum.de/dwu/
     name = "zum_dwu_spider"
     friendlyName = "ZUM DWU"
     start_urls = [
-        # "http://www.zum.de/dwu/",
         "http://www.zum.de/dwu/umamtg.htm",  # Mathematik-Teilgebiete
-        "http://www.zum.de/dwu/umaptg.htm"      # Physik-Teilgebiete
+        "http://www.zum.de/dwu/umaptg.htm"  # Physik-Teilgebiete
     ]
     version = "0.0.1"
     parsed_urls = set()  # holds the already parsed urls to minimize the amount of duplicate requests
     debug_xls_set = set()
     # The author used a HTML suite for building the .htm documents (Hot Potatoes by Half-Baked Software)
-    # this software seems to set its own keywords if the author didn't specify his own keywords for sub-page
-    # we don't want these keywords muddying up our keyword lists:
-    keywords_to_ignore = {'University of Victoria', 'Hot Potatoes', 'Windows', 'Half-Baked Software'}
+    # this software seems to set its own keywords if the author didn't specify his keywords for a document
+    # we don't want these keywords muddying up our keyword lists, therefore we'll use a set to filter them out later:
+    keywords_to_ignore = {'University of Victoria', 'Hot Potatoes', 'Windows', 'Half-Baked Software', 'hot', 'potatoes'}
 
     def __init__(self, **kwargs):
-        CrawlSpider.__init__(self, **kwargs)
+        LomBase.__init__(self, **kwargs)
 
     def getId(self, response=None) -> str:
-        pass
+        return response.url
 
     def getHash(self, response=None) -> str:
-        pass
+        date_now = datetime.now()
+        date_now_iso = date_now.isoformat()
+        hash_temp = date_now_iso + response.url + self.version
+        return hash_temp
 
     def start_requests(self):
         for url in self.start_urls:
             yield scrapy.Request(url=url, callback=self.parse_section_overview)
-        pass
 
     def parse_section_overview(self, response: scrapy.http.Response):
         # Each section (e.g. "Mathematik Teilgebiete") holds a list of individual topic-categories (e.g. "Kreislehre")
@@ -50,7 +52,6 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         for url in section_urls:
             current_url = response.urljoin(url)
             yield scrapy.Request(url=current_url, callback=self.parse_topic_overview)
-        pass
 
     def parse_topic_overview(self, response: scrapy.http.Response):
         # Each topic (e.g. "Bruchzahlen / Bruchrechnen") holds a list of sub-topics that are either individual
@@ -62,18 +63,18 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         # print("Number of topic_urls in this section:", len(topic_urls))
 
         url_set = set()
-        xls_set = set()
+        # xls_set = set()
         for url in topic_urls:
             if url.endswith('.htm') or url.endswith('.html'):
                 # topics that consist of illustrations or explanations are found inside individual .htm-documents
                 current_url = response.urljoin(url)
                 url_set.add(current_url)
-            if url.endswith('.xls'):
-                # there are currently 3 links to .xls files, which are "Aufgabengeneratoren"
-                # e.g. on this topic overview: http://www.zum.de/dwu/umamgl.htm
-                # TODO: handle .xls links with a different parse-method than the other .htm links?
-                xls_set.add(url)
-                self.debug_xls_set.add(url)
+            # if url.endswith('.xls'):
+            #     # there are currently 3 links to .xls files, which are "Aufgabengeneratoren"
+            #     # e.g. on this topic overview: http://www.zum.de/dwu/umamgl.htm
+            #     # If we really wanted to handle the 3 .xls links, we need an additional xls-specific parse method
+            #     xls_set.add(url)
+            #     self.debug_xls_set.add(url)
             elif url.startswith("javascript"):
                 # in some sections there are topics that lead to a javascript href, e.g.
                 # "javascript:infowin('infodep/i-lingleich.htm');"
@@ -87,36 +88,35 @@ class ZumDwuSpider(CrawlSpider, LomBase):
 
         # print("debug XLS set length:", len(self.debug_xls_set))
         # print(self.debug_xls_set)
-        # TODO: further optimize the dupefilter?
+
         for url in url_set:
             # only yield a scrapy Request if the url hasn't been parsed yet, this should help with duplicate links
             # that are found across different topics
             if url not in self.parsed_urls:
                 yield scrapy.Request(url=url, callback=self.parse)
                 self.parsed_urls.add(url)
-        pass
 
     def parse(self, response: scrapy.http.Response, **kwargs):
-        date_now = datetime.now()
-        date_now_iso = date_now.isoformat()
-
         base = super().getBase(response=response)
-        base.add_value('sourceId', response.url)
-        # TODO: base
-        #  - thumbnail
+        # there are no suitable images to serve as thumbnails, therefore SPLASH will have to do
         base.add_value('type', Constants.TYPE_MATERIAL)
-        # there's no "lastModified" or other date found on the website, therefore we have to built our own hash
-        hash_temp = date_now_iso + response.url + self.version
-        base.add_value('hash', hash_temp)
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
-        description_raw = response.xpath('/html/body/table/tr[4]/td/table/tr/td').get()
+        # description_raw = response.xpath('/html/body/table/tr[4]/td/table/tr/td').get()
+        description_raw = response.xpath('//descendant::td[@class="t1fbs"]').getall()
+        description_raw: str = ''.join(description_raw)
         if description_raw is not None:
             description_raw = w3lib.html.remove_tags(description_raw)
             description_raw = w3lib.html.strip_html5_whitespace(description_raw)
             clean_description = w3lib.html.replace_escape_chars(description_raw)
             general.add_value('description', clean_description)
+        if len(description_raw) == 0:
+            # Fallback for exercise-pages where there's only 1 title field and 1 short instruction sentence
+            # e.g.: http://www.zum.de/dwu/depothp/hp-phys/hppme24.htm
+            description_fallback = response.xpath('//descendant::div[@id="InstructionsDiv"]/descendant'
+                                                  '::*/text()').get()
+            general.replace_value('description', description_fallback)
         # most of the time the title is stored directly
         title: str = response.xpath('/html/head/title/text()').get()
         if title.startswith("Dieses Info-Fenster"):
@@ -139,10 +139,17 @@ class ZumDwuSpider(CrawlSpider, LomBase):
 
         if title is not None:
             title = w3lib.html.replace_escape_chars(title)
-            if title == '':
-                # there's some pages (Exercises) that only hold escape chars or whitespaces as their title
-                # the title is simply bold text hidden within a div container
-                title = response.xpath('//div[@class="Titles"]/h3[@class="ExerciseSubtitle"]/b/text()').get()
+            if title is not None:
+                # this double-check is necessary for broken headings that ONLY consisted of escape-chars
+                if title == '':
+                    # there's some pages (Exercises) that only hold escape chars or whitespaces as their title
+                    # the title is simply bold text hidden within a div container
+                    title = response.xpath('//div[@class="Titles"]/h3[@class="ExerciseSubtitle"]/b/text()').get()
+                title = title.strip()
+                # Since we're grabbing titles from headings, a lot of them have a trailing ":"
+                if len(title) > 0 and title.endswith(":"):
+                    # replacing the string with itself right up to the point of the colon
+                    title = title[:-1]
             general.add_value('title', title)
 
         general.add_value('identifier', response.url)
@@ -160,9 +167,10 @@ class ZumDwuSpider(CrawlSpider, LomBase):
             if keyword_list[0].endswith(","):
                 # broken keyword list detected, now we have to manually clean the string up
                 broken_keyword_string: str = response.xpath('//meta[@name="keywords"]').get()
-                broken_keyword_list = broken_keyword_string.replace('<meta name="keywords" content=', "").rsplit(",")
+                broken_keyword_list = broken_keyword_string.replace('<meta name="keywords" content=', "") \
+                    .replace(">", "").replace('"', "").replace(",", "").replace("=", "").split(" ")
                 for item in broken_keyword_list:
-                    kw_set.add(item.replace('"', "").replace("=", "").strip())
+                    kw_set.add(item.strip())
             if len(kw_set) == 0:
                 # if there was no broken keyword meta field found, this condition always triggers
                 kw_set = set(keyword_list)
@@ -171,16 +179,6 @@ class ZumDwuSpider(CrawlSpider, LomBase):
             kw_set.difference_update(self.keywords_to_ignore)
             # once this check is done, add the keywords from the (cleaned up) keyword set
             keyword_list = list(kw_set)
-            # catching the edge-case where all keywords are the Hot Potatoes default string, which means our keyword set
-            # is empty => the entry would get dropped without keywords or a valid description
-            if kw_set is not None and len(kw_set) == 0:
-                interactive_instructions = response.xpath('//*[@id="InstructionsDiv"]/p/text()').get()
-                # and sometimes even these instructions are found in another div container, so we'll give it a 2nd try:
-                if interactive_instructions is None:
-                    interactive_instructions = response.xpath('//p[@id="Instructions"]/b/text()').get()
-                # by now we should have at least one valid description so the item doesn't get dropped completely
-                if interactive_instructions is not None:
-                    general.replace_value('description', interactive_instructions)
             general.add_value('keyword', keyword_list)
         lom.add_value('general', general.load_item())
 
@@ -204,6 +202,10 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
+        # since the website holds both mathematics- and physics-related materials, we need to take a look at the last
+        # section of the url: .htm filenames that start with
+        #   m | hpm | tkm       belong to the discipline mathematics
+        #   p | kwp | hpp       belong to the discipline physics
         url_last_part = response.url
         url_last_part = url_last_part.split('/')[-1]
         if url_last_part.startswith("m") or url_last_part.startswith("hpm") or url_last_part.startswith("tkm"):
@@ -220,8 +222,8 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         vs.add_value('conditionsOfAccess', 'no login')
 
         lic = LicenseItemLoader()
-        lic.add_value('url', 'http://www.zum.de/dwu/hilfe.htm')
-        lic.add_value('internal', Constants.LICENSE_COPYRIGHT_LAW)
+        lic.add_value('description', 'http://www.zum.de/dwu/hilfe.htm')
+        lic.add_value('internal', Constants.LICENSE_CUSTOM)
         lic.add_value('author', response.xpath('/html/head/meta[@http-equiv="author"]/@content').get())
 
         base.add_value('valuespaces', vs.load_item())
@@ -236,4 +238,3 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         # print("debug_url_set length:", len(self.parsed_urls))
 
         yield base.load_item()
-        pass
