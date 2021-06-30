@@ -258,16 +258,16 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
 
         vs = ValuespaceItemLoader()
         # since no educationalContext is given, either hardcode these values or don't use them at all
-        # vs.add_value('educationalContext', ["http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1",
-        #                                     "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_2",
-        #                                     "http://w3id.org/openeduhub/vocabs/educationalContext/berufliche_bildung",
-        #                                     "http://w3id.org/openeduhub/vocabs/educationalContext/erwachsenenbildung"])
-        vs.add_value('intendedEndUserRole', ["http://w3id.org/openeduhub/vocabs/intendedEndUserRole/learner",
-                                             "http://w3id.org/openeduhub/vocabs/intendedEndUserRole/teacher",
-                                             "http://w3id.org/openeduhub/vocabs/intendedEndUserRole/parent"])
-        vs.add_value('discipline', 'http://w3id.org/openeduhub/vocabs/discipline/220')  # Geografie
-        vs.add_value('learningResourceType', 'http://w3id.org/openeduhub/vocabs/learningResourceType/map')  # Karte
-        vs.add_value('conditionsOfAccess', 'http://w3id.org/openeduhub/vocabs/conditionsOfAccess/no_login')
+        # vs.add_value('educationalContext', ["Sekundarstufe I",
+        #                                     "Sekundarstufe II",
+        #                                     "Berufliche Bildung",
+        #                                     "Erwachsenenbildung"])
+        vs.add_value('intendedEndUserRole', ["learner",
+                                             "teacher",
+                                             "parent"])
+        vs.add_value('discipline', 'Geografie')  # Geografie
+        vs.add_value('learningResourceType', 'map')  # Karte
+        vs.add_value('conditionsOfAccess', 'no login')
 
         lic = LicenseItemLoader()
         # if needed, the license description could also be gathered and constructed from multiple tags within a
