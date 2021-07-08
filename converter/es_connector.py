@@ -294,6 +294,7 @@ class EduSharing:
                     person["organization"] if "organization" in person else ""
                 )
                 url = person["url"] if "url" in person else ""
+                email = person["email"] if "email" in person else ""
                 date = person["date"] if "date" in person else None
                 vcard = vobject.vCard()
                 vcard.add("n").value = vobject.vcard.Name(
@@ -314,6 +315,8 @@ class EduSharing:
                     vcard.org.behavior = VCardBehavior.defaultBehavior
                     vcard.org.value = organization
                 vcard.add("url").value = url
+                if email:
+                    vcard.add("EMAIL;TYPE=PREF,INTERNET").value = email
                 spaces[mapping] = [vcard.serialize()]
 
         valuespaceMapping = {
