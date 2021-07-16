@@ -45,16 +45,14 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         self.browser_permanent.close()
         self.playwright_instance.stop()
 
-    def parse_topic_overview(self, response):
+    def parse_topic_overview(self, response: scrapy.http.Response):
         # the different topics are within tables: response.xpath('//table[@class="Gebiet"]')
         topic_urls = response.xpath('//td[@class="App"]/a/@href').getall()
         for topic_url in topic_urls:
             topic_url = response.urljoin(topic_url)
             yield scrapy.Request(url=topic_url, callback=self.parse)
 
-        pass
-
-    def parse(self, response, **kwargs):
+    def parse(self, response: scrapy.http.Response, **kwargs):
         context = self.browser_permanent.new_context()
         page = context.new_page()
         page.goto(response.url)
@@ -72,8 +70,7 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         for temp_string in page_end_string:
             if temp_string.startswith("Walter Fendt"):
                 sentence1 = temp_string.rsplit(', ')
-                # each "sentence"-list holds exactly 2 elements now, whereby the last element should be the date
-                # we could now either access it with sentence1[-1] or by iterating through the 2 items
+                # each "sentence" list now holds exactly 2 elements, whereby the last element should be the date
                 for item in sentence1:
                     if dateparser.parse(item) is not None:
                         published_date = dateparser.parse(item)
@@ -138,6 +135,11 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         # but since scrapy can't "see" this container, we're extracting the information with playwright
         license_url = page.get_attribute('//p[@class="Ende"]/a[@rel="license"]', "href")
         if license_url is not None:
+            # the license url links to the /de/ version, which currently doesn't get mapped properly
+            # "https://creativecommons.org/licenses/by-nc-sa/3.0/de/"
+            # -> 'https://creativecommons.org/licenses/by-nc-sa/3.0/' is the url-format we want
+            if "creativecommons.org/licenses/" in license_url and license_url.endswith("/de/"):
+                license_url = license_url.split("de/")[0]
             lic.add_value('url', license_url)
         base.add_value('license', lic.load_item())
 
@@ -146,5 +148,3 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         base.add_value('response', super().mapResponse(response).load_item())
 
         yield base.load_item()
-
-        pass
