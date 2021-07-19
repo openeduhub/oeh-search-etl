@@ -115,7 +115,7 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         base.add_value('valuespaces', vs.load_item())
 
         lic = LicenseItemLoader()
-        lic.add_value('author', 'Walther Fendt')
+        lic.add_value('author', 'Walter Fendt')
         # if scrapy could render the <p class="Ende">-element, the license url could be found with the following XPath:
         # license_url = response.xpath('//p[@class="Ende"]/a[@rel="license"]/@href')
         # but since scrapy can't "see" this container, we're extracting the information with scrapy-splash
