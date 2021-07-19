@@ -2,7 +2,7 @@ import re
 
 import dateparser
 import scrapy
-from playwright.sync_api import sync_playwright
+from scrapy_splash import SplashRequest
 
 from converter.constants import Constants
 from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, LomLifecycleItemloader, \
@@ -20,11 +20,6 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         # "https://www.zum.de/ma/fendt/phde/"
     ]
     version = "0.0.1"  # reflects the structure of ZUM Physik Apps on 2021-07-15
-    playwright_instance = None
-    browser_permanent = None
-
-    # def __init__(self):
-    #     LomBase.__init__(self, **kwargs)
 
     def getId(self, response=None) -> str:
         return response.url
@@ -35,30 +30,21 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
     def start_requests(self):
         for url in self.start_urls:
             yield scrapy.Request(url=url, callback=self.parse_topic_overview)
-        # scrapy won't see the <p class="Ende">-container where license information, lastModified and other metadata
-        # is held, therefore we need to use playwright to render the javascript
-        self.playwright_instance = sync_playwright().start()
-        self.browser_permanent = self.playwright_instance.chromium.launch()
-
-    def close(self, reason):
-        # when the spider is done with its crawling process, it should close the playwright- and browser-instance
-        self.browser_permanent.close()
-        self.playwright_instance.stop()
 
     def parse_topic_overview(self, response: scrapy.http.Response):
         # the different topics are within tables: response.xpath('//table[@class="Gebiet"]')
         topic_urls = response.xpath('//td[@class="App"]/a/@href').getall()
         for topic_url in topic_urls:
             topic_url = response.urljoin(topic_url)
-            yield scrapy.Request(url=topic_url, callback=self.parse)
+            yield SplashRequest(url=topic_url, callback=self.parse, args={
+                'wait': 0.5,
+                'html': 1
+            })
 
     def parse(self, response: scrapy.http.Response, **kwargs):
-        context = self.browser_permanent.new_context()
-        page = context.new_page()
-        page.goto(response.url)
 
         # fetching publication date and lastModified from dynamically loaded <p class="Ende">-element:
-        page_end_element = page.inner_html('xpath=//p[@class="Ende"]')
+        page_end_element = response.xpath('//p[@class="Ende"]').get()
         line_regex = re.compile(r'<br>')
         page_end_string = line_regex.split(page_end_element)
         published_date = None
@@ -132,8 +118,8 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         lic.add_value('author', 'Walther Fendt')
         # if scrapy could render the <p class="Ende">-element, the license url could be found with the following XPath:
         # license_url = response.xpath('//p[@class="Ende"]/a[@rel="license"]/@href')
-        # but since scrapy can't "see" this container, we're extracting the information with playwright
-        license_url = page.get_attribute('//p[@class="Ende"]/a[@rel="license"]', "href")
+        # but since scrapy can't "see" this container, we're extracting the information with scrapy-splash
+        license_url = response.xpath('//p[@class="Ende"]/a[@rel="license"]/@href').get()
         if license_url is not None:
             # the license url links to the /de/ version, which currently doesn't get mapped properly
             # "https://creativecommons.org/licenses/by-nc-sa/3.0/de/"
