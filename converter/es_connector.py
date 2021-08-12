@@ -11,6 +11,7 @@ import logging
 
 from vobject.vcard import VCardBehavior
 
+from converter import env
 from converter.constants import Constants
 from edu_sharing_client.api_client import ApiClient
 from edu_sharing_client.configuration import Configuration
@@ -101,9 +102,12 @@ class EduSharing:
     mediacenterApi: MEDIACENTERV1Api
     nodeApi: NODEV1Api
     groupCache: List[str]
+    enabled: bool
 
     def __init__(self):
-        self.initApiClient()
+        self.enabled = env.get("MODE", default="edu-sharing") == "edu-sharing"
+        if self.enabled:
+            self.initApiClient()
 
     def getHeaders(self, contentType="application/json"):
         return {
@@ -290,6 +294,7 @@ class EduSharing:
                     person["organization"] if "organization" in person else ""
                 )
                 url = person["url"] if "url" in person else ""
+                email = person["email"] if "email" in person else ""
                 date = person["date"] if "date" in person else None
                 vcard = vobject.vCard()
                 vcard.add("n").value = vobject.vcard.Name(
@@ -310,6 +315,8 @@ class EduSharing:
                     vcard.org.behavior = VCardBehavior.defaultBehavior
                     vcard.org.value = organization
                 vcard.add("url").value = url
+                if email:
+                    vcard.add("EMAIL;TYPE=PREF,INTERNET").value = email
                 spaces[mapping] = [vcard.serialize()]
 
         valuespaceMapping = {
@@ -332,10 +339,10 @@ class EduSharing:
         if "typicalagerange" in item["lom"]["educational"]:
             spaces["ccm:educationaltypicalagerange_from"] = item["lom"]["educational"][
                 "typicalagerange"
-            ]["from"]
+            ]["fromRange"]
             spaces["ccm:educationaltypicalagerange_to"] = item["lom"]["educational"][
                 "typicalagerange"
-            ]["to"]
+            ]["toRange"]
         # intendedEndUserRole = Field(output_processor=JoinMultivalues())
         # discipline = Field(output_processor=JoinMultivalues())
         # educationalContext = Field(output_processor=JoinMultivalues())
@@ -546,13 +553,16 @@ class EduSharing:
                 + settings.get("EDU_SHARING_BASE_URL")
             )
 
-    def buildUUID(self, url):
+    @staticmethod
+    def buildUUID(url):
         return str(uuid.uuid5(uuid.NAMESPACE_URL, url))
 
     def uuidExists(self, uuid):
         return False
 
     def findItem(self, id, spider):
+        if not self.enabled:
+            return None
         properties = {
             "ccm:replicationsource": [spider.name],
             "ccm:replicationsourceid": [id],

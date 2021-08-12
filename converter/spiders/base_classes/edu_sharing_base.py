@@ -67,15 +67,16 @@ class EduSharingBase(Spider, LomBase):
         if self.getProperty("ccm:replicationsource", response):
             # imported objects usually have the content as binary text
             # TODO: Sometimes, edu-sharing redirects if no local content is found, and this should be html-parsed
-            try:
-                r = requests.get(response.meta["item"]["downloadUrl"])
-                if r.status_code == 200:
-                    base.replace_value("fulltext", r.text)
-            except:
-                logging.warning(
-                    "error fetching data from " + response.meta["item"]["downloadUrl"],
-                    sys.exc_info()[0],
-                )
+            if response.meta["item"]["downloadUrl"]:
+                try:
+                    r = requests.get(response.meta["item"]["downloadUrl"])
+                    if r.status_code == 200:
+                        base.replace_value("fulltext", r.text)
+                except:
+                    logging.warning(
+                        "error fetching data from " + str(response.meta["item"]["downloadUrl"]),
+                        sys.exc_info()[0],
+                    )
         else:
             # try to transform using alfresco
             r = requests.get(
@@ -100,7 +101,7 @@ class EduSharingBase(Spider, LomBase):
         return response.meta["item"]["ref"]["id"]
 
     def getHash(self, response=None) -> str:
-        return self.version + response.meta["item"]["modifiedAt"]
+        return self.version + response.meta["item"]["properties"]["cm:modified"][0]
 
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
@@ -119,8 +120,8 @@ class EduSharingBase(Spider, LomBase):
         tar_to = self.getProperty("ccm:educationaltypicalagerange_to", response)
         if tar_from and tar_to:
             range = LomAgeRangeItemLoader()
-            range.add_value("from", tar_from)
-            range.add_value("to", tar_to)
+            range.add_value("fromRange", tar_from)
+            range.add_value("toRange", tar_to)
             educational.add_value("typicalAgeRange", range.load_item())
         return educational
 

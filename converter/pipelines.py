@@ -519,7 +519,7 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         title = "<no title>"
         if "title" in item["lom"]["general"]:
             title = str(item["lom"]["general"]["title"])
-        entryUUID = self.buildUUID(item["response"]["url"])
+        entryUUID = EduSharing.buildUUID(item["response"]["url"])
         self.insertItem(spider, entryUUID, item)
         logging.info("item " + entryUUID + " inserted/updated")
 

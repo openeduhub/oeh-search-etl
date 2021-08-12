@@ -47,6 +47,7 @@ class LomLifecycleItem(Item):
     firstName = Field()
     lastName = Field()
     organization = Field()
+    email = Field()
     url = Field()
     uuid = Field()
     date = Field()
