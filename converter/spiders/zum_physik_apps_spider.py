@@ -19,7 +19,17 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         "https://www.walter-fendt.de/html5/phde/",
         # "https://www.zum.de/ma/fendt/phde/"
     ]
-    version = "0.0.1"  # reflects the structure of ZUM Physik Apps on 2021-07-15
+    version = "0.0.2"  # reflects the structure of ZUM Physik Apps on 2021-07-15
+
+    custom_settings = {
+        'DOWNLOADER_MIDDLEWARES': {
+            'scrapy_splash.SplashCookiesMiddleware': 723,
+            'scrapy_splash.SplashMiddleware': 725,
+            'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810
+        },
+        'SPIDER_MIDDLEWARES': {'scrapy_splash.SplashDeduplicateArgsMiddleware': 100},
+        'DUPEFILTER_CLASS': 'scrapy_splash.SplashAwareDupeFilter'
+    }
 
     def getId(self, response=None) -> str:
         return response.url

@@ -81,23 +81,15 @@ DOWNLOAD_DELAY = 0
 
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-SPIDER_MIDDLEWARES = {
-    #    'converter.middlewares.OerScrapySpiderMiddleware': 543,
-    'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
-}
+# SPIDER_MIDDLEWARES = {
+#    'converter.middlewares.OerScrapySpiderMiddleware': 543,
+# }
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-DOWNLOADER_MIDDLEWARES = {
-    #    'converter.middlewares.OerScrapyDownloaderMiddleware': 543,
-    'scrapy_splash.SplashCookiesMiddleware': 723,
-    'scrapy_splash.SplashMiddleware': 725,
-    'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
-}
-
-# Custom Dupefilter for scrapy, see installation step (4) in the scrapy-splash readme
-# https://github.com/scrapy-plugins/scrapy-splash
-DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
+# DOWNLOADER_MIDDLEWARES = {
+#    'converter.middlewares.OerScrapyDownloaderMiddleware': 543,
+# }
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
