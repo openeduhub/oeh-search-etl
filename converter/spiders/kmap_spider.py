@@ -1,8 +1,8 @@
 import json
 
-import scrapy.http
-from playwright.sync_api import sync_playwright
+import scrapy
 from scrapy.spiders import CrawlSpider
+from scrapy_splash import SplashRequest
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
@@ -14,26 +14,27 @@ from converter.util.sitemap import from_xml_response
 class KMapSpider(CrawlSpider, LomBase):
     name = "kmap_spider"
     friendlyName = "KMap.eu"
-    version = "0.0.1"
+    version = "0.0.3"
     sitemap_urls = [
         "https://kmap.eu/server/sitemap/Mathematik",
         "https://kmap.eu/server/sitemap/Physik"
     ]
     allowed_domains = ['kmap.eu']
-    playwright_instance = None
-    browser_permanent = None
+
+    custom_settings = {
+        'AUTOTHROTTLE_ENABLED': True,
+        'DOWNLOADER_MIDDLEWARES': {
+            'scrapy_splash.SplashCookiesMiddleware': 723,
+            'scrapy_splash.SplashMiddleware': 725,
+            'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810
+        },
+        'SPIDER_MIDDLEWARES': {'scrapy_splash.SplashDeduplicateArgsMiddleware': 100},
+        'DUPEFILTER_CLASS': 'scrapy_splash.SplashAwareDupeFilter'
+    }
 
     def start_requests(self) -> scrapy.Request:
         for sitemap_url in self.sitemap_urls:
             yield scrapy.Request(url=sitemap_url, callback=self.parse_sitemap)
-        # opening a headless browser that will hold our individual BrowserContexts when get_json_ld() is called
-        self.playwright_instance = sync_playwright().start()
-        self.browser_permanent = self.playwright_instance.chromium.launch()
-
-    def close(self, reason):
-        # when the spider is done with its crawling process, it should close the playwright- and browser-instance
-        self.browser_permanent.close()
-        self.playwright_instance.stop()
 
     def parse_sitemap(self, response) -> scrapy.Request:
         sitemap_items = from_xml_response(response)
@@ -41,7 +42,10 @@ class KMapSpider(CrawlSpider, LomBase):
             temp_dict = {
                 'lastModified': sitemap_item.lastmod
             }
-            yield scrapy.Request(url=sitemap_item.loc, callback=self.parse, cb_kwargs=temp_dict)
+            yield SplashRequest(url=sitemap_item.loc, callback=self.parse, cb_kwargs=temp_dict, args={
+                'wait': 1,
+                'html': 1
+            })
 
     def getId(self, response=None) -> str:
         return response.url
@@ -49,22 +53,11 @@ class KMapSpider(CrawlSpider, LomBase):
     def getHash(self, response=None) -> str:
         pass
 
-    def get_json_ld(self, url_to_crawl) -> dict:
-        # using a Playwright BrowserContext allows us to save time/resources, each get_ld_json call spawns a page (=
-        # headless browser tab) within our BrowserContext (~ browser session),
-        # see: https://playwright.dev/python/docs/core-concepts/
-        context = self.browser_permanent.new_context()
-        page = context.new_page()
-        page.goto(url_to_crawl)
-        json_ld_string: str = page.text_content('//*[@id="ld"]')
-        json_ld = json.loads(json_ld_string)
-        context.close()
-        return json_ld
-
     def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
         # print("PARSE METHOD:", response.url)
         last_modified = kwargs.get("lastModified")
-        json_ld: dict = self.get_json_ld(response.url)
+        json_ld_string: str = response.xpath('//*[@id="ld"]/text()').get()
+        json_ld: dict = json.loads(json_ld_string)
         # for debug purposes - checking if the json_ld is correct/available:
         # print("LD_JSON =", json_ld)
         # print(type(json_ld))
@@ -82,8 +75,7 @@ class KMapSpider(CrawlSpider, LomBase):
         # the thumbnail can be found at https://kmap.eu/snappy/Physik/Grundlagen/Potenzschreibweise
         thumbnail_path = json_ld.get("mainEntity").get("thumbnailUrl")
         if thumbnail_path is not None:
-            thumbnail_url = "https://kmap.eu" + thumbnail_path
-            base.add_value('thumbnail', thumbnail_url)
+            base.add_value('thumbnail', thumbnail_path)
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader()
