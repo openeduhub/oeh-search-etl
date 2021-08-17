@@ -22,7 +22,6 @@ class KMapSpider(CrawlSpider, LomBase):
     allowed_domains = ['kmap.eu']
 
     custom_settings = {
-        'AUTOTHROTTLE_ENABLED': True,
         'DOWNLOADER_MIDDLEWARES': {
             'scrapy_splash.SplashCookiesMiddleware': 723,
             'scrapy_splash.SplashMiddleware': 725,
@@ -43,7 +42,7 @@ class KMapSpider(CrawlSpider, LomBase):
                 'lastModified': sitemap_item.lastmod
             }
             yield SplashRequest(url=sitemap_item.loc, callback=self.parse, cb_kwargs=temp_dict, args={
-                'wait': 1,
+                'wait': 5,
                 'html': 1
             })
 
