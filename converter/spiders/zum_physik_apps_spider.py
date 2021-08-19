@@ -2,7 +2,7 @@ import re
 
 import dateparser
 import scrapy
-from scrapy_splash import SplashRequest
+from scrapy import Selector
 
 from converter.constants import Constants
 from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, LomLifecycleItemloader, \
@@ -19,17 +19,8 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         "https://www.walter-fendt.de/html5/phde/",
         # "https://www.zum.de/ma/fendt/phde/"
     ]
-    version = "0.0.2"  # reflects the structure of ZUM Physik Apps on 2021-07-15
-
-    custom_settings = {
-        'DOWNLOADER_MIDDLEWARES': {
-            'scrapy_splash.SplashCookiesMiddleware': 723,
-            'scrapy_splash.SplashMiddleware': 725,
-            'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810
-        },
-        'SPIDER_MIDDLEWARES': {'scrapy_splash.SplashDeduplicateArgsMiddleware': 100},
-        'DUPEFILTER_CLASS': 'scrapy_splash.SplashAwareDupeFilter'
-    }
+    version = "0.0.3"  # reflects the structure of ZUM Physik Apps on 2021-07-15 (there should be 55 scraped items
+    # when the crawling process is done)
 
     def getId(self, response=None) -> str:
         return response.url
@@ -46,15 +37,13 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         topic_urls = response.xpath('//td[@class="App"]/a/@href').getall()
         for topic_url in topic_urls:
             topic_url = response.urljoin(topic_url)
-            yield SplashRequest(url=topic_url, callback=self.parse, args={
-                'wait': 0.5,
-                'html': 1
-            })
+            yield scrapy.Request(url=topic_url, callback=self.parse)
 
     def parse(self, response: scrapy.http.Response, **kwargs):
-
         # fetching publication date and lastModified from dynamically loaded <p class="Ende">-element:
-        page_end_element = response.xpath('//p[@class="Ende"]').get()
+        url_data_splash_dict = super().getUrlData(response.url)
+        splash_html_string = url_data_splash_dict.get('html')
+        page_end_element = Selector(text=splash_html_string).xpath('//p[@class="Ende"]').get()
         line_regex = re.compile(r'<br>')
         page_end_string = line_regex.split(page_end_element)
         published_date = None
@@ -129,7 +118,7 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         # if scrapy could render the <p class="Ende">-element, the license url could be found with the following XPath:
         # license_url = response.xpath('//p[@class="Ende"]/a[@rel="license"]/@href')
         # but since scrapy can't "see" this container, we're extracting the information with scrapy-splash
-        license_url = response.xpath('//p[@class="Ende"]/a[@rel="license"]/@href').get()
+        license_url = Selector(text=splash_html_string).xpath('//p[@class="Ende"]/a[@rel="license"]/@href').get()
         if license_url is not None:
             # the license url links to the /de/ version, which currently doesn't get mapped properly
             # "https://creativecommons.org/licenses/by-nc-sa/3.0/de/"
