@@ -1,8 +1,8 @@
 import json
 
 import scrapy
+from scrapy import Selector
 from scrapy.spiders import CrawlSpider
-from scrapy_splash import SplashRequest
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
@@ -14,22 +14,12 @@ from converter.util.sitemap import from_xml_response
 class KMapSpider(CrawlSpider, LomBase):
     name = "kmap_spider"
     friendlyName = "KMap.eu"
-    version = "0.0.3"
+    version = "0.0.4"
     sitemap_urls = [
         "https://kmap.eu/server/sitemap/Mathematik",
         "https://kmap.eu/server/sitemap/Physik"
     ]
     allowed_domains = ['kmap.eu']
-
-    custom_settings = {
-        'DOWNLOADER_MIDDLEWARES': {
-            'scrapy_splash.SplashCookiesMiddleware': 723,
-            'scrapy_splash.SplashMiddleware': 725,
-            'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810
-        },
-        'SPIDER_MIDDLEWARES': {'scrapy_splash.SplashDeduplicateArgsMiddleware': 100},
-        'DUPEFILTER_CLASS': 'scrapy_splash.SplashAwareDupeFilter'
-    }
 
     def start_requests(self) -> scrapy.Request:
         for sitemap_url in self.sitemap_urls:
@@ -41,10 +31,7 @@ class KMapSpider(CrawlSpider, LomBase):
             temp_dict = {
                 'lastModified': sitemap_item.lastmod
             }
-            yield SplashRequest(url=sitemap_item.loc, callback=self.parse, cb_kwargs=temp_dict, args={
-                'wait': 5,
-                'html': 1
-            })
+            yield scrapy.Request(url=sitemap_item.loc, callback=self.parse, cb_kwargs=temp_dict)
 
     def getId(self, response=None) -> str:
         return response.url
@@ -55,7 +42,9 @@ class KMapSpider(CrawlSpider, LomBase):
     def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
         # print("PARSE METHOD:", response.url)
         last_modified = kwargs.get("lastModified")
-        json_ld_string: str = response.xpath('//*[@id="ld"]/text()').get()
+        url_data_splash_dict = super().getUrlData(response.url)
+        splash_html_string = url_data_splash_dict.get('html')
+        json_ld_string: str = Selector(text=splash_html_string).xpath('//*[@id="ld"]/text()').get()
         json_ld: dict = json.loads(json_ld_string)
         # for debug purposes - checking if the json_ld is correct/available:
         # print("LD_JSON =", json_ld)
