@@ -2,7 +2,7 @@ import re
 
 import dateparser
 import scrapy
-from scrapy_splash import SplashRequest
+from scrapy import Selector
 
 from converter.constants import Constants
 from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, LomLifecycleItemloader, \
@@ -19,17 +19,7 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
         "https://www.walter-fendt.de/html5/mde/",
         # "http://www.zum.de/ma/fendt/mde/"
     ]
-    version = "0.0.2"  # reflects the structure of ZUM Mathe Apps on 2021-07-19
-
-    custom_settings = {
-        'DOWNLOADER_MIDDLEWARES': {
-            'scrapy_splash.SplashCookiesMiddleware': 723,
-            'scrapy_splash.SplashMiddleware': 725,
-            'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810
-        },
-        'SPIDER_MIDDLEWARES': {'scrapy_splash.SplashDeduplicateArgsMiddleware': 100},
-        'DUPEFILTER_CLASS': 'scrapy_splash.SplashAwareDupeFilter'
-    }
+    version = "0.0.3"  # reflects the structure of ZUM Mathe Apps on 2021-07-19
 
     def getId(self, response=None) -> str:
         return response.url
@@ -48,44 +38,31 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
             topic_url = response.urljoin(topic_url)
             if topic_url.endswith("tl_start_de.htm"):
                 # The "Triangle Lab" has 40+ sub-pages that need to be crawled as well
-                yield SplashRequest(url=topic_url, callback=self.parse_subtopic_triangle, args={
-                    'wait': 0.5,
-                    'html': 1
-                })
+                yield scrapy.Request(url=topic_url, callback=self.parse_subtopic_triangle)
             if topic_url.endswith("apolloniosproblem_de.htm"):
                 # The topic "Problem des Apollonios" has 10 subtopics
-                yield SplashRequest(url=topic_url, callback=self.parse_apollonian_subtopic, args={
-                    'wait': 0.5,
-                    'html': 1
-                })
-            yield SplashRequest(url=topic_url, callback=self.parse, args={
-                'wait': 0.5,
-                'html': 1
-            })
+                yield scrapy.Request(url=topic_url, callback=self.parse_apollonian_subtopic)
+            yield scrapy.Request(url=topic_url, callback=self.parse)
 
     def parse_subtopic_triangle(self, response: scrapy.http.Response):
         # Gathers all subtopics from https://www.walter-fendt.de/html5/mde/tl/tl_start_de.htm
         triangle_subtopics = response.xpath('/html/body/ul/li/a/@href').getall()
         for subtopic_url in triangle_subtopics:
             subtopic_url = response.urljoin(subtopic_url)
-            yield SplashRequest(url=subtopic_url, callback=self.parse, args={
-                'wait': 0.5,
-                'html': 1
-            })
+            yield scrapy.Request(url=subtopic_url, callback=self.parse)
 
     def parse_apollonian_subtopic(self, response: scrapy.http.Response):
         # Gathers variant-URLs to crawl from https://www.walter-fendt.de/html5/mde/apolloniosproblem_de.htm
         apollonios_subtopics = response.xpath('//table/tbody/tr/td/a/@href').getall()
         for apollo_url in apollonios_subtopics:
             apollo_url = response.urljoin(apollo_url)
-            yield SplashRequest(url=apollo_url, callback=self.parse, args={
-                'wait': 0.5,
-                'html': 1
-            })
+            yield scrapy.Request(url=apollo_url, callback=self.parse)
 
     def parse(self, response: scrapy.http.Response, **kwargs):
         # fetching publication date and lastModified from dynamically loaded <p class="Ende">-element:
-        page_end_element = response.xpath('//p[@class="Ende"]').get()
+        url_data_splash_dict = super().getUrlData(response.url)
+        splash_html_string = url_data_splash_dict.get('html')
+        page_end_element = Selector(text=splash_html_string).xpath('//p[@class="Ende"]').get()
         line_regex = re.compile(r'<br>')
         page_end_string = line_regex.split(page_end_element)
         published_date = None
@@ -160,7 +137,7 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
         # if scrapy could render the <p class="Ende">-element, the license url could be found with the following XPath:
         # license_url = response.xpath('//p[@class="Ende"]/a[@rel="license"]/@href')
         # but since scrapy can't "see" this container, we're extracting the information with scrapy-splash
-        license_url: str = response.xpath('//p[@class="Ende"]/a[@rel="license"]/@href').get()
+        license_url: str = Selector(text=splash_html_string).xpath('//p[@class="Ende"]/a[@rel="license"]/@href').get()
         if license_url is not None:
             if license_url.startswith("http://"):
                 license_url = license_url.replace("http://", "https://")
