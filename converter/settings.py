@@ -30,7 +30,7 @@ DEFAULT_PUBLIC_STATE = False
 SPLASH_URL = (
     None if env.get_bool("DISABLE_SPLASH", default=False) else env.get("SPLASH_URL")
 )
-SPLASH_WAIT = 1  # seconds to let the page load
+SPLASH_WAIT = 2  # seconds to let the page load
 SPLASH_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36"
 }  # use chrome to not create warnings on pages
