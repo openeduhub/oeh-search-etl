@@ -11,11 +11,16 @@ from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloa
 from converter.spiders.base_classes import LomBase
 
 
+# This is an alternative approach to our previous "sample_spider.py" that might be easier to read and understand
+# for web crawling beginners. Use whichever approach is more convenient for you.
+# LAST UPDATE: 2021-08-20
+# please also consult converter/items.py for all currently available keys/values in our crawler data model
 class SampleSpiderAlternative(CrawlSpider, LomBase):
     name = "sample_spider_alternative"
-    friendlyName = "Sample Source (alternative Method)"
-    start_urls = ["https://edu-sharing.com"]
-    version = "0.0.1"
+    friendlyName = "Sample Source (alternative Method)"  # how your crawler should appear in the "Supplier"-list
+    start_urls = ["https://edu-sharing.com"]  # starting point of your crawler, e.g. a sitemap, index, rss-feed etc.
+    version = "0.0.1"  # this is used for timestamping your crawler results (if a source changes its layout/data, make
+    # sure to increment this value to force a clear distinction between old and new crawler results)
 
     # Initiating a playwright_instance and a browser is only necessary if you need to use Playwright to gather metadata
     # from heavily client-side rendered websites that Scrapy can't render properly by itself.
@@ -28,7 +33,7 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
 
     def getId(self, response=None) -> str:
         # You have two choices here:
-        # - either implement this method and return the current url of a material
+        # - either implement this method and return the current url of a material as a string
         # - or look into the parse()-method for base.add_value('sourceId', response.url) is set manually
         pass
 
@@ -40,6 +45,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         pass
 
     def start_requests(self):
+        for start_url in self.start_urls:
+            yield scrapy.Request(url=start_url, callback=self.parse)
         # opening a headless browser that will hold our individual BrowserContexts when get_json_ld() is called
         self.playwright_instance = sync_playwright().start()
         self.browser_permanent = self.playwright_instance.chromium.launch()
@@ -50,12 +57,17 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         self.playwright_instance.stop()
 
     def get_json_ld(self, url_to_crawl) -> dict:
-        # using a Playwright BrowserContext allows us to save time/resources, each get_ld_json call spawns a page (=
-        # headless browser tab) within our BrowserContext (~ browser session),
-        # see: https://playwright.dev/python/docs/core-concepts/
+        # For some (client-side-rendered) websites scrapy (at least on its own) might not be able to "see" or render
+        # elements that you need for metadata-extraction. Using the "playwright"-framework allows us to control a
+        # headless browser and render the JavaScript content that scrapy might not "see" on its own.
+        # Each get_ld_json()-call spawns a page (= headless browser tab) within our BrowserContext (~ browser session),
+        # see: https://playwright.dev/python/docs/core-concepts/ for further explanation
         context = self.browser_permanent.new_context()
         page = context.new_page()
         page.goto(url_to_crawl)
+        # see https://playwright.dev/python/docs/api/class-page#page-text-content
+        # this exemplary selector works on pages where the JSON_LD is stored inside a <script>-element with the id "ld"
+        # e.g.: <script id="ld" type="application/ld+json">...</script>
         json_ld_string: str = page.text_content('//*[@id="ld"]')
         json_ld = json.loads(json_ld_string)
         context.close()
@@ -124,7 +136,7 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         general.add_value('keyword', keyword_list)
         general.add_value('description', json_ld.get("mainEntity").get("description"))
         # once we've added all available values to the necessary keys in our LomGeneralItemLoader,
-        # we call the load_item()-method to return a (filled) LomGeneralItem to the LomBaseItemLoader
+        # we call the load_item()-method to return a (now filled) LomGeneralItem to the LomBaseItemLoader
         lom.add_value('general', general.load_item())
 
         technical = LomTechnicalItemLoader()
@@ -136,6 +148,10 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - installationRemarks            optional
         #  - otherPlatformRequirements      optional
         #  - duration                       optional (only applies to audiovisual content like videos/podcasts)
+        # similar to how the "general"-LomGeneralItemLoader was filled with Items, individual values can be set with
+        # technical.add_value('key','value')
+        # or replaced with:
+        # technical.replace_value('key', 'value')
         lom.add_value('technical', technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
@@ -152,14 +168,14 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
 
         educational = LomEducationalItemLoader()
         # TODO: fill "educational"-keys with values for
+        #  - description                    recommended
+        #  - language                       recommended
         #  - interactivityType              optional
         #  - interactivityLevel             optional
         #  - semanticDensity                optional
         #  - typicalAgeRange                optional
         #  - difficulty                     optional
         #  - typicalLearningTime            optional
-        #  - description                    recommended
-        #  - language                       recommended
         lom.add_value('educational', educational.load_item())
 
         # once you've filled "general", "technical", "lifecycle" and "educational" with values,
@@ -196,7 +212,7 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         # Either fill the PermissionItemLoader manually (not necessary most of the times)
         permissions = PermissionItemLoader()
         # or (preferably) call the inherited getPermissions(response)-method
-        #   from converter/spiders/base_classes/lom_base.py
+        #   from converter/spiders/base_classes/lom_base.py by using super().:
         # permissions = super().getPermissions(response)
         # TODO: if necessary, add/replace values for the following "permissions"-keys
         #  - public                         optional
@@ -209,7 +225,7 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         # Either fill the ResponseItemLoader manually (not necessary most of the time)
         response_loader = ResponseItemLoader()
         # or (preferably) call the inherited mapResponse(response)-method
-        #   from converter/spiders/base_classes/lom_base.py
+        #   from converter/spiders/base_classes/lom_base.py by using super().:
         # response_loader = super().mapResponse(response)
         # TODO: if necessary, add/replace values for the following "response"-keys
         #  - url                            required
@@ -221,4 +237,5 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - har                            optional
         base.add_value('response', response_loader.load_item())
 
+        # once all scrapy.Item are loaded into our "base", we yield the BaseItem by calling the .load_item() method
         yield base.load_item()
