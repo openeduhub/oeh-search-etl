@@ -9,6 +9,7 @@ from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloa
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
 from converter.spiders.base_classes import LomBase
 from converter.util.sitemap import from_xml_response
+from converter.web_tools import WebEngine, WebTools
 
 
 class KMapSpider(CrawlSpider, LomBase):
@@ -42,9 +43,10 @@ class KMapSpider(CrawlSpider, LomBase):
     def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
         # print("PARSE METHOD:", response.url)
         last_modified = kwargs.get("lastModified")
-        url_data_splash_dict = super().getUrlData(response.url)
+        url_data_splash_dict = WebTools.getUrlDataPyppeteer(response.url)
         splash_html_string = url_data_splash_dict.get('html')
         json_ld_string: str = Selector(text=splash_html_string).xpath('//*[@id="ld"]/text()').get()
+        # print(json_ld_string)
         json_ld: dict = json.loads(json_ld_string)
         # for debug purposes - checking if the json_ld is correct/available:
         # print("LD_JSON =", json_ld)
@@ -63,7 +65,7 @@ class KMapSpider(CrawlSpider, LomBase):
         # the thumbnail can be found at https://kmap.eu/snappy/Physik/Grundlagen/Potenzschreibweise
         thumbnail_path = json_ld.get("mainEntity").get("thumbnailUrl")
         if thumbnail_path is not None:
-            base.add_value('thumbnail', thumbnail_path)
+            base.add_value('thumbnail', 'https://kmap.eu' + thumbnail_path)
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader()
