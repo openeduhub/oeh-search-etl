@@ -12,15 +12,25 @@ from converter import env
 
 
 class WebEngine(Enum):
+    # Splash (default engine)
     Splash = 'splash',
+    # Pyppeteer is controlling a headless chrome
     Pyppeteer = 'pyppeteer'
 
 class WebTools:
-    def getUrlDataPyppeteer(url: str):
+
+    def getUrlData(url, engine = WebEngine.Splash):
+        if engine == WebEngine.Splash:
+            return WebTools.__getUrlDataSplash(url)
+        elif engine == WebEngine.Pyppeteer:
+            return WebTools.__getUrlDataPyppeteer(url)
+
+        raise Exception("Invalid engine")
+    def __getUrlDataPyppeteer(url: str):
         # html = "test"
         html = asyncio.run(WebTools.fetchDataPyppeteer(url))
         return {"html": html, "text": WebTools.html2Text(html), "cookies": None, "har": None}
-    def getUrlDataSplash(url: str):
+    def __getUrlDataSplash(url: str):
         settings = get_project_settings()
         html = None
         if settings.get("SPLASH_URL"):

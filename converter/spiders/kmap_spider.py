@@ -43,10 +43,9 @@ class KMapSpider(CrawlSpider, LomBase):
     def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
         # print("PARSE METHOD:", response.url)
         last_modified = kwargs.get("lastModified")
-        url_data_splash_dict = WebTools.getUrlDataPyppeteer(response.url)
+        url_data_splash_dict = WebTools.getUrlData(response.url, WebEngine.Pyppeteer)
         splash_html_string = url_data_splash_dict.get('html')
         json_ld_string: str = Selector(text=splash_html_string).xpath('//*[@id="ld"]/text()').get()
-        # print(json_ld_string)
         json_ld: dict = json.loads(json_ld_string)
         # for debug purposes - checking if the json_ld is correct/available:
         # print("LD_JSON =", json_ld)

@@ -106,7 +106,7 @@ class LomBase:
     # @deprecated
     # directly use WebTools instead
     def getUrlData(self, url):
-        return WebTools.getUrlDataSplash(url)
+        return WebTools.getUrlData(url)
     def mapResponse(self, response, fetchData=True):
         r = ResponseItemLoader(response=response)
         r.add_value("status", response.status)
