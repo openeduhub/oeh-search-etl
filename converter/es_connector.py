@@ -141,12 +141,18 @@ class EduSharing:
     def collectionProposals(self, uuid, item):
         if "collection" in item:
             for collectionId in item["collection"]:
-                EduSharing.collectionApi.add_to_collection(
-                    repository = EduSharingConstants.HOME,
-                    collection = collectionId,
-                    node = uuid,
-                    as_proposal = True
-                )
+                try:
+                    EduSharing.collectionApi.add_to_collection(
+                        repository = EduSharingConstants.HOME,
+                        collection = collectionId,
+                        node = uuid,
+                        as_proposal = True
+                    )
+                except ApiException as e:
+                    if e.reason == 'Conflict':
+                        pass
+                    else:
+                        raise e
 
     def setNodeText(self, uuid, item) -> bool:
         if "fulltext" in item:
