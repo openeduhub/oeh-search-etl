@@ -63,10 +63,12 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
 
     def mapResponse(self, response):
         r = LomBase.mapResponse(self, response)
-        text = r.load_item()["text"].split(
-            "Dieses Werk steht unter der freien Lizenz CC BY-SA 4.0 Information"
-        )[0]
-        r.replace_value("text", text)
+        item = r.load_item()
+        if "text" in item:
+            text = ["text"].split(
+                "Dieses Werk steht unter der freien Lizenz CC BY-SA 4.0 Information"
+            )[0]
+            r.replace_value("text", text)
         return r
 
     def getBase(self, response):
@@ -82,6 +84,13 @@ class SerloSpider(scrapy.Spider, LomBase, JSONBase):
             / 50,
         )
         return base
+
+
+    def getRelated(self, response) -> RelatedItemLoader:
+        related = LomBase.getRelated(self, response=response)
+        related.add_value("oehTopics", "http://w3id.org/openeduhub/vocabs/discipline/380")
+        related.add_value("oehTopics", self.get("curriculumId", response=response))
+        return related
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response=response)
