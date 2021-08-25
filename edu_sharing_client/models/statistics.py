@@ -29,40 +29,41 @@ class Statistics(object):
                             and the value is json key in definition.
     """
     swagger_types = {
-        'groups': 'list[str]'
+        'entries': 'list[StatisticEntry]'
     }
 
     attribute_map = {
-        'groups': 'groups'
+        'entries': 'entries'
     }
 
-    def __init__(self, groups=None):  # noqa: E501
+    def __init__(self, entries=None):  # noqa: E501
         """Statistics - a model defined in Swagger"""  # noqa: E501
-        self._groups = None
+        self._entries = None
         self.discriminator = None
-        if groups is not None:
-            self.groups = groups
+        self.entries = entries
 
     @property
-    def groups(self):
-        """Gets the groups of this Statistics.  # noqa: E501
+    def entries(self):
+        """Gets the entries of this Statistics.  # noqa: E501
 
 
-        :return: The groups of this Statistics.  # noqa: E501
-        :rtype: list[str]
+        :return: The entries of this Statistics.  # noqa: E501
+        :rtype: list[StatisticEntry]
         """
-        return self._groups
+        return self._entries
 
-    @groups.setter
-    def groups(self, groups):
-        """Sets the groups of this Statistics.
+    @entries.setter
+    def entries(self, entries):
+        """Sets the entries of this Statistics.
 
 
-        :param groups: The groups of this Statistics.  # noqa: E501
-        :type: list[str]
+        :param entries: The entries of this Statistics.  # noqa: E501
+        :type: list[StatisticEntry]
         """
+        if entries is None:
+            raise ValueError("Invalid value for `entries`, must not be `None`")  # noqa: E501
 
-        self._groups = groups
+        self._entries = entries
 
     def to_dict(self):
         """Returns the model properties as a dict"""

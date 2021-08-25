@@ -626,6 +626,97 @@ class ADMINV1Api(object):
             _request_timeout=params.get('_request_timeout'),
             collection_formats=collection_formats)
 
+    def clear_cache(self, **kwargs):  # noqa: E501
+        """clear cache  # noqa: E501
+
+        clear cache  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.clear_cache(async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str bean: bean
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.clear_cache_with_http_info(**kwargs)  # noqa: E501
+        else:
+            (data) = self.clear_cache_with_http_info(**kwargs)  # noqa: E501
+            return data
+
+    def clear_cache_with_http_info(self, **kwargs):  # noqa: E501
+        """clear cache  # noqa: E501
+
+        clear cache  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.clear_cache_with_http_info(async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str bean: bean
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['bean']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method clear_cache" % key
+                )
+            params[key] = val
+        del params['kwargs']
+
+        collection_formats = {}
+
+        path_params = {}
+
+        query_params = []
+        if 'bean' in params:
+            query_params.append(('bean', params['bean']))  # noqa: E501
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/admin/v1/cache/clearCache', 'POST',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type=None,  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
     def delete_person(self, username, **kwargs):  # noqa: E501
         """delete persons  # noqa: E501
 
@@ -744,6 +835,7 @@ class ADMINV1Api(object):
         :param list[str] sort_properties: sort properties
         :param list[bool] sort_ascending: sort ascending, true if not set. Use multiple values to change the direction according to the given property at the same index
         :param list[str] properties: properties to fetch, use parent::<property> to include parent property values
+        :param str store: store, workspace or archive
         :return: list[object]
                  If the method is called asynchronously,
                  returns the request thread.
@@ -769,12 +861,13 @@ class ADMINV1Api(object):
         :param list[str] sort_properties: sort properties
         :param list[bool] sort_ascending: sort ascending, true if not set. Use multiple values to change the direction according to the given property at the same index
         :param list[str] properties: properties to fetch, use parent::<property> to include parent property values
+        :param str store: store, workspace or archive
         :return: list[object]
                  If the method is called asynchronously,
                  returns the request thread.
         """
 
-        all_params = ['query', 'sort_properties', 'sort_ascending', 'properties']  # noqa: E501
+        all_params = ['query', 'sort_properties', 'sort_ascending', 'properties', 'store']  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -806,6 +899,8 @@ class ADMINV1Api(object):
         if 'properties' in params:
             query_params.append(('properties', params['properties']))  # noqa: E501
             collection_formats['properties'] = 'multi'  # noqa: E501
+        if 'store' in params:
+            query_params.append(('store', params['store']))  # noqa: E501
 
         header_params = {}
 
@@ -940,6 +1035,91 @@ class ADMINV1Api(object):
             post_params=form_params,
             files=local_var_files,
             response_type=None,  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
+    def get_all_jobs(self, **kwargs):  # noqa: E501
+        """get all available jobs  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_all_jobs(async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :return: list[JobDescription]
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.get_all_jobs_with_http_info(**kwargs)  # noqa: E501
+        else:
+            (data) = self.get_all_jobs_with_http_info(**kwargs)  # noqa: E501
+            return data
+
+    def get_all_jobs_with_http_info(self, **kwargs):  # noqa: E501
+        """get all available jobs  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_all_jobs_with_http_info(async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :return: list[JobDescription]
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = []  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method get_all_jobs" % key
+                )
+            params[key] = val
+        del params['kwargs']
+
+        collection_formats = {}
+
+        path_params = {}
+
+        query_params = []
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/admin/v1/jobs/all', 'GET',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type='list[JobDescription]',  # noqa: E501
             auth_settings=auth_settings,
             async_req=params.get('async_req'),
             _return_http_data_only=params.get('_return_http_data_only'),
@@ -1217,6 +1397,101 @@ class ADMINV1Api(object):
             post_params=form_params,
             files=local_var_files,
             response_type='list[Application]',  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
+    def get_cache_entries(self, id, **kwargs):  # noqa: E501
+        """Get entries of a cache  # noqa: E501
+
+        Get entries of a cache.  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_cache_entries(id, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str id: Id/bean name of the cache (required)
+        :return: dict(str, object)
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.get_cache_entries_with_http_info(id, **kwargs)  # noqa: E501
+        else:
+            (data) = self.get_cache_entries_with_http_info(id, **kwargs)  # noqa: E501
+            return data
+
+    def get_cache_entries_with_http_info(self, id, **kwargs):  # noqa: E501
+        """Get entries of a cache  # noqa: E501
+
+        Get entries of a cache.  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_cache_entries_with_http_info(id, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str id: Id/bean name of the cache (required)
+        :return: dict(str, object)
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['id']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method get_cache_entries" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'id' is set
+        if ('id' not in params or
+                params['id'] is None):
+            raise ValueError("Missing the required parameter `id` when calling `get_cache_entries`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'id' in params:
+            path_params['id'] = params['id']  # noqa: E501
+
+        query_params = []
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/admin/v1/cache/cacheEntries/{id}', 'GET',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type='dict(str, object)',  # noqa: E501
             auth_settings=auth_settings,
             async_req=params.get('async_req'),
             _return_http_data_only=params.get('_return_http_data_only'),
@@ -1581,7 +1856,7 @@ class ADMINV1Api(object):
             collection_formats=collection_formats)
 
     def get_config(self, **kwargs):  # noqa: E501
-        """set/update the repository config object  # noqa: E501
+        """get the repository config object  # noqa: E501
 
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
@@ -1589,8 +1864,7 @@ class ADMINV1Api(object):
         >>> result = thread.get()
 
         :param async_req bool
-        :param RepositoryConfig body:
-        :return: None
+        :return: RepositoryConfig
                  If the method is called asynchronously,
                  returns the request thread.
         """
@@ -1602,7 +1876,7 @@ class ADMINV1Api(object):
             return data
 
     def get_config_with_http_info(self, **kwargs):  # noqa: E501
-        """set/update the repository config object  # noqa: E501
+        """get the repository config object  # noqa: E501
 
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
@@ -1610,13 +1884,12 @@ class ADMINV1Api(object):
         >>> result = thread.get()
 
         :param async_req bool
-        :param RepositoryConfig body:
-        :return: None
+        :return: RepositoryConfig
                  If the method is called asynchronously,
                  returns the request thread.
         """
 
-        all_params = ['body']  # noqa: E501
+        all_params = []  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -1644,28 +1917,22 @@ class ADMINV1Api(object):
         local_var_files = {}
 
         body_params = None
-        if 'body' in params:
-            body_params = params['body']
         # HTTP header `Accept`
         header_params['Accept'] = self.api_client.select_header_accept(
-            ['*/*'])  # noqa: E501
-
-        # HTTP header `Content-Type`
-        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
             ['*/*'])  # noqa: E501
 
         # Authentication setting
         auth_settings = []  # noqa: E501
 
         return self.api_client.call_api(
-            '/admin/v1/repositoryConfig', 'PUT',
+            '/admin/v1/repositoryConfig', 'GET',
             path_params,
             query_params,
             header_params,
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type=None,  # noqa: E501
+            response_type='RepositoryConfig',  # noqa: E501
             auth_settings=auth_settings,
             async_req=params.get('async_req'),
             _return_http_data_only=params.get('_return_http_data_only'),
@@ -2311,47 +2578,49 @@ class ADMINV1Api(object):
             _request_timeout=params.get('_request_timeout'),
             collection_formats=collection_formats)
 
-    def import_excel(self, excel, parent, **kwargs):  # noqa: E501
+    def import_excel(self, excel, parent, add_to_collection, **kwargs):  # noqa: E501
         """Import excel data  # noqa: E501
 
         Import excel data.  # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
-        >>> thread = api.import_excel(excel, parent, async_req=True)
+        >>> thread = api.import_excel(excel, parent, add_to_collection, async_req=True)
         >>> result = thread.get()
 
         :param async_req bool
         :param str excel: (required)
         :param str parent: parent (required)
+        :param bool add_to_collection: addToCollection (required)
         :return: ExcelResult
                  If the method is called asynchronously,
                  returns the request thread.
         """
         kwargs['_return_http_data_only'] = True
         if kwargs.get('async_req'):
-            return self.import_excel_with_http_info(excel, parent, **kwargs)  # noqa: E501
+            return self.import_excel_with_http_info(excel, parent, add_to_collection, **kwargs)  # noqa: E501
         else:
-            (data) = self.import_excel_with_http_info(excel, parent, **kwargs)  # noqa: E501
+            (data) = self.import_excel_with_http_info(excel, parent, add_to_collection, **kwargs)  # noqa: E501
             return data
 
-    def import_excel_with_http_info(self, excel, parent, **kwargs):  # noqa: E501
+    def import_excel_with_http_info(self, excel, parent, add_to_collection, **kwargs):  # noqa: E501
         """Import excel data  # noqa: E501
 
         Import excel data.  # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
-        >>> thread = api.import_excel_with_http_info(excel, parent, async_req=True)
+        >>> thread = api.import_excel_with_http_info(excel, parent, add_to_collection, async_req=True)
         >>> result = thread.get()
 
         :param async_req bool
         :param str excel: (required)
         :param str parent: parent (required)
+        :param bool add_to_collection: addToCollection (required)
         :return: ExcelResult
                  If the method is called asynchronously,
                  returns the request thread.
         """
 
-        all_params = ['excel', 'parent']  # noqa: E501
+        all_params = ['excel', 'parent', 'add_to_collection']  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -2374,6 +2643,10 @@ class ADMINV1Api(object):
         if ('parent' not in params or
                 params['parent'] is None):
             raise ValueError("Missing the required parameter `parent` when calling `import_excel`")  # noqa: E501
+        # verify the required parameter 'add_to_collection' is set
+        if ('add_to_collection' not in params or
+                params['add_to_collection'] is None):
+            raise ValueError("Missing the required parameter `add_to_collection` when calling `import_excel`")  # noqa: E501
 
         collection_formats = {}
 
@@ -2382,6 +2655,8 @@ class ADMINV1Api(object):
         query_params = []
         if 'parent' in params:
             query_params.append(('parent', params['parent']))  # noqa: E501
+        if 'add_to_collection' in params:
+            query_params.append(('addToCollection', params['add_to_collection']))  # noqa: E501
 
         header_params = {}
 
@@ -2436,9 +2711,13 @@ class ADMINV1Api(object):
         :param str importer_class_name: importer class name (call /classes to obtain a list)
         :param str record_handler_class_name: RecordHandler class name
         :param str binary_handler_class_name: BinaryHandler class name (may be empty for none)
+        :param str persistent_handler_class_name: PersistentHandlerClassName class name (may be empty for none)
         :param str file_url: url to file
         :param str oai_ids: OAI Ids to import, can be null than the whole set will be imported
         :param bool force_update: force Update of all entries
+        :param str _from: from: datestring yyyy-MM-dd)
+        :param str until: until: datestring yyyy-MM-dd)
+        :param str period_in_days: periodInDays: internal sets from and until. only effective if from/until not set)
         :return: None
                  If the method is called asynchronously,
                  returns the request thread.
@@ -2468,15 +2747,19 @@ class ADMINV1Api(object):
         :param str importer_class_name: importer class name (call /classes to obtain a list)
         :param str record_handler_class_name: RecordHandler class name
         :param str binary_handler_class_name: BinaryHandler class name (may be empty for none)
+        :param str persistent_handler_class_name: PersistentHandlerClassName class name (may be empty for none)
         :param str file_url: url to file
         :param str oai_ids: OAI Ids to import, can be null than the whole set will be imported
         :param bool force_update: force Update of all entries
+        :param str _from: from: datestring yyyy-MM-dd)
+        :param str until: until: datestring yyyy-MM-dd)
+        :param str period_in_days: periodInDays: internal sets from and until. only effective if from/until not set)
         :return: None
                  If the method is called asynchronously,
                  returns the request thread.
         """
 
-        all_params = ['base_url', 'set', 'metadata_prefix', 'class_name', 'metadataset', 'importer_class_name', 'record_handler_class_name', 'binary_handler_class_name', 'file_url', 'oai_ids', 'force_update']  # noqa: E501
+        all_params = ['base_url', 'set', 'metadata_prefix', 'class_name', 'metadataset', 'importer_class_name', 'record_handler_class_name', 'binary_handler_class_name', 'persistent_handler_class_name', 'file_url', 'oai_ids', 'force_update', '_from', 'until', 'period_in_days']  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -2529,12 +2812,20 @@ class ADMINV1Api(object):
             query_params.append(('recordHandlerClassName', params['record_handler_class_name']))  # noqa: E501
         if 'binary_handler_class_name' in params:
             query_params.append(('binaryHandlerClassName', params['binary_handler_class_name']))  # noqa: E501
+        if 'persistent_handler_class_name' in params:
+            query_params.append(('persistentHandlerClassName', params['persistent_handler_class_name']))  # noqa: E501
         if 'file_url' in params:
             query_params.append(('fileUrl', params['file_url']))  # noqa: E501
         if 'oai_ids' in params:
             query_params.append(('oaiIds', params['oai_ids']))  # noqa: E501
         if 'force_update' in params:
             query_params.append(('forceUpdate', params['force_update']))  # noqa: E501
+        if '_from' in params:
+            query_params.append(('from', params['_from']))  # noqa: E501
+        if 'until' in params:
+            query_params.append(('until', params['until']))  # noqa: E501
+        if 'period_in_days' in params:
+            query_params.append(('periodInDays', params['period_in_days']))  # noqa: E501
 
         header_params = {}
 
@@ -3248,6 +3539,95 @@ class ADMINV1Api(object):
             _request_timeout=params.get('_request_timeout'),
             collection_formats=collection_formats)
 
+    def search_by_elastic_dsl(self, **kwargs):  # noqa: E501
+        """Search for custom elastic DSL query  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.search_by_elastic_dsl(async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str dsl: dsl query (json encoded)
+        :return: SearchResultElastic
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.search_by_elastic_dsl_with_http_info(**kwargs)  # noqa: E501
+        else:
+            (data) = self.search_by_elastic_dsl_with_http_info(**kwargs)  # noqa: E501
+            return data
+
+    def search_by_elastic_dsl_with_http_info(self, **kwargs):  # noqa: E501
+        """Search for custom elastic DSL query  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.search_by_elastic_dsl_with_http_info(async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str dsl: dsl query (json encoded)
+        :return: SearchResultElastic
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['dsl']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method search_by_elastic_dsl" % key
+                )
+            params[key] = val
+        del params['kwargs']
+
+        collection_formats = {}
+
+        path_params = {}
+
+        query_params = []
+        if 'dsl' in params:
+            query_params.append(('dsl', params['dsl']))  # noqa: E501
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/admin/v1/elastic', 'GET',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type='SearchResultElastic',  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
     def search_by_lucene(self, **kwargs):  # noqa: E501
         """Search for custom lucene query  # noqa: E501
 
@@ -3264,6 +3644,7 @@ class ADMINV1Api(object):
         :param list[str] sort_properties: sort properties
         :param list[bool] sort_ascending: sort ascending, true if not set. Use multiple values to change the direction according to the given property at the same index
         :param list[str] property_filter: property filter for result nodes (or \"-all-\" for all properties)
+        :param str store: store, workspace or archive
         :param list[str] authority_scope: authority scope to search for
         :return: SearchResult
                  If the method is called asynchronously,
@@ -3292,13 +3673,14 @@ class ADMINV1Api(object):
         :param list[str] sort_properties: sort properties
         :param list[bool] sort_ascending: sort ascending, true if not set. Use multiple values to change the direction according to the given property at the same index
         :param list[str] property_filter: property filter for result nodes (or \"-all-\" for all properties)
+        :param str store: store, workspace or archive
         :param list[str] authority_scope: authority scope to search for
         :return: SearchResult
                  If the method is called asynchronously,
                  returns the request thread.
         """
 
-        all_params = ['query', 'max_items', 'skip_count', 'sort_properties', 'sort_ascending', 'property_filter', 'authority_scope']  # noqa: E501
+        all_params = ['query', 'max_items', 'skip_count', 'sort_properties', 'sort_ascending', 'property_filter', 'store', 'authority_scope']  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -3334,6 +3716,8 @@ class ADMINV1Api(object):
         if 'property_filter' in params:
             query_params.append(('propertyFilter', params['property_filter']))  # noqa: E501
             collection_formats['propertyFilter'] = 'multi'  # noqa: E501
+        if 'store' in params:
+            query_params.append(('store', params['store']))  # noqa: E501
         if 'authority_scope' in params:
             query_params.append(('authorityScope', params['authority_scope']))  # noqa: E501
             collection_formats['authorityScope'] = 'multi'  # noqa: E501
@@ -3558,7 +3942,7 @@ class ADMINV1Api(object):
             collection_formats=collection_formats)
 
     def set_config(self, **kwargs):  # noqa: E501
-        """get the repository config object  # noqa: E501
+        """set/update the repository config object  # noqa: E501
 
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
@@ -3566,7 +3950,8 @@ class ADMINV1Api(object):
         >>> result = thread.get()
 
         :param async_req bool
-        :return: RepositoryConfig
+        :param RepositoryConfig body:
+        :return: None
                  If the method is called asynchronously,
                  returns the request thread.
         """
@@ -3578,7 +3963,7 @@ class ADMINV1Api(object):
             return data
 
     def set_config_with_http_info(self, **kwargs):  # noqa: E501
-        """get the repository config object  # noqa: E501
+        """set/update the repository config object  # noqa: E501
 
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
@@ -3586,12 +3971,13 @@ class ADMINV1Api(object):
         >>> result = thread.get()
 
         :param async_req bool
-        :return: RepositoryConfig
+        :param RepositoryConfig body:
+        :return: None
                  If the method is called asynchronously,
                  returns the request thread.
         """
 
-        all_params = []  # noqa: E501
+        all_params = ['body']  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -3619,22 +4005,28 @@ class ADMINV1Api(object):
         local_var_files = {}
 
         body_params = None
+        if 'body' in params:
+            body_params = params['body']
         # HTTP header `Accept`
         header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # HTTP header `Content-Type`
+        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
             ['*/*'])  # noqa: E501
 
         # Authentication setting
         auth_settings = []  # noqa: E501
 
         return self.api_client.call_api(
-            '/admin/v1/repositoryConfig', 'GET',
+            '/admin/v1/repositoryConfig', 'PUT',
             path_params,
             query_params,
             header_params,
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type='RepositoryConfig',  # noqa: E501
+            response_type=None,  # noqa: E501
             auth_settings=auth_settings,
             async_req=params.get('async_req'),
             _return_http_data_only=params.get('_return_http_data_only'),

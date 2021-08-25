@@ -143,51 +143,55 @@ class COLLECTIONV1Api(object):
             _request_timeout=params.get('_request_timeout'),
             collection_formats=collection_formats)
 
-    def add_to_collection(self, repository, collection, node, source_repo, **kwargs):  # noqa: E501
+    def add_to_collection(self, repository, collection, node, **kwargs):  # noqa: E501
         """Add a node to a collection.  # noqa: E501
 
         Add a node to a collection.  # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
-        >>> thread = api.add_to_collection(repository, collection, node, source_repo, async_req=True)
+        >>> thread = api.add_to_collection(repository, collection, node, async_req=True)
         >>> result = thread.get()
 
         :param async_req bool
         :param str repository: ID of repository (or \"-home-\" for home repository) (required)
         :param str collection: ID of collection (required)
         :param str node: ID of node (required)
-        :param str source_repo: ID of source repository (required)
+        :param str source_repo: ID of source repository
+        :param bool allow_duplicate: Allow that a node that already is inside the collection can be added again
+        :param bool as_proposal: Mark this node only as a proposal (not really adding but just marking it). This can also be used for collections where you don't have permissions
         :return: NodeEntry
                  If the method is called asynchronously,
                  returns the request thread.
         """
         kwargs['_return_http_data_only'] = True
         if kwargs.get('async_req'):
-            return self.add_to_collection_with_http_info(repository, collection, node, source_repo, **kwargs)  # noqa: E501
+            return self.add_to_collection_with_http_info(repository, collection, node, **kwargs)  # noqa: E501
         else:
-            (data) = self.add_to_collection_with_http_info(repository, collection, node, source_repo, **kwargs)  # noqa: E501
+            (data) = self.add_to_collection_with_http_info(repository, collection, node, **kwargs)  # noqa: E501
             return data
 
-    def add_to_collection_with_http_info(self, repository, collection, node, source_repo, **kwargs):  # noqa: E501
+    def add_to_collection_with_http_info(self, repository, collection, node, **kwargs):  # noqa: E501
         """Add a node to a collection.  # noqa: E501
 
         Add a node to a collection.  # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
-        >>> thread = api.add_to_collection_with_http_info(repository, collection, node, source_repo, async_req=True)
+        >>> thread = api.add_to_collection_with_http_info(repository, collection, node, async_req=True)
         >>> result = thread.get()
 
         :param async_req bool
         :param str repository: ID of repository (or \"-home-\" for home repository) (required)
         :param str collection: ID of collection (required)
         :param str node: ID of node (required)
-        :param str source_repo: ID of source repository (required)
+        :param str source_repo: ID of source repository
+        :param bool allow_duplicate: Allow that a node that already is inside the collection can be added again
+        :param bool as_proposal: Mark this node only as a proposal (not really adding but just marking it). This can also be used for collections where you don't have permissions
         :return: NodeEntry
                  If the method is called asynchronously,
                  returns the request thread.
         """
 
-        all_params = ['repository', 'collection', 'node', 'source_repo']  # noqa: E501
+        all_params = ['repository', 'collection', 'node', 'source_repo', 'allow_duplicate', 'as_proposal']  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -214,10 +218,6 @@ class COLLECTIONV1Api(object):
         if ('node' not in params or
                 params['node'] is None):
             raise ValueError("Missing the required parameter `node` when calling `add_to_collection`")  # noqa: E501
-        # verify the required parameter 'source_repo' is set
-        if ('source_repo' not in params or
-                params['source_repo'] is None):
-            raise ValueError("Missing the required parameter `source_repo` when calling `add_to_collection`")  # noqa: E501
 
         collection_formats = {}
 
@@ -232,6 +232,10 @@ class COLLECTIONV1Api(object):
         query_params = []
         if 'source_repo' in params:
             query_params.append(('sourceRepo', params['source_repo']))  # noqa: E501
+        if 'allow_duplicate' in params:
+            query_params.append(('allowDuplicate', params['allow_duplicate']))  # noqa: E501
+        if 'as_proposal' in params:
+            query_params.append(('asProposal', params['as_proposal']))  # noqa: E501
 
         header_params = {}
 
@@ -813,6 +817,234 @@ class COLLECTIONV1Api(object):
             _request_timeout=params.get('_request_timeout'),
             collection_formats=collection_formats)
 
+    def get_collections_containing_proposals(self, repository, **kwargs):  # noqa: E501
+        """Get all collections containing proposals with a given state (via search index)  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_collections_containing_proposals(repository, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str status: status of the proposals to search for
+        :param bool fetch_counts: fetch counts of collections (materials and subcollections). This parameter will decrease performance so only enable if if you need this data
+        :param int max_items: maximum items per page
+        :param int skip_count: skip a number of items
+        :param list[str] sort_properties: sort properties
+        :param list[bool] sort_ascending: sort ascending, true if not set. Use multiple values to change the direction according to the given property at the same index
+        :return: CollectionProposalEntries
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.get_collections_containing_proposals_with_http_info(repository, **kwargs)  # noqa: E501
+        else:
+            (data) = self.get_collections_containing_proposals_with_http_info(repository, **kwargs)  # noqa: E501
+            return data
+
+    def get_collections_containing_proposals_with_http_info(self, repository, **kwargs):  # noqa: E501
+        """Get all collections containing proposals with a given state (via search index)  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_collections_containing_proposals_with_http_info(repository, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str status: status of the proposals to search for
+        :param bool fetch_counts: fetch counts of collections (materials and subcollections). This parameter will decrease performance so only enable if if you need this data
+        :param int max_items: maximum items per page
+        :param int skip_count: skip a number of items
+        :param list[str] sort_properties: sort properties
+        :param list[bool] sort_ascending: sort ascending, true if not set. Use multiple values to change the direction according to the given property at the same index
+        :return: CollectionProposalEntries
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['repository', 'status', 'fetch_counts', 'max_items', 'skip_count', 'sort_properties', 'sort_ascending']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method get_collections_containing_proposals" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `get_collections_containing_proposals`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+
+        query_params = []
+        if 'status' in params:
+            query_params.append(('status', params['status']))  # noqa: E501
+        if 'fetch_counts' in params:
+            query_params.append(('fetchCounts', params['fetch_counts']))  # noqa: E501
+        if 'max_items' in params:
+            query_params.append(('maxItems', params['max_items']))  # noqa: E501
+        if 'skip_count' in params:
+            query_params.append(('skipCount', params['skip_count']))  # noqa: E501
+        if 'sort_properties' in params:
+            query_params.append(('sortProperties', params['sort_properties']))  # noqa: E501
+            collection_formats['sortProperties'] = 'multi'  # noqa: E501
+        if 'sort_ascending' in params:
+            query_params.append(('sortAscending', params['sort_ascending']))  # noqa: E501
+            collection_formats['sortAscending'] = 'multi'  # noqa: E501
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/collection/v1/collections/{repository}/children/proposals/collections', 'GET',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type='CollectionProposalEntries',  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
+    def get_collections_proposals(self, repository, collection, status, **kwargs):  # noqa: E501
+        """Get proposed objects for collection (requires edit permissions on collection).  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_collections_proposals(repository, collection, status, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str collection: ID of parent collection (required)
+        :param str status: Only show elements with given status (required)
+        :return: AbstractEntries
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.get_collections_proposals_with_http_info(repository, collection, status, **kwargs)  # noqa: E501
+        else:
+            (data) = self.get_collections_proposals_with_http_info(repository, collection, status, **kwargs)  # noqa: E501
+            return data
+
+    def get_collections_proposals_with_http_info(self, repository, collection, status, **kwargs):  # noqa: E501
+        """Get proposed objects for collection (requires edit permissions on collection).  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_collections_proposals_with_http_info(repository, collection, status, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str collection: ID of parent collection (required)
+        :param str status: Only show elements with given status (required)
+        :return: AbstractEntries
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['repository', 'collection', 'status']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method get_collections_proposals" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `get_collections_proposals`")  # noqa: E501
+        # verify the required parameter 'collection' is set
+        if ('collection' not in params or
+                params['collection'] is None):
+            raise ValueError("Missing the required parameter `collection` when calling `get_collections_proposals`")  # noqa: E501
+        # verify the required parameter 'status' is set
+        if ('status' not in params or
+                params['status'] is None):
+            raise ValueError("Missing the required parameter `status` when calling `get_collections_proposals`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+        if 'collection' in params:
+            path_params['collection'] = params['collection']  # noqa: E501
+
+        query_params = []
+        if 'status' in params:
+            query_params.append(('status', params['status']))  # noqa: E501
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/collection/v1/collections/{repository}/{collection}/children/proposals', 'GET',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type='AbstractEntries',  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
     def get_collections_references(self, repository, collection, **kwargs):  # noqa: E501
         """Get references objects for collection.  # noqa: E501
 
@@ -949,6 +1181,7 @@ class COLLECTIONV1Api(object):
         :param str repository: ID of repository (or \"-home-\" for home repository) (required)
         :param str collection: ID of parent collection (or \"-root-\" for level0 collections) (required)
         :param str scope: scope (only relevant if parent == -root-) (required)
+        :param bool fetch_counts: fetch counts of collections (materials and subcollections). This parameter will decrease performance so only enable if if you need this data
         :param int max_items: maximum items per page
         :param int skip_count: skip a number of items
         :param list[str] sort_properties: sort properties
@@ -977,6 +1210,7 @@ class COLLECTIONV1Api(object):
         :param str repository: ID of repository (or \"-home-\" for home repository) (required)
         :param str collection: ID of parent collection (or \"-root-\" for level0 collections) (required)
         :param str scope: scope (only relevant if parent == -root-) (required)
+        :param bool fetch_counts: fetch counts of collections (materials and subcollections). This parameter will decrease performance so only enable if if you need this data
         :param int max_items: maximum items per page
         :param int skip_count: skip a number of items
         :param list[str] sort_properties: sort properties
@@ -987,7 +1221,7 @@ class COLLECTIONV1Api(object):
                  returns the request thread.
         """
 
-        all_params = ['repository', 'collection', 'scope', 'max_items', 'skip_count', 'sort_properties', 'sort_ascending', 'property_filter']  # noqa: E501
+        all_params = ['repository', 'collection', 'scope', 'fetch_counts', 'max_items', 'skip_count', 'sort_properties', 'sort_ascending', 'property_filter']  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -1026,6 +1260,8 @@ class COLLECTIONV1Api(object):
         query_params = []
         if 'scope' in params:
             query_params.append(('scope', params['scope']))  # noqa: E501
+        if 'fetch_counts' in params:
+            query_params.append(('fetchCounts', params['fetch_counts']))  # noqa: E501
         if 'max_items' in params:
             query_params.append(('maxItems', params['max_items']))  # noqa: E501
         if 'skip_count' in params:

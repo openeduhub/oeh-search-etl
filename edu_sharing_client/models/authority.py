@@ -29,23 +29,49 @@ class Authority(object):
                             and the value is json key in definition.
     """
     swagger_types = {
+        'properties': 'dict(str, list[str])',
         'authority_name': 'str',
         'authority_type': 'str'
     }
 
     attribute_map = {
+        'properties': 'properties',
         'authority_name': 'authorityName',
         'authority_type': 'authorityType'
     }
 
-    def __init__(self, authority_name=None, authority_type=None):  # noqa: E501
+    def __init__(self, properties=None, authority_name=None, authority_type=None):  # noqa: E501
         """Authority - a model defined in Swagger"""  # noqa: E501
+        self._properties = None
         self._authority_name = None
         self._authority_type = None
         self.discriminator = None
+        if properties is not None:
+            self.properties = properties
         self.authority_name = authority_name
         if authority_type is not None:
             self.authority_type = authority_type
+
+    @property
+    def properties(self):
+        """Gets the properties of this Authority.  # noqa: E501
+
+
+        :return: The properties of this Authority.  # noqa: E501
+        :rtype: dict(str, list[str])
+        """
+        return self._properties
+
+    @properties.setter
+    def properties(self, properties):
+        """Sets the properties of this Authority.
+
+
+        :param properties: The properties of this Authority.  # noqa: E501
+        :type: dict(str, list[str])
+        """
+
+        self._properties = properties
 
     @property
     def authority_name(self):

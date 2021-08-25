@@ -567,18 +567,19 @@ class MEDIACENTERV1Api(object):
             _request_timeout=params.get('_request_timeout'),
             collection_formats=collection_formats)
 
-    def get_mediacenter_licensed_nodes(self, repository, mediacenter, searchword, **kwargs):  # noqa: E501
+    def get_mediacenter_licensed_nodes(self, body, searchword, repository, mediacenter, **kwargs):  # noqa: E501
         """get nodes that are licensed by the given mediacenter  # noqa: E501
 
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
-        >>> thread = api.get_mediacenter_licensed_nodes(repository, mediacenter, searchword, async_req=True)
+        >>> thread = api.get_mediacenter_licensed_nodes(body, searchword, repository, mediacenter, async_req=True)
         >>> result = thread.get()
 
         :param async_req bool
+        :param SearchParameters body: search parameters (required)
+        :param str searchword: searchword of licensed nodes (required)
         :param str repository: ID of repository (or \"-home-\" for home repository) (required)
         :param str mediacenter: authorityName of the mediacenter that licenses nodes (required)
-        :param str searchword: searchword of licensed nodes (required)
         :param int max_items: maximum items per page
         :param int skip_count: skip a number of items
         :param list[str] sort_properties: sort properties
@@ -590,23 +591,24 @@ class MEDIACENTERV1Api(object):
         """
         kwargs['_return_http_data_only'] = True
         if kwargs.get('async_req'):
-            return self.get_mediacenter_licensed_nodes_with_http_info(repository, mediacenter, searchword, **kwargs)  # noqa: E501
+            return self.get_mediacenter_licensed_nodes_with_http_info(body, searchword, repository, mediacenter, **kwargs)  # noqa: E501
         else:
-            (data) = self.get_mediacenter_licensed_nodes_with_http_info(repository, mediacenter, searchword, **kwargs)  # noqa: E501
+            (data) = self.get_mediacenter_licensed_nodes_with_http_info(body, searchword, repository, mediacenter, **kwargs)  # noqa: E501
             return data
 
-    def get_mediacenter_licensed_nodes_with_http_info(self, repository, mediacenter, searchword, **kwargs):  # noqa: E501
+    def get_mediacenter_licensed_nodes_with_http_info(self, body, searchword, repository, mediacenter, **kwargs):  # noqa: E501
         """get nodes that are licensed by the given mediacenter  # noqa: E501
 
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
-        >>> thread = api.get_mediacenter_licensed_nodes_with_http_info(repository, mediacenter, searchword, async_req=True)
+        >>> thread = api.get_mediacenter_licensed_nodes_with_http_info(body, searchword, repository, mediacenter, async_req=True)
         >>> result = thread.get()
 
         :param async_req bool
+        :param SearchParameters body: search parameters (required)
+        :param str searchword: searchword of licensed nodes (required)
         :param str repository: ID of repository (or \"-home-\" for home repository) (required)
         :param str mediacenter: authorityName of the mediacenter that licenses nodes (required)
-        :param str searchword: searchword of licensed nodes (required)
         :param int max_items: maximum items per page
         :param int skip_count: skip a number of items
         :param list[str] sort_properties: sort properties
@@ -617,7 +619,7 @@ class MEDIACENTERV1Api(object):
                  returns the request thread.
         """
 
-        all_params = ['repository', 'mediacenter', 'searchword', 'max_items', 'skip_count', 'sort_properties', 'sort_ascending', 'property_filter']  # noqa: E501
+        all_params = ['body', 'searchword', 'repository', 'mediacenter', 'max_items', 'skip_count', 'sort_properties', 'sort_ascending', 'property_filter']  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -632,6 +634,14 @@ class MEDIACENTERV1Api(object):
                 )
             params[key] = val
         del params['kwargs']
+        # verify the required parameter 'body' is set
+        if ('body' not in params or
+                params['body'] is None):
+            raise ValueError("Missing the required parameter `body` when calling `get_mediacenter_licensed_nodes`")  # noqa: E501
+        # verify the required parameter 'searchword' is set
+        if ('searchword' not in params or
+                params['searchword'] is None):
+            raise ValueError("Missing the required parameter `searchword` when calling `get_mediacenter_licensed_nodes`")  # noqa: E501
         # verify the required parameter 'repository' is set
         if ('repository' not in params or
                 params['repository'] is None):
@@ -640,10 +650,6 @@ class MEDIACENTERV1Api(object):
         if ('mediacenter' not in params or
                 params['mediacenter'] is None):
             raise ValueError("Missing the required parameter `mediacenter` when calling `get_mediacenter_licensed_nodes`")  # noqa: E501
-        # verify the required parameter 'searchword' is set
-        if ('searchword' not in params or
-                params['searchword'] is None):
-            raise ValueError("Missing the required parameter `searchword` when calling `get_mediacenter_licensed_nodes`")  # noqa: E501
 
         collection_formats = {}
 
@@ -676,8 +682,14 @@ class MEDIACENTERV1Api(object):
         local_var_files = {}
 
         body_params = None
+        if 'body' in params:
+            body_params = params['body']
         # HTTP header `Accept`
         header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # HTTP header `Content-Type`
+        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
             ['*/*'])  # noqa: E501
 
         # Authentication setting

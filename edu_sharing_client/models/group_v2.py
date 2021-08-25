@@ -29,24 +29,56 @@ class GroupV2(object):
                             and the value is json key in definition.
     """
     swagger_types = {
+        'rendering': 'str',
         'id': 'str',
         'views': 'list[str]'
     }
 
     attribute_map = {
+        'rendering': 'rendering',
         'id': 'id',
         'views': 'views'
     }
 
-    def __init__(self, id=None, views=None):  # noqa: E501
+    def __init__(self, rendering=None, id=None, views=None):  # noqa: E501
         """GroupV2 - a model defined in Swagger"""  # noqa: E501
+        self._rendering = None
         self._id = None
         self._views = None
         self.discriminator = None
+        if rendering is not None:
+            self.rendering = rendering
         if id is not None:
             self.id = id
         if views is not None:
             self.views = views
+
+    @property
+    def rendering(self):
+        """Gets the rendering of this GroupV2.  # noqa: E501
+
+
+        :return: The rendering of this GroupV2.  # noqa: E501
+        :rtype: str
+        """
+        return self._rendering
+
+    @rendering.setter
+    def rendering(self, rendering):
+        """Sets the rendering of this GroupV2.
+
+
+        :param rendering: The rendering of this GroupV2.  # noqa: E501
+        :type: str
+        """
+        allowed_values = ["legacy", "angular"]  # noqa: E501
+        if rendering not in allowed_values:
+            raise ValueError(
+                "Invalid value for `rendering` ({0}), must be one of {1}"  # noqa: E501
+                .format(rendering, allowed_values)
+            )
+
+        self._rendering = rendering
 
     @property
     def id(self):

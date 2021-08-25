@@ -29,66 +29,92 @@ class Language(object):
                             and the value is json key in definition.
     """
     swagger_types = {
-        'language': 'str',
-        'string': 'list[KeyValuePair]'
+        '_global': 'dict(str, str)',
+        'current': 'dict(str, str)',
+        'current_language': 'str'
     }
 
     attribute_map = {
-        'language': 'language',
-        'string': 'string'
+        '_global': 'global',
+        'current': 'current',
+        'current_language': 'currentLanguage'
     }
 
-    def __init__(self, language=None, string=None):  # noqa: E501
+    def __init__(self, _global=None, current=None, current_language=None):  # noqa: E501
         """Language - a model defined in Swagger"""  # noqa: E501
-        self._language = None
-        self._string = None
+        self.__global = None
+        self._current = None
+        self._current_language = None
         self.discriminator = None
-        if language is not None:
-            self.language = language
-        if string is not None:
-            self.string = string
+        if _global is not None:
+            self._global = _global
+        if current is not None:
+            self.current = current
+        if current_language is not None:
+            self.current_language = current_language
 
     @property
-    def language(self):
-        """Gets the language of this Language.  # noqa: E501
+    def _global(self):
+        """Gets the _global of this Language.  # noqa: E501
 
 
-        :return: The language of this Language.  # noqa: E501
+        :return: The _global of this Language.  # noqa: E501
+        :rtype: dict(str, str)
+        """
+        return self.__global
+
+    @_global.setter
+    def _global(self, _global):
+        """Sets the _global of this Language.
+
+
+        :param _global: The _global of this Language.  # noqa: E501
+        :type: dict(str, str)
+        """
+
+        self.__global = _global
+
+    @property
+    def current(self):
+        """Gets the current of this Language.  # noqa: E501
+
+
+        :return: The current of this Language.  # noqa: E501
+        :rtype: dict(str, str)
+        """
+        return self._current
+
+    @current.setter
+    def current(self, current):
+        """Sets the current of this Language.
+
+
+        :param current: The current of this Language.  # noqa: E501
+        :type: dict(str, str)
+        """
+
+        self._current = current
+
+    @property
+    def current_language(self):
+        """Gets the current_language of this Language.  # noqa: E501
+
+
+        :return: The current_language of this Language.  # noqa: E501
         :rtype: str
         """
-        return self._language
+        return self._current_language
 
-    @language.setter
-    def language(self, language):
-        """Sets the language of this Language.
+    @current_language.setter
+    def current_language(self, current_language):
+        """Sets the current_language of this Language.
 
 
-        :param language: The language of this Language.  # noqa: E501
+        :param current_language: The current_language of this Language.  # noqa: E501
         :type: str
         """
 
-        self._language = language
-
-    @property
-    def string(self):
-        """Gets the string of this Language.  # noqa: E501
-
-
-        :return: The string of this Language.  # noqa: E501
-        :rtype: list[KeyValuePair]
-        """
-        return self._string
-
-    @string.setter
-    def string(self, string):
-        """Sets the string of this Language.
-
-
-        :param string: The string of this Language.  # noqa: E501
-        :type: list[KeyValuePair]
-        """
-
-        self._string = string
+        self._current_language = current_language
 
     def to_dict(self):
         """Returns the model properties as a dict"""

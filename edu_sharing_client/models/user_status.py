@@ -30,7 +30,7 @@ class UserStatus(object):
     """
     swagger_types = {
         'status': 'str',
-        '_date': 'datetime'
+        '_date': 'int'
     }
 
     attribute_map = {
@@ -81,7 +81,7 @@ class UserStatus(object):
 
 
         :return: The _date of this UserStatus.  # noqa: E501
-        :rtype: datetime
+        :rtype: int
         """
         return self.__date
 
@@ -91,7 +91,7 @@ class UserStatus(object):
 
 
         :param _date: The _date of this UserStatus.  # noqa: E501
-        :type: datetime
+        :type: int
         """
 
         self.__date = _date

@@ -34,7 +34,8 @@ class ViewV2(object):
         'icon': 'str',
         'html': 'str',
         'rel': 'str',
-        'hide_if_empty': 'bool'
+        'hide_if_empty': 'bool',
+        'is_extended': 'bool'
     }
 
     attribute_map = {
@@ -43,10 +44,11 @@ class ViewV2(object):
         'icon': 'icon',
         'html': 'html',
         'rel': 'rel',
-        'hide_if_empty': 'hideIfEmpty'
+        'hide_if_empty': 'hideIfEmpty',
+        'is_extended': 'isExtended'
     }
 
-    def __init__(self, id=None, caption=None, icon=None, html=None, rel=None, hide_if_empty=False):  # noqa: E501
+    def __init__(self, id=None, caption=None, icon=None, html=None, rel=None, hide_if_empty=False, is_extended=False):  # noqa: E501
         """ViewV2 - a model defined in Swagger"""  # noqa: E501
         self._id = None
         self._caption = None
@@ -54,6 +56,7 @@ class ViewV2(object):
         self._html = None
         self._rel = None
         self._hide_if_empty = None
+        self._is_extended = None
         self.discriminator = None
         if id is not None:
             self.id = id
@@ -67,6 +70,8 @@ class ViewV2(object):
             self.rel = rel
         if hide_if_empty is not None:
             self.hide_if_empty = hide_if_empty
+        if is_extended is not None:
+            self.is_extended = is_extended
 
     @property
     def id(self):
@@ -193,6 +198,27 @@ class ViewV2(object):
         """
 
         self._hide_if_empty = hide_if_empty
+
+    @property
+    def is_extended(self):
+        """Gets the is_extended of this ViewV2.  # noqa: E501
+
+
+        :return: The is_extended of this ViewV2.  # noqa: E501
+        :rtype: bool
+        """
+        return self._is_extended
+
+    @is_extended.setter
+    def is_extended(self, is_extended):
+        """Sets the is_extended of this ViewV2.
+
+
+        :param is_extended: The is_extended of this ViewV2.  # noqa: E501
+        :type: bool
+        """
+
+        self._is_extended = is_extended
 
     def to_dict(self):
         """Returns the model properties as a dict"""

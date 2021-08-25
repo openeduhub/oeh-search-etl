@@ -32,7 +32,8 @@ class Frontpage(object):
         'total_count': 'int',
         'display_count': 'int',
         'mode': 'str',
-        'timespan': 'str',
+        'timespan': 'int',
+        'timespan_all': 'bool',
         'queries': 'list[Query]',
         'collection': 'str'
     }
@@ -42,16 +43,18 @@ class Frontpage(object):
         'display_count': 'displayCount',
         'mode': 'mode',
         'timespan': 'timespan',
+        'timespan_all': 'timespanAll',
         'queries': 'queries',
         'collection': 'collection'
     }
 
-    def __init__(self, total_count=None, display_count=None, mode=None, timespan=None, queries=None, collection=None):  # noqa: E501
+    def __init__(self, total_count=None, display_count=None, mode=None, timespan=None, timespan_all=False, queries=None, collection=None):  # noqa: E501
         """Frontpage - a model defined in Swagger"""  # noqa: E501
         self._total_count = None
         self._display_count = None
         self._mode = None
         self._timespan = None
+        self._timespan_all = None
         self._queries = None
         self._collection = None
         self.discriminator = None
@@ -63,6 +66,8 @@ class Frontpage(object):
             self.mode = mode
         if timespan is not None:
             self.timespan = timespan
+        if timespan_all is not None:
+            self.timespan_all = timespan_all
         if queries is not None:
             self.queries = queries
         if collection is not None:
@@ -143,7 +148,7 @@ class Frontpage(object):
 
 
         :return: The timespan of this Frontpage.  # noqa: E501
-        :rtype: str
+        :rtype: int
         """
         return self._timespan
 
@@ -153,16 +158,31 @@ class Frontpage(object):
 
 
         :param timespan: The timespan of this Frontpage.  # noqa: E501
-        :type: str
+        :type: int
         """
-        allowed_values = ["days_30", "days_100", "all"]  # noqa: E501
-        if timespan not in allowed_values:
-            raise ValueError(
-                "Invalid value for `timespan` ({0}), must be one of {1}"  # noqa: E501
-                .format(timespan, allowed_values)
-            )
 
         self._timespan = timespan
+
+    @property
+    def timespan_all(self):
+        """Gets the timespan_all of this Frontpage.  # noqa: E501
+
+
+        :return: The timespan_all of this Frontpage.  # noqa: E501
+        :rtype: bool
+        """
+        return self._timespan_all
+
+    @timespan_all.setter
+    def timespan_all(self, timespan_all):
+        """Sets the timespan_all of this Frontpage.
+
+
+        :param timespan_all: The timespan_all of this Frontpage.  # noqa: E501
+        :type: bool
+        """
+
+        self._timespan_all = timespan_all
 
     @property
     def queries(self):

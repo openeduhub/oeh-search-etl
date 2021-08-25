@@ -108,6 +108,7 @@ ITEM_PIPELINES = {
     "converter.pipelines.NormLicensePipeline": 125,
     "converter.pipelines.ConvertTimePipeline": 200,
     "converter.pipelines.ProcessValuespacePipeline": 250,
+    "converter.pipelines.ProcessCollectionProposals": 270,
     "converter.pipelines.ProcessThumbnailPipeline": 300,
     (
         "converter.pipelines.DummyPipeline"

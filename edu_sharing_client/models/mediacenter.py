@@ -29,8 +29,12 @@ class Mediacenter(object):
                             and the value is json key in definition.
     """
     swagger_types = {
+        'properties': 'dict(str, list[str])',
+        'signup_method': 'str',
         'ref': 'NodeRef',
         'editable': 'bool',
+        'aspects': 'list[str]',
+        'organizations': 'list[Organization]',
         'authority_name': 'str',
         'authority_type': 'str',
         'group_name': 'str',
@@ -39,8 +43,12 @@ class Mediacenter(object):
     }
 
     attribute_map = {
+        'properties': 'properties',
+        'signup_method': 'signupMethod',
         'ref': 'ref',
         'editable': 'editable',
+        'aspects': 'aspects',
+        'organizations': 'organizations',
         'authority_name': 'authorityName',
         'authority_type': 'authorityType',
         'group_name': 'groupName',
@@ -48,20 +56,32 @@ class Mediacenter(object):
         'administration_access': 'administrationAccess'
     }
 
-    def __init__(self, ref=None, editable=False, authority_name=None, authority_type=None, group_name=None, profile=None, administration_access=False):  # noqa: E501
+    def __init__(self, properties=None, signup_method=None, ref=None, editable=False, aspects=None, organizations=None, authority_name=None, authority_type=None, group_name=None, profile=None, administration_access=False):  # noqa: E501
         """Mediacenter - a model defined in Swagger"""  # noqa: E501
+        self._properties = None
+        self._signup_method = None
         self._ref = None
         self._editable = None
+        self._aspects = None
+        self._organizations = None
         self._authority_name = None
         self._authority_type = None
         self._group_name = None
         self._profile = None
         self._administration_access = None
         self.discriminator = None
+        if properties is not None:
+            self.properties = properties
+        if signup_method is not None:
+            self.signup_method = signup_method
         if ref is not None:
             self.ref = ref
         if editable is not None:
             self.editable = editable
+        if aspects is not None:
+            self.aspects = aspects
+        if organizations is not None:
+            self.organizations = organizations
         self.authority_name = authority_name
         if authority_type is not None:
             self.authority_type = authority_type
@@ -71,6 +91,54 @@ class Mediacenter(object):
             self.profile = profile
         if administration_access is not None:
             self.administration_access = administration_access
+
+    @property
+    def properties(self):
+        """Gets the properties of this Mediacenter.  # noqa: E501
+
+
+        :return: The properties of this Mediacenter.  # noqa: E501
+        :rtype: dict(str, list[str])
+        """
+        return self._properties
+
+    @properties.setter
+    def properties(self, properties):
+        """Sets the properties of this Mediacenter.
+
+
+        :param properties: The properties of this Mediacenter.  # noqa: E501
+        :type: dict(str, list[str])
+        """
+
+        self._properties = properties
+
+    @property
+    def signup_method(self):
+        """Gets the signup_method of this Mediacenter.  # noqa: E501
+
+
+        :return: The signup_method of this Mediacenter.  # noqa: E501
+        :rtype: str
+        """
+        return self._signup_method
+
+    @signup_method.setter
+    def signup_method(self, signup_method):
+        """Sets the signup_method of this Mediacenter.
+
+
+        :param signup_method: The signup_method of this Mediacenter.  # noqa: E501
+        :type: str
+        """
+        allowed_values = ["simple", "password", "list"]  # noqa: E501
+        if signup_method not in allowed_values:
+            raise ValueError(
+                "Invalid value for `signup_method` ({0}), must be one of {1}"  # noqa: E501
+                .format(signup_method, allowed_values)
+            )
+
+        self._signup_method = signup_method
 
     @property
     def ref(self):
@@ -113,6 +181,48 @@ class Mediacenter(object):
         """
 
         self._editable = editable
+
+    @property
+    def aspects(self):
+        """Gets the aspects of this Mediacenter.  # noqa: E501
+
+
+        :return: The aspects of this Mediacenter.  # noqa: E501
+        :rtype: list[str]
+        """
+        return self._aspects
+
+    @aspects.setter
+    def aspects(self, aspects):
+        """Sets the aspects of this Mediacenter.
+
+
+        :param aspects: The aspects of this Mediacenter.  # noqa: E501
+        :type: list[str]
+        """
+
+        self._aspects = aspects
+
+    @property
+    def organizations(self):
+        """Gets the organizations of this Mediacenter.  # noqa: E501
+
+
+        :return: The organizations of this Mediacenter.  # noqa: E501
+        :rtype: list[Organization]
+        """
+        return self._organizations
+
+    @organizations.setter
+    def organizations(self, organizations):
+        """Sets the organizations of this Mediacenter.
+
+
+        :param organizations: The organizations of this Mediacenter.  # noqa: E501
+        :type: list[Organization]
+        """
+
+        self._organizations = organizations
 
     @property
     def authority_name(self):

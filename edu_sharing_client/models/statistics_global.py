@@ -31,7 +31,7 @@ class StatisticsGlobal(object):
     swagger_types = {
         'overall': 'StatisticsGroup',
         'groups': 'list[StatisticsKeyGroup]',
-        'user': 'User'
+        'user': 'StatisticsUser'
     }
 
     attribute_map = {
@@ -101,7 +101,7 @@ class StatisticsGlobal(object):
 
 
         :return: The user of this StatisticsGlobal.  # noqa: E501
-        :rtype: User
+        :rtype: StatisticsUser
         """
         return self._user
 
@@ -111,7 +111,7 @@ class StatisticsGlobal(object):
 
 
         :param user: The user of this StatisticsGlobal.  # noqa: E501
-        :type: User
+        :type: StatisticsUser
         """
 
         self._user = user

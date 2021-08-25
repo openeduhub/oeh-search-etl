@@ -32,6 +32,7 @@ class UserProfile(object):
         'primary_affiliation': 'str',
         'skills': 'list[str]',
         'types': 'list[str]',
+        'vcard': 'str',
         'first_name': 'str',
         'last_name': 'str',
         'email': 'str',
@@ -43,6 +44,7 @@ class UserProfile(object):
         'primary_affiliation': 'primaryAffiliation',
         'skills': 'skills',
         'types': 'types',
+        'vcard': 'vcard',
         'first_name': 'firstName',
         'last_name': 'lastName',
         'email': 'email',
@@ -50,11 +52,12 @@ class UserProfile(object):
         'about': 'about'
     }
 
-    def __init__(self, primary_affiliation=None, skills=None, types=None, first_name=None, last_name=None, email=None, avatar=None, about=None):  # noqa: E501
+    def __init__(self, primary_affiliation=None, skills=None, types=None, vcard=None, first_name=None, last_name=None, email=None, avatar=None, about=None):  # noqa: E501
         """UserProfile - a model defined in Swagger"""  # noqa: E501
         self._primary_affiliation = None
         self._skills = None
         self._types = None
+        self._vcard = None
         self._first_name = None
         self._last_name = None
         self._email = None
@@ -67,6 +70,8 @@ class UserProfile(object):
             self.skills = skills
         if types is not None:
             self.types = types
+        if vcard is not None:
+            self.vcard = vcard
         if first_name is not None:
             self.first_name = first_name
         if last_name is not None:
@@ -140,6 +145,27 @@ class UserProfile(object):
         """
 
         self._types = types
+
+    @property
+    def vcard(self):
+        """Gets the vcard of this UserProfile.  # noqa: E501
+
+
+        :return: The vcard of this UserProfile.  # noqa: E501
+        :rtype: str
+        """
+        return self._vcard
+
+    @vcard.setter
+    def vcard(self, vcard):
+        """Sets the vcard of this UserProfile.
+
+
+        :param vcard: The vcard of this UserProfile.  # noqa: E501
+        :type: str
+        """
+
+        self._vcard = vcard
 
     @property
     def first_name(self):

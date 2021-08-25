@@ -544,6 +544,125 @@ class SEARCHV1Api(object):
             _request_timeout=params.get('_request_timeout'),
             collection_formats=collection_formats)
 
+    def search_contributor(self, repository, search_word, contributor_kind, **kwargs):  # noqa: E501
+        """Search for contributors  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.search_contributor(repository, search_word, contributor_kind, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str search_word: search word (required)
+        :param str contributor_kind: contributor kind (required)
+        :param list[str] fields: define which authority fields should be searched: ['firstname', 'lastname', 'email', 'uuid', 'url']
+        :param list[str] contributor_properties: define which contributor props should be searched: ['ccm:lifecyclecontributer_author', 'ccm:lifecyclecontributer_publisher', ..., 'ccm:metadatacontributer_creator', 'ccm:metadatacontributer_validator']
+        :return: list[SearchVCard]
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.search_contributor_with_http_info(repository, search_word, contributor_kind, **kwargs)  # noqa: E501
+        else:
+            (data) = self.search_contributor_with_http_info(repository, search_word, contributor_kind, **kwargs)  # noqa: E501
+            return data
+
+    def search_contributor_with_http_info(self, repository, search_word, contributor_kind, **kwargs):  # noqa: E501
+        """Search for contributors  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.search_contributor_with_http_info(repository, search_word, contributor_kind, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str search_word: search word (required)
+        :param str contributor_kind: contributor kind (required)
+        :param list[str] fields: define which authority fields should be searched: ['firstname', 'lastname', 'email', 'uuid', 'url']
+        :param list[str] contributor_properties: define which contributor props should be searched: ['ccm:lifecyclecontributer_author', 'ccm:lifecyclecontributer_publisher', ..., 'ccm:metadatacontributer_creator', 'ccm:metadatacontributer_validator']
+        :return: list[SearchVCard]
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['repository', 'search_word', 'contributor_kind', 'fields', 'contributor_properties']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method search_contributor" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `search_contributor`")  # noqa: E501
+        # verify the required parameter 'search_word' is set
+        if ('search_word' not in params or
+                params['search_word'] is None):
+            raise ValueError("Missing the required parameter `search_word` when calling `search_contributor`")  # noqa: E501
+        # verify the required parameter 'contributor_kind' is set
+        if ('contributor_kind' not in params or
+                params['contributor_kind'] is None):
+            raise ValueError("Missing the required parameter `contributor_kind` when calling `search_contributor`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+
+        query_params = []
+        if 'search_word' in params:
+            query_params.append(('searchWord', params['search_word']))  # noqa: E501
+        if 'contributor_kind' in params:
+            query_params.append(('contributorKind', params['contributor_kind']))  # noqa: E501
+        if 'fields' in params:
+            query_params.append(('fields', params['fields']))  # noqa: E501
+            collection_formats['fields'] = 'multi'  # noqa: E501
+        if 'contributor_properties' in params:
+            query_params.append(('contributorProperties', params['contributor_properties']))  # noqa: E501
+            collection_formats['contributorProperties'] = 'multi'  # noqa: E501
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/search/v1/queriesV2/{repository}/contributor', 'GET',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type='list[SearchVCard]',  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
     def search_fingerprint(self, repository, nodeid, **kwargs):  # noqa: E501
         """Perform queries based on metadata sets.  # noqa: E501
 

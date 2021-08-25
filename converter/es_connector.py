@@ -13,6 +13,7 @@ from vobject.vcard import VCardBehavior
 
 from converter import env
 from converter.constants import Constants
+from edu_sharing_client import COLLECTIONV1Api
 from edu_sharing_client.api_client import ApiClient
 from edu_sharing_client.configuration import Configuration
 from edu_sharing_client.api.bulk_v1_api import BULKV1Api
@@ -98,6 +99,7 @@ class EduSharing:
     resetVersion: bool = False
     apiClient: ESApiClient
     bulkApi: BULKV1Api
+    collectionApi: COLLECTIONV1Api
     iamApi: IAMV1Api
     mediacenterApi: MEDIACENTERV1Api
     nodeApi: NODEV1Api
@@ -136,6 +138,15 @@ class EduSharing:
                 return None
             raise e
         return response["node"]
+    def collectionProposals(self, uuid, item):
+        if "collection" in item:
+            for collectionId in item["collection"]:
+                EduSharing.collectionApi.add_to_collection(
+                    repository = EduSharingConstants.HOME,
+                    collection = collectionId,
+                    node = uuid,
+                    as_proposal = True
+                )
 
     def setNodeText(self, uuid, item) -> bool:
         if "fulltext" in item:
@@ -492,6 +503,7 @@ class EduSharing:
         self.setNodePermissions(node["ref"]["id"], item)
         self.setNodePreview(node["ref"]["id"], item)
         self.setNodeText(node["ref"]["id"], item)
+        self.collectionProposals(node["ref"]["id"], item)
 
     def updateItem(self, spider, uuid, item):
         self.insertItem(spider, uuid, item)
@@ -537,6 +549,7 @@ class EduSharing:
                 EduSharing.iamApi = IAMV1Api(EduSharing.apiClient)
                 EduSharing.mediacenterApi = MEDIACENTERV1Api(EduSharing.apiClient)
                 EduSharing.nodeApi = NODEV1Api(EduSharing.apiClient)
+                EduSharing.collectionApi = COLLECTIONV1Api(EduSharing.apiClient)
                 EduSharing.groupCache = list(
                     map(
                         lambda x: x["authorityName"],

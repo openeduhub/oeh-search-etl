@@ -31,7 +31,8 @@ class WidgetV2(object):
     swagger_types = {
         'link': 'str',
         'subwidgets': 'list[Subwidget]',
-        'condition': 'Condition',
+        'condition': 'WidgetCondition',
+        'maxlength': 'int',
         'id': 'str',
         'caption': 'str',
         'bottom_caption': 'str',
@@ -47,17 +48,18 @@ class WidgetV2(object):
         'default_min': 'int',
         'default_max': 'int',
         'step': 'int',
+        'is_required': 'str',
         'allowempty': 'bool',
         'defaultvalue': 'str',
-        'is_extended': 'bool',
-        'is_required': 'bool',
-        'is_searchable': 'bool'
+        'is_searchable': 'bool',
+        'is_extended': 'bool'
     }
 
     attribute_map = {
         'link': 'link',
         'subwidgets': 'subwidgets',
         'condition': 'condition',
+        'maxlength': 'maxlength',
         'id': 'id',
         'caption': 'caption',
         'bottom_caption': 'bottomCaption',
@@ -73,18 +75,19 @@ class WidgetV2(object):
         'default_min': 'defaultMin',
         'default_max': 'defaultMax',
         'step': 'step',
+        'is_required': 'isRequired',
         'allowempty': 'allowempty',
         'defaultvalue': 'defaultvalue',
-        'is_extended': 'isExtended',
-        'is_required': 'isRequired',
-        'is_searchable': 'isSearchable'
+        'is_searchable': 'isSearchable',
+        'is_extended': 'isExtended'
     }
 
-    def __init__(self, link=None, subwidgets=None, condition=None, id=None, caption=None, bottom_caption=None, icon=None, type=None, template=None, has_values=False, values=None, placeholder=None, unit=None, min=None, max=None, default_min=None, default_max=None, step=None, allowempty=False, defaultvalue=None, is_extended=False, is_required=False, is_searchable=False):  # noqa: E501
+    def __init__(self, link=None, subwidgets=None, condition=None, maxlength=None, id=None, caption=None, bottom_caption=None, icon=None, type=None, template=None, has_values=False, values=None, placeholder=None, unit=None, min=None, max=None, default_min=None, default_max=None, step=None, is_required=None, allowempty=False, defaultvalue=None, is_searchable=False, is_extended=False):  # noqa: E501
         """WidgetV2 - a model defined in Swagger"""  # noqa: E501
         self._link = None
         self._subwidgets = None
         self._condition = None
+        self._maxlength = None
         self._id = None
         self._caption = None
         self._bottom_caption = None
@@ -100,11 +103,11 @@ class WidgetV2(object):
         self._default_min = None
         self._default_max = None
         self._step = None
+        self._is_required = None
         self._allowempty = None
         self._defaultvalue = None
-        self._is_extended = None
-        self._is_required = None
         self._is_searchable = None
+        self._is_extended = None
         self.discriminator = None
         if link is not None:
             self.link = link
@@ -112,6 +115,8 @@ class WidgetV2(object):
             self.subwidgets = subwidgets
         if condition is not None:
             self.condition = condition
+        if maxlength is not None:
+            self.maxlength = maxlength
         if id is not None:
             self.id = id
         if caption is not None:
@@ -142,16 +147,16 @@ class WidgetV2(object):
             self.default_max = default_max
         if step is not None:
             self.step = step
+        if is_required is not None:
+            self.is_required = is_required
         if allowempty is not None:
             self.allowempty = allowempty
         if defaultvalue is not None:
             self.defaultvalue = defaultvalue
-        if is_extended is not None:
-            self.is_extended = is_extended
-        if is_required is not None:
-            self.is_required = is_required
         if is_searchable is not None:
             self.is_searchable = is_searchable
+        if is_extended is not None:
+            self.is_extended = is_extended
 
     @property
     def link(self):
@@ -201,7 +206,7 @@ class WidgetV2(object):
 
 
         :return: The condition of this WidgetV2.  # noqa: E501
-        :rtype: Condition
+        :rtype: WidgetCondition
         """
         return self._condition
 
@@ -211,10 +216,31 @@ class WidgetV2(object):
 
 
         :param condition: The condition of this WidgetV2.  # noqa: E501
-        :type: Condition
+        :type: WidgetCondition
         """
 
         self._condition = condition
+
+    @property
+    def maxlength(self):
+        """Gets the maxlength of this WidgetV2.  # noqa: E501
+
+
+        :return: The maxlength of this WidgetV2.  # noqa: E501
+        :rtype: int
+        """
+        return self._maxlength
+
+    @maxlength.setter
+    def maxlength(self, maxlength):
+        """Sets the maxlength of this WidgetV2.
+
+
+        :param maxlength: The maxlength of this WidgetV2.  # noqa: E501
+        :type: int
+        """
+
+        self._maxlength = maxlength
 
     @property
     def id(self):
@@ -532,6 +558,33 @@ class WidgetV2(object):
         self._step = step
 
     @property
+    def is_required(self):
+        """Gets the is_required of this WidgetV2.  # noqa: E501
+
+
+        :return: The is_required of this WidgetV2.  # noqa: E501
+        :rtype: str
+        """
+        return self._is_required
+
+    @is_required.setter
+    def is_required(self, is_required):
+        """Sets the is_required of this WidgetV2.
+
+
+        :param is_required: The is_required of this WidgetV2.  # noqa: E501
+        :type: str
+        """
+        allowed_values = ["mandatory", "mandatoryForPublish", "recommended", "optional", "ignore"]  # noqa: E501
+        if is_required not in allowed_values:
+            raise ValueError(
+                "Invalid value for `is_required` ({0}), must be one of {1}"  # noqa: E501
+                .format(is_required, allowed_values)
+            )
+
+        self._is_required = is_required
+
+    @property
     def allowempty(self):
         """Gets the allowempty of this WidgetV2.  # noqa: E501
 
@@ -574,48 +627,6 @@ class WidgetV2(object):
         self._defaultvalue = defaultvalue
 
     @property
-    def is_extended(self):
-        """Gets the is_extended of this WidgetV2.  # noqa: E501
-
-
-        :return: The is_extended of this WidgetV2.  # noqa: E501
-        :rtype: bool
-        """
-        return self._is_extended
-
-    @is_extended.setter
-    def is_extended(self, is_extended):
-        """Sets the is_extended of this WidgetV2.
-
-
-        :param is_extended: The is_extended of this WidgetV2.  # noqa: E501
-        :type: bool
-        """
-
-        self._is_extended = is_extended
-
-    @property
-    def is_required(self):
-        """Gets the is_required of this WidgetV2.  # noqa: E501
-
-
-        :return: The is_required of this WidgetV2.  # noqa: E501
-        :rtype: bool
-        """
-        return self._is_required
-
-    @is_required.setter
-    def is_required(self, is_required):
-        """Sets the is_required of this WidgetV2.
-
-
-        :param is_required: The is_required of this WidgetV2.  # noqa: E501
-        :type: bool
-        """
-
-        self._is_required = is_required
-
-    @property
     def is_searchable(self):
         """Gets the is_searchable of this WidgetV2.  # noqa: E501
 
@@ -635,6 +646,27 @@ class WidgetV2(object):
         """
 
         self._is_searchable = is_searchable
+
+    @property
+    def is_extended(self):
+        """Gets the is_extended of this WidgetV2.  # noqa: E501
+
+
+        :return: The is_extended of this WidgetV2.  # noqa: E501
+        :rtype: bool
+        """
+        return self._is_extended
+
+    @is_extended.setter
+    def is_extended(self, is_extended):
+        """Sets the is_extended of this WidgetV2.
+
+
+        :param is_extended: The is_extended of this WidgetV2.  # noqa: E501
+        :type: bool
+        """
+
+        self._is_extended = is_extended
 
     def to_dict(self):
         """Returns the model properties as a dict"""

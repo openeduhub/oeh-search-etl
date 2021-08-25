@@ -121,6 +121,8 @@ class ResponseItem(Item):
     cookies = Field()
     har = Field()
 
+class RelatedItem(Item):
+    oehTopics = Field(output_processor=JoinMultivalues())
 
 class ValuespaceItem(Item):
     intendedEndUserRole = Field(output_processor=JoinMultivalues())
@@ -172,6 +174,7 @@ class BaseItem(Item):
     uuid = Field()
     "explicit uuid of the target element, please only set this if you actually know the uuid of the internal document"
     hash = Field()
+    # collection (id's) for which this element might be interesting
     collection = Field(output_processor=JoinMultivalues())
     "id of collections this entry should be placed into"
     type = Field()
@@ -184,6 +187,7 @@ class BaseItem(Item):
     lastModified = Field()
     lom = Field(serializer=LomBaseItem)
     valuespaces = Field(serializer=ValuespaceItem)
+    related = Field(serializer=RelatedItem)
     permissions = Field(serializer=PermissionItem)
     "permissions (access rights) for this entry"
     license = Field(serializer=LicenseItem)
@@ -205,6 +209,11 @@ class MutlilangItemLoader(ItemLoader):
 
 class ValuespaceItemLoader(ItemLoader):
     default_item_class = ValuespaceItem
+    default_output_processor = TakeFirst()
+
+
+class RelatedItemLoader(ItemLoader):
+    default_item_class = RelatedItem
     default_output_processor = TakeFirst()
 
 

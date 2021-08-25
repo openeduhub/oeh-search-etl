@@ -34,9 +34,11 @@ class MenuEntry(object):
         'name': 'str',
         'url': 'str',
         'is_disabled': 'bool',
-        'is_seperate': 'bool',
-        'is_seperate_bottom': 'bool',
+        'open_in_new': 'bool',
+        'is_separate': 'bool',
+        'is_separate_bottom': 'bool',
         'only_desktop': 'bool',
+        'only_web': 'bool',
         'path': 'str',
         'scope': 'str'
     }
@@ -47,23 +49,27 @@ class MenuEntry(object):
         'name': 'name',
         'url': 'url',
         'is_disabled': 'isDisabled',
-        'is_seperate': 'isSeperate',
-        'is_seperate_bottom': 'isSeperateBottom',
+        'open_in_new': 'openInNew',
+        'is_separate': 'isSeparate',
+        'is_separate_bottom': 'isSeparateBottom',
         'only_desktop': 'onlyDesktop',
+        'only_web': 'onlyWeb',
         'path': 'path',
         'scope': 'scope'
     }
 
-    def __init__(self, position=None, icon=None, name=None, url=None, is_disabled=False, is_seperate=False, is_seperate_bottom=False, only_desktop=False, path=None, scope=None):  # noqa: E501
+    def __init__(self, position=None, icon=None, name=None, url=None, is_disabled=False, open_in_new=False, is_separate=False, is_separate_bottom=False, only_desktop=False, only_web=False, path=None, scope=None):  # noqa: E501
         """MenuEntry - a model defined in Swagger"""  # noqa: E501
         self._position = None
         self._icon = None
         self._name = None
         self._url = None
         self._is_disabled = None
-        self._is_seperate = None
-        self._is_seperate_bottom = None
+        self._open_in_new = None
+        self._is_separate = None
+        self._is_separate_bottom = None
         self._only_desktop = None
+        self._only_web = None
         self._path = None
         self._scope = None
         self.discriminator = None
@@ -77,12 +83,16 @@ class MenuEntry(object):
             self.url = url
         if is_disabled is not None:
             self.is_disabled = is_disabled
-        if is_seperate is not None:
-            self.is_seperate = is_seperate
-        if is_seperate_bottom is not None:
-            self.is_seperate_bottom = is_seperate_bottom
+        if open_in_new is not None:
+            self.open_in_new = open_in_new
+        if is_separate is not None:
+            self.is_separate = is_separate
+        if is_separate_bottom is not None:
+            self.is_separate_bottom = is_separate_bottom
         if only_desktop is not None:
             self.only_desktop = only_desktop
+        if only_web is not None:
+            self.only_web = only_web
         if path is not None:
             self.path = path
         if scope is not None:
@@ -194,46 +204,67 @@ class MenuEntry(object):
         self._is_disabled = is_disabled
 
     @property
-    def is_seperate(self):
-        """Gets the is_seperate of this MenuEntry.  # noqa: E501
+    def open_in_new(self):
+        """Gets the open_in_new of this MenuEntry.  # noqa: E501
 
 
-        :return: The is_seperate of this MenuEntry.  # noqa: E501
+        :return: The open_in_new of this MenuEntry.  # noqa: E501
         :rtype: bool
         """
-        return self._is_seperate
+        return self._open_in_new
 
-    @is_seperate.setter
-    def is_seperate(self, is_seperate):
-        """Sets the is_seperate of this MenuEntry.
+    @open_in_new.setter
+    def open_in_new(self, open_in_new):
+        """Sets the open_in_new of this MenuEntry.
 
 
-        :param is_seperate: The is_seperate of this MenuEntry.  # noqa: E501
+        :param open_in_new: The open_in_new of this MenuEntry.  # noqa: E501
         :type: bool
         """
 
-        self._is_seperate = is_seperate
+        self._open_in_new = open_in_new
 
     @property
-    def is_seperate_bottom(self):
-        """Gets the is_seperate_bottom of this MenuEntry.  # noqa: E501
+    def is_separate(self):
+        """Gets the is_separate of this MenuEntry.  # noqa: E501
 
 
-        :return: The is_seperate_bottom of this MenuEntry.  # noqa: E501
+        :return: The is_separate of this MenuEntry.  # noqa: E501
         :rtype: bool
         """
-        return self._is_seperate_bottom
+        return self._is_separate
 
-    @is_seperate_bottom.setter
-    def is_seperate_bottom(self, is_seperate_bottom):
-        """Sets the is_seperate_bottom of this MenuEntry.
+    @is_separate.setter
+    def is_separate(self, is_separate):
+        """Sets the is_separate of this MenuEntry.
 
 
-        :param is_seperate_bottom: The is_seperate_bottom of this MenuEntry.  # noqa: E501
+        :param is_separate: The is_separate of this MenuEntry.  # noqa: E501
         :type: bool
         """
 
-        self._is_seperate_bottom = is_seperate_bottom
+        self._is_separate = is_separate
+
+    @property
+    def is_separate_bottom(self):
+        """Gets the is_separate_bottom of this MenuEntry.  # noqa: E501
+
+
+        :return: The is_separate_bottom of this MenuEntry.  # noqa: E501
+        :rtype: bool
+        """
+        return self._is_separate_bottom
+
+    @is_separate_bottom.setter
+    def is_separate_bottom(self, is_separate_bottom):
+        """Sets the is_separate_bottom of this MenuEntry.
+
+
+        :param is_separate_bottom: The is_separate_bottom of this MenuEntry.  # noqa: E501
+        :type: bool
+        """
+
+        self._is_separate_bottom = is_separate_bottom
 
     @property
     def only_desktop(self):
@@ -255,6 +286,27 @@ class MenuEntry(object):
         """
 
         self._only_desktop = only_desktop
+
+    @property
+    def only_web(self):
+        """Gets the only_web of this MenuEntry.  # noqa: E501
+
+
+        :return: The only_web of this MenuEntry.  # noqa: E501
+        :rtype: bool
+        """
+        return self._only_web
+
+    @only_web.setter
+    def only_web(self, only_web):
+        """Sets the only_web of this MenuEntry.
+
+
+        :param only_web: The only_web of this MenuEntry.  # noqa: E501
+        :type: bool
+        """
+
+        self._only_web = only_web
 
     @property
     def path(self):

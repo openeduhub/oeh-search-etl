@@ -722,6 +722,117 @@ class IAMV1Api(object):
             _request_timeout=params.get('_request_timeout'),
             collection_formats=collection_formats)
 
+    def confirm_signup(self, repository, group, user, **kwargs):  # noqa: E501
+        """put the pending user into the group  # noqa: E501
+
+        Requires admin rights or org administrator on this group  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.confirm_signup(repository, group, user, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str group: ID of group (required)
+        :param str user: ID of user (required)
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.confirm_signup_with_http_info(repository, group, user, **kwargs)  # noqa: E501
+        else:
+            (data) = self.confirm_signup_with_http_info(repository, group, user, **kwargs)  # noqa: E501
+            return data
+
+    def confirm_signup_with_http_info(self, repository, group, user, **kwargs):  # noqa: E501
+        """put the pending user into the group  # noqa: E501
+
+        Requires admin rights or org administrator on this group  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.confirm_signup_with_http_info(repository, group, user, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str group: ID of group (required)
+        :param str user: ID of user (required)
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['repository', 'group', 'user']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method confirm_signup" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `confirm_signup`")  # noqa: E501
+        # verify the required parameter 'group' is set
+        if ('group' not in params or
+                params['group'] is None):
+            raise ValueError("Missing the required parameter `group` when calling `confirm_signup`")  # noqa: E501
+        # verify the required parameter 'user' is set
+        if ('user' not in params or
+                params['user'] is None):
+            raise ValueError("Missing the required parameter `user` when calling `confirm_signup`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+        if 'group' in params:
+            path_params['group'] = params['group']  # noqa: E501
+        if 'user' in params:
+            path_params['user'] = params['user']  # noqa: E501
+
+        query_params = []
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/iam/v1/groups/{repository}/{group}/signup/list/{user}', 'PUT',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type=None,  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
     def create_group(self, body, repository, group, **kwargs):  # noqa: E501
         """Create a new group.  # noqa: E501
 
@@ -1160,6 +1271,113 @@ class IAMV1Api(object):
 
         return self.api_client.call_api(
             '/iam/v1/groups/{repository}/{group}/members/{member}', 'DELETE',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type=None,  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
+    def delete_user(self, repository, person, **kwargs):  # noqa: E501
+        """Delete the user.  # noqa: E501
+
+        Delete the user. (admin rights are required.)  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.delete_user(repository, person, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str person: username (required)
+        :param bool force: force the deletion (if false then only persons which are previously marked for deletion are getting deleted)
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.delete_user_with_http_info(repository, person, **kwargs)  # noqa: E501
+        else:
+            (data) = self.delete_user_with_http_info(repository, person, **kwargs)  # noqa: E501
+            return data
+
+    def delete_user_with_http_info(self, repository, person, **kwargs):  # noqa: E501
+        """Delete the user.  # noqa: E501
+
+        Delete the user. (admin rights are required.)  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.delete_user_with_http_info(repository, person, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str person: username (required)
+        :param bool force: force the deletion (if false then only persons which are previously marked for deletion are getting deleted)
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['repository', 'person', 'force']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method delete_user" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `delete_user`")  # noqa: E501
+        # verify the required parameter 'person' is set
+        if ('person' not in params or
+                params['person'] is None):
+            raise ValueError("Missing the required parameter `person` when calling `delete_user`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+        if 'person' in params:
+            path_params['person'] = params['person']  # noqa: E501
+
+        query_params = []
+        if 'force' in params:
+            query_params.append(('force', params['force']))  # noqa: E501
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/iam/v1/people/{repository}/{person}', 'DELETE',
             path_params,
             query_params,
             header_params,
@@ -1635,6 +1853,109 @@ class IAMV1Api(object):
             _request_timeout=params.get('_request_timeout'),
             collection_formats=collection_formats)
 
+    def get_profile_settings(self, repository, person, **kwargs):  # noqa: E501
+        """Get profileSettings configuration  # noqa: E501
+
+        Will fail for guest  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_profile_settings(repository, person, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str person: username (or \"-me-\" for current user) (required)
+        :return: ProfileSettings
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.get_profile_settings_with_http_info(repository, person, **kwargs)  # noqa: E501
+        else:
+            (data) = self.get_profile_settings_with_http_info(repository, person, **kwargs)  # noqa: E501
+            return data
+
+    def get_profile_settings_with_http_info(self, repository, person, **kwargs):  # noqa: E501
+        """Get profileSettings configuration  # noqa: E501
+
+        Will fail for guest  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_profile_settings_with_http_info(repository, person, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str person: username (or \"-me-\" for current user) (required)
+        :return: ProfileSettings
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['repository', 'person']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method get_profile_settings" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `get_profile_settings`")  # noqa: E501
+        # verify the required parameter 'person' is set
+        if ('person' not in params or
+                params['person'] is None):
+            raise ValueError("Missing the required parameter `person` when calling `get_profile_settings`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+        if 'person' in params:
+            path_params['person'] = params['person']  # noqa: E501
+
+        query_params = []
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/iam/v1/people/{repository}/{person}/profileSettings', 'GET',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type='ProfileSettings',  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
     def get_recently_invited(self, repository, **kwargs):  # noqa: E501
         """Get recently invited authorities.  # noqa: E501
 
@@ -2067,6 +2388,220 @@ class IAMV1Api(object):
             _request_timeout=params.get('_request_timeout'),
             collection_formats=collection_formats)
 
+    def get_user_stats(self, repository, person, **kwargs):  # noqa: E501
+        """Get the user stats.  # noqa: E501
+
+        Get the user stats (e.g. publicly created material count)  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_user_stats(repository, person, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str person: username (or \"-me-\" for current user) (required)
+        :return: UserStats
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.get_user_stats_with_http_info(repository, person, **kwargs)  # noqa: E501
+        else:
+            (data) = self.get_user_stats_with_http_info(repository, person, **kwargs)  # noqa: E501
+            return data
+
+    def get_user_stats_with_http_info(self, repository, person, **kwargs):  # noqa: E501
+        """Get the user stats.  # noqa: E501
+
+        Get the user stats (e.g. publicly created material count)  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.get_user_stats_with_http_info(repository, person, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str person: username (or \"-me-\" for current user) (required)
+        :return: UserStats
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['repository', 'person']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method get_user_stats" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `get_user_stats`")  # noqa: E501
+        # verify the required parameter 'person' is set
+        if ('person' not in params or
+                params['person'] is None):
+            raise ValueError("Missing the required parameter `person` when calling `get_user_stats`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+        if 'person' in params:
+            path_params['person'] = params['person']  # noqa: E501
+
+        query_params = []
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/iam/v1/people/{repository}/{person}/stats', 'GET',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type='UserStats',  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
+    def reject_signup(self, repository, group, user, **kwargs):  # noqa: E501
+        """reject the pending user  # noqa: E501
+
+        Requires admin rights or org administrator on this group  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.reject_signup(repository, group, user, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str group: ID of group (required)
+        :param str user: ID of user (required)
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.reject_signup_with_http_info(repository, group, user, **kwargs)  # noqa: E501
+        else:
+            (data) = self.reject_signup_with_http_info(repository, group, user, **kwargs)  # noqa: E501
+            return data
+
+    def reject_signup_with_http_info(self, repository, group, user, **kwargs):  # noqa: E501
+        """reject the pending user  # noqa: E501
+
+        Requires admin rights or org administrator on this group  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.reject_signup_with_http_info(repository, group, user, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str group: ID of group (required)
+        :param str user: ID of user (required)
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['repository', 'group', 'user']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method reject_signup" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `reject_signup`")  # noqa: E501
+        # verify the required parameter 'group' is set
+        if ('group' not in params or
+                params['group'] is None):
+            raise ValueError("Missing the required parameter `group` when calling `reject_signup`")  # noqa: E501
+        # verify the required parameter 'user' is set
+        if ('user' not in params or
+                params['user'] is None):
+            raise ValueError("Missing the required parameter `user` when calling `reject_signup`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+        if 'group' in params:
+            path_params['group'] = params['group']  # noqa: E501
+        if 'user' in params:
+            path_params['user'] = params['user']  # noqa: E501
+
+        query_params = []
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/iam/v1/groups/{repository}/{group}/signup/list/{user}', 'DELETE',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type=None,  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
     def remove_node_list(self, repository, person, list, node, **kwargs):  # noqa: E501
         """Deelete a node of a node list of a user  # noqa: E501
 
@@ -2303,6 +2838,7 @@ class IAMV1Api(object):
         :param str pattern: pattern (required)
         :param bool _global: global search context, defaults to true, otherwise just searches for users within the organizations
         :param str group_type: find a specific groupType (does nothing for persons)
+        :param str signup_method: find a specific signupMethod for groups (or asterisk for all including one) (does nothing for persons)
         :param int max_items: maximum items per page
         :param int skip_count: skip a number of items
         :return: AuthorityEntries
@@ -2330,6 +2866,7 @@ class IAMV1Api(object):
         :param str pattern: pattern (required)
         :param bool _global: global search context, defaults to true, otherwise just searches for users within the organizations
         :param str group_type: find a specific groupType (does nothing for persons)
+        :param str signup_method: find a specific signupMethod for groups (or asterisk for all including one) (does nothing for persons)
         :param int max_items: maximum items per page
         :param int skip_count: skip a number of items
         :return: AuthorityEntries
@@ -2337,7 +2874,7 @@ class IAMV1Api(object):
                  returns the request thread.
         """
 
-        all_params = ['repository', 'pattern', '_global', 'group_type', 'max_items', 'skip_count']  # noqa: E501
+        all_params = ['repository', 'pattern', '_global', 'group_type', 'signup_method', 'max_items', 'skip_count']  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -2374,6 +2911,8 @@ class IAMV1Api(object):
             query_params.append(('global', params['_global']))  # noqa: E501
         if 'group_type' in params:
             query_params.append(('groupType', params['group_type']))  # noqa: E501
+        if 'signup_method' in params:
+            query_params.append(('signupMethod', params['signup_method']))  # noqa: E501
         if 'max_items' in params:
             query_params.append(('maxItems', params['max_items']))  # noqa: E501
         if 'skip_count' in params:
@@ -2421,6 +2960,7 @@ class IAMV1Api(object):
         :param str repository: ID of repository (or \"-home-\" for home repository) (required)
         :param str pattern: pattern (required)
         :param str group_type: find a specific groupType
+        :param str signup_method: find a specific signupMethod for groups (or asterisk for all including one)
         :param bool _global: global search context, defaults to true, otherwise just searches for groups within the organizations
         :param int max_items: maximum items per page
         :param int skip_count: skip a number of items
@@ -2450,6 +2990,7 @@ class IAMV1Api(object):
         :param str repository: ID of repository (or \"-home-\" for home repository) (required)
         :param str pattern: pattern (required)
         :param str group_type: find a specific groupType
+        :param str signup_method: find a specific signupMethod for groups (or asterisk for all including one)
         :param bool _global: global search context, defaults to true, otherwise just searches for groups within the organizations
         :param int max_items: maximum items per page
         :param int skip_count: skip a number of items
@@ -2460,7 +3001,7 @@ class IAMV1Api(object):
                  returns the request thread.
         """
 
-        all_params = ['repository', 'pattern', 'group_type', '_global', 'max_items', 'skip_count', 'sort_properties', 'sort_ascending']  # noqa: E501
+        all_params = ['repository', 'pattern', 'group_type', 'signup_method', '_global', 'max_items', 'skip_count', 'sort_properties', 'sort_ascending']  # noqa: E501
         all_params.append('async_req')
         all_params.append('_return_http_data_only')
         all_params.append('_preload_content')
@@ -2495,6 +3036,8 @@ class IAMV1Api(object):
             query_params.append(('pattern', params['pattern']))  # noqa: E501
         if 'group_type' in params:
             query_params.append(('groupType', params['group_type']))  # noqa: E501
+        if 'signup_method' in params:
+            query_params.append(('signupMethod', params['signup_method']))  # noqa: E501
         if '_global' in params:
             query_params.append(('global', params['_global']))  # noqa: E501
         if 'max_items' in params:
@@ -2774,6 +3317,444 @@ class IAMV1Api(object):
             post_params=form_params,
             files=local_var_files,
             response_type=None,  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
+    def set_profile_settings(self, body, repository, person, **kwargs):  # noqa: E501
+        """Set profileSettings Configuration  # noqa: E501
+
+        Will fail for guest  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.set_profile_settings(body, repository, person, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param ProfileSettings body: ProfileSetting Object (required)
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str person: username (or \"-me-\" for current user) (required)
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.set_profile_settings_with_http_info(body, repository, person, **kwargs)  # noqa: E501
+        else:
+            (data) = self.set_profile_settings_with_http_info(body, repository, person, **kwargs)  # noqa: E501
+            return data
+
+    def set_profile_settings_with_http_info(self, body, repository, person, **kwargs):  # noqa: E501
+        """Set profileSettings Configuration  # noqa: E501
+
+        Will fail for guest  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.set_profile_settings_with_http_info(body, repository, person, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param ProfileSettings body: ProfileSetting Object (required)
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str person: username (or \"-me-\" for current user) (required)
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['body', 'repository', 'person']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method set_profile_settings" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'body' is set
+        if ('body' not in params or
+                params['body'] is None):
+            raise ValueError("Missing the required parameter `body` when calling `set_profile_settings`")  # noqa: E501
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `set_profile_settings`")  # noqa: E501
+        # verify the required parameter 'person' is set
+        if ('person' not in params or
+                params['person'] is None):
+            raise ValueError("Missing the required parameter `person` when calling `set_profile_settings`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+        if 'person' in params:
+            path_params['person'] = params['person']  # noqa: E501
+
+        query_params = []
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        if 'body' in params:
+            body_params = params['body']
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # HTTP header `Content-Type`
+        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/iam/v1/people/{repository}/{person}/profileSettings', 'PUT',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type=None,  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
+    def signup_group(self, repository, group, **kwargs):  # noqa: E501
+        """let the current user signup to the given group  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.signup_group(repository, group, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str group: ID of group (required)
+        :param str password: Password for signup (only required if signupMethod == password)
+        :return: str
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.signup_group_with_http_info(repository, group, **kwargs)  # noqa: E501
+        else:
+            (data) = self.signup_group_with_http_info(repository, group, **kwargs)  # noqa: E501
+            return data
+
+    def signup_group_with_http_info(self, repository, group, **kwargs):  # noqa: E501
+        """let the current user signup to the given group  # noqa: E501
+
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.signup_group_with_http_info(repository, group, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str group: ID of group (required)
+        :param str password: Password for signup (only required if signupMethod == password)
+        :return: str
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['repository', 'group', 'password']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method signup_group" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `signup_group`")  # noqa: E501
+        # verify the required parameter 'group' is set
+        if ('group' not in params or
+                params['group'] is None):
+            raise ValueError("Missing the required parameter `group` when calling `signup_group`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+        if 'group' in params:
+            path_params['group'] = params['group']  # noqa: E501
+
+        query_params = []
+        if 'password' in params:
+            query_params.append(('password', params['password']))  # noqa: E501
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/iam/v1/groups/{repository}/{group}/signup', 'POST',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type='str',  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
+    def signup_group_details(self, body, repository, group, **kwargs):  # noqa: E501
+        """set group signup options  # noqa: E501
+
+         requires admin rights  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.signup_group_details(body, repository, group, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param GroupSignupDetails body: Details to edit (required)
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str group: ID of group (required)
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.signup_group_details_with_http_info(body, repository, group, **kwargs)  # noqa: E501
+        else:
+            (data) = self.signup_group_details_with_http_info(body, repository, group, **kwargs)  # noqa: E501
+            return data
+
+    def signup_group_details_with_http_info(self, body, repository, group, **kwargs):  # noqa: E501
+        """set group signup options  # noqa: E501
+
+         requires admin rights  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.signup_group_details_with_http_info(body, repository, group, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param GroupSignupDetails body: Details to edit (required)
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str group: ID of group (required)
+        :return: None
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['body', 'repository', 'group']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method signup_group_details" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'body' is set
+        if ('body' not in params or
+                params['body'] is None):
+            raise ValueError("Missing the required parameter `body` when calling `signup_group_details`")  # noqa: E501
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `signup_group_details`")  # noqa: E501
+        # verify the required parameter 'group' is set
+        if ('group' not in params or
+                params['group'] is None):
+            raise ValueError("Missing the required parameter `group` when calling `signup_group_details`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+        if 'group' in params:
+            path_params['group'] = params['group']  # noqa: E501
+
+        query_params = []
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        if 'body' in params:
+            body_params = params['body']
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # HTTP header `Content-Type`
+        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/iam/v1/groups/{repository}/{group}/signup/config', 'POST',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type=None,  # noqa: E501
+            auth_settings=auth_settings,
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
+
+    def signup_group_list(self, repository, group, **kwargs):  # noqa: E501
+        """list pending users that want to join this group  # noqa: E501
+
+        Requires admin rights or org administrator on this group  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.signup_group_list(repository, group, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str group: ID of group (required)
+        :return: list[User]
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.signup_group_list_with_http_info(repository, group, **kwargs)  # noqa: E501
+        else:
+            (data) = self.signup_group_list_with_http_info(repository, group, **kwargs)  # noqa: E501
+            return data
+
+    def signup_group_list_with_http_info(self, repository, group, **kwargs):  # noqa: E501
+        """list pending users that want to join this group  # noqa: E501
+
+        Requires admin rights or org administrator on this group  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.signup_group_list_with_http_info(repository, group, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool
+        :param str repository: ID of repository (or \"-home-\" for home repository) (required)
+        :param str group: ID of group (required)
+        :return: list[User]
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        all_params = ['repository', 'group']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
+
+        params = locals()
+        for key, val in six.iteritems(params['kwargs']):
+            if key not in all_params:
+                raise TypeError(
+                    "Got an unexpected keyword argument '%s'"
+                    " to method signup_group_list" % key
+                )
+            params[key] = val
+        del params['kwargs']
+        # verify the required parameter 'repository' is set
+        if ('repository' not in params or
+                params['repository'] is None):
+            raise ValueError("Missing the required parameter `repository` when calling `signup_group_list`")  # noqa: E501
+        # verify the required parameter 'group' is set
+        if ('group' not in params or
+                params['group'] is None):
+            raise ValueError("Missing the required parameter `group` when calling `signup_group_list`")  # noqa: E501
+
+        collection_formats = {}
+
+        path_params = {}
+        if 'repository' in params:
+            path_params['repository'] = params['repository']  # noqa: E501
+        if 'group' in params:
+            path_params['group'] = params['group']  # noqa: E501
+
+        query_params = []
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['*/*'])  # noqa: E501
+
+        # Authentication setting
+        auth_settings = []  # noqa: E501
+
+        return self.api_client.call_api(
+            '/iam/v1/groups/{repository}/{group}/signup/list', 'GET',
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type='list[User]',  # noqa: E501
             auth_settings=auth_settings,
             async_req=params.get('async_req'),
             _return_http_data_only=params.get('_return_http_data_only'),

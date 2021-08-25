@@ -29,34 +29,41 @@ class UserSimple(object):
                             and the value is json key in definition.
     """
     swagger_types = {
+        'properties': 'dict(str, list[str])',
         'status': 'UserStatus',
+        'organizations': 'list[Organization]',
         'authority_name': 'str',
         'authority_type': 'str',
         'user_name': 'str',
-        'profile': 'UserProfile',
-        'stats': 'UserStats'
+        'profile': 'UserProfile'
     }
 
     attribute_map = {
+        'properties': 'properties',
         'status': 'status',
+        'organizations': 'organizations',
         'authority_name': 'authorityName',
         'authority_type': 'authorityType',
         'user_name': 'userName',
-        'profile': 'profile',
-        'stats': 'stats'
+        'profile': 'profile'
     }
 
-    def __init__(self, status=None, authority_name=None, authority_type=None, user_name=None, profile=None, stats=None):  # noqa: E501
+    def __init__(self, properties=None, status=None, organizations=None, authority_name=None, authority_type=None, user_name=None, profile=None):  # noqa: E501
         """UserSimple - a model defined in Swagger"""  # noqa: E501
+        self._properties = None
         self._status = None
+        self._organizations = None
         self._authority_name = None
         self._authority_type = None
         self._user_name = None
         self._profile = None
-        self._stats = None
         self.discriminator = None
+        if properties is not None:
+            self.properties = properties
         if status is not None:
             self.status = status
+        if organizations is not None:
+            self.organizations = organizations
         self.authority_name = authority_name
         if authority_type is not None:
             self.authority_type = authority_type
@@ -64,8 +71,27 @@ class UserSimple(object):
             self.user_name = user_name
         if profile is not None:
             self.profile = profile
-        if stats is not None:
-            self.stats = stats
+
+    @property
+    def properties(self):
+        """Gets the properties of this UserSimple.  # noqa: E501
+
+
+        :return: The properties of this UserSimple.  # noqa: E501
+        :rtype: dict(str, list[str])
+        """
+        return self._properties
+
+    @properties.setter
+    def properties(self, properties):
+        """Sets the properties of this UserSimple.
+
+
+        :param properties: The properties of this UserSimple.  # noqa: E501
+        :type: dict(str, list[str])
+        """
+
+        self._properties = properties
 
     @property
     def status(self):
@@ -87,6 +113,27 @@ class UserSimple(object):
         """
 
         self._status = status
+
+    @property
+    def organizations(self):
+        """Gets the organizations of this UserSimple.  # noqa: E501
+
+
+        :return: The organizations of this UserSimple.  # noqa: E501
+        :rtype: list[Organization]
+        """
+        return self._organizations
+
+    @organizations.setter
+    def organizations(self, organizations):
+        """Sets the organizations of this UserSimple.
+
+
+        :param organizations: The organizations of this UserSimple.  # noqa: E501
+        :type: list[Organization]
+        """
+
+        self._organizations = organizations
 
     @property
     def authority_name(self):
@@ -179,27 +226,6 @@ class UserSimple(object):
         """
 
         self._profile = profile
-
-    @property
-    def stats(self):
-        """Gets the stats of this UserSimple.  # noqa: E501
-
-
-        :return: The stats of this UserSimple.  # noqa: E501
-        :rtype: UserStats
-        """
-        return self._stats
-
-    @stats.setter
-    def stats(self, stats):
-        """Sets the stats of this UserSimple.
-
-
-        :param stats: The stats of this UserSimple.  # noqa: E501
-        :type: UserStats
-        """
-
-        self._stats = stats
 
     def to_dict(self):
         """Returns the model properties as a dict"""

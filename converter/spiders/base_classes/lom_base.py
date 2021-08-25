@@ -94,6 +94,7 @@ class LomBase:
         main = self.getBase(response)
         main.add_value("lom", self.getLOM(response).load_item())
         main.add_value("valuespaces", self.getValuespaces(response).load_item())
+        main.add_value("related", self.getRelated(response).load_item())
         main.add_value("license", self.getLicense(response).load_item())
         main.add_value("permissions", self.getPermissions(response).load_item())
         logging.debug(main.load_item())
@@ -151,6 +152,9 @@ class LomBase:
 
     def getValuespaces(self, response):
         return ValuespaceItemLoader(response=response)
+
+    def getRelated(self, response) -> RelatedItemLoader:
+        return RelatedItemLoader(response=response)
 
     def getLOM(self, response) -> LomBaseItemloader:
         lom = LomBaseItemloader(response=response)

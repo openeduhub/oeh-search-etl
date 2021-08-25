@@ -47,14 +47,10 @@ class Values(object):
         'hide_main_menu': 'list[str]',
         'logout': 'LogoutInfo',
         'menu_entries': 'list[MenuEntry]',
-        'node_options': 'list[ContextMenuEntry]',
-        'search_node_options': 'list[ContextMenuEntry]',
-        'render_node_options': 'list[ContextMenuEntry]',
-        'collection_node_options': 'list[ContextMenuEntry]',
-        'node_store_options': 'list[ContextMenuEntry]',
+        'custom_options': 'list[ContextMenuEntry]',
         'allowed_licenses': 'list[str]',
         'custom_licenses': 'list[License]',
-        'workflows': 'list[Workflow]',
+        'workflow': 'ConfigWorkflow',
         'license_dialog_on_upload': 'bool',
         'node_report': 'bool',
         'branding': 'bool',
@@ -69,6 +65,7 @@ class Values(object):
         'available_mds': 'list[AvailableMds]',
         'available_repositories': 'list[str]',
         'search_view_type': 'int',
+        'workspace_view_type': 'int',
         'items_per_request': 'int',
         'rendering': 'Rendering',
         'session_expired_dialog': 'SessionExpiredDialog',
@@ -82,9 +79,16 @@ class Values(object):
         'services': 'Services',
         'help_menu_options': 'list[HelpMenuOptions]',
         'images': 'list[Image]',
+        'icons': 'list[FontIcon]',
         'stream': 'Stream',
         'admin': 'Admin',
-        'simple_edit': 'SimpleEdit'
+        'simple_edit': 'SimpleEdit',
+        'frontpage': 'ConfigFrontpage',
+        'upload': 'ConfigUpload',
+        'publish': 'ConfigPublish',
+        'remote': 'ConfigRemote',
+        'custom_css': 'str',
+        'privacy': 'ConfigPrivacy'
     }
 
     attribute_map = {
@@ -106,14 +110,10 @@ class Values(object):
         'hide_main_menu': 'hideMainMenu',
         'logout': 'logout',
         'menu_entries': 'menuEntries',
-        'node_options': 'nodeOptions',
-        'search_node_options': 'searchNodeOptions',
-        'render_node_options': 'renderNodeOptions',
-        'collection_node_options': 'collectionNodeOptions',
-        'node_store_options': 'nodeStoreOptions',
+        'custom_options': 'customOptions',
         'allowed_licenses': 'allowedLicenses',
         'custom_licenses': 'customLicenses',
-        'workflows': 'workflows',
+        'workflow': 'workflow',
         'license_dialog_on_upload': 'licenseDialogOnUpload',
         'node_report': 'nodeReport',
         'branding': 'branding',
@@ -128,6 +128,7 @@ class Values(object):
         'available_mds': 'availableMds',
         'available_repositories': 'availableRepositories',
         'search_view_type': 'searchViewType',
+        'workspace_view_type': 'workspaceViewType',
         'items_per_request': 'itemsPerRequest',
         'rendering': 'rendering',
         'session_expired_dialog': 'sessionExpiredDialog',
@@ -141,12 +142,19 @@ class Values(object):
         'services': 'services',
         'help_menu_options': 'helpMenuOptions',
         'images': 'images',
+        'icons': 'icons',
         'stream': 'stream',
         'admin': 'admin',
-        'simple_edit': 'simpleEdit'
+        'simple_edit': 'simpleEdit',
+        'frontpage': 'frontpage',
+        'upload': 'upload',
+        'publish': 'publish',
+        'remote': 'remote',
+        'custom_css': 'customCSS',
+        'privacy': 'privacy'
     }
 
-    def __init__(self, supported_languages=None, extension=None, login_url=None, login_allow_local=False, login_providers_url=None, login_provider_target_url=None, register=None, recover_password_url=None, imprint_url=None, privacy_information_url=None, help_url=None, whats_new_url=None, edit_profile_url=None, edit_profile=False, workspace_columns=None, hide_main_menu=None, logout=None, menu_entries=None, node_options=None, search_node_options=None, render_node_options=None, collection_node_options=None, node_store_options=None, allowed_licenses=None, custom_licenses=None, workflows=None, license_dialog_on_upload=False, node_report=False, branding=False, publishing_notice=False, site_title=None, user_display_name=None, user_secondary_display_name=None, user_affiliation=False, default_username=None, default_password=None, banner=None, available_mds=None, available_repositories=None, search_view_type=None, items_per_request=None, rendering=None, session_expired_dialog=None, login_default_location=None, search_group_results=False, mainnav=None, search_sidenav_mode=None, guest=None, collections=None, license_agreement=None, services=None, help_menu_options=None, images=None, stream=None, admin=None, simple_edit=None):  # noqa: E501
+    def __init__(self, supported_languages=None, extension=None, login_url=None, login_allow_local=False, login_providers_url=None, login_provider_target_url=None, register=None, recover_password_url=None, imprint_url=None, privacy_information_url=None, help_url=None, whats_new_url=None, edit_profile_url=None, edit_profile=False, workspace_columns=None, hide_main_menu=None, logout=None, menu_entries=None, custom_options=None, allowed_licenses=None, custom_licenses=None, workflow=None, license_dialog_on_upload=False, node_report=False, branding=False, publishing_notice=False, site_title=None, user_display_name=None, user_secondary_display_name=None, user_affiliation=False, default_username=None, default_password=None, banner=None, available_mds=None, available_repositories=None, search_view_type=None, workspace_view_type=None, items_per_request=None, rendering=None, session_expired_dialog=None, login_default_location=None, search_group_results=False, mainnav=None, search_sidenav_mode=None, guest=None, collections=None, license_agreement=None, services=None, help_menu_options=None, images=None, icons=None, stream=None, admin=None, simple_edit=None, frontpage=None, upload=None, publish=None, remote=None, custom_css=None, privacy=None):  # noqa: E501
         """Values - a model defined in Swagger"""  # noqa: E501
         self._supported_languages = None
         self._extension = None
@@ -166,14 +174,10 @@ class Values(object):
         self._hide_main_menu = None
         self._logout = None
         self._menu_entries = None
-        self._node_options = None
-        self._search_node_options = None
-        self._render_node_options = None
-        self._collection_node_options = None
-        self._node_store_options = None
+        self._custom_options = None
         self._allowed_licenses = None
         self._custom_licenses = None
-        self._workflows = None
+        self._workflow = None
         self._license_dialog_on_upload = None
         self._node_report = None
         self._branding = None
@@ -188,6 +192,7 @@ class Values(object):
         self._available_mds = None
         self._available_repositories = None
         self._search_view_type = None
+        self._workspace_view_type = None
         self._items_per_request = None
         self._rendering = None
         self._session_expired_dialog = None
@@ -201,9 +206,16 @@ class Values(object):
         self._services = None
         self._help_menu_options = None
         self._images = None
+        self._icons = None
         self._stream = None
         self._admin = None
         self._simple_edit = None
+        self._frontpage = None
+        self._upload = None
+        self._publish = None
+        self._remote = None
+        self._custom_css = None
+        self._privacy = None
         self.discriminator = None
         if supported_languages is not None:
             self.supported_languages = supported_languages
@@ -241,22 +253,14 @@ class Values(object):
             self.logout = logout
         if menu_entries is not None:
             self.menu_entries = menu_entries
-        if node_options is not None:
-            self.node_options = node_options
-        if search_node_options is not None:
-            self.search_node_options = search_node_options
-        if render_node_options is not None:
-            self.render_node_options = render_node_options
-        if collection_node_options is not None:
-            self.collection_node_options = collection_node_options
-        if node_store_options is not None:
-            self.node_store_options = node_store_options
+        if custom_options is not None:
+            self.custom_options = custom_options
         if allowed_licenses is not None:
             self.allowed_licenses = allowed_licenses
         if custom_licenses is not None:
             self.custom_licenses = custom_licenses
-        if workflows is not None:
-            self.workflows = workflows
+        if workflow is not None:
+            self.workflow = workflow
         if license_dialog_on_upload is not None:
             self.license_dialog_on_upload = license_dialog_on_upload
         if node_report is not None:
@@ -285,6 +289,8 @@ class Values(object):
             self.available_repositories = available_repositories
         if search_view_type is not None:
             self.search_view_type = search_view_type
+        if workspace_view_type is not None:
+            self.workspace_view_type = workspace_view_type
         if items_per_request is not None:
             self.items_per_request = items_per_request
         if rendering is not None:
@@ -311,12 +317,26 @@ class Values(object):
             self.help_menu_options = help_menu_options
         if images is not None:
             self.images = images
+        if icons is not None:
+            self.icons = icons
         if stream is not None:
             self.stream = stream
         if admin is not None:
             self.admin = admin
         if simple_edit is not None:
             self.simple_edit = simple_edit
+        if frontpage is not None:
+            self.frontpage = frontpage
+        if upload is not None:
+            self.upload = upload
+        if publish is not None:
+            self.publish = publish
+        if remote is not None:
+            self.remote = remote
+        if custom_css is not None:
+            self.custom_css = custom_css
+        if privacy is not None:
+            self.privacy = privacy
 
     @property
     def supported_languages(self):
@@ -697,109 +717,25 @@ class Values(object):
         self._menu_entries = menu_entries
 
     @property
-    def node_options(self):
-        """Gets the node_options of this Values.  # noqa: E501
+    def custom_options(self):
+        """Gets the custom_options of this Values.  # noqa: E501
 
 
-        :return: The node_options of this Values.  # noqa: E501
+        :return: The custom_options of this Values.  # noqa: E501
         :rtype: list[ContextMenuEntry]
         """
-        return self._node_options
+        return self._custom_options
 
-    @node_options.setter
-    def node_options(self, node_options):
-        """Sets the node_options of this Values.
+    @custom_options.setter
+    def custom_options(self, custom_options):
+        """Sets the custom_options of this Values.
 
 
-        :param node_options: The node_options of this Values.  # noqa: E501
+        :param custom_options: The custom_options of this Values.  # noqa: E501
         :type: list[ContextMenuEntry]
         """
 
-        self._node_options = node_options
-
-    @property
-    def search_node_options(self):
-        """Gets the search_node_options of this Values.  # noqa: E501
-
-
-        :return: The search_node_options of this Values.  # noqa: E501
-        :rtype: list[ContextMenuEntry]
-        """
-        return self._search_node_options
-
-    @search_node_options.setter
-    def search_node_options(self, search_node_options):
-        """Sets the search_node_options of this Values.
-
-
-        :param search_node_options: The search_node_options of this Values.  # noqa: E501
-        :type: list[ContextMenuEntry]
-        """
-
-        self._search_node_options = search_node_options
-
-    @property
-    def render_node_options(self):
-        """Gets the render_node_options of this Values.  # noqa: E501
-
-
-        :return: The render_node_options of this Values.  # noqa: E501
-        :rtype: list[ContextMenuEntry]
-        """
-        return self._render_node_options
-
-    @render_node_options.setter
-    def render_node_options(self, render_node_options):
-        """Sets the render_node_options of this Values.
-
-
-        :param render_node_options: The render_node_options of this Values.  # noqa: E501
-        :type: list[ContextMenuEntry]
-        """
-
-        self._render_node_options = render_node_options
-
-    @property
-    def collection_node_options(self):
-        """Gets the collection_node_options of this Values.  # noqa: E501
-
-
-        :return: The collection_node_options of this Values.  # noqa: E501
-        :rtype: list[ContextMenuEntry]
-        """
-        return self._collection_node_options
-
-    @collection_node_options.setter
-    def collection_node_options(self, collection_node_options):
-        """Sets the collection_node_options of this Values.
-
-
-        :param collection_node_options: The collection_node_options of this Values.  # noqa: E501
-        :type: list[ContextMenuEntry]
-        """
-
-        self._collection_node_options = collection_node_options
-
-    @property
-    def node_store_options(self):
-        """Gets the node_store_options of this Values.  # noqa: E501
-
-
-        :return: The node_store_options of this Values.  # noqa: E501
-        :rtype: list[ContextMenuEntry]
-        """
-        return self._node_store_options
-
-    @node_store_options.setter
-    def node_store_options(self, node_store_options):
-        """Sets the node_store_options of this Values.
-
-
-        :param node_store_options: The node_store_options of this Values.  # noqa: E501
-        :type: list[ContextMenuEntry]
-        """
-
-        self._node_store_options = node_store_options
+        self._custom_options = custom_options
 
     @property
     def allowed_licenses(self):
@@ -844,25 +780,25 @@ class Values(object):
         self._custom_licenses = custom_licenses
 
     @property
-    def workflows(self):
-        """Gets the workflows of this Values.  # noqa: E501
+    def workflow(self):
+        """Gets the workflow of this Values.  # noqa: E501
 
 
-        :return: The workflows of this Values.  # noqa: E501
-        :rtype: list[Workflow]
+        :return: The workflow of this Values.  # noqa: E501
+        :rtype: ConfigWorkflow
         """
-        return self._workflows
+        return self._workflow
 
-    @workflows.setter
-    def workflows(self, workflows):
-        """Sets the workflows of this Values.
+    @workflow.setter
+    def workflow(self, workflow):
+        """Sets the workflow of this Values.
 
 
-        :param workflows: The workflows of this Values.  # noqa: E501
-        :type: list[Workflow]
+        :param workflow: The workflow of this Values.  # noqa: E501
+        :type: ConfigWorkflow
         """
 
-        self._workflows = workflows
+        self._workflow = workflow
 
     @property
     def license_dialog_on_upload(self):
@@ -1159,6 +1095,27 @@ class Values(object):
         self._search_view_type = search_view_type
 
     @property
+    def workspace_view_type(self):
+        """Gets the workspace_view_type of this Values.  # noqa: E501
+
+
+        :return: The workspace_view_type of this Values.  # noqa: E501
+        :rtype: int
+        """
+        return self._workspace_view_type
+
+    @workspace_view_type.setter
+    def workspace_view_type(self, workspace_view_type):
+        """Sets the workspace_view_type of this Values.
+
+
+        :param workspace_view_type: The workspace_view_type of this Values.  # noqa: E501
+        :type: int
+        """
+
+        self._workspace_view_type = workspace_view_type
+
+    @property
     def items_per_request(self):
         """Gets the items_per_request of this Values.  # noqa: E501
 
@@ -1432,6 +1389,27 @@ class Values(object):
         self._images = images
 
     @property
+    def icons(self):
+        """Gets the icons of this Values.  # noqa: E501
+
+
+        :return: The icons of this Values.  # noqa: E501
+        :rtype: list[FontIcon]
+        """
+        return self._icons
+
+    @icons.setter
+    def icons(self, icons):
+        """Sets the icons of this Values.
+
+
+        :param icons: The icons of this Values.  # noqa: E501
+        :type: list[FontIcon]
+        """
+
+        self._icons = icons
+
+    @property
     def stream(self):
         """Gets the stream of this Values.  # noqa: E501
 
@@ -1493,6 +1471,132 @@ class Values(object):
         """
 
         self._simple_edit = simple_edit
+
+    @property
+    def frontpage(self):
+        """Gets the frontpage of this Values.  # noqa: E501
+
+
+        :return: The frontpage of this Values.  # noqa: E501
+        :rtype: ConfigFrontpage
+        """
+        return self._frontpage
+
+    @frontpage.setter
+    def frontpage(self, frontpage):
+        """Sets the frontpage of this Values.
+
+
+        :param frontpage: The frontpage of this Values.  # noqa: E501
+        :type: ConfigFrontpage
+        """
+
+        self._frontpage = frontpage
+
+    @property
+    def upload(self):
+        """Gets the upload of this Values.  # noqa: E501
+
+
+        :return: The upload of this Values.  # noqa: E501
+        :rtype: ConfigUpload
+        """
+        return self._upload
+
+    @upload.setter
+    def upload(self, upload):
+        """Sets the upload of this Values.
+
+
+        :param upload: The upload of this Values.  # noqa: E501
+        :type: ConfigUpload
+        """
+
+        self._upload = upload
+
+    @property
+    def publish(self):
+        """Gets the publish of this Values.  # noqa: E501
+
+
+        :return: The publish of this Values.  # noqa: E501
+        :rtype: ConfigPublish
+        """
+        return self._publish
+
+    @publish.setter
+    def publish(self, publish):
+        """Sets the publish of this Values.
+
+
+        :param publish: The publish of this Values.  # noqa: E501
+        :type: ConfigPublish
+        """
+
+        self._publish = publish
+
+    @property
+    def remote(self):
+        """Gets the remote of this Values.  # noqa: E501
+
+
+        :return: The remote of this Values.  # noqa: E501
+        :rtype: ConfigRemote
+        """
+        return self._remote
+
+    @remote.setter
+    def remote(self, remote):
+        """Sets the remote of this Values.
+
+
+        :param remote: The remote of this Values.  # noqa: E501
+        :type: ConfigRemote
+        """
+
+        self._remote = remote
+
+    @property
+    def custom_css(self):
+        """Gets the custom_css of this Values.  # noqa: E501
+
+
+        :return: The custom_css of this Values.  # noqa: E501
+        :rtype: str
+        """
+        return self._custom_css
+
+    @custom_css.setter
+    def custom_css(self, custom_css):
+        """Sets the custom_css of this Values.
+
+
+        :param custom_css: The custom_css of this Values.  # noqa: E501
+        :type: str
+        """
+
+        self._custom_css = custom_css
+
+    @property
+    def privacy(self):
+        """Gets the privacy of this Values.  # noqa: E501
+
+
+        :return: The privacy of this Values.  # noqa: E501
+        :rtype: ConfigPrivacy
+        """
+        return self._privacy
+
+    @privacy.setter
+    def privacy(self, privacy):
+        """Sets the privacy of this Values.
+
+
+        :param privacy: The privacy of this Values.  # noqa: E501
+        :type: ConfigPrivacy
+        """
+
+        self._privacy = privacy
 
     def to_dict(self):
         """Returns the model properties as a dict"""

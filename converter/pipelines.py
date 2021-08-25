@@ -251,6 +251,32 @@ class ConvertTimePipeline(BasicPipeline):
         return raw_item
 
 
+class ProcessCollectionProposals(BasicPipeline):
+    """
+    check if there are relationships provided and map them to collection proposals
+    """
+    def __init__(self):
+        self.valuespaces = Valuespaces()
+
+    def process_item(self, raw_item, spider):
+        valuespace = self.valuespaces.data['oehTopics']
+        item = ItemAdapter(raw_item)
+        mapped = set()
+        if "related" in item and "oehTopics" in item["related"]:
+            for entry in item["related"]["oehTopics"]:
+                for v in valuespace:
+                    # v["relatedMatch"] = [{"id": "test"}]
+                    if "relatedMatch" in v:
+                        for key in v["relatedMatch"]:
+                            if entry.casefold() == key["id"].casefold():
+                                mapped.add(v["id"])
+                                break
+            print(mapped)
+            item["collection"] = list(map(lambda x: x.split('/')[-1], mapped))
+            print(item["collection"])
+        return raw_item
+
+
 class ProcessValuespacePipeline(BasicPipeline):
     """
     generate de_DE / i18n strings for valuespace fields
@@ -280,6 +306,7 @@ class ProcessValuespacePipeline(BasicPipeline):
                         _id = v["id"]
                         found = True
                         break
+                # found and not already in the mapped list
                 if found and len(list(filter(lambda x: x == _id, mapped))) == 0:
                     mapped.append(_id)
             if len(mapped):

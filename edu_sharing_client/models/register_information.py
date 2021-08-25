@@ -34,7 +34,8 @@ class RegisterInformation(object):
         'email': 'str',
         'password': 'str',
         'organization': 'str',
-        'allow_notifications': 'bool'
+        'allow_notifications': 'bool',
+        'authority_name': 'str'
     }
 
     attribute_map = {
@@ -43,10 +44,11 @@ class RegisterInformation(object):
         'email': 'email',
         'password': 'password',
         'organization': 'organization',
-        'allow_notifications': 'allowNotifications'
+        'allow_notifications': 'allowNotifications',
+        'authority_name': 'authorityName'
     }
 
-    def __init__(self, first_name=None, last_name=None, email=None, password=None, organization=None, allow_notifications=False):  # noqa: E501
+    def __init__(self, first_name=None, last_name=None, email=None, password=None, organization=None, allow_notifications=False, authority_name=None):  # noqa: E501
         """RegisterInformation - a model defined in Swagger"""  # noqa: E501
         self._first_name = None
         self._last_name = None
@@ -54,6 +56,7 @@ class RegisterInformation(object):
         self._password = None
         self._organization = None
         self._allow_notifications = None
+        self._authority_name = None
         self.discriminator = None
         if first_name is not None:
             self.first_name = first_name
@@ -67,6 +70,8 @@ class RegisterInformation(object):
             self.organization = organization
         if allow_notifications is not None:
             self.allow_notifications = allow_notifications
+        if authority_name is not None:
+            self.authority_name = authority_name
 
     @property
     def first_name(self):
@@ -193,6 +198,27 @@ class RegisterInformation(object):
         """
 
         self._allow_notifications = allow_notifications
+
+    @property
+    def authority_name(self):
+        """Gets the authority_name of this RegisterInformation.  # noqa: E501
+
+
+        :return: The authority_name of this RegisterInformation.  # noqa: E501
+        :rtype: str
+        """
+        return self._authority_name
+
+    @authority_name.setter
+    def authority_name(self, authority_name):
+        """Sets the authority_name of this RegisterInformation.
+
+
+        :param authority_name: The authority_name of this RegisterInformation.  # noqa: E501
+        :type: str
+        """
+
+        self._authority_name = authority_name
 
     def to_dict(self):
         """Returns the model properties as a dict"""

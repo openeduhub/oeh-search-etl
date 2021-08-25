@@ -31,42 +31,42 @@ class TrackingNode(object):
     swagger_types = {
         'counts': 'dict(str, int)',
         '_date': 'str',
-        'authority': 'Authority',
         'fields': 'dict(str, Serializable)',
         'groups': 'dict(str, dict(str, dict(str, int)))',
-        'node': 'Node'
+        'node': 'Node',
+        'authority': 'TrackingAuthority'
     }
 
     attribute_map = {
         'counts': 'counts',
         '_date': 'date',
-        'authority': 'authority',
         'fields': 'fields',
         'groups': 'groups',
-        'node': 'node'
+        'node': 'node',
+        'authority': 'authority'
     }
 
-    def __init__(self, counts=None, _date=None, authority=None, fields=None, groups=None, node=None):  # noqa: E501
+    def __init__(self, counts=None, _date=None, fields=None, groups=None, node=None, authority=None):  # noqa: E501
         """TrackingNode - a model defined in Swagger"""  # noqa: E501
         self._counts = None
         self.__date = None
-        self._authority = None
         self._fields = None
         self._groups = None
         self._node = None
+        self._authority = None
         self.discriminator = None
         if counts is not None:
             self.counts = counts
         if _date is not None:
             self._date = _date
-        if authority is not None:
-            self.authority = authority
         if fields is not None:
             self.fields = fields
         if groups is not None:
             self.groups = groups
         if node is not None:
             self.node = node
+        if authority is not None:
+            self.authority = authority
 
     @property
     def counts(self):
@@ -109,27 +109,6 @@ class TrackingNode(object):
         """
 
         self.__date = _date
-
-    @property
-    def authority(self):
-        """Gets the authority of this TrackingNode.  # noqa: E501
-
-
-        :return: The authority of this TrackingNode.  # noqa: E501
-        :rtype: Authority
-        """
-        return self._authority
-
-    @authority.setter
-    def authority(self, authority):
-        """Sets the authority of this TrackingNode.
-
-
-        :param authority: The authority of this TrackingNode.  # noqa: E501
-        :type: Authority
-        """
-
-        self._authority = authority
 
     @property
     def fields(self):
@@ -193,6 +172,27 @@ class TrackingNode(object):
         """
 
         self._node = node
+
+    @property
+    def authority(self):
+        """Gets the authority of this TrackingNode.  # noqa: E501
+
+
+        :return: The authority of this TrackingNode.  # noqa: E501
+        :rtype: TrackingAuthority
+        """
+        return self._authority
+
+    @authority.setter
+    def authority(self, authority):
+        """Sets the authority of this TrackingNode.
+
+
+        :param authority: The authority of this TrackingNode.  # noqa: E501
+        :type: TrackingAuthority
+        """
+
+        self._authority = authority
 
     def to_dict(self):
         """Returns the model properties as a dict"""

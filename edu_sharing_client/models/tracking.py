@@ -31,37 +31,37 @@ class Tracking(object):
     swagger_types = {
         'counts': 'dict(str, int)',
         '_date': 'str',
-        'authority': 'Authority',
         'fields': 'dict(str, Serializable)',
-        'groups': 'dict(str, dict(str, dict(str, int)))'
+        'groups': 'dict(str, dict(str, dict(str, int)))',
+        'authority': 'TrackingAuthority'
     }
 
     attribute_map = {
         'counts': 'counts',
         '_date': 'date',
-        'authority': 'authority',
         'fields': 'fields',
-        'groups': 'groups'
+        'groups': 'groups',
+        'authority': 'authority'
     }
 
-    def __init__(self, counts=None, _date=None, authority=None, fields=None, groups=None):  # noqa: E501
+    def __init__(self, counts=None, _date=None, fields=None, groups=None, authority=None):  # noqa: E501
         """Tracking - a model defined in Swagger"""  # noqa: E501
         self._counts = None
         self.__date = None
-        self._authority = None
         self._fields = None
         self._groups = None
+        self._authority = None
         self.discriminator = None
         if counts is not None:
             self.counts = counts
         if _date is not None:
             self._date = _date
-        if authority is not None:
-            self.authority = authority
         if fields is not None:
             self.fields = fields
         if groups is not None:
             self.groups = groups
+        if authority is not None:
+            self.authority = authority
 
     @property
     def counts(self):
@@ -106,27 +106,6 @@ class Tracking(object):
         self.__date = _date
 
     @property
-    def authority(self):
-        """Gets the authority of this Tracking.  # noqa: E501
-
-
-        :return: The authority of this Tracking.  # noqa: E501
-        :rtype: Authority
-        """
-        return self._authority
-
-    @authority.setter
-    def authority(self, authority):
-        """Sets the authority of this Tracking.
-
-
-        :param authority: The authority of this Tracking.  # noqa: E501
-        :type: Authority
-        """
-
-        self._authority = authority
-
-    @property
     def fields(self):
         """Gets the fields of this Tracking.  # noqa: E501
 
@@ -167,6 +146,27 @@ class Tracking(object):
         """
 
         self._groups = groups
+
+    @property
+    def authority(self):
+        """Gets the authority of this Tracking.  # noqa: E501
+
+
+        :return: The authority of this Tracking.  # noqa: E501
+        :rtype: TrackingAuthority
+        """
+        return self._authority
+
+    @authority.setter
+    def authority(self, authority):
+        """Sets the authority of this Tracking.
+
+
+        :param authority: The authority of this Tracking.  # noqa: E501
+        :type: TrackingAuthority
+        """
+
+        self._authority = authority
 
     def to_dict(self):
         """Returns the model properties as a dict"""

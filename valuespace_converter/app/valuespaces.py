@@ -7,14 +7,16 @@ class Valuespaces:
     idsVocabs = ['intendedEndUserRole', 'discipline', 'educationalContext', 'learningResourceType',
                  'sourceContentType', 'toolCategory', 'conditionsOfAccess', 'oer']
     idsW3ID = ['containsAdvertisement', 'price', 'accessibilitySummary', 'dataProtectionConformity', 'fskRating']
+    urls = [
+        {'key': 'oehTopics', 'url': 'https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/oehTopics/5e40e372-735c-4b17-bbf7-e827a5702b57.json'}
+    ]
     data = {}
     def __init__(self):
-        urls = []
         for v in self.idsVocabs:
-            urls.append({'key': v, 'url': 'https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/' + v + '/index.json'})
+            self.urls.append({'key': v, 'url': 'https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/' + v + '/index.json'})
         for v in self.idsW3ID:
-            urls.append({'key': v, 'url': 'http://w3id.org/openeduhub/vocabs/' + v + '/index.json'})
-        for url in urls:
+            self.urls.append({'key': v, 'url': 'http://w3id.org/openeduhub/vocabs/' + v + '/index.json'})
+        for url in self.urls:
             #try:
             r = requests.get(url['url'])
             self.data[url['key']] = r.json()['hasTopConcept']

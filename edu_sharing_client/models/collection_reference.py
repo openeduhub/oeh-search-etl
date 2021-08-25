@@ -34,8 +34,10 @@ class CollectionReference(object):
         'license': 'License',
         'is_directory': 'bool',
         'comment_count': 'int',
-        'rating': 'AccumulatedRatings',
+        'rating': 'RatingDetails',
+        'used_in_collections': 'list[Node]',
         'access_original': 'list[str]',
+        'original_restricted_access': 'bool',
         'ref': 'NodeRef',
         'parent': 'NodeRef',
         'type': 'str',
@@ -68,7 +70,9 @@ class CollectionReference(object):
         'is_directory': 'isDirectory',
         'comment_count': 'commentCount',
         'rating': 'rating',
+        'used_in_collections': 'usedInCollections',
         'access_original': 'accessOriginal',
+        'original_restricted_access': 'originalRestrictedAccess',
         'ref': 'ref',
         'parent': 'parent',
         'type': 'type',
@@ -94,7 +98,7 @@ class CollectionReference(object):
         'original_id': 'originalId'
     }
 
-    def __init__(self, remote=None, content=None, license=None, is_directory=False, comment_count=None, rating=None, access_original=None, ref=None, parent=None, type=None, aspects=None, name=None, title=None, metadataset=None, repository_type=None, created_at=None, created_by=None, modified_at=None, modified_by=None, access=None, download_url=None, properties=None, mimetype=None, mediatype=None, size=None, preview=None, icon_url=None, collection=None, owner=None, original_id=None):  # noqa: E501
+    def __init__(self, remote=None, content=None, license=None, is_directory=False, comment_count=None, rating=None, used_in_collections=None, access_original=None, original_restricted_access=False, ref=None, parent=None, type=None, aspects=None, name=None, title=None, metadataset=None, repository_type=None, created_at=None, created_by=None, modified_at=None, modified_by=None, access=None, download_url=None, properties=None, mimetype=None, mediatype=None, size=None, preview=None, icon_url=None, collection=None, owner=None, original_id=None):  # noqa: E501
         """CollectionReference - a model defined in Swagger"""  # noqa: E501
         self._remote = None
         self._content = None
@@ -102,7 +106,9 @@ class CollectionReference(object):
         self._is_directory = None
         self._comment_count = None
         self._rating = None
+        self._used_in_collections = None
         self._access_original = None
+        self._original_restricted_access = None
         self._ref = None
         self._parent = None
         self._type = None
@@ -139,8 +145,12 @@ class CollectionReference(object):
             self.comment_count = comment_count
         if rating is not None:
             self.rating = rating
+        if used_in_collections is not None:
+            self.used_in_collections = used_in_collections
         if access_original is not None:
             self.access_original = access_original
+        if original_restricted_access is not None:
+            self.original_restricted_access = original_restricted_access
         self.ref = ref
         if parent is not None:
             self.parent = parent
@@ -291,7 +301,7 @@ class CollectionReference(object):
 
 
         :return: The rating of this CollectionReference.  # noqa: E501
-        :rtype: AccumulatedRatings
+        :rtype: RatingDetails
         """
         return self._rating
 
@@ -301,10 +311,31 @@ class CollectionReference(object):
 
 
         :param rating: The rating of this CollectionReference.  # noqa: E501
-        :type: AccumulatedRatings
+        :type: RatingDetails
         """
 
         self._rating = rating
+
+    @property
+    def used_in_collections(self):
+        """Gets the used_in_collections of this CollectionReference.  # noqa: E501
+
+
+        :return: The used_in_collections of this CollectionReference.  # noqa: E501
+        :rtype: list[Node]
+        """
+        return self._used_in_collections
+
+    @used_in_collections.setter
+    def used_in_collections(self, used_in_collections):
+        """Sets the used_in_collections of this CollectionReference.
+
+
+        :param used_in_collections: The used_in_collections of this CollectionReference.  # noqa: E501
+        :type: list[Node]
+        """
+
+        self._used_in_collections = used_in_collections
 
     @property
     def access_original(self):
@@ -326,6 +357,27 @@ class CollectionReference(object):
         """
 
         self._access_original = access_original
+
+    @property
+    def original_restricted_access(self):
+        """Gets the original_restricted_access of this CollectionReference.  # noqa: E501
+
+
+        :return: The original_restricted_access of this CollectionReference.  # noqa: E501
+        :rtype: bool
+        """
+        return self._original_restricted_access
+
+    @original_restricted_access.setter
+    def original_restricted_access(self, original_restricted_access):
+        """Sets the original_restricted_access of this CollectionReference.
+
+
+        :param original_restricted_access: The original_restricted_access of this CollectionReference.  # noqa: E501
+        :type: bool
+        """
+
+        self._original_restricted_access = original_restricted_access
 
     @property
     def ref(self):

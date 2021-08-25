@@ -34,16 +34,21 @@ class ContextMenuEntry(object):
         'name': 'str',
         'url': 'str',
         'is_disabled': 'bool',
-        'is_seperate': 'bool',
-        'is_seperate_bottom': 'bool',
+        'open_in_new': 'bool',
+        'is_separate': 'bool',
+        'is_separate_bottom': 'bool',
         'only_desktop': 'bool',
+        'only_web': 'bool',
         'mode': 'str',
+        'scopes': 'list[str]',
         'ajax': 'bool',
+        'group': 'str',
         'permission': 'str',
         'toolpermission': 'str',
         'is_directory': 'bool',
+        'show_as_action': 'bool',
         'multiple': 'bool',
-        'remove': 'bool'
+        'change_strategy': 'str'
     }
 
     attribute_map = {
@@ -52,35 +57,45 @@ class ContextMenuEntry(object):
         'name': 'name',
         'url': 'url',
         'is_disabled': 'isDisabled',
-        'is_seperate': 'isSeperate',
-        'is_seperate_bottom': 'isSeperateBottom',
+        'open_in_new': 'openInNew',
+        'is_separate': 'isSeparate',
+        'is_separate_bottom': 'isSeparateBottom',
         'only_desktop': 'onlyDesktop',
+        'only_web': 'onlyWeb',
         'mode': 'mode',
+        'scopes': 'scopes',
         'ajax': 'ajax',
+        'group': 'group',
         'permission': 'permission',
         'toolpermission': 'toolpermission',
         'is_directory': 'isDirectory',
+        'show_as_action': 'showAsAction',
         'multiple': 'multiple',
-        'remove': 'remove'
+        'change_strategy': 'changeStrategy'
     }
 
-    def __init__(self, position=None, icon=None, name=None, url=None, is_disabled=False, is_seperate=False, is_seperate_bottom=False, only_desktop=False, mode=None, ajax=False, permission=None, toolpermission=None, is_directory=False, multiple=False, remove=False):  # noqa: E501
+    def __init__(self, position=None, icon=None, name=None, url=None, is_disabled=False, open_in_new=False, is_separate=False, is_separate_bottom=False, only_desktop=False, only_web=False, mode=None, scopes=None, ajax=False, group=None, permission=None, toolpermission=None, is_directory=False, show_as_action=False, multiple=False, change_strategy=None):  # noqa: E501
         """ContextMenuEntry - a model defined in Swagger"""  # noqa: E501
         self._position = None
         self._icon = None
         self._name = None
         self._url = None
         self._is_disabled = None
-        self._is_seperate = None
-        self._is_seperate_bottom = None
+        self._open_in_new = None
+        self._is_separate = None
+        self._is_separate_bottom = None
         self._only_desktop = None
+        self._only_web = None
         self._mode = None
+        self._scopes = None
         self._ajax = None
+        self._group = None
         self._permission = None
         self._toolpermission = None
         self._is_directory = None
+        self._show_as_action = None
         self._multiple = None
-        self._remove = None
+        self._change_strategy = None
         self.discriminator = None
         if position is not None:
             self.position = position
@@ -92,26 +107,36 @@ class ContextMenuEntry(object):
             self.url = url
         if is_disabled is not None:
             self.is_disabled = is_disabled
-        if is_seperate is not None:
-            self.is_seperate = is_seperate
-        if is_seperate_bottom is not None:
-            self.is_seperate_bottom = is_seperate_bottom
+        if open_in_new is not None:
+            self.open_in_new = open_in_new
+        if is_separate is not None:
+            self.is_separate = is_separate
+        if is_separate_bottom is not None:
+            self.is_separate_bottom = is_separate_bottom
         if only_desktop is not None:
             self.only_desktop = only_desktop
+        if only_web is not None:
+            self.only_web = only_web
         if mode is not None:
             self.mode = mode
+        if scopes is not None:
+            self.scopes = scopes
         if ajax is not None:
             self.ajax = ajax
+        if group is not None:
+            self.group = group
         if permission is not None:
             self.permission = permission
         if toolpermission is not None:
             self.toolpermission = toolpermission
         if is_directory is not None:
             self.is_directory = is_directory
+        if show_as_action is not None:
+            self.show_as_action = show_as_action
         if multiple is not None:
             self.multiple = multiple
-        if remove is not None:
-            self.remove = remove
+        if change_strategy is not None:
+            self.change_strategy = change_strategy
 
     @property
     def position(self):
@@ -219,46 +244,67 @@ class ContextMenuEntry(object):
         self._is_disabled = is_disabled
 
     @property
-    def is_seperate(self):
-        """Gets the is_seperate of this ContextMenuEntry.  # noqa: E501
+    def open_in_new(self):
+        """Gets the open_in_new of this ContextMenuEntry.  # noqa: E501
 
 
-        :return: The is_seperate of this ContextMenuEntry.  # noqa: E501
+        :return: The open_in_new of this ContextMenuEntry.  # noqa: E501
         :rtype: bool
         """
-        return self._is_seperate
+        return self._open_in_new
 
-    @is_seperate.setter
-    def is_seperate(self, is_seperate):
-        """Sets the is_seperate of this ContextMenuEntry.
+    @open_in_new.setter
+    def open_in_new(self, open_in_new):
+        """Sets the open_in_new of this ContextMenuEntry.
 
 
-        :param is_seperate: The is_seperate of this ContextMenuEntry.  # noqa: E501
+        :param open_in_new: The open_in_new of this ContextMenuEntry.  # noqa: E501
         :type: bool
         """
 
-        self._is_seperate = is_seperate
+        self._open_in_new = open_in_new
 
     @property
-    def is_seperate_bottom(self):
-        """Gets the is_seperate_bottom of this ContextMenuEntry.  # noqa: E501
+    def is_separate(self):
+        """Gets the is_separate of this ContextMenuEntry.  # noqa: E501
 
 
-        :return: The is_seperate_bottom of this ContextMenuEntry.  # noqa: E501
+        :return: The is_separate of this ContextMenuEntry.  # noqa: E501
         :rtype: bool
         """
-        return self._is_seperate_bottom
+        return self._is_separate
 
-    @is_seperate_bottom.setter
-    def is_seperate_bottom(self, is_seperate_bottom):
-        """Sets the is_seperate_bottom of this ContextMenuEntry.
+    @is_separate.setter
+    def is_separate(self, is_separate):
+        """Sets the is_separate of this ContextMenuEntry.
 
 
-        :param is_seperate_bottom: The is_seperate_bottom of this ContextMenuEntry.  # noqa: E501
+        :param is_separate: The is_separate of this ContextMenuEntry.  # noqa: E501
         :type: bool
         """
 
-        self._is_seperate_bottom = is_seperate_bottom
+        self._is_separate = is_separate
+
+    @property
+    def is_separate_bottom(self):
+        """Gets the is_separate_bottom of this ContextMenuEntry.  # noqa: E501
+
+
+        :return: The is_separate_bottom of this ContextMenuEntry.  # noqa: E501
+        :rtype: bool
+        """
+        return self._is_separate_bottom
+
+    @is_separate_bottom.setter
+    def is_separate_bottom(self, is_separate_bottom):
+        """Sets the is_separate_bottom of this ContextMenuEntry.
+
+
+        :param is_separate_bottom: The is_separate_bottom of this ContextMenuEntry.  # noqa: E501
+        :type: bool
+        """
+
+        self._is_separate_bottom = is_separate_bottom
 
     @property
     def only_desktop(self):
@@ -282,6 +328,27 @@ class ContextMenuEntry(object):
         self._only_desktop = only_desktop
 
     @property
+    def only_web(self):
+        """Gets the only_web of this ContextMenuEntry.  # noqa: E501
+
+
+        :return: The only_web of this ContextMenuEntry.  # noqa: E501
+        :rtype: bool
+        """
+        return self._only_web
+
+    @only_web.setter
+    def only_web(self, only_web):
+        """Sets the only_web of this ContextMenuEntry.
+
+
+        :param only_web: The only_web of this ContextMenuEntry.  # noqa: E501
+        :type: bool
+        """
+
+        self._only_web = only_web
+
+    @property
     def mode(self):
         """Gets the mode of this ContextMenuEntry.  # noqa: E501
 
@@ -303,6 +370,34 @@ class ContextMenuEntry(object):
         self._mode = mode
 
     @property
+    def scopes(self):
+        """Gets the scopes of this ContextMenuEntry.  # noqa: E501
+
+
+        :return: The scopes of this ContextMenuEntry.  # noqa: E501
+        :rtype: list[str]
+        """
+        return self._scopes
+
+    @scopes.setter
+    def scopes(self, scopes):
+        """Sets the scopes of this ContextMenuEntry.
+
+
+        :param scopes: The scopes of this ContextMenuEntry.  # noqa: E501
+        :type: list[str]
+        """
+        allowed_values = ["Render", "Search", "CollectionsReferences", "CollectionsCollection", "WorkspaceList", "WorkspaceTree", "Oer", "CreateMenu"]  # noqa: E501
+        if not set(scopes).issubset(set(allowed_values)):
+            raise ValueError(
+                "Invalid values for `scopes` [{0}], must be a subset of [{1}]"  # noqa: E501
+                .format(", ".join(map(str, set(scopes) - set(allowed_values))),  # noqa: E501
+                        ", ".join(map(str, allowed_values)))
+            )
+
+        self._scopes = scopes
+
+    @property
     def ajax(self):
         """Gets the ajax of this ContextMenuEntry.  # noqa: E501
 
@@ -322,6 +417,27 @@ class ContextMenuEntry(object):
         """
 
         self._ajax = ajax
+
+    @property
+    def group(self):
+        """Gets the group of this ContextMenuEntry.  # noqa: E501
+
+
+        :return: The group of this ContextMenuEntry.  # noqa: E501
+        :rtype: str
+        """
+        return self._group
+
+    @group.setter
+    def group(self, group):
+        """Sets the group of this ContextMenuEntry.
+
+
+        :param group: The group of this ContextMenuEntry.  # noqa: E501
+        :type: str
+        """
+
+        self._group = group
 
     @property
     def permission(self):
@@ -387,6 +503,27 @@ class ContextMenuEntry(object):
         self._is_directory = is_directory
 
     @property
+    def show_as_action(self):
+        """Gets the show_as_action of this ContextMenuEntry.  # noqa: E501
+
+
+        :return: The show_as_action of this ContextMenuEntry.  # noqa: E501
+        :rtype: bool
+        """
+        return self._show_as_action
+
+    @show_as_action.setter
+    def show_as_action(self, show_as_action):
+        """Sets the show_as_action of this ContextMenuEntry.
+
+
+        :param show_as_action: The show_as_action of this ContextMenuEntry.  # noqa: E501
+        :type: bool
+        """
+
+        self._show_as_action = show_as_action
+
+    @property
     def multiple(self):
         """Gets the multiple of this ContextMenuEntry.  # noqa: E501
 
@@ -408,25 +545,31 @@ class ContextMenuEntry(object):
         self._multiple = multiple
 
     @property
-    def remove(self):
-        """Gets the remove of this ContextMenuEntry.  # noqa: E501
+    def change_strategy(self):
+        """Gets the change_strategy of this ContextMenuEntry.  # noqa: E501
 
 
-        :return: The remove of this ContextMenuEntry.  # noqa: E501
-        :rtype: bool
+        :return: The change_strategy of this ContextMenuEntry.  # noqa: E501
+        :rtype: str
         """
-        return self._remove
+        return self._change_strategy
 
-    @remove.setter
-    def remove(self, remove):
-        """Sets the remove of this ContextMenuEntry.
+    @change_strategy.setter
+    def change_strategy(self, change_strategy):
+        """Sets the change_strategy of this ContextMenuEntry.
 
 
-        :param remove: The remove of this ContextMenuEntry.  # noqa: E501
-        :type: bool
+        :param change_strategy: The change_strategy of this ContextMenuEntry.  # noqa: E501
+        :type: str
         """
+        allowed_values = ["update", "remove"]  # noqa: E501
+        if change_strategy not in allowed_values:
+            raise ValueError(
+                "Invalid value for `change_strategy` ({0}), must be one of {1}"  # noqa: E501
+                .format(change_strategy, allowed_values)
+            )
 
-        self._remove = remove
+        self._change_strategy = change_strategy
 
     def to_dict(self):
         """Returns the model properties as a dict"""

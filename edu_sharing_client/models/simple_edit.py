@@ -29,24 +29,29 @@ class SimpleEdit(object):
                             and the value is json key in definition.
     """
     swagger_types = {
-        'global_groups': 'list[str]',
-        'organization': 'Organization'
+        'global_groups': 'list[SimpleEditGlobalGroups]',
+        'organization': 'SimpleEditOrganization',
+        'organization_filter': 'str'
     }
 
     attribute_map = {
         'global_groups': 'globalGroups',
-        'organization': 'organization'
+        'organization': 'organization',
+        'organization_filter': 'organizationFilter'
     }
 
-    def __init__(self, global_groups=None, organization=None):  # noqa: E501
+    def __init__(self, global_groups=None, organization=None, organization_filter=None):  # noqa: E501
         """SimpleEdit - a model defined in Swagger"""  # noqa: E501
         self._global_groups = None
         self._organization = None
+        self._organization_filter = None
         self.discriminator = None
         if global_groups is not None:
             self.global_groups = global_groups
         if organization is not None:
             self.organization = organization
+        if organization_filter is not None:
+            self.organization_filter = organization_filter
 
     @property
     def global_groups(self):
@@ -54,7 +59,7 @@ class SimpleEdit(object):
 
 
         :return: The global_groups of this SimpleEdit.  # noqa: E501
-        :rtype: list[str]
+        :rtype: list[SimpleEditGlobalGroups]
         """
         return self._global_groups
 
@@ -64,7 +69,7 @@ class SimpleEdit(object):
 
 
         :param global_groups: The global_groups of this SimpleEdit.  # noqa: E501
-        :type: list[str]
+        :type: list[SimpleEditGlobalGroups]
         """
 
         self._global_groups = global_groups
@@ -75,7 +80,7 @@ class SimpleEdit(object):
 
 
         :return: The organization of this SimpleEdit.  # noqa: E501
-        :rtype: Organization
+        :rtype: SimpleEditOrganization
         """
         return self._organization
 
@@ -85,10 +90,31 @@ class SimpleEdit(object):
 
 
         :param organization: The organization of this SimpleEdit.  # noqa: E501
-        :type: Organization
+        :type: SimpleEditOrganization
         """
 
         self._organization = organization
+
+    @property
+    def organization_filter(self):
+        """Gets the organization_filter of this SimpleEdit.  # noqa: E501
+
+
+        :return: The organization_filter of this SimpleEdit.  # noqa: E501
+        :rtype: str
+        """
+        return self._organization_filter
+
+    @organization_filter.setter
+    def organization_filter(self, organization_filter):
+        """Sets the organization_filter of this SimpleEdit.
+
+
+        :param organization_filter: The organization_filter of this SimpleEdit.  # noqa: E501
+        :type: str
+        """
+
+        self._organization_filter = organization_filter
 
     def to_dict(self):
         """Returns the model properties as a dict"""

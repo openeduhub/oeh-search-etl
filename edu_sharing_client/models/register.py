@@ -30,6 +30,7 @@ class Register(object):
     """
     swagger_types = {
         'local': 'bool',
+        'recover_password': 'bool',
         'login_url': 'str',
         'recover_url': 'str',
         'required_fields': 'list[str]'
@@ -37,20 +38,24 @@ class Register(object):
 
     attribute_map = {
         'local': 'local',
+        'recover_password': 'recoverPassword',
         'login_url': 'loginUrl',
         'recover_url': 'recoverUrl',
         'required_fields': 'requiredFields'
     }
 
-    def __init__(self, local=False, login_url=None, recover_url=None, required_fields=None):  # noqa: E501
+    def __init__(self, local=False, recover_password=False, login_url=None, recover_url=None, required_fields=None):  # noqa: E501
         """Register - a model defined in Swagger"""  # noqa: E501
         self._local = None
+        self._recover_password = None
         self._login_url = None
         self._recover_url = None
         self._required_fields = None
         self.discriminator = None
         if local is not None:
             self.local = local
+        if recover_password is not None:
+            self.recover_password = recover_password
         if login_url is not None:
             self.login_url = login_url
         if recover_url is not None:
@@ -78,6 +83,27 @@ class Register(object):
         """
 
         self._local = local
+
+    @property
+    def recover_password(self):
+        """Gets the recover_password of this Register.  # noqa: E501
+
+
+        :return: The recover_password of this Register.  # noqa: E501
+        :rtype: bool
+        """
+        return self._recover_password
+
+    @recover_password.setter
+    def recover_password(self, recover_password):
+        """Sets the recover_password of this Register.
+
+
+        :param recover_password: The recover_password of this Register.  # noqa: E501
+        :type: bool
+        """
+
+        self._recover_password = recover_password
 
     @property
     def login_url(self):

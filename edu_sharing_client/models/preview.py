@@ -31,6 +31,9 @@ class Preview(object):
     swagger_types = {
         'is_icon': 'bool',
         'is_generated': 'bool',
+        'type': 'str',
+        'mimetype': 'str',
+        'data': 'list[str]',
         'url': 'str',
         'width': 'int',
         'height': 'int'
@@ -39,15 +42,21 @@ class Preview(object):
     attribute_map = {
         'is_icon': 'isIcon',
         'is_generated': 'isGenerated',
+        'type': 'type',
+        'mimetype': 'mimetype',
+        'data': 'data',
         'url': 'url',
         'width': 'width',
         'height': 'height'
     }
 
-    def __init__(self, is_icon=False, is_generated=False, url=None, width=None, height=None):  # noqa: E501
+    def __init__(self, is_icon=False, is_generated=False, type=None, mimetype=None, data=None, url=None, width=None, height=None):  # noqa: E501
         """Preview - a model defined in Swagger"""  # noqa: E501
         self._is_icon = None
         self._is_generated = None
+        self._type = None
+        self._mimetype = None
+        self._data = None
         self._url = None
         self._width = None
         self._height = None
@@ -55,6 +64,12 @@ class Preview(object):
         self.is_icon = is_icon
         if is_generated is not None:
             self.is_generated = is_generated
+        if type is not None:
+            self.type = type
+        if mimetype is not None:
+            self.mimetype = mimetype
+        if data is not None:
+            self.data = data
         self.url = url
         self.width = width
         self.height = height
@@ -102,6 +117,69 @@ class Preview(object):
         """
 
         self._is_generated = is_generated
+
+    @property
+    def type(self):
+        """Gets the type of this Preview.  # noqa: E501
+
+
+        :return: The type of this Preview.  # noqa: E501
+        :rtype: str
+        """
+        return self._type
+
+    @type.setter
+    def type(self, type):
+        """Sets the type of this Preview.
+
+
+        :param type: The type of this Preview.  # noqa: E501
+        :type: str
+        """
+
+        self._type = type
+
+    @property
+    def mimetype(self):
+        """Gets the mimetype of this Preview.  # noqa: E501
+
+
+        :return: The mimetype of this Preview.  # noqa: E501
+        :rtype: str
+        """
+        return self._mimetype
+
+    @mimetype.setter
+    def mimetype(self, mimetype):
+        """Sets the mimetype of this Preview.
+
+
+        :param mimetype: The mimetype of this Preview.  # noqa: E501
+        :type: str
+        """
+
+        self._mimetype = mimetype
+
+    @property
+    def data(self):
+        """Gets the data of this Preview.  # noqa: E501
+
+
+        :return: The data of this Preview.  # noqa: E501
+        :rtype: list[str]
+        """
+        return self._data
+
+    @data.setter
+    def data(self, data):
+        """Sets the data of this Preview.
+
+
+        :param data: The data of this Preview.  # noqa: E501
+        :type: list[str]
+        """
+
+        self._data = data
 
     @property
     def url(self):

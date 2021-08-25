@@ -29,50 +29,52 @@ class User(object):
                             and the value is json key in definition.
     """
     swagger_types = {
-        'status': 'UserStatus',
-        'quota': 'UserQuota',
         'properties': 'dict(str, list[str])',
+        'status': 'UserStatus',
+        'organizations': 'list[Organization]',
+        'quota': 'UserQuota',
         'authority_name': 'str',
         'authority_type': 'str',
         'user_name': 'str',
         'profile': 'UserProfile',
-        'stats': 'UserStats',
         'home_folder': 'NodeRef',
         'shared_folders': 'list[NodeRef]'
     }
 
     attribute_map = {
-        'status': 'status',
-        'quota': 'quota',
         'properties': 'properties',
+        'status': 'status',
+        'organizations': 'organizations',
+        'quota': 'quota',
         'authority_name': 'authorityName',
         'authority_type': 'authorityType',
         'user_name': 'userName',
         'profile': 'profile',
-        'stats': 'stats',
         'home_folder': 'homeFolder',
         'shared_folders': 'sharedFolders'
     }
 
-    def __init__(self, status=None, quota=None, properties=None, authority_name=None, authority_type=None, user_name=None, profile=None, stats=None, home_folder=None, shared_folders=None):  # noqa: E501
+    def __init__(self, properties=None, status=None, organizations=None, quota=None, authority_name=None, authority_type=None, user_name=None, profile=None, home_folder=None, shared_folders=None):  # noqa: E501
         """User - a model defined in Swagger"""  # noqa: E501
-        self._status = None
-        self._quota = None
         self._properties = None
+        self._status = None
+        self._organizations = None
+        self._quota = None
         self._authority_name = None
         self._authority_type = None
         self._user_name = None
         self._profile = None
-        self._stats = None
         self._home_folder = None
         self._shared_folders = None
         self.discriminator = None
-        if status is not None:
-            self.status = status
-        if quota is not None:
-            self.quota = quota
         if properties is not None:
             self.properties = properties
+        if status is not None:
+            self.status = status
+        if organizations is not None:
+            self.organizations = organizations
+        if quota is not None:
+            self.quota = quota
         self.authority_name = authority_name
         if authority_type is not None:
             self.authority_type = authority_type
@@ -80,11 +82,30 @@ class User(object):
             self.user_name = user_name
         if profile is not None:
             self.profile = profile
-        if stats is not None:
-            self.stats = stats
         self.home_folder = home_folder
         if shared_folders is not None:
             self.shared_folders = shared_folders
+
+    @property
+    def properties(self):
+        """Gets the properties of this User.  # noqa: E501
+
+
+        :return: The properties of this User.  # noqa: E501
+        :rtype: dict(str, list[str])
+        """
+        return self._properties
+
+    @properties.setter
+    def properties(self, properties):
+        """Sets the properties of this User.
+
+
+        :param properties: The properties of this User.  # noqa: E501
+        :type: dict(str, list[str])
+        """
+
+        self._properties = properties
 
     @property
     def status(self):
@@ -108,6 +129,27 @@ class User(object):
         self._status = status
 
     @property
+    def organizations(self):
+        """Gets the organizations of this User.  # noqa: E501
+
+
+        :return: The organizations of this User.  # noqa: E501
+        :rtype: list[Organization]
+        """
+        return self._organizations
+
+    @organizations.setter
+    def organizations(self, organizations):
+        """Sets the organizations of this User.
+
+
+        :param organizations: The organizations of this User.  # noqa: E501
+        :type: list[Organization]
+        """
+
+        self._organizations = organizations
+
+    @property
     def quota(self):
         """Gets the quota of this User.  # noqa: E501
 
@@ -127,27 +169,6 @@ class User(object):
         """
 
         self._quota = quota
-
-    @property
-    def properties(self):
-        """Gets the properties of this User.  # noqa: E501
-
-
-        :return: The properties of this User.  # noqa: E501
-        :rtype: dict(str, list[str])
-        """
-        return self._properties
-
-    @properties.setter
-    def properties(self, properties):
-        """Sets the properties of this User.
-
-
-        :param properties: The properties of this User.  # noqa: E501
-        :type: dict(str, list[str])
-        """
-
-        self._properties = properties
 
     @property
     def authority_name(self):
@@ -240,27 +261,6 @@ class User(object):
         """
 
         self._profile = profile
-
-    @property
-    def stats(self):
-        """Gets the stats of this User.  # noqa: E501
-
-
-        :return: The stats of this User.  # noqa: E501
-        :rtype: UserStats
-        """
-        return self._stats
-
-    @stats.setter
-    def stats(self, stats):
-        """Sets the stats of this User.
-
-
-        :param stats: The stats of this User.  # noqa: E501
-        :type: UserStats
-        """
-
-        self._stats = stats
 
     @property
     def home_folder(self):

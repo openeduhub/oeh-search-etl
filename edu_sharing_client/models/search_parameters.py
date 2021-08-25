@@ -29,22 +29,74 @@ class SearchParameters(object):
                             and the value is json key in definition.
     """
     swagger_types = {
+        'permissions': 'list[str]',
+        'resolve_collections': 'bool',
         'criterias': 'list[MdsQueryCriteria]',
         'facettes': 'list[str]'
     }
 
     attribute_map = {
+        'permissions': 'permissions',
+        'resolve_collections': 'resolveCollections',
         'criterias': 'criterias',
         'facettes': 'facettes'
     }
 
-    def __init__(self, criterias=None, facettes=None):  # noqa: E501
+    def __init__(self, permissions=None, resolve_collections=False, criterias=None, facettes=None):  # noqa: E501
         """SearchParameters - a model defined in Swagger"""  # noqa: E501
+        self._permissions = None
+        self._resolve_collections = None
         self._criterias = None
         self._facettes = None
         self.discriminator = None
+        if permissions is not None:
+            self.permissions = permissions
+        if resolve_collections is not None:
+            self.resolve_collections = resolve_collections
         self.criterias = criterias
         self.facettes = facettes
+
+    @property
+    def permissions(self):
+        """Gets the permissions of this SearchParameters.  # noqa: E501
+
+
+        :return: The permissions of this SearchParameters.  # noqa: E501
+        :rtype: list[str]
+        """
+        return self._permissions
+
+    @permissions.setter
+    def permissions(self, permissions):
+        """Sets the permissions of this SearchParameters.
+
+
+        :param permissions: The permissions of this SearchParameters.  # noqa: E501
+        :type: list[str]
+        """
+
+        self._permissions = permissions
+
+    @property
+    def resolve_collections(self):
+        """Gets the resolve_collections of this SearchParameters.  # noqa: E501
+
+
+        :return: The resolve_collections of this SearchParameters.  # noqa: E501
+        :rtype: bool
+        """
+        return self._resolve_collections
+
+    @resolve_collections.setter
+    def resolve_collections(self, resolve_collections):
+        """Sets the resolve_collections of this SearchParameters.
+
+
+        :param resolve_collections: The resolve_collections of this SearchParameters.  # noqa: E501
+        :type: bool
+        """
+
+        self._resolve_collections = resolve_collections
 
     @property
     def criterias(self):
