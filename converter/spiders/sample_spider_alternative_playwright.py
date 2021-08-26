@@ -1,4 +1,7 @@
+import json
+
 import scrapy
+from playwright.sync_api import sync_playwright
 from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
@@ -12,12 +15,21 @@ from converter.spiders.base_classes import LomBase
 # for web crawling beginners. Use whichever approach is more convenient for you.
 # LAST UPDATE: 2021-08-20
 # please also consult converter/items.py for all currently available keys/values in our crawler data model
-class SampleSpiderAlternative(CrawlSpider, LomBase):
-    name = "sample_spider_alternative"
+class SampleSpiderAlternativePlaywright(CrawlSpider, LomBase):
+    name = "sample_spider_alternative_playwright"
     friendlyName = "Sample Source (alternative Method)"  # how your crawler should appear in the "Supplier"-list
     start_urls = ["https://edu-sharing.com"]  # starting point of your crawler, e.g. a sitemap, index, rss-feed etc.
-    version = "0.0.1"  # this is used for timestamping your crawler results (if a source changes its layout/data,
-    # make sure to increment this value to force a clear distinction between old and new crawler results)
+    version = "0.0.1"  # this is used for timestamping your crawler results (if a source changes its layout/data, make
+    # sure to increment this value to force a clear distinction between old and new crawler results)
+
+    # Initiating a playwright_instance and a browser is only necessary if you need to use Playwright to gather metadata
+    # from heavily client-side rendered websites that Scrapy can't render properly by itself.
+    # If the scrapy shell "sees" the CSS-Elements that you are looking for,
+    # you can skip the playwright implementation completely by:
+    # - removing the 2 method calls inside start_requests()
+    # - deleting the close()-method altogether
+    playwright_instance = None
+    browser_permanent = None
 
     def getId(self, response=None) -> str:
         # You have two choices here:
@@ -35,6 +47,31 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
     def start_requests(self):
         for start_url in self.start_urls:
             yield scrapy.Request(url=start_url, callback=self.parse)
+        # opening a headless browser that will hold our individual BrowserContexts when get_json_ld() is called
+        self.playwright_instance = sync_playwright().start()
+        self.browser_permanent = self.playwright_instance.chromium.launch()
+
+    def close(self, reason):
+        # when the spider is done with its crawling process, it should close the browser- and playwright-instance
+        self.browser_permanent.close()
+        self.playwright_instance.stop()
+
+    def get_json_ld(self, url_to_crawl) -> dict:
+        # For some (client-side-rendered) websites scrapy (at least on its own) might not be able to "see" or render
+        # elements that you need for metadata-extraction. Using the "playwright"-framework allows us to control a
+        # headless browser and render the JavaScript content that scrapy might not "see" on its own.
+        # Each get_ld_json()-call spawns a page (= headless browser tab) within our BrowserContext (~ browser session),
+        # see: https://playwright.dev/python/docs/core-concepts/ for further explanation
+        context = self.browser_permanent.new_context()
+        page = context.new_page()
+        page.goto(url_to_crawl)
+        # see https://playwright.dev/python/docs/api/class-page#page-text-content
+        # this exemplary selector works on pages where the JSON_LD is stored inside a <script>-element with the id "ld"
+        # e.g.: <script id="ld" type="application/ld+json">...</script>
+        json_ld_string: str = page.text_content('//*[@id="ld"]')
+        json_ld = json.loads(json_ld_string)
+        context.close()
+        return json_ld
 
     def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
         base = BaseItemLoader()
@@ -70,6 +107,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         thumbnail_url: str = "This string should hold the thumbnail URL"
         base.add_value('thumbnail', thumbnail_url)
 
+        json_ld: dict = self.get_json_ld(response.url)
+
         lom = LomBaseItemloader()
         # TODO: afterwards fill up the LomBaseItem with
         #  - LomGeneralItem                 required
@@ -89,7 +128,13 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - aggregationLevel               optional
         # e.g.: the unique identifier might be the URL to a material
         general.add_value('identifier', response.url)
-        # TODO: don't forget to add key-value-pairs for 'title', 'keyword' and 'description'!
+        # depending on how the JSON_LD is structured, we might be able to grab the title from there (or the header)
+        general.add_value('title', json_ld.get("mainEntity").get("name"))
+        # if the keywords are inside a string separated by commas, pass the keywords as a list with individual strings:
+        keywords_string: str = json_ld.get("mainEntity").get("keywords")
+        keyword_list = keywords_string.rsplit(", ")
+        general.add_value('keyword', keyword_list)
+        general.add_value('description', json_ld.get("mainEntity").get("description"))
         # once we've added all available values to the necessary keys in our LomGeneralItemLoader,
         # we call the load_item()-method to return a (now filled) LomGeneralItem to the LomBaseItemLoader
         lom.add_value('general', general.load_item())
