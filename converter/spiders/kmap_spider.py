@@ -1,4 +1,5 @@
 import json
+import logging
 
 import scrapy
 from scrapy import Selector
@@ -15,12 +16,15 @@ from converter.web_tools import WebEngine, WebTools
 class KMapSpider(CrawlSpider, LomBase):
     name = "kmap_spider"
     friendlyName = "KMap.eu"
-    version = "0.0.4"
+    version = "0.0.5"
     sitemap_urls = [
         "https://kmap.eu/server/sitemap/Mathematik",
         "https://kmap.eu/server/sitemap/Physik"
     ]
     allowed_domains = ['kmap.eu']
+    # keep the console clean from spammy DEBUG-level logging messages, adjust as needed:
+    logging.getLogger('websockets.server').setLevel(logging.ERROR)
+    logging.getLogger('websockets.protocol').setLevel(logging.ERROR)
 
     def start_requests(self) -> scrapy.Request:
         for sitemap_url in self.sitemap_urls:
