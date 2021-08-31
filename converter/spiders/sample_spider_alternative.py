@@ -41,8 +41,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         # ALL possible keys for the different Item and ItemLoader-classes can be found inside converter/items.py
 
         # TODO: fill "base"-keys with values for
-        #  - sourceId           required
-        #  - hash               required
+        #  - sourceId           required    (see: getId()-method above)
+        #  - hash               required    (see: getHash()-method above)
         #  - lom                required    (see: LomBaseItemLoader below)
         #  - valuespaces        required    (see: ValueSpacesItemLoader below)
         #  - permissions        required    (see: PermissionItemLoader below)
@@ -50,13 +50,7 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - lastModified       recommended
         #  - type               recommended
         #  - thumbnail          recommended
-        #  - uuid               optional (please only set this if you actually know the uuid of the internal document)
-        #  - collection         optional
-        #  - origin             optional
-        #  - ranking            optional
-        #  - fulltext           optional
         #  - publisher          optional
-        #  - notes              optional
         base.add_value('sourceId', response.url)
         # if the source doesn't have a "datePublished" or "lastModified"-value in its header or JSON_LD,
         # you might have to help yourself with a unique string consisting of the datetime of the crawl + self.version
@@ -96,8 +90,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
 
         technical = LomTechnicalItemLoader()
         # TODO: fill "technical"-keys with values for
-        #  - format                         required
-        #  - location                       required
+        #  - format                         required (expected: MIME-type, e.g. 'text/html' for web-sites)
+        #  - location                       required (expected: URI / URL of a learning object / material)
         #  - size                           optional
         #  - requirement                    optional
         #  - installationRemarks            optional
@@ -107,6 +101,9 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         # technical.add_value('key','value')
         # or replaced with:
         # technical.replace_value('key', 'value')
+        technical.add_value('format', 'text/html')  # e.g. if the learning object is a web-page
+        technical.add_value('location', response.url)   # if the the learning object has a unique URL that's being
+        # navigated by the crawler
         lom.add_value('technical', technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
@@ -119,11 +116,13 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - organization                   optional
         #  - email                          optional
         #  - uuid                           optional
+        lifecycle.add_value('role', 'author')   # supported roles: "author" / "editor" / "publisher"
+        # for available roles mapping, please take a look at converter/es_connector.py
         lom.add_value('lifecycle', lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
         # TODO: fill "educational"-keys with values for
-        #  - description                    recommended
+        #  - description                    recommended (= "Comments on how this learning object is to be used")
         #  - language                       recommended
         #  - interactivityType              optional
         #  - interactivityLevel             optional
@@ -138,26 +137,43 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
+        # for possible values, either consult https://vocabs.openeduhub.de
+        # or take a look at https://github.com/openeduhub/oeh-metadata-vocabs
         # TODO: fill "valuespaces"-keys with values for
         #  - discipline                     recommended
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/discipline.ttl)
         #  - intendedEndUserRole            recommended
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl)
         #  - learningResourceType           recommended
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/learningResourceType.ttl)
         #  - conditionsOfAccess             recommended
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/conditionsOfAccess.ttl)
         #  - containsAdvertisement          recommended
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/containsAdvertisement.ttl)
         #  - price                          recommended
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/price.ttl)
         #  - educationalContext             optional
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/educationalContext.ttl)
         #  - sourceContentType              optional
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/sourceContentType.ttl)
         #  - toolCategory                   optional
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/toolCategory.ttl)
         #  - accessibilitySummary           optional
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/accessibilitySummary.ttl)
         #  - dataProtectionConformity       optional
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/dataProtectionConformity.ttl)
         #  - fskRating                      optional
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/fskRating.ttl)
         #  - oer                            optional
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/oer.ttl)
         base.add_value('valuespaces', vs.load_item())
 
         lic = LicenseItemLoader()
         # TODO: fill "license"-keys with values for
         #  - url                            required
-        #  - oer                            recommended
+        #  - oer                            recommended ('oer' is automatically set if the 'url'-field above
+        #  is recognized in LICENSE_MAPPINGS: for possible url-mapping values, please take a look at
+        #  LICENSE_MAPPINGS in converter/constants.py)
         #  - author                         recommended
         #  - internal                       optional
         #  - description                    optional
