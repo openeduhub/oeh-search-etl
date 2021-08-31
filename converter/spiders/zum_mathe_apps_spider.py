@@ -1,3 +1,4 @@
+import logging
 import re
 
 import dateparser
@@ -8,6 +9,7 @@ from converter.constants import Constants
 from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, LomLifecycleItemloader, \
     LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
 from converter.spiders.base_classes import LomBase
+from converter.web_tools import WebTools, WebEngine
 
 
 class ZumMatheAppsSpider(scrapy.Spider, LomBase):
@@ -19,7 +21,10 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
         "https://www.walter-fendt.de/html5/mde/",
         # "http://www.zum.de/ma/fendt/mde/"
     ]
-    version = "0.0.3"  # reflects the structure of ZUM Mathe Apps on 2021-07-19
+    version = "0.0.5"  # reflects the structure of ZUM Mathe Apps on 2021-07-19
+    # keep the console clean from spammy DEBUG-level logging messages, adjust as needed:
+    logging.getLogger('websockets.server').setLevel(logging.ERROR)
+    logging.getLogger('websockets.protocol').setLevel(logging.ERROR)
 
     def getId(self, response=None) -> str:
         return response.url
@@ -60,7 +65,7 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
 
     def parse(self, response: scrapy.http.Response, **kwargs):
         # fetching publication date and lastModified from dynamically loaded <p class="Ende">-element:
-        url_data_splash_dict = super().getUrlData(response.url)
+        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Pyppeteer)
         splash_html_string = url_data_splash_dict.get('html')
         page_end_element = Selector(text=splash_html_string).xpath('//p[@class="Ende"]').get()
         line_regex = re.compile(r'<br>')
@@ -151,6 +156,8 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
 
         permissions = super().getPermissions(response)
         base.add_value('permissions', permissions.load_item())
+
+        # TODO: fix super().mapResponse
         base.add_value('response', super().mapResponse(response).load_item())
 
         yield base.load_item()
