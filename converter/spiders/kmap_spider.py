@@ -45,15 +45,12 @@ class KMapSpider(CrawlSpider, LomBase):
         pass
 
     def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
-        # print("PARSE METHOD:", response.url)
         last_modified = kwargs.get("lastModified")
-        url_data_splash_dict = WebTools.getUrlData(response.url, WebEngine.Pyppeteer)
+        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Pyppeteer)
         splash_html_string = url_data_splash_dict.get('html')
         json_ld_string: str = Selector(text=splash_html_string).xpath('//*[@id="ld"]/text()').get()
         json_ld: dict = json.loads(json_ld_string)
-        # for debug purposes - checking if the json_ld is correct/available:
-        # print("LD_JSON =", json_ld)
-        # print(type(json_ld))
+        # TODO: skip item method - (skips item if it's an empty knowledge map)
 
         base = BaseItemLoader()
         base.add_value('sourceId', response.url)
@@ -116,8 +113,6 @@ class KMapSpider(CrawlSpider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value("permissions", permissions.load_item())
 
-        response_loader = ResponseItemLoader()
-        response_loader.add_value("url", response.url)
-        base.add_value("response", response_loader.load_item())
+        base.add_value('response', super().mapResponse(response).load_item())
 
         return base.load_item()
