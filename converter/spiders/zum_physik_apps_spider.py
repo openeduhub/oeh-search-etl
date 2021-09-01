@@ -8,6 +8,7 @@ from converter.constants import Constants
 from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, LomLifecycleItemloader, \
     LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
 from converter.spiders.base_classes import LomBase
+from converter.web_tools import WebTools, WebEngine
 
 
 class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
@@ -19,7 +20,8 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         "https://www.walter-fendt.de/html5/phde/",
         # "https://www.zum.de/ma/fendt/phde/"
     ]
-    version = "0.0.3"  # reflects the structure of ZUM Physik Apps on 2021-07-15 (there should be 55 scraped items
+    version = "0.0.5"  # reflects the structure of ZUM Physik Apps on 2021-07-15 (there should be 55 scraped items
+
     # when the crawling process is done)
 
     def getId(self, response=None) -> str:
@@ -41,7 +43,7 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
 
     def parse(self, response: scrapy.http.Response, **kwargs):
         # fetching publication date and lastModified from dynamically loaded <p class="Ende">-element:
-        url_data_splash_dict = super().getUrlData(response.url)
+        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Pyppeteer)
         splash_html_string = url_data_splash_dict.get('html')
         page_end_element = Selector(text=splash_html_string).xpath('//p[@class="Ende"]').get()
         line_regex = re.compile(r'<br>')
