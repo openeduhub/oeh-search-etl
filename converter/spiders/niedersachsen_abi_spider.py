@@ -1,7 +1,6 @@
+import logging
 import os
 from _datetime import datetime
-import logging
-import pprint
 
 import scrapy
 
@@ -76,11 +75,11 @@ class NiedersachsenAbiSpider(scrapy.Spider):
             self.pdf_dictionary_additional = pdf_dict2
 
     def parse(self, response, **kwargs):
-        print(f"Hello world!")
-        print(f"filename = {self.filename}")
-        print(f"skip_unzip = {self.skip_unzip}")
-        print(f"The .pdf (general) dictionary has {len(self.pdf_dictionary_general.keys())} files")
-        print(f"The dictionary for additional .pdf files has {len(self.pdf_dictionary_additional.keys())} entries")
+        # print(f"filename = {self.filename}")
+        # print(f"skip_unzip = {self.skip_unzip}")
+        logging.debug(f"The .pdf (general) dictionary has {len(self.pdf_dictionary_general.keys())} files")
+        logging.debug(f"The dictionary for additional .pdf files has "
+                      f"{len(self.pdf_dictionary_additional.keys())} entries")
 
         # first we're scraping all the .pdf files that follow the more general RegEx syntax
         for pdf_item in self.pdf_dictionary_general:

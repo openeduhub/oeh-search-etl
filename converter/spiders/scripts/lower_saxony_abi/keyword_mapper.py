@@ -226,6 +226,12 @@ class LoSaxKeywordMapper:
                     if value is not None and value != '':
                         only_valid_values.append(value)
                 logging.debug(only_valid_values)
+
+                # Discipline-Mapping to SkoHub vocabulary:
+                if regex_result_dict_temporary.get('discipline') in self.discipline_mapping.keys():
+                    regex_result_dict_temporary.update(
+                        {'discipline': self.discipline_mapping.get(regex_result_dict_temporary.get('discipline'))})
+
                 keywords_cleaned_and_mapped = list()
                 for potential_keyword in only_valid_values:
                     if potential_keyword in self.keyword_mapping:
@@ -244,14 +250,3 @@ class LoSaxKeywordMapper:
                 }
                 pdf_filenames_and_metadata_dict.update(dict_of_current_pdf)
         return pdf_filenames_and_metadata_dict
-
-
-if __name__ == '__main__':
-    debug_additional_files = {
-        'Anlage zum Abitur im Fach Informatik.pdf': '/home/criamos/PycharmProjects/pythonScriptTestingArea/zip_download/zip_extract/2016/2016Informatik',
-        'TSPInformatik2020Anlagen.pdf': '/home/criamos/PycharmProjects/pythonScriptTestingArea/zip_download/zip_extract/2020Informatik/2020InformatikEA',
-        'TSPInformatikTS2019Anlagen.pdf': '/home/criamos/PycharmProjects/pythonScriptTestingArea/zip_download/zip_extract/2019/2019Informatik/2019InformatikEA'
-    }
-    kw_mapper = LoSaxKeywordMapper()
-    pdf_result_dictionary = kw_mapper.extract_pdf_metadata_from_additional_files(pdf_dictionary=debug_additional_files)
-    pprint.pprint(pdf_result_dictionary)
