@@ -19,11 +19,16 @@ class NiedersachsenAbiSpider(scrapy.Spider):
     allowed_domains = ['https://za-aufgaben.nibis.de']
     start_urls = ['https://za-aufgaben.nibis.de']
     version = "0.0.1"
-    # Default values for the 2 expected parameters. filename is always required, skip_unzip optional.
+    # Default values for the 2 expected parameters. Parameter "filename" is always required, "skip_unzip" is optional.
     filename = None
     skip_unzip = False
     pdf_dictionary_general = dict()
     pdf_dictionary_additional = dict()
+
+    # Running the crawler from the command line with the exact filename as a parameter:
+    #   scrapy crawl niedersachsen_abi_spider -a filename="za-download-6e05cbbb6e07250c69ebe95ae972fe8a.zip"
+    #   -a skip_unzip="yes"
+    # Make sure that there is a corresponding .zip file inside the /zip_download/-folder in the project root
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -80,7 +85,7 @@ class NiedersachsenAbiSpider(scrapy.Spider):
         # first we're scraping all the .pdf files that follow the more general RegEx syntax
         for pdf_item in self.pdf_dictionary_general:
             current_dict: dict = self.pdf_dictionary_general.get(pdf_item)
-            pprint.pprint(current_dict)
+            # pprint.pprint(current_dict)
             base = BaseItemLoader()
             base.add_value('sourceId', pdf_item)
             hash_temp = str(f"{datetime.now().isoformat()}{self.version}")
@@ -128,7 +133,7 @@ class NiedersachsenAbiSpider(scrapy.Spider):
         # Making sure that we also grab the additional .pdf files that don't follow the general filename syntax
         for pdf_item in self.pdf_dictionary_additional:
             current_dict: dict = self.pdf_dictionary_additional.get(pdf_item)
-            pprint.pprint(current_dict)
+            # pprint.pprint(current_dict)
             base = BaseItemLoader()
             base.add_value('sourceId', pdf_item)
             hash_temp = str(f"{datetime.now().isoformat()}{self.version}")
