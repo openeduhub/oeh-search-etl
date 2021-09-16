@@ -52,7 +52,8 @@ class NiedersachsenAbiSpider(scrapy.Spider):
                 un_zipper = UnZipper()
                 un_zipper.directory_paths = directory_paths.get_path_storage()
                 un_zipper.zip_file_dictionary = zip_file_dictionary
-                zip_file_chosen_by_user = un_zipper.show_zip_list(zip_selection=zip_selection)
+                zip_file_chosen_by_user = \
+                    un_zipper.compare_selected_zip_file_with_recognized_files(zip_selection=zip_selection)
 
                 if zip_file_chosen_by_user is not None:
                     un_zipper.unzip_all_zips_within_the_initial_zip(zip_file=zip_file_chosen_by_user,

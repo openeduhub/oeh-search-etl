@@ -37,6 +37,9 @@ class DirectoryInitializer:
         self.initialize_required_directories()
 
     def check_download_folder_for_zip_files(self) -> dict:
+        """
+        Checks the /zip_download/-folder for .zip files and returns a list with their filenames and size in megabyte.
+        """
         file_dict = dict()
         os.chdir(self.path_storage.path_to_download_directory)
         logging.debug("Checking " + os.getcwd() + " for zip files")
@@ -48,7 +51,6 @@ class DirectoryInitializer:
                 if os.path.isfile(file_entry):
                     if file_entry.endswith('.zip'):
                         file_list.append(file_entry)
-            file_number: int = 1
             for file in file_list:
                 file_size_temp = os.path.getsize(file)
                 file_size_megabyte = file_size_temp / (1000 * 1000)
@@ -59,7 +61,6 @@ class DirectoryInitializer:
                     file: file_size_megabyte
                 }
                 file_dict.update(file_dict_entry)
-                file_number += 1
             logging.debug(".zip files detected inside the '/zip_download/'-directory: ")
             logging.debug(file_dict)
         return file_dict
@@ -81,6 +82,10 @@ class DirectoryInitializer:
         os.chdir('..')
 
     def detect_extraction_directory(self):
+        """
+        Checks if there is a /zip_extract/-subdirectory inside the /zip_download/ folder and saves the folder path to
+        the class attributes. If there isn't a subdirectory, it'll create one by calling the corresponding method.
+        """
         logging.debug("Detecting 'zip_extract'-sub-folder ...")
         os.chdir(self.path_storage.path_to_download_directory)
         if os.path.exists('zip_extract'):
@@ -118,16 +123,16 @@ class DirectoryInitializer:
 
 
 class UnZipper:
-    directory_paths = None
-    zip_file_dictionary = None
+    directory_paths: PathStorage = None
+    zip_file_dictionary: dict = None
     zip_files_already_extracted = set()
     zip_files_to_extract = set()
     zip_files_to_extract_dict = dict()
 
     pp = pprint.PrettyPrinter(indent=4)
 
-    def show_zip_list(self, zip_selection=None):
-        # TODO: prettify the zip list output
+    def compare_selected_zip_file_with_recognized_files(self, zip_selection=None):
+        # TODO: maybe prettify the zip list output
         self.pp.pprint(f"The following .zip files were recognized by the script: {self.zip_file_dictionary}")
         if zip_selection is not None:
             if zip_selection in self.zip_file_dictionary.keys():
@@ -143,6 +148,14 @@ class UnZipper:
                                 f"Please make sure that your CLI-parameter input for --filename='file.zip' is valid.")
 
     def unzip_all_zips_within_the_initial_zip(self, zip_file: zipfile, skip_unzip=False):
+        """
+        Unzips the initially selected .zip file and checks if the user wants to also extract all .zip files in its
+        subdirectories.
+        Keeps track of which files were already extracted by using a set() of their filenames.
+        :param zip_file: the user-specified zip file that needs extraction
+        :param skip_unzip: in case the user wants to only unzip the initial .zip file and nothing else
+        :return: a list() of all .zip files that were found within the initial .zip file
+        """
         zips_inside_zip: list = list()
         zip_files_list: list = zip_file.namelist()
         zip_file.extractall(path='zip_extract')
@@ -163,6 +176,10 @@ class UnZipper:
             return zips_inside_zip
 
     def unzip_everything(self, directory_as_string):
+        """
+        Tries to recursively unzip all .zip files within a directory.
+        :param directory_as_string: the filepath in which to look for .zip files
+        """
         extract_dir = directory_as_string
         os.chdir(extract_dir)
         zip_inside_zip_counter = 0
@@ -207,6 +224,12 @@ class DirectoryScanner:
 
     @staticmethod
     def scan_directory_for_pdfs(target_directory):
+        """
+        Returns a dict() of .pdf files and their filepath.
+        :param target_directory: the directory in which to look for .pdf files
+        :return: a dictionary consisting of two strings: a unique filename and the corresponding directory, e.g.:
+        dict() = { filename : directory }
+        """
         directory_to_scan = target_directory
         pdf_list = set()
         pdf_dictionary_temp = dict()
