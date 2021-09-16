@@ -104,6 +104,8 @@ class NiedersachsenAbiSpider(scrapy.Spider):
             lom.add_value('technical', technical.load_item())
 
             lifecycle = LomLifecycleItemloader()
+            lifecycle.add_value('role', 'publisher')
+            lifecycle.add_value('organization', 'Niedersächsisches Kultusministerium')
             lom.add_value('lifecycle', lifecycle.load_item())
 
             educational = LomEducationalItemLoader()
@@ -152,6 +154,8 @@ class NiedersachsenAbiSpider(scrapy.Spider):
             lom.add_value('technical', technical.load_item())
 
             lifecycle = LomLifecycleItemloader()
+            lifecycle.add_value('role', 'publisher')
+            lifecycle.add_value('organization', 'Niedersächsisches Kultusministerium')
             lom.add_value('lifecycle', lifecycle.load_item())
 
             educational = LomEducationalItemLoader()
