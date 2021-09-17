@@ -168,6 +168,21 @@ class EduSharing:
             return True
         except ApiException as e:
             return False
+    def setNodeBinaryData(self, uuid, item) -> bool:
+        if "binary" in item:
+            logging.info('set binary')
+            files = {"file": item["binary"]}
+            response = requests.post(
+                get_project_settings().get("EDU_SHARING_BASE_URL")
+                + "rest/node/v1/nodes/-home-/"
+                + uuid
+                + "/content?mimetype="
+                + item["lom"]["technical"]["format"],
+                headers=self.getHeaders(None),
+                files=files,
+            )
+            logging.info(response)
+            return response.status_code == 200
 
     def setNodePreview(self, uuid, item) -> bool:
         if "thumbnail" in item:
@@ -243,8 +258,8 @@ class EduSharing:
             "ccm:objecttype": item["type"],
             "ccm:replicationsourceuuid": uuid,
             "cm:name": item["lom"]["general"]["title"],
-            "ccm:wwwurl": item["lom"]["technical"]["location"],
-            "cclom:location": item["lom"]["technical"]["location"],
+            "ccm:wwwurl": item["lom"]["technical"]["location"] if "location" in item["lom"]["technical"] else None,
+            "cclom:location": item["lom"]["technical"]["location"] if "location" in item["lom"]["technical"] else None,
             "cclom:title": item["lom"]["general"]["title"],
         }
         if "notes" in item:
@@ -491,6 +506,7 @@ class EduSharing:
         node = self.syncNode(spider, "ccm:io", self.transformItem(uuid, spider, item))
         self.setNodePermissions(node["ref"]["id"], item)
         self.setNodePreview(node["ref"]["id"], item)
+        self.setNodeBinaryData(node["ref"]["id"], item)
         self.setNodeText(node["ref"]["id"], item)
 
     def updateItem(self, spider, uuid, item):

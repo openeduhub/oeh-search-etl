@@ -4,19 +4,21 @@ from _datetime import datetime
 
 import scrapy
 
+from .base_classes import LomBase
 from .scripts.lower_saxony_abi.directory_routine import DirectoryInitializer, UnZipper, \
     DirectoryScanner
 from .scripts.lower_saxony_abi.keyword_mapper import LoSaxKeywordMapper
+from ..constants import Constants
 from ..items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
     LomLifecycleItemloader, LomEducationalItemLoader, LicenseItemLoader, PermissionItemLoader, ResponseItemLoader, \
     ValuespaceItemLoader
 
 
-class NiedersachsenAbiSpider(scrapy.Spider):
+class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
     name = 'niedersachsen_abi_spider'
 
     allowed_domains = ['https://za-aufgaben.nibis.de']
-    start_urls = ['https://za-aufgaben.nibis.de']
+    start_urls =  ['https://za-aufgaben.nibis.de']
     version = "0.0.1"
     # Default values for the 2 expected parameters. Parameter "filename" is always required, "skip_unzip" is optional.
     filename = None
@@ -29,9 +31,12 @@ class NiedersachsenAbiSpider(scrapy.Spider):
     #   -a skip_unzip="yes"
     # Make sure that there is a corresponding .zip file inside the /zip_download/-folder in the project root
 
+    # def start_requests(self):
+    #    yield self.parse(None)
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
+        # logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
         # logging.disable(logging.DEBUG)
         if self.filename is not None:
             zip_selection = self.filename
@@ -90,6 +95,8 @@ class NiedersachsenAbiSpider(scrapy.Spider):
             base.add_value('sourceId', pdf_item)
             hash_temp = str(f"{datetime.now().isoformat()}{self.version}")
             base.add_value('hash', hash_temp)
+            base.add_value('type', Constants.TYPE_MATERIAL)
+            base.add_value('binary', self.getBinary(current_dict, pdf_item))
 
             lom = LomBaseItemloader()
 
@@ -100,8 +107,7 @@ class NiedersachsenAbiSpider(scrapy.Spider):
             lom.add_value('general', general.load_item())
 
             technical = LomTechnicalItemLoader()
-            filepath_full = current_dict.get('pdf_path') + os.path.sep + pdf_item
-            technical.add_value('location', filepath_full)
+            technical.add_value('format', 'application/pdf')
             lom.add_value('technical', technical.load_item())
 
             lifecycle = LomLifecycleItemloader()
@@ -124,7 +130,7 @@ class NiedersachsenAbiSpider(scrapy.Spider):
             lic = LicenseItemLoader()
             base.add_value('license', lic.load_item())
 
-            permissions = PermissionItemLoader()
+            permissions = LomBase.getPermissions(self)
             base.add_value('permissions', permissions.load_item())
 
             response_loader = ResponseItemLoader()
@@ -140,18 +146,19 @@ class NiedersachsenAbiSpider(scrapy.Spider):
             base.add_value('sourceId', pdf_item)
             hash_temp = str(f"{datetime.now().isoformat()}{self.version}")
             base.add_value('hash', hash_temp)
+            base.add_value('type', Constants.TYPE_MATERIAL)
+            base.add_value('binary', self.getBinary(current_dict, pdf_item))
 
             lom = LomBaseItemloader()
 
             general = LomGeneralItemloader()
-            general.add_value('title', pdf_item)
+            general.add_value('title', pdf_item.split('.')[:-1])
             general.add_value('identifier', pdf_item)
             general.add_value('keyword', current_dict.get('keywords'))
             lom.add_value('general', general.load_item())
 
             technical = LomTechnicalItemLoader()
-            filepath_full = current_dict.get('pdf_path') + os.path.sep + pdf_item
-            technical.add_value('location', filepath_full)
+            technical.add_value('format', 'application/pdf')
             lom.add_value('technical', technical.load_item())
 
             lifecycle = LomLifecycleItemloader()
@@ -172,10 +179,17 @@ class NiedersachsenAbiSpider(scrapy.Spider):
             lic = LicenseItemLoader()
             base.add_value('license', lic.load_item())
 
-            permissions = PermissionItemLoader()
+            permissions = LomBase.getPermissions(self)
             base.add_value('permissions', permissions.load_item())
 
             response_loader = ResponseItemLoader()
             base.add_value('response', response_loader.load_item())
 
             yield base.load_item()
+
+    def getBinary(self, current_dict, pdf_item):
+        filepath_full = current_dict.get('pdf_path') + os.path.sep + pdf_item
+        file = open(filepath_full, mode='rb')
+        binary = file.read()
+        file.close()
+        return binary
