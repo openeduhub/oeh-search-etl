@@ -246,6 +246,8 @@ class EduSharing:
             "ccm:wwwurl": item["lom"]["technical"]["location"],
             "cclom:location": item["lom"]["technical"]["location"],
             "cclom:title": item["lom"]["general"]["title"],
+            "ccm:lom_general_aggregationlevel": str(item["lom"]["general"]["aggregationLevel"]),
+            "ccm:annotation": str(item["annotation"]),
         }
         if "notes" in item:
             spaces["ccm:notes"] = item["notes"]
@@ -355,6 +357,32 @@ class EduSharing:
                 spaces[key] = list([x for y in spaces[key] for x in y])
             if not type(spaces[key]) is list:
                 spaces[key] = [spaces[key]]
+
+        def listofjson_to_listofstring(json_list: list):
+            """
+            Since Edu-Sharing has no further information about the schema of these attributes it is better to treat them
+            as a list of strings and not as a list of JSON objects.
+            """
+            string_list = []
+            for element in json_list:
+                # JSON expects double quotes.
+                element_str = str(element).replace("\'", "\"")
+                # JSON to Python dictionary
+                element_dict = json.loads(element_str)
+
+                # We expect and prefer single quotes in the result.
+                string_value = json.dumps(element_dict, sort_keys=True).replace("\"", "\'")
+                # Remove redundant white spaces.
+                string_value = ' '.join(string_value.split())
+                string_list.append(string_value)
+            return string_list
+
+        # Relation and Annotation information, according to the LOM-DE.doc#7 and LOM-DE.doc#8 specifications respectively
+        # http://sodis.de/lom-de/LOM-DE.doc
+        if "relation" in item["lom"]:
+            spaces["ccm:lom_relation"] = listofjson_to_listofstring(item["lom"]["relation"])
+        if "annotation" in item["lom"]:
+            spaces["ccm:lom_annotation"] = listofjson_to_listofstring(item["lom"]["annotation"])
 
         return spaces
 
