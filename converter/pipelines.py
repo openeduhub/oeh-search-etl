@@ -313,6 +313,8 @@ class ProcessThumbnailPipeline(BasicPipeline):
         settings = get_project_settings()
         if "thumbnail" in item:
             url = item["thumbnail"]
+            if isinstance(item["thumbnail"], list) and len(item["thumbnail"]) > 0:
+                url = item["thumbnail"][0]
             response = requests.get(url)
             log.debug(
                 "Loading thumbnail took " + str(response.elapsed.total_seconds()) + "s"
@@ -389,10 +391,13 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         + url
                         + ": "
                         + str(e)
-                        + " (falling back to screenshot)"
                     )
                 if "thumbnail" in item:
-                    del item["thumbnail"]
+                    if isinstance(item["thumbnail"], list) and len(item["thumbnail"]) > 1:
+                        item["thumbnail"].pop()
+                        log.warning("Processing additional thumbnail")
+                    else:
+                        del item["thumbnail"]
                     return self.process_item(raw_item, spider)
                 else:
                     # item['thumbnail']={}
