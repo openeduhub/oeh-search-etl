@@ -102,6 +102,26 @@ class LomClassificationItem(Item):
     description = Field()
     keyword = Field()
 
+class LomRelationResourceItem(Item):
+    identifier = Field(output_processor=JoinMultivalues())
+    catalog = Field()
+    entry = Field()
+    description = Field()
+
+class LomRelationItem(Item):
+    """
+    Following the LOM-DE.doc#7 (Relation) specifications: http://sodis.de/lom-de/LOM-DE.doc .
+    """
+    kind = Field()
+    resource = Field(serializer=LomRelationResourceItem)
+
+class LomAnnotationItem(Item):
+    """
+    Following the LOM-DE.doc#8 (Annotation) specifications: http://sodis.de/lom-de/LOM-DE.doc .
+    """
+    entity = Field()
+    date = Field()
+    description = Field()
 
 class LomBaseItem(Item):
     general = Field(serializer=LomGeneralItem)
@@ -110,6 +130,8 @@ class LomBaseItem(Item):
     educational = Field(serializer=LomEducationalItem)
     # rights = Field(serializer=LomRightsItem)
     classification = Field(serializer=LomClassificationItem)
+    relation = Field(serializer=LomRelationItem, output_processor=JoinMultivalues())
+    annotation = Field(serializer=LomAnnotationItem, output_processor=JoinMultivalues())
 
 
 class ResponseItem(Item):
@@ -166,7 +188,6 @@ class PermissionItem(Item):
     autoCreateMediacenters = Field()
     "Should media centers be created  if they don't exist"
 
-
 class BaseItem(Item):
     sourceId = Field()
     uuid = Field()
@@ -180,7 +201,7 @@ class BaseItem(Item):
     response = Field(serializer=ResponseItem)
     ranking = Field()
     fulltext = Field()
-    thumbnail = Field()
+    thumbnail = Field(output_processor=JoinMultivalues())
     lastModified = Field()
     lom = Field(serializer=LomBaseItem)
     valuespaces = Field(serializer=ValuespaceItem)
@@ -258,4 +279,16 @@ class LomClassificationItemLoader(ItemLoader):
 
 class PermissionItemLoader(ItemLoader):
     default_item_class = PermissionItem
+    default_output_processor = TakeFirst()
+
+class LomRelationResourceItemLoader(ItemLoader):
+    default_item_class = LomRelationResourceItem
+    default_output_processor = TakeFirst()
+
+class LomRelationItemLoader(ItemLoader):
+    default_item_class = LomRelationItem
+    default_output_processor = TakeFirst()
+
+class LomAnnotationItemLoader(ItemLoader):
+    default_item_class = LomAnnotationItem
     default_output_processor = TakeFirst()
