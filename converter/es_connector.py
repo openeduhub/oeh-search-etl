@@ -13,6 +13,7 @@ from vobject.vcard import VCardBehavior
 
 from converter import env
 from converter.constants import Constants
+from converter.spiders.utils.spider_name_converter import get_spider_friendly_name
 from edu_sharing_client.api_client import ApiClient
 from edu_sharing_client.configuration import Configuration
 from edu_sharing_client.api.bulk_v1_api import BULKV1Api
@@ -240,6 +241,7 @@ class EduSharing:
             "ccm:replicationsource": spider.name,
             "ccm:replicationsourceid": item["sourceId"],
             "ccm:replicationsourcehash": item["hash"],
+            "ccm:replicationsourcedisplayname": get_spider_friendly_name(spider.name),
             "ccm:objecttype": item["type"],
             "ccm:replicationsourceuuid": uuid,
             "cm:name": item["lom"]["general"]["title"],
@@ -247,7 +249,6 @@ class EduSharing:
             "cclom:location": item["lom"]["technical"]["location"],
             "cclom:title": item["lom"]["general"]["title"],
             "ccm:lom_general_aggregationlevel": str(item["lom"]["general"]["aggregationLevel"]),
-            "ccm:annotation": str(item["annotation"]),
         }
         if "notes" in item:
             spaces["ccm:notes"] = item["notes"]
@@ -255,6 +256,7 @@ class EduSharing:
             spaces["ccm:replicationsourceorigin"] = item[
                 "origin"
             ]  # TODO currently not mapped in edu-sharing
+            spaces["ccm:replicationsourceorigindisplayname"] = get_spider_friendly_name(item["origin"])
 
         self.mapLicense(spaces, item["license"])
         if "description" in item["lom"]["general"]:
