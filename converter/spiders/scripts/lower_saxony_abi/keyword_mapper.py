@@ -149,13 +149,13 @@ class LoSaxKeywordMapper:
                     logging.debug(f"PDF File: {pdf_item} // only_valid_keywords: {only_valid_values}")
 
                     keywords_cleaned_and_mapped = list()
+                    keywords_cleaned_and_mapped.append('Schriftliche Abituraufgaben Niedersachsen')
                     for potential_keyword in only_valid_values:
                         if potential_keyword in self.keyword_mapping:
                             potential_keyword = self.keyword_mapping.get(potential_keyword)
                         if potential_keyword.startswith('Aufg'):
                             potential_keyword = potential_keyword.replace('Aufg', 'Aufgabe ')
                         keywords_cleaned_and_mapped.append(potential_keyword)
-                    keywords_cleaned_and_mapped.append('Schriftliche Abituraufgaben Niedersachsen')
                     logging.debug(self.pp.pformat(keywords_cleaned_and_mapped))
 
                     # TODO: keywords

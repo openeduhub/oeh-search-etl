@@ -10,16 +10,16 @@ from .scripts.lower_saxony_abi.directory_routine import DirectoryInitializer, Un
 from .scripts.lower_saxony_abi.keyword_mapper import LoSaxKeywordMapper
 from ..constants import Constants
 from ..items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomLifecycleItemloader, LomEducationalItemLoader, LicenseItemLoader, PermissionItemLoader, ResponseItemLoader, \
+    LomLifecycleItemloader, LomEducationalItemLoader, LicenseItemLoader, ResponseItemLoader, \
     ValuespaceItemLoader
 
 
 class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
     name = 'niedersachsen_abi_spider'
 
-    allowed_domains = ['https://za-aufgaben.nibis.de']
-    start_urls =  ['https://za-aufgaben.nibis.de']
-    version = "0.0.1"
+    allowed_domains = ['za-aufgaben.nibis.de']
+    start_urls = ['https://za-aufgaben.nibis.de']
+    version = "0.0.2"
     # Default values for the 2 expected parameters. Parameter "filename" is always required, "skip_unzip" is optional.
     filename = None
     skip_unzip = False
@@ -38,20 +38,22 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
         super().__init__(**kwargs)
         # logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
         # logging.disable(logging.DEBUG)
+        directory_paths = DirectoryInitializer()
+        zip_file_dictionary = directory_paths.check_download_folder_for_zip_files()
+
+        # only extract files if a "filename"-parameter was given:
         if self.filename is not None:
             zip_selection = self.filename
 
             logging.debug(f"Selected .zip file by CLI-parameter: {zip_selection}")
             logging.debug(f"User wants to skip the unzipping? {self.skip_unzip}")
-            # by default, the script should always unzip the desired .zip file
+            # by default, the script should always unzip the desired .zip file,
+            # but unzipping the nested .zip files is only done when requested by parameter
             if self.skip_unzip == "no":
                 self.skip_unzip = False
             if self.skip_unzip == "yes":
                 self.skip_unzip = True
             logging.debug(f"skip_unzip variable: {self.skip_unzip}")
-
-            directory_paths = DirectoryInitializer()
-            zip_file_dictionary = directory_paths.check_download_folder_for_zip_files()
 
             if self.skip_unzip is False:
                 un_zipper = UnZipper()
@@ -67,18 +69,25 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
                     logging.debug(f"Extracted the following zip files:")
                     logging.debug(un_zipper.zip_files_already_extracted)
 
-            print(
-                f"Analyzing file paths for '.pdf'-files inside "
-                f"{directory_paths.path_storage.path_to_extraction_directory}")
-            pdfs_in_directory: dict = \
-                DirectoryScanner.scan_directory_for_pdfs(directory_paths.path_storage.path_to_extraction_directory)
-            # logging.debug(pp.pformat(pdfs_in_directory))
-            print(f"Total .pdf items in the above mentioned directory: {len(pdfs_in_directory.keys())}")
+        # always scan the /zip_extract/-directory for pdfs and try to extract metadata
+        print(
+            f"Analyzing file paths for '.pdf'-files inside "
+            f"{directory_paths.path_storage.path_to_extraction_directory}")
+        pdfs_in_directory: dict = \
+            DirectoryScanner.scan_directory_for_pdfs(directory_paths.path_storage.path_to_extraction_directory)
+        # logging.debug(pp.pformat(pdfs_in_directory))
+        print(f"Total .pdf items in the above mentioned directory: {len(pdfs_in_directory.keys())}")
 
-            kw_mapper = LoSaxKeywordMapper()
-            pdf_dict1, pdf_dict2 = kw_mapper.extract_pdf_metadata(pdfs_in_directory)
-            self.pdf_dictionary_general = pdf_dict1
-            self.pdf_dictionary_additional = pdf_dict2
+        kw_mapper = LoSaxKeywordMapper()
+        pdf_dict1, pdf_dict2 = kw_mapper.extract_pdf_metadata(pdfs_in_directory)
+        self.pdf_dictionary_general = pdf_dict1
+        self.pdf_dictionary_additional = pdf_dict2
+
+    def getId(self, response=None) -> str:
+        pass
+
+    def getHash(self, response=None) -> str:
+        pass
 
     def parse(self, response, **kwargs):
         # print(f"filename = {self.filename}")
@@ -96,12 +105,13 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
             hash_temp = str(f"{datetime.now().isoformat()}{self.version}")
             base.add_value('hash', hash_temp)
             base.add_value('type', Constants.TYPE_MATERIAL)
-            base.add_value('binary', self.getBinary(current_dict, pdf_item))
+            base.add_value('binary', self.get_binary(current_dict, pdf_item))
 
             lom = LomBaseItemloader()
 
             general = LomGeneralItemloader()
-            general.add_value('title', pdf_item)
+            title_long: str = ' '.join(current_dict.get('keywords'))
+            general.add_value('title', title_long)
             general.add_value('identifier', pdf_item)
             general.add_value('keyword', current_dict.get('keywords'))
             lom.add_value('general', general.load_item())
@@ -147,7 +157,7 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
             hash_temp = str(f"{datetime.now().isoformat()}{self.version}")
             base.add_value('hash', hash_temp)
             base.add_value('type', Constants.TYPE_MATERIAL)
-            base.add_value('binary', self.getBinary(current_dict, pdf_item))
+            base.add_value('binary', self.get_binary(current_dict, pdf_item))
 
             lom = LomBaseItemloader()
 
@@ -187,7 +197,8 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
 
             yield base.load_item()
 
-    def getBinary(self, current_dict, pdf_item):
+    @staticmethod
+    def get_binary(current_dict, pdf_item):
         filepath_full = current_dict.get('pdf_path') + os.path.sep + pdf_item
         file = open(filepath_full, mode='rb')
         binary = file.read()

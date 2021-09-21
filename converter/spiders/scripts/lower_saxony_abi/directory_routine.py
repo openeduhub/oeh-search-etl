@@ -119,6 +119,7 @@ class DirectoryInitializer:
         self.path_storage.parent_directory = os.getcwd()
         self.initialize_folders()
         self.path_storage.print_all_directories()
+        os.chdir(self.path_storage.parent_directory)
         return self
 
 
@@ -159,7 +160,8 @@ class UnZipper:
         zips_inside_zip: list = list()
         zip_files_list: list = zip_file.namelist()
         zip_file.extractall(path='zip_extract')
-        self.zip_files_already_extracted.add(zip_file.filename)
+        filename_full_path = os.path.abspath(zip_file.filename)
+        self.zip_files_already_extracted.add(filename_full_path)
 
         for zip_item in zip_files_list:
             if zip_item.endswith('.zip'):
@@ -186,11 +188,12 @@ class UnZipper:
         for folder_name, sub_folder, filenames in os.walk(extract_dir):
             if len(sub_folder) == 0 and folder_name.endswith('zip_extract'):
                 for filename_top_level in filenames:
+                    current_full_path = os.path.abspath(filename_top_level)
                     if filename_top_level.endswith(
-                            '.zip') and filename_top_level not in self.zip_files_already_extracted:
+                            '.zip') and current_full_path not in self.zip_files_already_extracted:
                         print(folder_name)
                         print(filename_top_level)
-                        self.zip_files_already_extracted.add(filename_top_level)
+                        self.zip_files_already_extracted.add(current_full_path)
                         current_zip = zipfile.ZipFile(filename_top_level)
                         zip_files_inside = current_zip.namelist()
                         for zip_file_inside in zip_files_inside:
@@ -205,7 +208,8 @@ class UnZipper:
                         self.unzip_everything(extract_dir)
             for _ in sub_folder:
                 for filename in filenames:
-                    if filename.endswith('.zip') and filename not in self.zip_files_already_extracted:
+                    current_full_path = os.path.abspath(filename)
+                    if filename.endswith('.zip') and current_full_path not in self.zip_files_already_extracted:
                         self.zip_files_to_extract.add(filename)
                         self.zip_files_to_extract_dict.update({filename: folder_name})
 
