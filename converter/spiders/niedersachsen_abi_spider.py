@@ -77,7 +77,10 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
             DirectoryScanner.scan_directory_for_pdfs(directory_paths.path_storage.path_to_extraction_directory)
         # logging.debug(pp.pformat(pdfs_in_directory))
         print(f"Total .pdf items in the above mentioned directory: {len(pdfs_in_directory.keys())}")
-
+        if len(pdfs_in_directory.keys()) == 0:
+            raise Exception(f"No .pdf files found inside {directory_paths.path_storage.path_to_extraction_directory}. "
+                            f"Please make sure that you've run the crawler with '-a filename=<zip filename>' "
+                            f"parameter first and that there's actual .pdf files inside the extraction directory")
         kw_mapper = LoSaxKeywordMapper()
         pdf_dict1, pdf_dict2 = kw_mapper.extract_pdf_metadata(pdfs_in_directory)
         self.pdf_dictionary_general = pdf_dict1
