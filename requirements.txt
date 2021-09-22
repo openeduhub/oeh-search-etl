@@ -7,7 +7,7 @@ html2text~=2020.1.16
 scrapy-splash
 python-dateutil~=2.8.1
 python-dotenv==0.13.0
-Scrapy==2.4.1
+Scrapy==2.5.0
 requests==2.23.0
 vobject==0.9.6.1
 xmltodict~=0.12.0
@@ -21,6 +21,9 @@ w3lib~=1.22.0
 itemloaders~=1.0.4
 Pillow~=8.2.0
 itemadapter~=0.2.0
-six~=1.15.0
+six~=1.16.0
 certifi~=2020.12.5
 urllib3~=1.25.11
+python-slugify~=5.0.2
+jsonschema~=3.2.0
+spidermon~=1.15.0

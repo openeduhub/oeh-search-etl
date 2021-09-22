@@ -10,6 +10,7 @@ import converter.env as env
 #     https://docs.scrapy.org/en/latest/topics/settings.html
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import converter.monitors
 
 BOT_NAME = "converter_search_idx"
 
@@ -91,11 +92,18 @@ DOWNLOAD_DELAY = 0
 #    'converter.middlewares.OerScrapyDownloaderMiddleware': 543,
 # }
 
+# Spidermon (Spider Monitoring) - see https://spidermon.readthedocs.io/en/latest/index.html
+SPIDERMON_ENABLED = True
+SPIDERMON_SPIDER_CLOSE_MONITORS = (
+    'converter.monitors.SpiderCloseMonitorSuite',
+)
+
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
 EXTENSIONS = {
     #  'scrapy.extensions.telnet.TelnetConsole': None,
     #  'scrapy.extensions.closespider.CLOSESPIDER_PAGECOUNT': 4,
+    'spidermon.contrib.scrapy.extensions.Spidermon': 500,
 }
 
 # Configure item pipelines
