@@ -19,5 +19,5 @@ class ItemCountMonitor(Monitor):
 
 class SpiderCloseMonitorSuite(MonitorSuite):
     monitors = [
-        ItemCountMonitor
+        ItemCountMonitor,
     ]

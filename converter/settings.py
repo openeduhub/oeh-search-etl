@@ -97,6 +97,9 @@ SPIDERMON_ENABLED = True
 SPIDERMON_SPIDER_CLOSE_MONITORS = (
     'converter.monitors.SpiderCloseMonitorSuite',
 )
+SPIDERMON_VALIDATION_MODELS = (
+    'converter.validators.BaseItemValidator',
+)
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
@@ -126,6 +129,7 @@ ITEM_PIPELINES = {
         if storeMode == 'json'
         else "converter.pipelines.EduSharingStorePipeline"
     ): 1000,
+    'spidermon.contrib.scrapy.pipelines.ItemValidationPipeline': 800,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
