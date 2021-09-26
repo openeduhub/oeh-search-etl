@@ -1,5 +1,3 @@
-import base64
-
 from schematics import Model
 from schematics.types import *
 
@@ -55,7 +53,8 @@ class LomLifecycleItemValidator(Model):
     role = StringType()
     firstName = StringType()
     lastName = StringType()
-    organization = StringType()
+    # TODO: research which structure is used for organization (dict? string?)
+    organization = BaseType()
     email = StringType()
     url = StringType()
     uuid = StringType()
@@ -106,6 +105,7 @@ class BaseItemValidator(Model):
     license = PolyModelType(LicenseItemValidator)
     lom = PolyModelType(LomBaseItemValidator)
     response = PolyModelType(ResponseItemValidator)
-    # thumbnail = PolyModelType(BaseType)
+    # TODO: BaseType validates with anything, find a better model for base64 'bytes'-class
+    thumbnail = BaseType()
     type = StringType(required=False)
     valuespaces = PolyModelType(ValuespaceItemValidator)

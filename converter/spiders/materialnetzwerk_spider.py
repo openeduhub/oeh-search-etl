@@ -26,7 +26,13 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         # inward-facing
     ]
     custom_settings = {
-        'ROBOTSTXT_OBEY': False
+        'ROBOTSTXT_OBEY': False,
+        'SPIDERMON_SPIDER_CLOSE_MONITORS': (
+            'converter.monitors.SpiderCloseMonitorSuite',
+        ),
+        'SPIDERMON_VALIDATION_MODELS': (
+            'converter.validators.BaseItemValidator',
+        ),
     }
     discipline_mapping = {
         'AES': "Ernährung und Hauswirtschaft",  # Ernährung und Hauswirtschaft

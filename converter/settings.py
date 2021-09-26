@@ -94,12 +94,12 @@ DOWNLOAD_DELAY = 0
 
 # Spidermon (Spider Monitoring) - see https://spidermon.readthedocs.io/en/latest/index.html
 SPIDERMON_ENABLED = True
-SPIDERMON_SPIDER_CLOSE_MONITORS = (
-    'converter.monitors.SpiderCloseMonitorSuite',
-)
-SPIDERMON_VALIDATION_MODELS = (
-    'converter.validators.BaseItemValidator',
-)
+# SPIDERMON_SPIDER_CLOSE_MONITORS = (
+#     'converter.monitors.SpiderCloseMonitorSuite',
+# )
+# SPIDERMON_VALIDATION_MODELS = (
+#     'converter.validators.BaseItemValidator',
+# )
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
