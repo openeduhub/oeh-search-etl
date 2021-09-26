@@ -21,3 +21,22 @@ class SpiderCloseMonitorSuite(MonitorSuite):
     monitors = [
         ItemCountMonitor,
     ]
+
+
+@monitors.name('Item count is exactly one')
+class ItemCountExactlyOneMonitor(Monitor):
+
+    @monitors.name('Minimum number of items_scraped == 1')
+    def test_minimum_number_of_items_equals_one(self):
+        item_extracted = getattr(
+            self.data.stats, 'item_scraped_count', 0)
+        minimum_threshold = 1
+
+        msg = f'Expected to extract exactly {minimum_threshold} items, but extracted {item_extracted}'
+        self.assertTrue(item_extracted == minimum_threshold, msg=msg)
+
+
+class SpiderDebugMonitorSuite(MonitorSuite):
+    monitors = [
+        ItemCountExactlyOneMonitor
+    ]
