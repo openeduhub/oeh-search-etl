@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft/2020-12/output/schema",
+  "$id": "BaseItem",
+  "sourceId": "",
+  "hash": "",
+  "type": "",
+  "thumbnail": {
+    "large": "",
+    "mimetype": "",
+    "small": ""
+  },
+  "lastModified": "",
+  "lom": {
+    "general": {
+      "title": "",
+      "description": ""
+    },
+    "lifecycle": {},
+    "technical": {},
+    "educational": {},
+    "classification": {}
+  },
+  "valuespaces": "",
+  "permissions": "",
+  "license": "",
+  "publisher": "",
+  "notes": "",
+  "required": [
+    "sourceId",
+    "hash"
+  ]
+}

@@ -14,7 +14,7 @@ from converter.valuespace_helper import ValuespaceHelper
 class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     name = "materialnetzwerk_spider"
     friendlyName = "Materialnetzwerk.org"
-    version = "0.0.4"  # last update: 2021-09-17
+    version = "0.0.5"  # last update: 2021-09-27
     start_urls = [
         # 'https://editor.mnweg.org/?p=1&materialType=bundle',
         # this doesn't list any materials since they're loaded dynamically
@@ -30,9 +30,10 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         'SPIDERMON_SPIDER_CLOSE_MONITORS': (
             'converter.monitors.SpiderCloseMonitorSuite',
         ),
-        'SPIDERMON_VALIDATION_MODELS': (
-            'converter.validators.BaseItemValidator',
-        ),
+        'SPIDERMON_ADD_FIELD_COVERAGE': True,
+        'SPIDERMON_VALIDATION_MODELS': {
+            BaseItemLoader: "converter.validators.BaseItemValidator"
+        },
     }
     discipline_mapping = {
         'AES': "Ernährung und Hauswirtschaft",  # Ernährung und Hauswirtschaft

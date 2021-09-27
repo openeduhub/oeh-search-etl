@@ -3,7 +3,7 @@ from spidermon import Monitor, MonitorSuite, monitors
 
 @monitors.name('Item count')
 class ItemCountMonitor(Monitor):
-
+    # see https://spidermon.readthedocs.io/en/latest/monitors.html#monitors
     @monitors.name('Minimum number of items')
     def test_minimum_number_of_items(self):
         item_extracted = getattr(
@@ -25,7 +25,7 @@ class SpiderCloseMonitorSuite(MonitorSuite):
 
 @monitors.name('Item count is exactly one')
 class ItemCountExactlyOneMonitor(Monitor):
-
+    # this Monitor is only useful for debugging a crawler that expects 1 single site to be crawled
     @monitors.name('Minimum number of items_scraped == 1')
     def test_minimum_number_of_items_equals_one(self):
         item_extracted = getattr(

@@ -97,9 +97,14 @@ SPIDERMON_ENABLED = True
 # SPIDERMON_SPIDER_CLOSE_MONITORS = (
 #     'converter.monitors.SpiderCloseMonitorSuite',
 # )
-# SPIDERMON_VALIDATION_MODELS = (
-#     'converter.validators.BaseItemValidator',
-# )
+# SPIDERMON_FIELD_COVERAGE_RULES = {
+#     'BaseItem/sourceId': 1,
+#     'BaseItem/hash': 1,
+#     'BaseItem/lom': 1,
+#     # 'BaseItem/lom/description': 1,
+#     # 'BaseItem/valuespaces': 1,
+#     # 'BaseItem/license': 1
+# }
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html

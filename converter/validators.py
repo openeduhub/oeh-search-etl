@@ -46,7 +46,7 @@ class LomGeneralItemValidator(Model):
     coverage = StringType()
     structure = StringType()
     aggregationLevel = StringType()
-    description = StringType()
+    description = StringType(required=True)
 
 
 class LomLifecycleItemValidator(Model):
@@ -103,9 +103,10 @@ class BaseItemValidator(Model):
     hash = StringType(required=True)
     lastModified = StringType(required=True)
     license = PolyModelType(LicenseItemValidator)
-    lom = PolyModelType(LomBaseItemValidator)
+    # lom = PolyModelType(LomBaseItemValidator)
+    lom = DictType(field=DictType(field=StringType))
     response = PolyModelType(ResponseItemValidator)
     # TODO: BaseType validates with anything, find a better model for base64 'bytes'-class
-    thumbnail = BaseType()
+    thumbnail = DictType(StringType, coerce_key=BaseType)
     type = StringType(required=False)
     valuespaces = PolyModelType(ValuespaceItemValidator)
