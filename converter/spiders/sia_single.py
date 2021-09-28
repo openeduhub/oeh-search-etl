@@ -11,6 +11,9 @@ from converter.spiders.base_classes import LomBase
 
 
 class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
+    # SPIDERMON Integration is completely WIP, this file is only for debugging the current implementation
+    # of Spider Monitors and Item Validators.
+    # TODO: Make a local copy and delete this crawler before merging with 'develop' or 'main'
     name = "sia_single"
     friendlyName = "Schule im Aufbruch (Single Run Spider)"
     url = "https://vimeo.com/412230600"
@@ -22,17 +25,20 @@ class SchuleImAufbruchVideoSpider(scrapy.Spider, LomBase):
         'SPIDERMON_VALIDATION_MODELS': {
             BaseItemLoader: "converter.validators.BaseItemValidator",
             LomBaseItemloader: 'converter.validators.LomBaseItemValidator',
-            LomGeneralItemloader: 'converter.validators.LomGeneralItemValidator',
-            LomLifecycleItemloader: 'converter.validators.LomLifecycleItemValidator',
-            LomTechnicalItemLoader: 'converter.validators.LomTechnicalItemValidator',
-            LomEducationalItemLoader: 'converter.validators.LomEducationalItemValidator',
-            ValuespaceItemLoader: 'converter.validators.ValuespaceItemValidator'
+            # LomGeneralItemloader: 'converter.validators.LomGeneralItemValidator',
+            # LomLifecycleItemloader: 'converter.validators.LomLifecycleItemValidator',
+            # LomTechnicalItemLoader: 'converter.validators.LomTechnicalItemValidator',
+            # LomEducationalItemLoader: 'converter.validators.LomEducationalItemValidator',
+            # ValuespaceItemLoader: 'converter.validators.ValuespaceItemValidator'
         },
         # 'SPIDERMON_VALIDATION_SCHEMAS': {
         #     BaseItemLoader: 'converter/base_item_schema.json'
         # },
         'SPIDERMON_FIELD_COVERAGE_RULES': {
             'BaseItem/sourceId': 1,
+            'BaseItem/license': 0.8,
+            'BaseItem/lom': 1,
+            # 'BaseItem/lom/general': 1,
         }
     }
 

@@ -1,6 +1,12 @@
 from schematics import Model
 from schematics.types import *
 
+# 2021-09-28
+# These validators are WIP experiments to get https://spidermon.readthedocs.io/en/latest/item-validation.html working
+# currently only BaseItem gets validated and all lower levels of the data-model are ignored during validation,
+# e.g. while our data model expects 'LomGeneralItem' inside a 'LomBaseItem', the validation stops at
+# 'BaseItem/lom' even though the interesting data lies within nested scrapy.Items like 'BaseItem/lom/general/title'
+
 
 class LicenseItemValidator(Model):
     url = URLType()
@@ -91,7 +97,8 @@ class LomClassificationItemValidator(Model):
 
 
 class LomBaseItemValidator(Model):
-    general = PolyModelType(LomGeneralItemValidator, required=True)
+    # general = PolyModelType(LomGeneralItemValidator, required=True)
+    general = ModelType(LomGeneralItemValidator)
     lifecycle = ListType(ModelType(LomLifecycleItemValidator), required=True)
     technical = PolyModelType(LomTechnicalItemValidator, required=True)
     educational = PolyModelType(LomEducationalItemValidator, required=True)
@@ -102,9 +109,9 @@ class BaseItemValidator(Model):
     sourceId = StringType(required=True)
     hash = StringType(required=True)
     lastModified = StringType(required=True)
-    license = PolyModelType(LicenseItemValidator)
+    license = DictType(field=StringType, coerce_key=LicenseItemValidator)
     # lom = PolyModelType(LomBaseItemValidator)
-    lom = DictType(field=DictType(field=StringType))
+    lom = DictType(field=DictType(field=StringType), coerce_key=BaseType)
     response = PolyModelType(ResponseItemValidator)
     # TODO: BaseType validates with anything, find a better model for base64 'bytes'-class
     thumbnail = DictType(StringType, coerce_key=BaseType)
