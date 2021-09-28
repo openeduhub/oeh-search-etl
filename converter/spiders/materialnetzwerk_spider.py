@@ -14,7 +14,7 @@ from converter.valuespace_helper import ValuespaceHelper
 class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     name = "materialnetzwerk_spider"
     friendlyName = "Materialnetzwerk.org"
-    version = "0.0.5"  # last update: 2021-09-27
+    version = "0.0.7"  # last update: 2021-09-27
     start_urls = [
         # 'https://editor.mnweg.org/?p=1&materialType=bundle',
         # this doesn't list any materials since they're loaded dynamically
@@ -28,8 +28,9 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
         'SPIDERMON_SPIDER_CLOSE_MONITORS': (
-            'converter.monitors.SpiderCloseMonitorSuite',
+            'spidermon.contrib.scrapy.monitors.SpiderCloseMonitorSuite',
         ),
+        'SPIDERMON_MIN_ITEMS': 50,  # as of 2021-09-27 there's 52 materials available
         'SPIDERMON_ADD_FIELD_COVERAGE': True,
         'SPIDERMON_VALIDATION_MODELS': {
             BaseItemLoader: "converter.validators.BaseItemValidator"
@@ -226,9 +227,19 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         lom.add_value('technical', technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
-        bundle_organization = kwargs.get('bundle_ld_json_organization')
+        bundle_organization: dict = kwargs.get('bundle_ld_json_organization')
+        # the dictionary that we can parse from the website itself looks like this:
+        # 'organization': {'@context': 'http://schema.org',
+        #                   '@type': 'Organization',
+        #                   'name': 'Materialnetzwerk e. G.',
+        #                   'sameAs': ['http://twitter.com/materialnw',
+        #                              'https://www.facebook.com/materialnetzwerk'],
+        #                   'url': 'https://editor.mnweg.org'}}
+        # TODO: once its possible to parse a 'organization'-schema-type as a dictionary by the back-end, use
+        #   lifecycle.add_value('organization', bundle_organization)
         if bundle_organization is not None:
-            lifecycle.add_value('organization', bundle_organization)
+            lifecycle.add_value('organization', bundle_organization.get("name"))
+            lifecycle.add_value('url', bundle_organization.get("url"))
         lifecycle.add_value('date', date_published)
         lom.add_value('lifecycle', lifecycle.load_item())
 
