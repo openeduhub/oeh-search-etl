@@ -14,7 +14,7 @@ from converter.valuespace_helper import ValuespaceHelper
 class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     name = "materialnetzwerk_spider"
     friendlyName = "Materialnetzwerk.org"
-    version = "0.0.4"  # last update: 2021-09-17
+    version = "0.0.5"  # last update: 2021-09-29
     start_urls = [
         # 'https://editor.mnweg.org/?p=1&materialType=bundle',
         # this doesn't list any materials since they're loaded dynamically
@@ -54,7 +54,7 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
 
         Spider Contracts:
         @url https://editor.mnweg.org/api/v1/share/bundle?groupSlug=mnw&page=0&pageSize=10000&q
-        @returns requests 43
+        @returns requests 48
 
         :param response: scrapy.http.Response
         :return: scrapy.Request
@@ -219,9 +219,19 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         lom.add_value('technical', technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
-        bundle_organization = kwargs.get('bundle_ld_json_organization')
+        bundle_organization: dict = kwargs.get('bundle_ld_json_organization')
+        # the dictionary that we can parse from the website itself looks like this:
+        # 'organization': {'@context': 'http://schema.org',
+        #                   '@type': 'Organization',
+        #                   'name': 'Materialnetzwerk e. G.',
+        #                   'sameAs': ['http://twitter.com/materialnw',
+        #                              'https://www.facebook.com/materialnetzwerk'],
+        #                   'url': 'https://editor.mnweg.org'}}
+        # TODO: once its possible to parse a 'organization'-schema-type as a dictionary by the back-end, use
+        #   lifecycle.add_value('organization', bundle_organization)
         if bundle_organization is not None:
-            lifecycle.add_value('organization', bundle_organization)
+            lifecycle.add_value('organization', bundle_organization.get("name"))
+            lifecycle.add_value('url', bundle_organization.get("url"))
         lifecycle.add_value('date', date_published)
         lom.add_value('lifecycle', lifecycle.load_item())
 
