@@ -20,7 +20,7 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         "https://www.walter-fendt.de/html5/phde/",
         # "https://www.zum.de/ma/fendt/phde/"
     ]
-    version = "0.0.5"  # reflects the structure of ZUM Physik Apps on 2021-07-15 (there should be 55 scraped items
+    version = "0.0.5"  # reflects the structure of ZUM Physik Apps on 2021-09-30 (there should be 55 scraped items
 
     # when the crawling process is done)
 
@@ -35,6 +35,16 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
             yield scrapy.Request(url=url, callback=self.parse_topic_overview)
 
     def parse_topic_overview(self, response: scrapy.http.Response):
+        """
+        Looks for individual topics within the overview and yields the URL to the main parse()-method.
+
+        :param response: the current 'url' from start_urls
+        :return: scrapy.Request
+
+        Scrapy Contracts:
+        @url https://www.walter-fendt.de/html5/phde/
+        @returns requests 50
+        """
         # the different topics are within tables: response.xpath('//table[@class="Gebiet"]')
         topic_urls = response.xpath('//td[@class="App"]/a/@href').getall()
         for topic_url in topic_urls:
@@ -42,6 +52,14 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
             yield scrapy.Request(url=topic_url, callback=self.parse)
 
     def parse(self, response: scrapy.http.Response, **kwargs):
+        """
+        Populates a BaseItemLoader with metadata and yields the individual BaseItem via BaseItemLoader.load_item()
+        afterwards.
+
+        Scrapy Contracts:
+        @url https://www.walter-fendt.de/html5/phde/newtonlaw2_de.htm
+        @returns item 1
+        """
         # fetching publication date and lastModified from dynamically loaded <p class="Ende">-element:
         url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Pyppeteer)
         splash_html_string = url_data_splash_dict.get('html')
