@@ -16,7 +16,7 @@ from converter.web_tools import WebEngine, WebTools
 class KMapSpider(CrawlSpider, LomBase):
     name = "kmap_spider"
     friendlyName = "KMap.eu"
-    version = "0.0.5"
+    version = "0.0.5"   # last update: 2021-10-04
     sitemap_urls = [
         "https://kmap.eu/server/sitemap/Mathematik",
         "https://kmap.eu/server/sitemap/Physik"
@@ -31,6 +31,12 @@ class KMapSpider(CrawlSpider, LomBase):
             yield scrapy.Request(url=sitemap_url, callback=self.parse_sitemap)
 
     def parse_sitemap(self, response) -> scrapy.Request:
+        """
+
+        Scrapy Contracts:
+        @url https://kmap.eu/server/sitemap/Mathematik
+        @returns requests 50
+        """
         sitemap_items = from_xml_response(response)
         for sitemap_item in sitemap_items:
             temp_dict = {
@@ -45,6 +51,12 @@ class KMapSpider(CrawlSpider, LomBase):
         pass
 
     def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
+        """
+
+        Scrapy Contracts:
+        @url https://kmap.eu/app/browser/Mathematik/Exponentialfunktionen/Asymptoten
+        @returns item 1
+        """
         last_modified = kwargs.get("lastModified")
         url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Pyppeteer)
         splash_html_string = url_data_splash_dict.get('html')
