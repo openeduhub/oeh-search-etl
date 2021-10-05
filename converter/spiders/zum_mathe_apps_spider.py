@@ -21,7 +21,7 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
         "https://www.walter-fendt.de/html5/mde/",
         # "http://www.zum.de/ma/fendt/mde/"
     ]
-    version = "0.0.5"  # reflects the structure of ZUM Mathe Apps on 2021-07-19
+    version = "0.0.5"  # reflects the structure of ZUM Mathe Apps on 2021-09-30
     # keep the console clean from spammy DEBUG-level logging messages, adjust as needed:
     logging.getLogger('websockets.server').setLevel(logging.ERROR)
     logging.getLogger('websockets.protocol').setLevel(logging.ERROR)
@@ -36,7 +36,15 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
         for url in self.start_urls:
             yield scrapy.Request(url=url, callback=self.parse_topic_overview)
 
-    def parse_topic_overview(self, response: scrapy.http.Response):
+    def parse_topic_overview(self, response: scrapy.http.Response) -> scrapy.Request:
+        """
+        Parses a topic overview for individual topics and yields the residing URLs to specialised subtopic-methods() or
+        the main parse()-method.
+
+        Scrapy Contracts:
+        @url https://www.walter-fendt.de/html5/mde/
+        @returns requests 42
+        """
         # the different topics are within tables: response.xpath('//table[@class="Gebiet"]')
         topic_urls = response.xpath('//td[@class="App"]/a/@href').getall()
         for topic_url in topic_urls:
@@ -64,6 +72,13 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
             yield scrapy.Request(url=apollo_url, callback=self.parse)
 
     def parse(self, response: scrapy.http.Response, **kwargs):
+        """
+        Populates a BaseItemLoader with metadata and yields the BaseItem afterwards.
+
+        Scrapy Contracts:
+        @url https://www.walter-fendt.de/html5/mde/pythagoras2_de.htm
+        @returns items 1
+        """
         # fetching publication date and lastModified from dynamically loaded <p class="Ende">-element:
         url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Pyppeteer)
         splash_html_string = url_data_splash_dict.get('html')

@@ -16,7 +16,7 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
     start_urls = [
         "http://ginkgomaps.com/index_de.html"
     ]
-    version = "0.0.1"  # reflects the structure of Ginkgomaps.com on 2021-06-14
+    version = "0.0.1"  # reflects the structure of Ginkgomaps.com on 2021-10-04
 
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
@@ -106,6 +106,12 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         pass
 
     def get_navigation_urls_first_level(self, response: scrapy.http.Response):
+        """
+
+        Scrapy Contracts:
+        @url http://ginkgomaps.com/index_de.html
+        @returns requests 5
+        """
         url_depth = 1
 
         yield from self.check_for_dead_ends_before_parsing(response)
@@ -125,6 +131,11 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         yield from self.crawl_next_url_level(diff_set, response, url_depth)
 
     def get_navigation_urls_second_level(self, response: scrapy.http.Response):
+        """
+
+        @url http://ginkgomaps.com/landkarten_amerikanische_jungferninseln.html
+        @returns requests 3
+        """
         url_depth = 2
         yield from self.check_for_dead_ends_before_parsing(response)
         temp_set = set()
@@ -143,6 +154,11 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         yield from self.crawl_next_url_level(diff_set, response, url_depth)
 
     def get_navigation_urls_third_level(self, response: scrapy.http.Response):
+        """
+
+        @url http://ginkgomaps.com/landkarten_midway_midwayinseln.html
+        @returns requests 10
+        """
         url_depth = 3
         yield from self.check_for_dead_ends_before_parsing(response)
         temp_set = set()
@@ -169,6 +185,12 @@ class GinkgoMapsSpider(scrapy.Spider, LomBase):
         #       len(self.navigation_urls))
 
     def parse(self, response: scrapy.http.Response, **kwargs):
+        """
+
+        Scrapy Contracts:
+        @url http://ginkgomaps.com/landkarten_deutschland.html
+        @returns items 1
+        """
         # making sure that the current url is marked as parsed:
         self.debug_parsed_urls.add(response.url)
 
