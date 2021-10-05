@@ -112,9 +112,9 @@ class FilterSparsePipeline(BasicPipeline):
         except KeyError:
             raise DropItem(f'Item {item} has no lom.technical.location')
         try:
-            if "location" not in item["lom"]["technical"]:
+            if "location" not in item["lom"]["technical"] and not "binary" in item:
                 raise DropItem(
-                    "Entry {} has no technical location".format(item["lom"]["general"]["title"])
+                    "Entry {} has no technical location or binary data".format(item["lom"]["general"]["title"])
                 )
         except KeyError:
             raise DropItem(f'Item {item} has no lom.technical.location')
@@ -519,7 +519,7 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         title = "<no title>"
         if "title" in item["lom"]["general"]:
             title = str(item["lom"]["general"]["title"])
-        entryUUID = EduSharing.buildUUID(item["response"]["url"])
+        entryUUID = EduSharing.buildUUID(item["response"]["url"] if "url" in item["response"] else item["hash"])
         self.insertItem(spider, entryUUID, item)
         logging.info("item " + entryUUID + " inserted/updated")
 
