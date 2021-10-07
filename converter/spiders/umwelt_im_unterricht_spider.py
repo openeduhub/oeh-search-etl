@@ -1,13 +1,11 @@
-import logging
-
 import scrapy
 import w3lib.html
 from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader, \
-    PermissionItemLoader
+    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, \
+    LomClassificationItemLoader
 from converter.spiders.base_classes import LomBase
 
 
@@ -21,24 +19,22 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
     start_urls = [
         # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Atopics",
         # # Typ: Thema der Woche
-        # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Alessons",
-        # # Typ: Unterrichtsvorschlag
+        "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Alessons",
+        # Typ: Unterrichtsvorschlag
         # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Acontexts",
         # # Typ: Hintergrund (Kontext)
         # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials",
         # # Typ: Arbeitsmaterial
-        "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_video",
-        # Typ: Video
+        # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_video",
+        # # Typ: Video
         # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_images",
         # # Typ: Bilderserie
     ]
-    version = "0.0.1"   # last update: 2021-10-07
+    version = "0.0.1"  # last update: 2021-10-07
     topic_urls = set()  # urls that need to be parsed will be added here
-    topic_urls_already_parsed = set()   # this set is used for 'checking off' already parsed urls
+    topic_urls_already_parsed = set()  # this set is used for 'checking off' already parsed urls
 
     EDUCATIONAL_CONTEXT_MAPPING: dict = {
-        # There's only 2 "Zielgruppen": 'Grundschule' and 'Sekundarstufe'
-        # ToDo: either map Sekundarstufe to both or neither
         'Sekundarstufe': ['Sekundarstufe I', 'Sekundarstufe II']
     }
     DISCIPLINE_MAPPING: dict = {
@@ -50,19 +46,16 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
     }
 
     def getId(self, response=None) -> str:
-        return response.url
+        pass
 
     def getHash(self, response=None) -> str:
-        date_raw = response.xpath('//div[@class="b-cpsuiu-show-info"]/span/text()').get()
-        date_cleaned_up = w3lib.html.strip_html5_whitespace(date_raw)
-        hash_temp = str(date_cleaned_up + self.version)
-        return hash_temp
+        pass
 
     def parse_start_url(self, response, **kwargs):
         for url in self.start_urls:
             yield scrapy.Request(url=url, callback=self.parse_category_overview_for_individual_topic_urls)
 
-    def parse_category_overview_for_individual_topic_urls(self, response, **kwargs):
+    def parse_category_overview_for_individual_topic_urls(self, response):
         # logging.debug(f"INSIDE PARSE CATEGORY METHOD: {response.url}")
         topic_urls_raw: list = response.xpath('//a[@class="internal-link readmore"]/@href').getall()
         # logging.debug(f"TOPIC URLS (RAW) ={topic_urls_raw}")
@@ -95,15 +88,14 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         #               f"topic_urls_already_parsed: {len(self.topic_urls_already_parsed)}")
 
     def parse(self, response, **kwargs):
+        current_url: str = response.url
         base = BaseItemLoader()
-        # ALL possible keys for the different Item and ItemLoader-classes can be found inside converter/items.py
 
-        # TODO: fill "base"-keys with values for
-        #  - thumbnail          recommended (let splash handle it)
-        #  - publisher          optional
         base.add_value('sourceId', response.url)
         date_raw = response.xpath('//div[@class="b-cpsuiu-show-info"]/span/text()').get()
         date_cleaned_up = w3lib.html.strip_html5_whitespace(date_raw)
+        hash_temp = str(date_cleaned_up + self.version)
+        base.add_value('hash', hash_temp)
         base.add_value('lastModified', date_cleaned_up)
         base.add_value('type', Constants.TYPE_MATERIAL)
         # base.add_value('thumbnail', thumbnail_url)
@@ -112,7 +104,6 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
 
         general = LomGeneralItemloader()
         # TODO: fill "general"-keys with values for
-        #  - coverage                       optional
         #  - structure                      optional
         #  - aggregationLevel               optional
         general.add_value('identifier', response.url)
@@ -128,22 +119,14 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         lom.add_value('general', general.load_item())
 
         technical = LomTechnicalItemLoader()
-        # TODO: fill "technical"-keys with values for
-        #  - size                           optional
-        #  - requirement                    optional
-        #  - installationRemarks            optional
-        #  - otherPlatformRequirements      optional
         technical.add_value('format', 'text/html')
         technical.add_value('location', response.url)
         lom.add_value('technical', technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
-        # TODO: fill "lifecycle"-keys with values for
-        #  - url                            recommended
-        #  - email                          optional
-        #  - uuid                           optional
         lifecycle.add_value('role', 'publisher')
         lifecycle.add_value('date', date_cleaned_up)
+        lifecycle.add_value('url', "https://www.umwelt-im-unterricht.de/impressum/")
         lifecycle.add_value('organization', 'Bundesministerium für Umwelt, Naturschutz und nukleare Sicherheit (BMU)')
         lom.add_value('lifecycle', lifecycle.load_item())
 
@@ -159,40 +142,56 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         educational.add_value('language', 'de')
         lom.add_value('educational', educational.load_item())
 
-        # once you've filled "general", "technical", "lifecycle" and "educational" with values,
-        # the LomBaseItem is loaded into the "base"-BaseItemLoader
+        # ToDo: didactic_comment / competencies
+        classification = LomClassificationItemLoader()
+
+        if "/wochenthemen/" in current_url:
+            classification.add_value('purpose', 'educational objective')
+            # didactic comments are only part of "Thema der Woche"
+            didactic_comment = response.xpath('//div[@class="c-collapse-content js-collapse-content"]').get()
+            if didactic_comment is not None:
+                didactic_comment = w3lib.html.remove_tags(didactic_comment)
+                # didactic_comment = w3lib.html.replace_escape_chars(didactic_comment, which_ones='\t', replace_by=" ")
+                # didactic_comment = w3lib.html.replace_escape_chars(didactic_comment)
+                didactic_comment = " ".join(didactic_comment.split())
+                if didactic_comment.endswith(".mehr lesenweniger lesen"):
+                    didactic_comment = didactic_comment.replace("mehr lesenweniger lesen", "")
+                # ToDo: make sure which string format looks best in edu-sharing (cleaned up <-> with escape chars)
+                classification.add_value('description', didactic_comment)
+
+        if "/unterrichtsvorschlaege/" in current_url:
+            classification.add_value('purpose', 'competency')
+            competency_description: list = response.xpath('//div[@class="b-cpsuiu-show-description"]/*[not('
+                                                          '@class="cc-licence-info")]').getall()
+            # competency_description will grab the whole div-element, but EXCLUDE the "license"-container
+            if len(competency_description) >= 1:
+                # only if the list of strings is not empty, we'll try to type-convert it to a string (and clean its
+                # formatting up)
+                competency_description: str = " ".join(competency_description)
+                competency_description = w3lib.html.remove_tags(competency_description)
+                classification.add_value('description', competency_description)
+
+        lom.add_value('classification', classification.load_item())
+
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
         # for possible values, either consult https://vocabs.openeduhub.de
         # or take a look at https://github.com/openeduhub/oeh-metadata-vocabs
         # TODO: fill "valuespaces"-keys with values for
-        #  - discipline                     recommended
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/discipline.ttl)
-        #  - intendedEndUserRole            recommended
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl)
         #  - learningResourceType           recommended
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/learningResourceType.ttl)
-        #  - conditionsOfAccess             recommended
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/conditionsOfAccess.ttl)
-        #  - containsAdvertisement          recommended
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/containsAdvertisement.ttl)
-        #  - price                          recommended
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/price.ttl)
-        #  - educationalContext             optional
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/educationalContext.ttl)
-        #  - sourceContentType              optional
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/sourceContentType.ttl)
-        #  - toolCategory                   optional
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/toolCategory.ttl)
-        #  - accessibilitySummary           optional
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/accessibilitySummary.ttl)
-        #  - dataProtectionConformity       optional
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/dataProtectionConformity.ttl)
-        #  - fskRating                      optional
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/fskRating.ttl)
-        #  - oer                            optional
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/oer.ttl)
+        vs.add_value('price', 'no')
+        vs.add_value('containsAdvertisement', 'no')
+        vs.add_value('conditionsOfAccess', 'no login')
+        vs.add_value('intendedEndUserRole', 'teacher')
+        vs.add_value('sourceContentType', 'Unterrichtsmaterial- und Aufgaben-Sammlung')
+        vs.add_value('accessibilitySummary', 'Not tested')  # ToDo: check if the accessibility has changed
+        # see: https://www.umwelt-im-unterricht.de/erklaerung-zur-barrierefreiheit/
+        vs.add_value('dataProtectionConformity', 'Sensible data collection')  # ToDo: DSGVO-konform?
+        # see: https://www.umwelt-im-unterricht.de/datenschutz/
+        vs.add_value('oer', 'partly OER')  # ToDo: alles OER? nur teils? wie setzen?
+        # see: https://www.umwelt-im-unterricht.de/ueber-umwelt-im-unterricht/
         disciplines_raw = response.xpath('//div[@class="b-cpsuiu-show-subjects"]/ul/li/a/text()').getall()
         if len(disciplines_raw) >= 1:
             disciplines = list()
@@ -228,9 +227,6 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         #  - oer                            recommended ('oer' is automatically set if the 'url'-field above
         #  is recognized in LICENSE_MAPPINGS: for possible url-mapping values, please take a look at
         #  LICENSE_MAPPINGS in converter/constants.py)
-        #  - author                         recommended
-        #  - internal                       optional
-        #  - expirationDate                 optional (for content that expires, e.g. ÖR-Mediatheken)
         license_url = response.xpath('//div[@class="cc-licence-info"]/p/a[@rel="license"]/@href').get()
         if license_url is not None:
             lic.add_value('url', license_url)
@@ -240,37 +236,18 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
             license_description_raw = w3lib.html.remove_tags(license_description_raw)
             license_description_raw = w3lib.html.replace_escape_chars(license_description_raw, which_ones="\n",
                                                                       replace_by=" ")
+            # if we would replace_escape_chars() straight away, there would be words stuck together that don't belong
+            # together. just replacing \n with a whitespace is enough to keep the structure of the string intact.
             license_description_raw = w3lib.html.replace_escape_chars(license_description_raw)
             license_description = " ".join(license_description_raw.split())
+            # making sure that there's only 1 whitespace between words, not 4+ when the original string had serveral \t
             lic.add_value('description', license_description)
         base.add_value('license', lic.load_item())
 
-        # Either fill the PermissionItemLoader manually (not necessary most of the times)
-        permissions = PermissionItemLoader()
-        # or (preferably) call the inherited getPermissions(response)-method
-        #   from converter/spiders/base_classes/lom_base.py by using super().:
-        # permissions = super().getPermissions(response)
-        # TODO: if necessary, add/replace values for the following "permissions"-keys
-        #  - public                         optional
-        #  - groups                         optional
-        #  - mediacenters                   optional
-        #  - autoCreateGroups               optional
-        #  - autoCreateMediacenters         optional
+        permissions = super().getPermissions(response)
         base.add_value('permissions', permissions.load_item())
 
-        # Either fill the ResponseItemLoader manually (not necessary most of the time)
-        # response_loader = ResponseItemLoader()
-        # or (preferably) call the inherited mapResponse(response)-method
-        #   from converter/spiders/base_classes/lom_base.py by using super().:
         response_loader = super().mapResponse(response)
-        # TODO: if necessary, add/replace values for the following "response"-keys
-        #  - url                            required
-        #  - status                         optional
-        #  - html                           optional
-        #  - text                           optional
-        #  - headers                        optional
-        #  - cookies                        optional
-        #  - har                            optional
         base.add_value('response', response_loader.load_item())
 
         # once all scrapy.Item are loaded into our "base", we yield the BaseItem by calling the .load_item() method
