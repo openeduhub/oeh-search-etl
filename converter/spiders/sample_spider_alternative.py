@@ -4,7 +4,7 @@ from scrapy.spiders import CrawlSpider
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader, \
-    PermissionItemLoader
+    PermissionItemLoader, LomClassificationItemLoader
 from converter.spiders.base_classes import LomBase
 
 
@@ -70,6 +70,7 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - LomTechnicalItem               required
         #  - LomLifeCycleItem               required (multiple possible)
         #  - LomEducationalItem             required
+        #  - LomClassificationItem          optional
 
         general = LomGeneralItemloader()
         # TODO: fill "general"-keys with values for
@@ -131,6 +132,15 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - difficulty                     optional
         #  - typicalLearningTime            optional
         lom.add_value('educational', educational.load_item())
+
+        classification = LomClassificationItemLoader()
+        # TODO: fill "classification"-keys with values for
+        #  - cost                           optional
+        #  - purpose                        optional
+        #  - taxonPath                      optional
+        #  - description                    optional
+        #  - keyword                        optional
+        lom.add_value('classification', classification.load_item())
 
         # once you've filled "general", "technical", "lifecycle" and "educational" with values,
         # the LomBaseItem is loaded into the "base"-BaseItemLoader
