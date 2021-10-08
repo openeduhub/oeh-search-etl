@@ -30,7 +30,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_images",
         # Typ: Bilderserie
     ]
-    version = "0.0.1"  # last update: 2021-10-07
+    version = "0.0.2"  # last update: 2021-10-08
     topic_urls = set()  # urls that need to be parsed will be added here
     topic_urls_already_parsed = set()  # this set is used for 'checking off' already parsed urls
 
@@ -221,8 +221,10 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         base.add_value('valuespaces', vs.load_item())
 
         lic = LicenseItemLoader()
-        license_url = response.xpath('//div[@class="cc-licence-info"]/p/a[@rel="license"]/@href').get()
+        license_url: str = response.xpath('//div[@class="cc-licence-info"]/p/a[@rel="license"]/@href').get()
         if license_url is not None:
+            if license_url.startswith("http://"):
+                license_url = license_url.replace("http://", "https://")
             lic.add_value('url', license_url)
 
         license_description_raw = response.xpath('//div[@class="cc-licence-info"]').get()
