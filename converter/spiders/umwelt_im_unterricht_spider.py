@@ -19,8 +19,8 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
     start_urls = [
         # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Atopics",
         # # Typ: Thema der Woche
-        "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Alessons",
-        # Typ: Unterrichtsvorschlag
+        # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Alessons",
+        # # Typ: Unterrichtsvorschlag
         # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Acontexts",
         # # Typ: Hintergrund (Kontext)
         # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials",
@@ -40,9 +40,8 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
     DISCIPLINE_MAPPING: dict = {
         'Arbeit, Wirtschaft, Technik': 'Arbeitslehre',
         'Ethik, Philosophie, Religion': ['Ethik', 'Philosophie', 'Religion'],
-        # 'Fächerübergreifend',   # ToDo: no mapping available
-        'Politik, SoWi, Gesellschaft': ['Politik', 'Sozialkunde', 'Gesellschaftskunde'],
-        # 'Verbraucherbildung'    # ToDo: no mapping available
+        'Fächerübergreifend': 'Allgemein',   # ToDo: no mapping available
+        'Politik, SoWi, Gesellschaft': ['Politik', 'Sozialkunde', 'Gesellschaftskunde']
     }
 
     def getId(self, response=None) -> str:
@@ -103,9 +102,6 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         lom = LomBaseItemloader()
 
         general = LomGeneralItemloader()
-        # TODO: fill "general"-keys with values for
-        #  - structure                      optional
-        #  - aggregationLevel               optional
         general.add_value('identifier', response.url)
         title = response.xpath('//div[@class="tx-cps-uiu"]/article/h1/text()').get()
         general.add_value('title', title)
@@ -131,22 +127,12 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         lom.add_value('lifecycle', lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
-        # TODO: fill "educational"-keys with values for
-        #  - description                    recommended (= "Comments on how this learning object is to be used")
-        #  - interactivityType              optional
-        #  - interactivityLevel             optional
-        #  - semanticDensity                optional
-        #  - typicalAgeRange                optional
-        #  - difficulty                     optional
-        #  - typicalLearningTime            optional
         educational.add_value('language', 'de')
-        lom.add_value('educational', educational.load_item())
 
-        # ToDo: didactic_comment / competencies
-        classification = LomClassificationItemLoader()
-
+        # TODO: didactic comment could be either one of these:
+        #  - educational.description
+        #  - classification.description (with classification.purpose set to 'educational objective')
         if "/wochenthemen/" in current_url:
-            classification.add_value('purpose', 'educational objective')
             # didactic comments are only part of "Thema der Woche"
             didactic_comment = response.xpath('//div[@class="c-collapse-content js-collapse-content"]').get()
             if didactic_comment is not None:
@@ -154,11 +140,15 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
                 # didactic_comment = w3lib.html.replace_escape_chars(didactic_comment, which_ones='\t', replace_by=" ")
                 # didactic_comment = w3lib.html.replace_escape_chars(didactic_comment)
                 didactic_comment = " ".join(didactic_comment.split())
-                if didactic_comment.endswith(".mehr lesenweniger lesen"):
+                if didactic_comment.endswith("mehr lesenweniger lesen"):
+                    # the button-description of the expandable info-box ends up in the string, therefore removing it:
                     didactic_comment = didactic_comment.replace("mehr lesenweniger lesen", "")
                 # ToDo: make sure which string format looks best in edu-sharing (cleaned up <-> with escape chars)
-                classification.add_value('description', didactic_comment)
+                educational.add_value('description', didactic_comment)
 
+        lom.add_value('educational', educational.load_item())
+
+        classification = LomClassificationItemLoader()
         if "/unterrichtsvorschlaege/" in current_url:
             classification.add_value('purpose', 'competency')
             competency_description: list = response.xpath('//div[@class="b-cpsuiu-show-description"]/*[not('
@@ -172,25 +162,18 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
                 classification.add_value('description', competency_description)
 
         lom.add_value('classification', classification.load_item())
-
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
-        # for possible values, either consult https://vocabs.openeduhub.de
-        # or take a look at https://github.com/openeduhub/oeh-metadata-vocabs
-        # TODO: fill "valuespaces"-keys with values for
-        #  - learningResourceType           recommended
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/learningResourceType.ttl)
+        # ToDo: Set 'learningResourceType' depending on the material that's being crawled, recognize it by url
         vs.add_value('price', 'no')
         vs.add_value('containsAdvertisement', 'no')
         vs.add_value('conditionsOfAccess', 'no login')
         vs.add_value('intendedEndUserRole', 'teacher')
-        vs.add_value('sourceContentType', 'Unterrichtsmaterial- und Aufgaben-Sammlung')
-        vs.add_value('accessibilitySummary', 'Not tested')  # ToDo: check if the accessibility has changed
+        vs.add_value('accessibilitySummary', 'Not tested')
         # see: https://www.umwelt-im-unterricht.de/erklaerung-zur-barrierefreiheit/
-        vs.add_value('dataProtectionConformity', 'Sensible data collection')  # ToDo: DSGVO-konform?
+        vs.add_value('dataProtectionConformity', 'Sensible data collection')
         # see: https://www.umwelt-im-unterricht.de/datenschutz/
-        vs.add_value('oer', 'partly OER')  # ToDo: alles OER? nur teils? wie setzen?
         # see: https://www.umwelt-im-unterricht.de/ueber-umwelt-im-unterricht/
         disciplines_raw = response.xpath('//div[@class="b-cpsuiu-show-subjects"]/ul/li/a/text()').getall()
         if len(disciplines_raw) >= 1:
@@ -223,10 +206,6 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         base.add_value('valuespaces', vs.load_item())
 
         lic = LicenseItemLoader()
-        # TODO: fill "license"-keys with values for
-        #  - oer                            recommended ('oer' is automatically set if the 'url'-field above
-        #  is recognized in LICENSE_MAPPINGS: for possible url-mapping values, please take a look at
-        #  LICENSE_MAPPINGS in converter/constants.py)
         license_url = response.xpath('//div[@class="cc-licence-info"]/p/a[@rel="license"]/@href').get()
         if license_url is not None:
             lic.add_value('url', license_url)
