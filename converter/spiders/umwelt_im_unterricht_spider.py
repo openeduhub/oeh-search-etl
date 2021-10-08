@@ -17,18 +17,18 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
     name = "umwelt_im_unterricht_spider"
     friendlyName = "Umwelt im Unterricht"
     start_urls = [
-        # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Atopics",
-        # # Typ: Thema der Woche
-        # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Alessons",
-        # # Typ: Unterrichtsvorschlag
-        # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Acontexts",
-        # # Typ: Hintergrund (Kontext)
-        # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials",
-        # # Typ: Arbeitsmaterial
-        # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_video",
-        # # Typ: Video
-        # "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_images",
-        # # Typ: Bilderserie
+        "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Atopics",
+        # Typ: Thema der Woche
+        "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Alessons",
+        # Typ: Unterrichtsvorschlag
+        "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Acontexts",
+        # Typ: Hintergrund (Kontext)
+        "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials",
+        # Typ: Arbeitsmaterial
+        "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_video",
+        # Typ: Video
+        "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_images",
+        # Typ: Bilderserie
     ]
     version = "0.0.1"  # last update: 2021-10-07
     topic_urls = set()  # urls that need to be parsed will be added here
@@ -129,7 +129,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         educational = LomEducationalItemLoader()
         educational.add_value('language', 'de')
 
-        # TODO: didactic comment could be either one of these:
+        # TODO: a didactic comment could fit into either one of these:
         #  - educational.description
         #  - classification.description (with classification.purpose set to 'educational objective')
         if "/wochenthemen/" in current_url:
@@ -165,7 +165,22 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
-        # ToDo: Set 'learningResourceType' depending on the material that's being crawled, recognize it by url
+
+        # depending on the website-category, we need to set a specific learningResourceType
+        # because the value 'website' for all crawled items would not be helpful enough
+        if "/wochenthemen/" in current_url or "/unterrichtsvorschlaege/" in current_url:
+            vs.add_value('learningResourceType', 'lesson plan')
+        if "/hintergrund/" in current_url:
+            vs.add_value('learningResourceType', 'Text')
+        if "/medien/dateien/" in current_url:
+            # topics categorized as "Arbeitsmaterial" offer customizable worksheets to teachers
+            vs.add_value('learningResourceType', 'worksheet')
+        if "/medien/videos/" in current_url:
+            vs.add_value('learningResourceType', 'video')
+        if "/medien/bilder/" in current_url:
+            # topics categorized as "Bilderserie" hold several images in a gallery (with individual licenses)
+            vs.add_value('learningResourceType', 'image')
+
         vs.add_value('price', 'no')
         vs.add_value('containsAdvertisement', 'no')
         vs.add_value('conditionsOfAccess', 'no login')
