@@ -1,7 +1,8 @@
 import json
+import logging
 
-import scrapy.http
-from playwright.sync_api import sync_playwright
+import scrapy
+from scrapy import Selector
 from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
@@ -9,33 +10,33 @@ from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloa
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
 from converter.spiders.base_classes import LomBase
 from converter.util.sitemap import from_xml_response
+from converter.web_tools import WebEngine, WebTools
 
 
 class KMapSpider(CrawlSpider, LomBase):
     name = "kmap_spider"
     friendlyName = "KMap.eu"
-    version = "0.0.1"
+    version = "0.0.5"   # last update: 2021-10-04
     sitemap_urls = [
         "https://kmap.eu/server/sitemap/Mathematik",
         "https://kmap.eu/server/sitemap/Physik"
     ]
     allowed_domains = ['kmap.eu']
-    playwright_instance = None
-    browser_permanent = None
+    # keep the console clean from spammy DEBUG-level logging messages, adjust as needed:
+    logging.getLogger('websockets.server').setLevel(logging.ERROR)
+    logging.getLogger('websockets.protocol').setLevel(logging.ERROR)
 
     def start_requests(self) -> scrapy.Request:
         for sitemap_url in self.sitemap_urls:
             yield scrapy.Request(url=sitemap_url, callback=self.parse_sitemap)
-        # opening a headless browser that will hold our individual BrowserContexts when get_json_ld() is called
-        self.playwright_instance = sync_playwright().start()
-        self.browser_permanent = self.playwright_instance.chromium.launch()
-
-    def close(self, reason):
-        # when the spider is done with its crawling process, it should close the playwright- and browser-instance
-        self.browser_permanent.close()
-        self.playwright_instance.stop()
 
     def parse_sitemap(self, response) -> scrapy.Request:
+        """
+
+        Scrapy Contracts:
+        @url https://kmap.eu/server/sitemap/Mathematik
+        @returns requests 50
+        """
         sitemap_items = from_xml_response(response)
         for sitemap_item in sitemap_items:
             temp_dict = {
@@ -49,25 +50,19 @@ class KMapSpider(CrawlSpider, LomBase):
     def getHash(self, response=None) -> str:
         pass
 
-    def get_json_ld(self, url_to_crawl) -> dict:
-        # using a Playwright BrowserContext allows us to save time/resources, each get_ld_json call spawns a page (=
-        # headless browser tab) within our BrowserContext (~ browser session),
-        # see: https://playwright.dev/python/docs/core-concepts/
-        context = self.browser_permanent.new_context()
-        page = context.new_page()
-        page.goto(url_to_crawl)
-        json_ld_string: str = page.text_content('//*[@id="ld"]')
-        json_ld = json.loads(json_ld_string)
-        context.close()
-        return json_ld
-
     def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
-        # print("PARSE METHOD:", response.url)
+        """
+
+        Scrapy Contracts:
+        @url https://kmap.eu/app/browser/Mathematik/Exponentialfunktionen/Asymptoten
+        @returns item 1
+        """
         last_modified = kwargs.get("lastModified")
-        json_ld: dict = self.get_json_ld(response.url)
-        # for debug purposes - checking if the json_ld is correct/available:
-        # print("LD_JSON =", json_ld)
-        # print(type(json_ld))
+        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Pyppeteer)
+        splash_html_string = url_data_splash_dict.get('html')
+        json_ld_string: str = Selector(text=splash_html_string).xpath('//*[@id="ld"]/text()').get()
+        json_ld: dict = json.loads(json_ld_string)
+        # TODO: skip item method - (skips item if it's an empty knowledge map)
 
         base = BaseItemLoader()
         base.add_value('sourceId', response.url)
@@ -82,8 +77,7 @@ class KMapSpider(CrawlSpider, LomBase):
         # the thumbnail can be found at https://kmap.eu/snappy/Physik/Grundlagen/Potenzschreibweise
         thumbnail_path = json_ld.get("mainEntity").get("thumbnailUrl")
         if thumbnail_path is not None:
-            thumbnail_url = "https://kmap.eu" + thumbnail_path
-            base.add_value('thumbnail', thumbnail_url)
+            base.add_value('thumbnail', 'https://kmap.eu' + thumbnail_path)
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader()
@@ -131,8 +125,6 @@ class KMapSpider(CrawlSpider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value("permissions", permissions.load_item())
 
-        response_loader = ResponseItemLoader()
-        response_loader.add_value("url", response.url)
-        base.add_value("response", response_loader.load_item())
+        base.add_value('response', super().mapResponse(response).load_item())
 
         return base.load_item()

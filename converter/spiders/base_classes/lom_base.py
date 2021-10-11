@@ -1,13 +1,11 @@
-import json
-import logging
-
 import html2text
-import requests
+import logging
 from scrapy.utils.project import get_project_settings
 
 from converter.constants import Constants
 from converter.es_connector import EduSharing
 from converter.items import *
+from converter.web_tools import *
 
 
 class LomBase:
@@ -100,39 +98,15 @@ class LomBase:
         main.add_value("response", self.mapResponse(response).load_item())
         return main.load_item()
 
+    # @deprecated
+    # directly use WebTools instead
     def html2Text(self, html):
-        h = html2text.HTML2Text()
-        h.ignore_links = True
-        h.ignore_images = True
-        return h.handle(html)
+        return WebTools.html2Text(html)
 
+    # @deprecated
+    # directly use WebTools instead
     def getUrlData(self, url):
-        settings = get_project_settings()
-        html = None
-        if settings.get("SPLASH_URL"):
-            result = requests.post(
-                settings.get("SPLASH_URL") + "/render.json",
-                json={
-                    "html": 1,
-                    "iframes": 1,
-                    "url": url,
-                    "wait": settings.get("SPLASH_WAIT"),
-                    "headers": settings.get("SPLASH_HEADERS"),
-                    "script": 1,
-                    "har": 1,
-                    "response_body": 1,
-                },
-            )
-            data = result.content.decode("UTF-8")
-            j = json.loads(data)
-            html = j['html'] if 'html' in j else ''
-            text = html
-            text += '\n'.join(list(map(lambda x: x["html"], j["childFrames"]))) if 'childFrames' in j else ''
-            cookies = result.cookies.get_dict()
-            return {"html": html, "text": self.html2Text(text), "cookies": cookies, "har": json.dumps(j["har"])}
-        else:
-            return {"html": None, "text": None, "cookies": None, "har": None}
-
+        return WebTools.getUrlData(url)
     def mapResponse(self, response, fetchData=True):
         r = ResponseItemLoader(response=response)
         r.add_value("status", response.status)
