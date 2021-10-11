@@ -40,7 +40,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
     DISCIPLINE_MAPPING: dict = {
         'Arbeit, Wirtschaft, Technik': 'Arbeitslehre',
         'Ethik, Philosophie, Religion': ['Ethik', 'Philosophie', 'Religion'],
-        'Fächerübergreifend': 'Allgemein',   # ToDo: no mapping available
+        'Fächerübergreifend': 'Allgemein',
         'Politik, SoWi, Gesellschaft': ['Politik', 'Sozialkunde', 'Gesellschaftskunde']
     }
 
@@ -55,6 +55,12 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
             yield scrapy.Request(url=url, callback=self.parse_category_overview_for_individual_topic_urls)
 
     def parse_category_overview_for_individual_topic_urls(self, response):
+        """
+
+        Scrapy Contracts:
+        @url https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Alessons
+        @returns requests 10
+        """
         # logging.debug(f"INSIDE PARSE CATEGORY METHOD: {response.url}")
         topic_urls_raw: list = response.xpath('//a[@class="internal-link readmore"]/@href').getall()
         # logging.debug(f"TOPIC URLS (RAW) ={topic_urls_raw}")
@@ -68,10 +74,12 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         last_page_button_url = response.xpath('//li[@class="tx-pagebrowse-last last"]/a/@href').get()
         if last_page_button_url is not None:
             last_page_button_url = response.urljoin(last_page_button_url)
-            # Using the "next page"-button until we reach the last page:
+            # Using the "next page"-button to navigate through all individual topics until we reach the last page:
             if last_page_button_url != response.url:
                 next_page_button_url = response.xpath('//li[@class="tx-pagebrowse-last next"]/a/@href').get()
                 if next_page_button_url is not None:
+                    # ToDo: optimize the page navigation by making it independent of the 'next'-button
+                    #   (by manually 'building' the url_strings from 1 to "last-page" with RegEx)
                     next_url_to_parse = response.urljoin(next_page_button_url)
                     yield scrapy.Request(url=next_url_to_parse,
                                          callback=self.parse_category_overview_for_individual_topic_urls)
@@ -87,6 +95,12 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         #               f"topic_urls_already_parsed: {len(self.topic_urls_already_parsed)}")
 
     def parse(self, response, **kwargs):
+        """
+
+        Scrapy Contracts:
+        @url https://www.umwelt-im-unterricht.de/hintergrund/generationengerechtigkeit-klimaschutz-und-eine-lebenswerte-zukunft/
+        @returns item 1
+        """
         current_url: str = response.url
         base = BaseItemLoader()
 
@@ -107,6 +121,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         general.add_value('title', title)
         keywords = response.xpath('//div[@class="b-cpsuiu-show-keywords"]/ul/li/a/text()').getall()
         if len(keywords) >= 1:
+            # only add keywords if the list isn't empty
             general.add_value('keyword', keywords)
         description = response.xpath('/html/head/meta[@name="description"]/@content').get()
         general.add_value('description', description)
@@ -141,8 +156,10 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
                 # didactic_comment = w3lib.html.replace_escape_chars(didactic_comment)
                 didactic_comment = " ".join(didactic_comment.split())
                 if didactic_comment.endswith("mehr lesenweniger lesen"):
-                    # the button-description of the expandable info-box ends up in the string, therefore removing it:
+                    # the button-description of the expandable info-box ends up in the string,
+                    # therefore we are manually removing it:
                     didactic_comment = didactic_comment.replace("mehr lesenweniger lesen", "")
+                # since there's currently no way to confirm how the string looks in the web-interface:
                 # ToDo: make sure which string format looks best in edu-sharing (cleaned up <-> with escape chars)
                 educational.add_value('description', didactic_comment)
 
@@ -153,7 +170,8 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
             classification.add_value('purpose', 'competency')
             competency_description: list = response.xpath('//div[@class="b-cpsuiu-show-description"]/*[not('
                                                           '@class="cc-licence-info")]').getall()
-            # competency_description will grab the whole div-element, but EXCLUDE the "license"-container
+            # the xpath-expression for competency_description will grab the whole div-element,
+            # but EXCLUDE the "license"-container (if the license-description exists, it's always part of the same div)
             if len(competency_description) >= 1:
                 # only if the list of strings is not empty, we'll try to type-convert it to a string (and clean its
                 # formatting up)
@@ -185,11 +203,12 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         vs.add_value('containsAdvertisement', 'no')
         vs.add_value('conditionsOfAccess', 'no login')
         vs.add_value('intendedEndUserRole', 'teacher')
+        # see: https://www.umwelt-im-unterricht.de/ueber-umwelt-im-unterricht/
         vs.add_value('accessibilitySummary', 'Not tested')
         # see: https://www.umwelt-im-unterricht.de/erklaerung-zur-barrierefreiheit/
         vs.add_value('dataProtectionConformity', 'Sensible data collection')
         # see: https://www.umwelt-im-unterricht.de/datenschutz/
-        # see: https://www.umwelt-im-unterricht.de/ueber-umwelt-im-unterricht/
+
         disciplines_raw = response.xpath('//div[@class="b-cpsuiu-show-subjects"]/ul/li/a/text()').getall()
         if len(disciplines_raw) >= 1:
             disciplines = list()
@@ -197,6 +216,8 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
                 # self.debug_discipline_values.add(discipline_value)
                 if discipline_value in self.DISCIPLINE_MAPPING.keys():
                     discipline_value = self.DISCIPLINE_MAPPING.get(discipline_value)
+                # since the mapping value can either be a single string OR a list of strings, we need to make sure that
+                # our 'disciplines'-list is a list of strings (not a list with nested lists):
                 if type(discipline_value) is list:
                     disciplines.extend(discipline_value)
                 else:
@@ -206,6 +227,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
 
         educational_context_raw = response.xpath('//div[@class="b-cpsuiu-show-targets"]/ul/li/a/text()').getall()
         if len(educational_context_raw) >= 1:
+            # the educationalContext-mapping is only done when there's at least one educational_context found
             educational_context = list()
             for educational_context_value in educational_context_raw:
                 # self.debug_educational_context_values.add(educational_context_value)
