@@ -1,3 +1,5 @@
+import re
+
 import scrapy
 import w3lib.html
 from scrapy.spiders import CrawlSpider
@@ -32,7 +34,8 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
     ]
     version = "0.0.2"  # last update: 2021-10-08
     topic_urls = set()  # urls that need to be parsed will be added here
-    topic_urls_already_parsed = set()  # this set is used for 'checking off' already parsed urls
+    topic_urls_parsed = set()  # this set is used for 'checking off' already parsed urls
+    overview_urls_already_parsed = set()  # this set is used for 'checking off' already parsed overview_pages
 
     EDUCATIONAL_CONTEXT_MAPPING: dict = {
         'Sekundarstufe': ['Sekundarstufe I', 'Sekundarstufe II']
@@ -52,9 +55,9 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
 
     def parse_start_url(self, response, **kwargs):
         for url in self.start_urls:
-            yield scrapy.Request(url=url, callback=self.parse_category_overview_for_individual_topic_urls)
+            yield scrapy.Request(url=url, callback=self.parse_category_overview_for_topics_and_subpages)
 
-    def parse_category_overview_for_individual_topic_urls(self, response):
+    def parse_category_overview_for_topics_and_subpages(self, response: scrapy.http.Response):
         """
 
         Scrapy Contracts:
@@ -72,27 +75,30 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         # if there's a "Letzte"-Button in the overview, there's more topic_urls to be gathered than the initially
         # displayed 10 elements
         last_page_button_url = response.xpath('//li[@class="tx-pagebrowse-last last"]/a/@href').get()
+        page_number_regex = re.compile(r'(?P<url_with_parameters>.*&tx_solr%5Bpage%5D=)(?P<nr>\d+)')
+        overview_urls_parsed: set = set()
+
         if last_page_button_url is not None:
-            last_page_button_url = response.urljoin(last_page_button_url)
-            # Using the "next page"-button to navigate through all individual topics until we reach the last page:
-            if last_page_button_url != response.url:
-                next_page_button_url = response.xpath('//li[@class="tx-pagebrowse-last next"]/a/@href').get()
-                if next_page_button_url is not None:
-                    # ToDo: optimize the page navigation by making it independent of the 'next'-button
-                    #   (by manually 'building' the url_strings from 1 to "last-page" with RegEx)
-                    next_url_to_parse = response.urljoin(next_page_button_url)
-                    yield scrapy.Request(url=next_url_to_parse,
-                                         callback=self.parse_category_overview_for_individual_topic_urls)
-            # if last_page_button_url == response.url:
-            #     logging.debug(f"Reached the last page: {response.url}")
-            #     logging.debug(f"{len(self.topic_urls)} individual topic_urls were found: {self.topic_urls}")
+            page_number_dict: dict = page_number_regex.search(last_page_button_url).groupdict()
+            url_without_page_parameter = response.urljoin(page_number_dict.get('url_with_parameters'))
+            last_page_number = int(page_number_dict.get('nr'))
+            for i in range(2, last_page_number + 1):
+                # since the initial url in start_urls already counts as page 1,
+                # we're iterating from page 2 to the last page
+                next_overview_subpage_to_crawl = str(url_without_page_parameter + str(i))
+                if next_overview_subpage_to_crawl not in self.overview_urls_already_parsed:
+                    yield scrapy.Request(url=next_overview_subpage_to_crawl,
+                                         callback=self.parse_category_overview_for_topics_and_subpages)
+                    overview_urls_parsed.add(next_overview_subpage_to_crawl)
+            self.overview_urls_already_parsed.update(overview_urls_parsed)
+
+        parsed_urls: set = set()
         for url in self.topic_urls:
             # making sure that we don't accidentally crawl individual pages more than once
-            if url not in self.topic_urls_already_parsed:
+            if url not in self.topic_urls_parsed:
                 yield scrapy.Request(url=url, callback=self.parse)
-                self.topic_urls_already_parsed.add(url)
-        # logging.debug(f"topic_urls after yielding them: {len(self.topic_urls)} --- "
-        #               f"topic_urls_already_parsed: {len(self.topic_urls_already_parsed)}")
+                parsed_urls.add(url)
+        self.topic_urls_parsed.update(parsed_urls)
 
     def parse(self, response, **kwargs):
         """
