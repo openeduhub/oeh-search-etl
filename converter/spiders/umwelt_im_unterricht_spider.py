@@ -59,6 +59,9 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
 
     def parse_category_overview_for_topics_and_subpages(self, response: scrapy.http.Response):
         """
+        Crawls an overview page of a "type"-category (e.g. "Hintergrund", "Bilderserie" etc.) for subpages and topics.
+        If the overview has subpages, it will recursively yield additional scrapy.Requests to the overview-subpages.
+        Afterwards it yields the (10) individual topic_urls (per overview page) to the parse()-method.
 
         Scrapy Contracts:
         @url https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Alessons
@@ -71,7 +74,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
 
         # if there's a "Letzte"-Button in the overview, there's more topic_urls to be gathered than the initially
         # displayed 10 elements
-        last_page_button_url = response.xpath('//li[@class="tx-pagebrowse-last last"]/a/@href').get()
+        last_page_button_url: str = response.xpath('//li[@class="tx-pagebrowse-last last"]/a/@href').get()
         # the string last_page_button_url typically looks like this:
         # "/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_images&tx_solr%5Bpage%5D=8"
         page_number_regex = re.compile(r'(?P<url_with_parameters>.*&tx_solr%5Bpage%5D=)(?P<nr>\d+)')
@@ -79,7 +82,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         overview_urls_parsed: set = set()   # temporary set used for checking off already visited URLs
         if last_page_button_url is not None:
             page_number_dict: dict = page_number_regex.search(last_page_button_url).groupdict()
-            url_without_page_parameter = response.urljoin(page_number_dict.get('url_with_parameters'))
+            url_without_page_parameter: str = response.urljoin(page_number_dict.get('url_with_parameters'))
             last_page_number = int(page_number_dict.get('nr'))
             for i in range(2, last_page_number + 1):
                 # the initial url from start_urls already counts as page 1, therefore we're iterating
@@ -99,8 +102,9 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
                 parsed_urls.add(url)
         self.topic_urls_parsed.update(parsed_urls)
 
-    def parse(self, response, **kwargs):
+    def parse(self, response: scrapy.http.Response, **kwargs):
         """
+        Parses an individual topic url for metadata and yields a BaseItem.
 
         Scrapy Contracts:
         @url https://www.umwelt-im-unterricht.de/hintergrund/generationengerechtigkeit-klimaschutz-und-eine-lebenswerte-zukunft/
@@ -110,8 +114,8 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         base = BaseItemLoader()
 
         base.add_value('sourceId', response.url)
-        date_raw = response.xpath('//div[@class="b-cpsuiu-show-info"]/span/text()').get()
-        date_cleaned_up = w3lib.html.strip_html5_whitespace(date_raw)
+        date_raw: str = response.xpath('//div[@class="b-cpsuiu-show-info"]/span/text()').get()
+        date_cleaned_up: str = w3lib.html.strip_html5_whitespace(date_raw)
         hash_temp = str(date_cleaned_up + self.version)
         base.add_value('hash', hash_temp)
         base.add_value('lastModified', date_cleaned_up)
@@ -122,13 +126,13 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
 
         general = LomGeneralItemloader()
         general.add_value('identifier', response.url)
-        title = response.xpath('//div[@class="tx-cps-uiu"]/article/h1/text()').get()
+        title: str = response.xpath('//div[@class="tx-cps-uiu"]/article/h1/text()').get()
         general.add_value('title', title)
-        keywords = response.xpath('//div[@class="b-cpsuiu-show-keywords"]/ul/li/a/text()').getall()
+        keywords: list = response.xpath('//div[@class="b-cpsuiu-show-keywords"]/ul/li/a/text()').getall()
         if len(keywords) >= 1:
             # only add keywords if the list isn't empty
             general.add_value('keyword', keywords)
-        description = response.xpath('/html/head/meta[@name="description"]/@content').get()
+        description: str = response.xpath('/html/head/meta[@name="description"]/@content').get()
         general.add_value('description', description)
         general.add_value('language', 'de')
 
@@ -214,7 +218,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         vs.add_value('dataProtectionConformity', 'Sensible data collection')
         # see: https://www.umwelt-im-unterricht.de/datenschutz/
 
-        disciplines_raw = response.xpath('//div[@class="b-cpsuiu-show-subjects"]/ul/li/a/text()').getall()
+        disciplines_raw: list = response.xpath('//div[@class="b-cpsuiu-show-subjects"]/ul/li/a/text()').getall()
         if len(disciplines_raw) >= 1:
             disciplines = list()
             for discipline_value in disciplines_raw:
@@ -255,7 +259,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
                 license_url = license_url.replace("http://", "https://")
             lic.add_value('url', license_url)
 
-        license_description_raw = response.xpath('//div[@class="cc-licence-info"]').get()
+        license_description_raw: str = response.xpath('//div[@class="cc-licence-info"]').get()
         if license_description_raw is not None:
             license_description_raw = w3lib.html.remove_tags(license_description_raw)
             license_description_raw = w3lib.html.replace_escape_chars(license_description_raw, which_ones="\n",
