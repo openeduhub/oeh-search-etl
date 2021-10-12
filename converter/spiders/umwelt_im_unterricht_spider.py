@@ -34,7 +34,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
     ]
     version = "0.0.2"  # last update: 2021-10-08
     topic_urls = set()  # urls that need to be parsed will be added here
-    topic_urls_parsed = set()  # this set is used for 'checking off' already parsed urls
+    topic_urls_parsed = set()  # this set is used for 'checking off' already parsed (individual) topic urls
     overview_urls_already_parsed = set()  # this set is used for 'checking off' already parsed overview_pages
 
     EDUCATIONAL_CONTEXT_MAPPING: dict = {
@@ -64,38 +64,37 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         @url https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Alessons
         @returns requests 10
         """
-        # logging.debug(f"INSIDE PARSE CATEGORY METHOD: {response.url}")
         topic_urls_raw: list = response.xpath('//a[@class="internal-link readmore"]/@href').getall()
-        # logging.debug(f"TOPIC URLS (RAW) ={topic_urls_raw}")
 
         for url_ending in topic_urls_raw:
             self.topic_urls.add(response.urljoin(url_ending))
-        # logging.debug(f"TOPIC URLS ({len(self.topic_urls)}) = {self.topic_urls}")
 
         # if there's a "Letzte"-Button in the overview, there's more topic_urls to be gathered than the initially
         # displayed 10 elements
         last_page_button_url = response.xpath('//li[@class="tx-pagebrowse-last last"]/a/@href').get()
+        # the string last_page_button_url typically looks like this:
+        # "/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_images&tx_solr%5Bpage%5D=8"
         page_number_regex = re.compile(r'(?P<url_with_parameters>.*&tx_solr%5Bpage%5D=)(?P<nr>\d+)')
-        overview_urls_parsed: set = set()
 
+        overview_urls_parsed: set = set()   # temporary set used for checking off already visited URLs
         if last_page_button_url is not None:
             page_number_dict: dict = page_number_regex.search(last_page_button_url).groupdict()
             url_without_page_parameter = response.urljoin(page_number_dict.get('url_with_parameters'))
             last_page_number = int(page_number_dict.get('nr'))
             for i in range(2, last_page_number + 1):
-                # since the initial url in start_urls already counts as page 1,
-                # we're iterating from page 2 to the last page
+                # the initial url from start_urls already counts as page 1, therefore we're iterating
+                # from page 2 to the last page
                 next_overview_subpage_to_crawl = str(url_without_page_parameter + str(i))
                 if next_overview_subpage_to_crawl not in self.overview_urls_already_parsed:
                     yield scrapy.Request(url=next_overview_subpage_to_crawl,
                                          callback=self.parse_category_overview_for_topics_and_subpages)
                     overview_urls_parsed.add(next_overview_subpage_to_crawl)
-            self.overview_urls_already_parsed.update(overview_urls_parsed)
+            self.overview_urls_already_parsed.update(overview_urls_parsed)  # checking off the (10) URLs that we yielded
 
-        parsed_urls: set = set()
+        parsed_urls: set = set()    # temporary set used for checking off already visited topics
         for url in self.topic_urls:
-            # making sure that we don't accidentally crawl individual pages more than once
             if url not in self.topic_urls_parsed:
+                # making sure that we don't accidentally crawl individual pages more than once
                 yield scrapy.Request(url=url, callback=self.parse)
                 parsed_urls.add(url)
         self.topic_urls_parsed.update(parsed_urls)
@@ -252,6 +251,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         license_url: str = response.xpath('//div[@class="cc-licence-info"]/p/a[@rel="license"]/@href').get()
         if license_url is not None:
             if license_url.startswith("http://"):
+                # the license-mapper expects urls that are in https:// format, but UIU uses http:// links to CC-licenses
                 license_url = license_url.replace("http://", "https://")
             lic.add_value('url', license_url)
 
@@ -264,7 +264,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
             # together. just replacing \n with a whitespace is enough to keep the structure of the string intact.
             license_description_raw = w3lib.html.replace_escape_chars(license_description_raw)
             license_description = " ".join(license_description_raw.split())
-            # making sure that there's only 1 whitespace between words, not 4+ when the original string had serveral \t
+            # making sure that there's only 1 whitespace between words
             lic.add_value('description', license_description)
         base.add_value('license', lic.load_item())
 
@@ -274,5 +274,4 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         response_loader = super().mapResponse(response)
         base.add_value('response', response_loader.load_item())
 
-        # once all scrapy.Item are loaded into our "base", we yield the BaseItem by calling the .load_item() method
         yield base.load_item()
