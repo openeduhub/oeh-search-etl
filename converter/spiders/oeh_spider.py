@@ -1,7 +1,8 @@
 import logging
 
-from .base_classes import EduSharingBase
+from .base_classes import EduSharingBase, LomBase
 import converter.env as env
+from ..items import LomAnnotationItemLoader
 
 
 class OEHSpider(EduSharingBase):
@@ -12,6 +13,7 @@ class OEHSpider(EduSharingBase):
     version = "0.1.1"
     mdsId = "mds_oeh"
     importWhitelist: [str] = None
+
     def __init__(self, **kwargs):
         EduSharingBase.__init__(self, **kwargs)
         importWhitelist = env.get("OEH_IMPORT_SOURCES", True, None)
@@ -32,6 +34,21 @@ class OEHSpider(EduSharingBase):
             technical.replace_value("location", response.meta["item"]["properties"]["ccm:wwwurl"][0])
         return technical
 
+    def getLOMGeneral(self, response):
+        general = EduSharingBase.getLOMGeneral(self, response)
+
+        # Adding a default aggregationLevel, which can be used during filtering queries.
+        general.replace_value("aggregationLevel", "1")
+        return general
+
+    def getLOMAnnotation(self, response=None) -> LomAnnotationItemLoader:
+        annotation = LomBase.getLOMAnnotation(self, response)
+
+        # Adding a default searchable value to constitute this element (node) as a valid-to-be-returned object.
+        annotation.add_value("entity", "crawler")
+        annotation.add_value("description", "searchable==1")
+
+        return annotation
 
     def shouldImport(self, response=None):
         if self.importWhitelist:
@@ -51,3 +68,12 @@ class OEHSpider(EduSharingBase):
             )
             return False
         return True
+
+    def getPermissions(self, response):
+        permissions = LomBase.getPermissions(self, response)
+
+        permissions.replace_value("public", False)
+        permissions.add_value("autoCreateGroups", True)
+        permissions.add_value("groups", ["public"])
+
+        return permissions
