@@ -34,7 +34,7 @@ class EduSharingBase(Spider, LomBase):
     def search(self, offset=0):
         return JsonRequest(
             url=self.buildUrl(offset),
-            data={"criterias": [{"property": "ngsearchword", "values": [""]}]},
+            data={"criterias": [{"property": "ngsearchword", "values": ["*"]}]},
             callback=self.parse,
         )
 
