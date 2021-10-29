@@ -248,7 +248,7 @@ class EduSharing:
             "ccm:wwwurl": item["lom"]["technical"]["location"],
             "cclom:location": item["lom"]["technical"]["location"],
             "cclom:title": item["lom"]["general"]["title"],
-            "ccm:lom_general_aggregationlevel": str(item["lom"]["general"]["aggregationLevel"]),
+            "cclom:aggregationlevel": str(item["lom"]["general"]["aggregationLevel"]),
         }
         if "notes" in item:
             spaces["ccm:notes"] = item["notes"]
