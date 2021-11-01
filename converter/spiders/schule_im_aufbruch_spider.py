@@ -13,7 +13,7 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
     name = "schule_im_aufbruch_spider"
     friendlyName = "Schule im Aufbruch"
     url = "https://vimeo.com/user12637410/videos"
-    version = "0.1.2"
+    version = "0.1.3"   # last update: 2021-09-30
 
     # this list will be filled with urls to crawl through, (currently it's only used for debugging purposes)
     video_urls_to_crawl = list()
@@ -37,6 +37,10 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
         for links to video-sub-pages and grabs the next overview-page afterwards
 
         (by default vimeo shows only 12 video-thumbnails per overview-page)
+
+        Scrapy Contracts:
+        @url https://vimeo.com/user12637410/videos
+        @returns requests 12
         """
 
         yield from self.get_video_urls_from_overview(response)
@@ -51,6 +55,9 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
         looks for the ld+json script block on the current overview page and grab the URLs.
         Afterwards tells the video parser to go through the video-sub-pages and yield the metadata
 
+        Scrapy Contracts:
+        @url https://vimeo.com/user12637410/videos
+        @returns requests 12
         """
 
         # there's an alternative way to acquire thumbnails from the overview as well:
@@ -83,7 +90,7 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
         # //*[@id="main"]/div/main/div/div/div/div[2]/div[3]/div
 
         # if ld+json script-container doesn't exist, at least log the error
-        if (response.xpath('/html/body/script[1]/text()').get().strip()) is not None:
+        if (response.xpath('//script[@type="application/ld+json"]').get().strip()) is not None:
 
             # TODO: there's additional metadata inside a script block: window.vimeo.clip_page_config
             #   - longer description - maybe use this one?
@@ -104,7 +111,7 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
         acquires the ld+json script block from the current page and deserializes it into a json list
 
         """
-        ld_json_string = response.xpath('/html/body/script[1]/text()').get().strip()
+        ld_json_string = response.xpath('//script[@type="application/ld+json"]/text()').get().strip()
         ld_json = json.loads(ld_json_string)
         return ld_json
 
@@ -123,12 +130,13 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
             return "license information not found"
 
     def getBase(self, response=None) -> BaseItemLoader:
-        base = LomBase.getBase(self, response)
+        base: BaseItemLoader = LomBase.getBase(self, response)
         ld_json = self.get_ld_json(response)
         current_url = str(response.url)  # making double-sure that we're using a string for sourceID
         base.add_value('sourceId', current_url)
         # maybe add sourceID + dateModified as hash?
-        base.add_value("hash", ld_json[0]["dateModified"])
+        hash_temp: str = str(ld_json[0]["dateModified"] + self.version)
+        base.add_value("hash", hash_temp)
         base.add_value("lastModified", ld_json[0]["dateModified"])
         base.add_value('thumbnail', ld_json[0]["thumbnailUrl"])
         return base

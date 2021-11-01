@@ -15,9 +15,14 @@ python3 -m venv .venv
 
 `pip3 install -r requirements.txt`
 
-As a last step, set up your config variables by copying the example and modify it if necessary `cp converter/.env.example converter/.env`
+If you have Docker installed, use `docker-compose up` to start up the multi-container for `Splash` and `Pyppeteer`-integration. 
+
+As a last step, set up your config variables by copying the `.env.example`-file and modifying it if necessary: 
+
+`cp converter/.env.example converter/.env`
 
 - A crawler can be run with `scrapy crawl <spider-name>`. It assumes that you have an edu-sharing 6.0 instance in your `.env` settings configured which can accept the data.
+- If a crawler has [Scrapy Spider Contracts](https://docs.scrapy.org/en/latest/topics/contracts.html#spiders-contracts) implemented, you can test those by running `scrapy check <spider-name>`
 
 ## Building a Crawler
 

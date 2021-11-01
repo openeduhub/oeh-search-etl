@@ -169,6 +169,27 @@ class EduSharing:
             return True
         except ApiException as e:
             return False
+    def setNodeBinaryData(self, uuid, item) -> bool:
+        if "binary" in item:
+            logging.info(get_project_settings().get("EDU_SHARING_BASE_URL")
+                + "rest/node/v1/nodes/-home-/"
+                + uuid
+                + "/content?mimetype="
+                + item["lom"]["technical"]["format"]
+                         )
+            files = {"file": item["binary"]}
+            response = requests.post(
+                get_project_settings().get("EDU_SHARING_BASE_URL")
+                + "rest/node/v1/nodes/-home-/"
+                + uuid
+                + "/content?mimetype="
+                + item["lom"]["technical"]["format"],
+                headers=self.getHeaders(None),
+                files=files,
+            )
+            return response.status_code == 200
+        else:
+            return False
 
     def setNodePreview(self, uuid, item) -> bool:
         if "thumbnail" in item:
@@ -245,8 +266,9 @@ class EduSharing:
             "ccm:objecttype": item["type"],
             "ccm:replicationsourceuuid": uuid,
             "cm:name": item["lom"]["general"]["title"],
-            "ccm:wwwurl": item["lom"]["technical"]["location"],
-            "cclom:location": item["lom"]["technical"]["location"],
+            "ccm:wwwurl": item["lom"]["technical"]["location"] if "location" in item["lom"]["technical"] else None,
+            "cclom:location": item["lom"]["technical"]["location"] if "location" in item["lom"]["technical"] else None,
+            "cclom:format": item["lom"]["technical"]["format"] if "format" in item["lom"]["technical"] else None,
             "cclom:title": item["lom"]["general"]["title"],
             "cclom:aggregationlevel": str(item["lom"]["general"]["aggregationLevel"]),
         }
@@ -521,7 +543,8 @@ class EduSharing:
         node = self.syncNode(spider, "ccm:io", self.transformItem(uuid, spider, item))
         self.setNodePermissions(node["ref"]["id"], item)
         self.setNodePreview(node["ref"]["id"], item)
-        self.setNodeText(node["ref"]["id"], item)
+        if not self.setNodeBinaryData(node["ref"]["id"], item):
+            self.setNodeText(node["ref"]["id"], item)
 
     def updateItem(self, spider, uuid, item):
         self.insertItem(spider, uuid, item)

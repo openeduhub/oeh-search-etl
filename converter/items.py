@@ -201,7 +201,7 @@ class BaseItem(Item):
     response = Field(serializer=ResponseItem)
     ranking = Field()
     fulltext = Field()
-    thumbnail = Field(output_processor=JoinMultivalues())
+    thumbnail = Field(output_processor=JoinMultivalues()) # "thumbnail data in base64"
     lastModified = Field()
     lom = Field(serializer=LomBaseItem)
     valuespaces = Field(serializer=ValuespaceItem)
@@ -209,8 +209,10 @@ class BaseItem(Item):
     "permissions (access rights) for this entry"
     license = Field(serializer=LicenseItem)
     publisher = Field()
-    # editorial notes
     notes = Field()
+    "editorial notes"
+    binary = Field()
+    "binary data which should be uploaded (raw data)"
 
 
 class BaseItemLoader(ItemLoader):
