@@ -99,9 +99,6 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         #  portal."
         base.add_value("thumbnail", element_dict["previewImageUrl"])
 
-        # base.add_value("searchable", element_dict.get("searchable", "0"))
-        # base.add_value("annotation", {"entity": "crawler", "description":"searchable==0"})
-
         return base
 
     def getLOMGeneral(self, response):
@@ -321,13 +318,11 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
                 parent_element["downloadUrl"] = default_download_url + parent_element["id"]
                 parent_element["title"] = parent_element["serientitel"]
 
-            # parent_element["searchable"] = 1
             parent_element["annotation"] = {"entity": "crawler", "description": "searchable==1"}
             parent_element["aggregation_level"] = 2
             parent_element["uuid"] = edusharing.buildUUID(parent_element["downloadUrl"])
 
             for element in group:
-                # element["searchable"] = 0
                 element["annotation"] = {"entity": "crawler", "description": "searchable==0"}
                 element["aggregation_level"] = 1
                 element["uuid"] = edusharing.buildUUID(element["downloadUrl"])
@@ -380,13 +375,11 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
             parent_element["title"] = parent_element["einzeltitel"]
 
-            # parent_element["searchable"] = 1
             parent_element["annotation"] = {"entity": "crawler", "description": "searchable==1"}
             parent_element["aggregation_level"] = 2
             parent_element["uuid"] = edusharing.buildUUID(parent_element["downloadUrl"])
 
             for element in group:
-                # element["searchable"] = 0
                 element["annotation"] = {"entity": "crawler", "description": "searchable==0"}
                 element["aggregation_level"] = 1
                 element["uuid"] = edusharing.buildUUID(element["downloadUrl"])

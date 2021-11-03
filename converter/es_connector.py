@@ -271,6 +271,11 @@ class EduSharing:
             "cclom:format": item["lom"]["technical"]["format"] if "format" in item["lom"]["technical"] else None,
             "cclom:title": item["lom"]["general"]["title"],
             "cclom:aggregationlevel": str(item["lom"]["general"]["aggregationLevel"]),
+
+            # TODO: HPI LEGACY REMOVE (3 lines)
+            "ccm:replicationsource_DISPLAYNAME": get_spider_friendly_name(spider.name),
+            "ccm:hpi_lom_general_aggregationlevel": str(item["lom"]["general"]["aggregationLevel"]),
+            "ccm:hpi_searchable": item["lom"]["annotation"][0]["description"].split("==")[1],
         }
         if "notes" in item:
             spaces["ccm:notes"] = item["notes"]
@@ -279,6 +284,8 @@ class EduSharing:
                 "origin"
             ]  # TODO currently not mapped in edu-sharing
             spaces["ccm:replicationsourceorigindisplayname"] = get_spider_friendly_name(item["origin"])
+            # TODO: HPI LEGACY REMOVE (1 line)
+            spaces["ccm:replicationsourceorigin_DISPLAYNAME"] = get_spider_friendly_name(item["origin"])
 
         self.mapLicense(spaces, item["license"])
         if "description" in item["lom"]["general"]:
@@ -405,6 +412,8 @@ class EduSharing:
         # http://sodis.de/lom-de/LOM-DE.doc
         if "relation" in item["lom"]:
             spaces["ccm:lom_relation"] = listofjson_to_listofstring(item["lom"]["relation"])
+            # TODO: HPI LEGACY REMOVE (1 line)
+            spaces["ccm:hpi_lom_relation"] = listofjson_to_listofstring(item["lom"]["relation"])
         if "annotation" in item["lom"]:
             spaces["ccm:lom_annotation"] = listofjson_to_listofstring(item["lom"]["annotation"])
 
