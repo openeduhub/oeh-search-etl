@@ -64,7 +64,8 @@ def edusharing_add_to_permission_groups(config, hostname, auth_response, node_id
     r = requests.request("POST", at_url, data=json.dumps(permissions_response_dict["permissions"]["localPermissions"]),
                          headers=headers, allow_redirects=False)
     from schulcloud.adhoc_tasks.upload_sportinhalt_brandenburg.modify_sportinhalt import edusharing_set_property
-    edusharing_set_property(node_id, "ccm:ph_invited", total_permissions, auth_response)
+    # edusharing_set_property(node_id, "ccm:ph_invited", total_permissions, auth_response)
+    edusharing_set_property(node_id, "ccm%3Aph_invited", total_permissions, auth_response)
 
 
 def remove_empty_attributes(permission):

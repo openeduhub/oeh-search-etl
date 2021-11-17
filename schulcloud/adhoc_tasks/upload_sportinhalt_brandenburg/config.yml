@@ -1,5 +1,16 @@
 # Specify directory for which all elements will be affected.
-directory_node_id: "504febbe-3e49-4af1-8399-b5727ad63b0f" # mv-repo
+#directory_node_id: "504febbe-3e49-4af1-8399-b5727ad63b0f" # mv-repo
+
+directory_node_id: "8bbdf971-9124-428a-9837-d138d27ffa24" # mv-repo - Testing Sportinhalt BRB - Sportinhalt BRB Collection
+#directory_node_id: "e8780098-3b69-49ba-83a1-f774183b8949" # mv-repo - Testing Sportinhalt BRB - Sportinhalt BRB Videos
+
+#directory_node_id: "8ced45a6-9b63-4992-bc8e-80b33595e5e4" # dev - Sportinhalt BRB Collection
+#directory_node_id: "8cf6d80c-ba42-40fe-bb37-fd5d69d32102" # dev - Sportinhalt BRB videos
+#directory_node_id: "77b578e9-05b6-4731-8e28-4b944110dbea" # dev - Sportinhalt BRB Videos NonCollection
+
+# Execution mode values: collections, non_collection_files
+execution_mode: "collections"
+#execution_mode: "non_collection_files"
 
 # Keywords
 general_keywords: ["Schulsport", "Bewegungsförderung", "Grundschule", "Sportangebote", "Bewegungsangebote",
