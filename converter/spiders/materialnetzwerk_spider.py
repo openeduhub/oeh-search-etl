@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Optional
 
 import scrapy.http
@@ -9,6 +10,7 @@ from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloa
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
 from converter.spiders.base_classes import LomBase
 from converter.valuespace_helper import ValuespaceHelper
+from converter.web_tools import WebTools, WebEngine
 
 
 class MaterialNetzwerkSpider(CrawlSpider, LomBase):
@@ -85,10 +87,14 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         :return: yields a scrapy.Request for the first worksheet
         """
 
+        ## render the web page to execute js and copy to the response
+        body = WebTools.getUrlData(response.url, WebEngine.Pyppeteer)
+        response = response.replace(body = body['html'])
+
         # a typical bundle_overview looks like this: https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78
         # there's minimal metadata to be found, but we can grab the descriptions of each worksheet and use the
         # accumulated strings as our description for the bundle page
-        bundle_title = response.xpath('//div[@class="l-container content"]/h2/text()').get()
+        bundle_title = response.xpath('//*/div[@class="l-container content"]/h2/text()').get()
         bundle_description = response.xpath('/html/head/meta[@property="description"]/@content').get()
         # div class tutoryMark holds the same content as the description in the header
         # bundle_tutory_mark = response.xpath('//div[@class="tutoryMark"]/text()').getall()
@@ -164,6 +170,7 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
             'bundle_thumbnail': first_worksheet_thumbnail
         }
         if first_worksheet_url is not None:
+            logging.debug(first_worksheet_url)
             yield scrapy.Request(url=first_worksheet_url, callback=self.parse, cb_kwargs=bundle_dict)
         # print(debug_disciplines_sorted)
         pass
