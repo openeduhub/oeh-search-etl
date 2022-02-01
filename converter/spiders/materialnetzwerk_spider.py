@@ -16,7 +16,7 @@ from converter.web_tools import WebTools, WebEngine
 class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     name = "materialnetzwerk_spider"
     friendlyName = "Materialnetzwerk.org"
-    version = "0.0.5"  # last update: 2021-09-29
+    version = "0.0.6"  # last update: 2022-04-14
     start_urls = [
         # 'https://editor.mnweg.org/?p=1&materialType=bundle',
         # this doesn't list any materials since they're loaded dynamically
@@ -32,6 +32,8 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     }
     discipline_mapping = {
         'AES': "Ernährung und Hauswirtschaft",  # Ernährung und Hauswirtschaft
+        'Erdkunde, Gemeinschaftskunde, Geschichte': ['Erdkunde', 'Gesellschaftskunde', 'Sozialkunde', 'Geschichte'],
+        # Gemeinschaftskunde can be either "Gesellschaftskunde" or "Sozialkunde" (depending on the county)
     }
 
     # debug_disciplines = set()
@@ -87,9 +89,9 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         :return: yields a scrapy.Request for the first worksheet
         """
 
-        ## render the web page to execute js and copy to the response
+        # render the web page to execute js and copy to the response
         body = WebTools.getUrlData(response.url, WebEngine.Pyppeteer)
-        response = response.replace(body = body['html'])
+        response = response.replace(body=body['html'])
 
         # a typical bundle_overview looks like this: https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78
         # there's minimal metadata to be found, but we can grab the descriptions of each worksheet and use the
@@ -251,7 +253,12 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
-        vs.add_value('learningResourceType', 'teaching module')
+        # ToDo: learningResourceType ("teaching module") -> new_lrt "Unterrichtsbaustein" & "Arbeitsblatt"?
+        # vs.add_value('learningResourceType', 'teaching module')
+        vs.add_value('new_lrt', ["5098cf0b-1c12-4a1b-a6d3-b3f29621e11d",
+                                 "d8c3ef03-b3ab-4a5e-bcc9-5a546fefa2e9"
+                                 "36e68792-6159-481d-a97b-2c00901f4f78"])
+        # "Unterrichtsbaustein", "Webseite und Portal (stabil)", "Arbeitsblatt
         bundle_discipline = kwargs.get('bundle_discipline')
         if bundle_discipline is not None:
             if self.discipline_mapping.get(bundle_discipline) is not None:
