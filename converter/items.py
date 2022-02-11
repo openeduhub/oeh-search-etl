@@ -127,6 +127,7 @@ class ValuespaceItem(Item):
     discipline = Field(output_processor=JoinMultivalues())
     educationalContext = Field(output_processor=JoinMultivalues())
     learningResourceType = Field(output_processor=JoinMultivalues())
+    new_lrt = Field(output_processor=JoinMultivalues())
     sourceContentType = Field(output_processor=JoinMultivalues())
     toolCategory = Field(output_processor=JoinMultivalues())
 
