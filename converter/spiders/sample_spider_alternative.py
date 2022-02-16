@@ -51,6 +51,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - type               recommended
         #  - thumbnail          recommended
         #  - publisher          optional
+        #  - binary             optional    (only needed if you're working with binary files (e.g. .pdf-files),
+        #                                   if you want to see an example, check out "niedersachsen_abi_spider.py")
         base.add_value('sourceId', response.url)
         # if the source doesn't have a "datePublished" or "lastModified"-value in its header or JSON_LD,
         # you might have to help yourself with a unique string consisting of the datetime of the crawl + self.version
@@ -156,6 +158,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl)
         #  - learningResourceType           recommended
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/learningResourceType.ttl)
+        #  - new_lrt                        recommended
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/new_lrt.ttl)
         #  - conditionsOfAccess             recommended
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/conditionsOfAccess.ttl)
         #  - containsAdvertisement          recommended
