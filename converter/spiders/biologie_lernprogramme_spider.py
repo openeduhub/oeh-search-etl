@@ -1,13 +1,17 @@
 import re
 
+from scrapy import Request
+from scrapy.spiders import CrawlSpider
+
 from converter.constants import Constants
 from .base_classes import LernprogrammeSpiderBase
 
 
-class BiologieLernprogrammeSpider(LernprogrammeSpiderBase):
+class BiologieLernprogrammeSpider(LernprogrammeSpiderBase, CrawlSpider):
     name = "biologie_lernprogramme_spider"
     friendlyName = "Biologie-Lernprogramme"
     url = "https://biologie-lernprogramme.de/"
+    version = "0.1.1"  # last update: 2022-02-22
 
     static_values = {
         "author": {
@@ -69,3 +73,7 @@ class BiologieLernprogrammeSpider(LernprogrammeSpiderBase):
             }
         ),
     }
+
+    def start_requests(self):
+        for url in self.start_urls:
+            yield Request(url=url, callback=self.parse)
