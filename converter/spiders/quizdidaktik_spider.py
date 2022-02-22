@@ -1,11 +1,15 @@
+from scrapy import Request
+from scrapy.spiders import CrawlSpider
+
 from converter.constants import Constants
 from .base_classes import LernprogrammeSpiderBase
 
 
-class QuizdidaktikSpider(LernprogrammeSpiderBase):
+class QuizdidaktikSpider(LernprogrammeSpiderBase, CrawlSpider):
     name = "quizdidaktik_spider"
     friendlyName = "Quizdidaktik"
     url = "https://quizdidaktik.de/"
+    version = "0.1.1"  # last update: 2022-02-22
 
     static_values = {
         "author": {
@@ -50,3 +54,7 @@ class QuizdidaktikSpider(LernprogrammeSpiderBase):
                 row["thumbnail"]
             ),
         }
+
+    def start_requests(self):
+        for url in self.start_urls:
+            yield Request(url=url, callback=self.parse)
