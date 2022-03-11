@@ -1,136 +1,329 @@
-from converter.items import *
-from .base_classes import LomBase, JSONBase
 import json
 import logging
-import html
-import re
-from converter.constants import Constants
+
+import requests
 import scrapy
+from scrapy.spiders import CrawlSpider
 
-# Spider to fetch API from Serlo
-class SerloSpider(scrapy.Spider, LomBase, JSONBase):
+from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
+    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
+from converter.spiders.base_classes import LomBase
+
+
+class SerloSpider(CrawlSpider, LomBase):
     name = "serlo_spider"
-    friendlyName = "Serlo"
-    url = "https://de.serlo.org"
-    version = "0.1.0"
+    friendlyName = "serlo_spider"
+    # start_urls = ["https://de.serlo.org"]
+    API_URL = "https://api.serlo.org/graphql"
+    # for the API description, please check: https://lenabi.serlo.org/metadata-api
+    version = "0.2"  # last update: 2022-03-14
 
-    def __init__(self, **kwargs):
-        LomBase.__init__(self, **kwargs)
+    graphql_items = list()
+    # Mapping from EducationalAudienceRole (LRMI) to IntendedEndUserRole(LOM), see:
+    # https://www.dublincore.org/specifications/lrmi/concept_schemes/#educational-audience-role
+    # https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl
+    EDU_AUDIENCE_ROLE_MAPPING = {
+        "administrator": ["manager", "counsellor"],
+        # A trainer or educator with administrative authority and responsibility.
+        "general public": "other",
+        # The public at large.
+        "mentor": "author",
+        # Someone who advises, trains, supports, and/or guides.
+        "peer tutor": ["learner", "other"],
+        # The peer learner serving as tutor of another learner.
+        "professional": "other",
+        # Someone already practicing a profession; an industry partner, or professional development trainer.
+        "student": "learner",
+        # "parent": "parent",  # no mapping needed
+        # "teacher": "teacher"  # no mapping needed
+    }
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.graphql_items = self.fetch_all_graphql_pages()
+        # logging.debug(f"Gathered {len(self.graphql_items)} items from the GraphQL API")
+
+    def fetch_all_graphql_pages(self):
+        all_entities = list()
+        pagination_string: str = ""
+        has_next_page = True
+        while has_next_page is True:
+            current_page = self.query_graphql_page(pagination_string=pagination_string)["data"]["metadata"]["entities"]
+            all_entities += current_page["nodes"]
+            has_next_page = current_page["pageInfo"]["hasNextPage"]
+            if has_next_page:
+                pagination_string = current_page["pageInfo"]["endCursor"]
+            else:
+                break
+        return all_entities
+
+    def query_graphql_page(self, amount_of_nodes: int = 500, pagination_string: str = None) -> dict:
+        amount_of_nodes = amount_of_nodes
+        # specifies the amount of nodes that shall be requested (per page) from the GraphQL API
+        # (default: 100 // max: 500)
+        pagination_string = pagination_string
+        graphql_metadata_query_body = {
+            "query": f"""
+                        query {{
+                            metadata {{
+                                entities(first: {amount_of_nodes}, after: "{pagination_string}"){{
+                                    nodes
+                                    pageInfo {{
+                                        hasNextPage
+                                        endCursor
+                                        }}
+                                }}
+                            }}
+                        }}
+                        """
+        }
+        request = requests.post(
+            url=self.API_URL,
+            headers={
+                "Content-Type": "application/json"
+            },
+            json=graphql_metadata_query_body
+        )
+        return request.json()
 
     def start_requests(self):
-        url = self.url + "/entity/api/json/export/article"
-        # current dummy fallback since the Serlo API is basically down
-        url = "http://localhost/sources/serlo.json"
-        yield scrapy.Request(url=url, callback=self.parseList)
+        for graphql_item in self.graphql_items:
+            # logging.debug(f"{graphql_item}")
+            item_url = graphql_item["id"]
+            yield scrapy.Request(url=item_url,
+                                 callback=self.parse,
+                                 cb_kwargs={
+                                     "graphql_item": graphql_item
+                                 }
+                                 )
 
-    # some fields are having xml entities (for whatever reason), we will unescape them here
-    def get(self, *params, response):
-        data = JSONBase.get(self, *params, json=response.meta["json"])
-        try:
-            return HTMLParser().unescape(data)
-        except:
-            try:
-                result = []
-                for p in data:
-                    result.append(HTMLParser().unescape(p))
-                return result
-            except:
-                return data
+    def getId(self, response=None) -> str:
+        # we set this value in the parse()-method as 'sourceId' in the BaseItemLoader
+        pass
 
-    def parseList(self, response):
-        data = json.loads(response.body)
-        for j in data:
-            responseCopy = response.replace(url=self.url + j["link"] + "?contentOnly")
-            responseCopy.meta["json"] = j
-            if self.hasChanged(responseCopy):
-                yield scrapy.Request(
-                    url=responseCopy.url,
-                    callback=self.parse,
-                    meta={"json": j, "url": responseCopy.url},
-                )
+    def getHash(self, response=None) -> str:
+        # we set this value in the parse()-method as 'hash' in the BaseItemLoader
+        pass
 
-    def getId(self, response=None):
-        return self.get("guid", response=response)
+    def parse(self, response, **kwargs):
+        graphql_json: dict = kwargs.get("graphql_item")
+        # logging.debug(f"GraphQL Item: {graphql_json}")
 
-    def getHash(self, response=None):
-        return self.version + self.get("lastModified.date", response=response)
+        json_ld = response.xpath('//*[@type="application/ld+json"]/text()').get()
+        json_ld = json.loads(json_ld)
 
-    def parse(self, response):
-        if not self.get("description", response=response):
-            logging.info("skipping empty entry in serlo")
-            return None
-        return LomBase.parse(self, response)
+        base = BaseItemLoader()
+        # # ALL possible keys for the different Item and ItemLoader-classes can be found inside converter/items.py
+        # # TODO: fill "base"-keys with values for
+        # #  - thumbnail          recommended
 
-    def mapResponse(self, response):
-        r = LomBase.mapResponse(self, response)
-        text = r.load_item()["text"].split(
-            "Dieses Werk steht unter der freien Lizenz CC BY-SA 4.0 Information"
-        )[0]
-        r.replace_value("text", text)
-        return r
+        # The actual URL of a learning material is dynamic and can change at any given time
+        # (e.g. when the title gets changed by a serlo editor), therefore we use the "id"-field
+        # or the identifier number as a stable ID
+        # base.add_value('sourceId', graphql_json["id"])  # e.g.: "id": "https://serlo.org/2097"
+        base.add_value('sourceId', graphql_json["identifier"]["value"])  # e.g.: "value": "2097"
+        hash_temp: str = graphql_json["dateModified"] + self.version
+        base.add_value('hash', hash_temp)
+        base.add_value('lastModified', graphql_json["dateModified"])
+        type_list: list = graphql_json["type"]
+        base.add_value('type', type_list)
+        # thumbnail_url: str = "This string should hold the thumbnail URL"
+        # base.add_value('thumbnail', thumbnail_url)
+        if "publisher" in json_ld:
+            base.add_value('publisher', json_ld["publisher"])
 
-    def getBase(self, response):
-        base = LomBase.getBase(self, response)
-        base.add_value("lastModified", self.get("lastModified.date", response=response))
-        base.add_value(
-            "ranking",
-            0.9
-            + (
-                float(self.get("revisionsCount", response=response)) / 2
-                + float(self.get("authorsCount", response=response))
-            )
-            / 50,
-        )
-        return base
+        lom = LomBaseItemloader()
 
-    def getValuespaces(self, response):
-        valuespaces = LomBase.getValuespaces(self, response=response)
-        text = self.get("categories", response=response)[0].split("/")[0]
-        # manual mapping to Mathematik
-        if text == "Mathe":
-            text = "Mathematik"
-        valuespaces.add_value("discipline", text)
-        # for entry in ProcessValuespacePipeline.valuespaces['discipline']:
-        #  if len(list(filter(lambda x:x['@value'].casefold() == text.casefold(), entry['label']))):
-        #    valuespaces.add_value('discipline',entry['id'])
+        general = LomGeneralItemloader()
+        # # TODO: fill LOM "general"-keys with values for
+        # #  - keyword                        required
+        # #  - coverage                       optional
+        # #  - structure                      optional
+        # #  - aggregationLevel               optional
+        general.add_value('identifier', graphql_json["id"])
+        title_1st_try: str = graphql_json["headline"]
+        # not all materials carry a title in the GraphQL API, therefore we're trying to grab a valid title from
+        # different sources (GraphQL > json_ld > header)
+        if title_1st_try is not None:
+            general.add_value('title', title_1st_try)
+        elif title_1st_try is None:
+            title_2nd_try = json_ld["name"]
+            if title_2nd_try is not None:
+                general.add_value('title', title_2nd_try)
+            if title_1st_try is None and title_2nd_try is None:
+                title_from_header = response.xpath('//meta[@property="og:title"]/@content').get()
+                if title_from_header is not None:
+                    general.add_value('title', title_from_header)
+        # not all graphql entries have a description either, therefore we try to grab that from different sources
+        # (GraphQL > json_ld > header > first paragraph (from the DOM itself))
+        if "description" in graphql_json:
+            description_1st_try: str = graphql_json["description"]
+            if description_1st_try is not None and len(description_1st_try) != 0:
+                general.add_value('description', description_1st_try)
+        elif "description" in json_ld:
+            # some json_ld containers don't have a description
+            description_2nd_try: str = json_ld["description"]
+            if description_2nd_try is not None and len(description_2nd_try) != 0:
+                general.add_value('description', description_2nd_try)
+            # elif len(description_1st_try) == 0 and len(description_2nd_try) == 0:
+            else:
+                description_from_header: str = response.xpath('//meta[@name="description"]/@content').get()
+                if description_from_header is not None and len(description_from_header) != 0:
+                    general.add_value('description', description_from_header)
+                else:
+                    description_from_first_paragraph = response.xpath('//p[@class="serlo-p"]/text()').get()
+                    if len(description_from_first_paragraph) != 0:
+                        general.add_value('description', description_from_first_paragraph)
+        in_language: list = graphql_json["inLanguage"]
+        general.add_value('language', in_language)
+        # ToDo: keywords would be extremely useful, but aren't supplied by neither the API / JSON_LD nor the header
+        # # once we've added all available values to the necessary keys in our LomGeneralItemLoader,
+        # # we call the load_item()-method to return a (now filled) LomGeneralItem to the LomBaseItemLoader
+        lom.add_value('general', general.load_item())
 
-        primarySchool = re.compile("Klasse\s[1-4]$", re.IGNORECASE)
-        if len(
-            list(filter(lambda x: primarySchool.match(x), self.getKeywords(response)))
-        ):
-            valuespaces.add_value("educationalContext", "Grundschule")
-        sek1 = re.compile("Klasse\s([5-9]|10)$", re.IGNORECASE)
-        if len(list(filter(lambda x: sek1.match(x), self.getKeywords(response)))):
-            valuespaces.add_value("educationalContext", "Sekundarstufe 1")
-        sek2 = re.compile("Klasse\s1[1-2]", re.IGNORECASE)
-        if len(list(filter(lambda x: sek2.match(x), self.getKeywords(response)))):
-            valuespaces.add_value("educationalContext", "Sekundarstufe 2")
-        return valuespaces
+        technical = LomTechnicalItemLoader()
+        # # TODO: fill "technical"-keys with values for
+        # #  - size                           optional
+        # #  - requirement                    optional
+        # #  - installationRemarks            optional
+        # #  - otherPlatformRequirements      optional
+        # #  - duration                       optional (only applies to audiovisual content like videos/podcasts)
+        technical.add_value('format', 'text/html')  # e.g. if the learning object is a web-page
+        technical.add_value('location', graphql_json["id"])  # we could also use response.url here
 
-    def getKeywords(self, response):
-        try:
-            keywords = list(self.get("keywords", response=response).values())
-        except:
-            keywords = self.get("keywords", response=response)
-        for c in self.get("categories", response=response):
-            keywords += c.split("/")
-        return set(keywords)
+        lom.add_value('technical', technical.load_item())
 
-    def getLOMGeneral(self, response):
-        general = LomBase.getLOMGeneral(self, response=response)
-        general.add_value("title", self.get("title", response=response))
-        general.add_value("keyword", self.getKeywords(response))
-        general.add_value("description", self.get("description", response=response))
-        return general
+        lifecycle = LomLifecycleItemloader()
+        # # TODO: fill "lifecycle"-keys with values for
+        # #  - role                           recommended
+        # #  - firstName                      recommended
+        # #  - lastName                       recommended
+        # #  - uuid                           optional
+        if "publisher" in json_ld:
+            lifecycle.add_value('organization', "Serlo Education e. V.")
+            lifecycle.add_value('role', 'publisher')  # supported roles: "author" / "editor" / "publisher"
+            # for available roles mapping, please take a look at converter/es_connector.py
+            lifecycle.add_value('url', json_ld["publisher"])
+            lifecycle.add_value('email', "de@serlo.org")
+            for language_item in in_language:
+                if language_item == "en":
+                    lifecycle.replace_value('email', "en@serlo.org")
+        lifecycle.add_value('date', graphql_json["dateCreated"])
+        lom.add_value('lifecycle', lifecycle.load_item())
 
-    def getLOMTechnical(self, response):
-        technical = LomBase.getLOMTechnical(self, response)
-        technical.add_value("location", response.url)
-        technical.add_value("format", "text/html")
-        technical.add_value("size", len(response.body))
-        return technical
+        educational = LomEducationalItemLoader()
+        # # TODO: fill "educational"-keys with values for
+        # #  - description                    recommended (= "Comments on how this learning object is to be used")
+        # #  - interactivityType              optional
+        # #  - interactivityLevel             optional
+        # #  - semanticDensity                optional
+        # #  - typicalAgeRange                optional
+        # #  - difficulty                     optional
+        # #  - typicalLearningTime            optional
+        educational.add_value('language', in_language)
 
-    def getLicense(self, response):
-        license = LomBase.getLicense(self, response)
-        license.add_value("url", Constants.LICENSE_CC_BY_SA_40)
-        return license
+        lom.add_value('educational', educational.load_item())
+
+        # classification = LomClassificationItemLoader()
+        # # TODO: fill "classification"-keys with values for
+        # #  - cost                           optional
+        # #  - purpose                        optional
+        # #  - taxonPath                      optional
+        # #  - description                    optional
+        # #  - keyword                        optional
+        # lom.add_value('classification', classification.load_item())
+
+        # # once you've filled "general", "technical", "lifecycle" and "educational" with values,
+        # # the LomBaseItem is loaded into the "base"-BaseItemLoader
+        base.add_value('lom', lom.load_item())
+
+        vs = ValuespaceItemLoader()
+        # # for possible values, either consult https://vocabs.openeduhub.de
+        # # or take a look at https://github.com/openeduhub/oeh-metadata-vocabs
+        # # TODO: fill "valuespaces"-keys with values for
+        # #  - conditionsOfAccess             recommended
+        # #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/conditionsOfAccess.ttl)
+        # #  - educationalContext             optional
+        # #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/educationalContext.ttl)
+        # #  - toolCategory                   optional
+        # #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/toolCategory.ttl)
+        # #  - accessibilitySummary           optional
+        # #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/accessibilitySummary.ttl)
+        # #  - dataProtectionConformity       optional
+        # #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/dataProtectionConformity.ttl)
+        # #  - fskRating                      optional
+        # #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/fskRating.ttl)
+
+        if "audience" in json_ld:
+            # mapping educationalAudienceRole to IntendedEndUserRole here
+            intended_end_user_roles = list()
+            for audience_item in json_ld["audience"]:
+                edu_audience_role = audience_item["prefLabel"]["en"]
+                if edu_audience_role == "professional":
+                    vs.add_value('educationalContext', ["Further Education", "vocational education"])
+                if edu_audience_role in self.EDU_AUDIENCE_ROLE_MAPPING.keys():
+                    edu_audience_role = self.EDU_AUDIENCE_ROLE_MAPPING.get(edu_audience_role)
+                intended_end_user_roles.append(edu_audience_role)
+            vs.add_value('intendedEndUserRole', intended_end_user_roles)
+            # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl)
+
+        if "about" in json_ld and len(json_ld["about"]) != 0:
+            # not every json_ld-container has an "about"-key, e.g.: https://de.serlo.org/5343/5343
+            # we need to make sure that we only try to access "about" if it's actually available
+            # making sure that we only try to look for a discipline if the "about"-list actually has list items
+            disciplines = list()
+            for list_item in json_ld["about"]:
+                if "de" in list_item["prefLabel"]:
+                    discipline_de: str = list_item["prefLabel"]["de"]
+                    disciplines.append(discipline_de)
+                elif "en" in list_item["prefLabel"]:
+                    discipline_en: str = list_item["prefLabel"]["en"]
+                    disciplines.append(discipline_en)
+            if len(disciplines) > 0:
+                vs.add_value('discipline', disciplines)
+                # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/discipline.ttl)
+            # if the json_ld doesn't hold a discipline value for us, we'll try to grab the discipline from the url path
+        else:
+            if "/mathe/" in response.url:
+                vs.add_value('discipline', "Mathematik")
+            if "/biologie/" in response.url:
+                vs.add_value('discipline', "Biologie")
+            if "/chemie/" in response.url:
+                vs.add_value('discipline', "Chemie")
+            if "/nachhaltigkeit/" in response.url:
+                vs.add_value('discipline', "Nachhaltigkeit")
+            if "/informatik/" in response.url:
+                vs.add_value('discipline', "Informatik")
+        vs.add_value('containsAdvertisement', 'No')
+        # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/containsAdvertisement.ttl)
+        # serlo doesn't want to distract learners with ads, therefore we can set it by default to 'no'
+        if graphql_json["isAccessibleForFree"] is True:
+            # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/price.ttl)
+            vs.add_value('price', 'no')
+        elif graphql_json["isAccessibleForFree"] is False:
+            # only set the price to "kostenpflichtig" if it's explicitly stated, otherwise we'll leave it empty
+            vs.add_value('price', 'yes')
+        if graphql_json["learningResourceType"] is not None:
+            # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/learningResourceType.ttl)
+            vs.add_value('learningResourceType', graphql_json["learningResourceType"])
+        vs.add_value('sourceContentType', "Lernportal")
+        # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/sourceContentType.ttl)
+
+        base.add_value('valuespaces', vs.load_item())
+
+        lic = LicenseItemLoader()
+        # # TODO: fill "license"-keys with values for
+        # #  - author                         recommended
+        # #  - expirationDate                 optional (for content that expires, e.g. ÖR-Mediatheken)
+        license_url = graphql_json["license"]["id"]
+        if license_url is not None:
+            lic.add_value('url', license_url)
+        base.add_value('license', lic.load_item())
+
+        permissions = super().getPermissions(response)
+        base.add_value('permissions', permissions.load_item())
+
+        response_loader = super().mapResponse(response)
+        base.add_value('response', response_loader.load_item())
+
+        yield base.load_item()
