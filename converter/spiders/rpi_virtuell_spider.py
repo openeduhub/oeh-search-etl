@@ -1,5 +1,4 @@
 import html
-import json
 import re
 from typing import Optional
 
@@ -31,7 +30,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # 'DUPEFILTER_DEBUG': True
     }
     wp_json_pagination_parameters = {
-        # wp-json API returns up to 100 records per request, with the amount of pages total depending on the chosen
+        # wp-json API returns up to 100 records per request, with the amount of pages in total depending on the chosen
         # pagination parameters, see https://developer.wordpress.org/rest-api/using-the-rest-api/pagination/
         'start_page_number': 0,
         # number of records that should be returned per request:
@@ -53,7 +52,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         'Sekundarstufe': "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1", 'Unterrichtende': ""
     }
     # copyright is only available as a String (description) on the material_review_url itself, this debug list could be
-    # deleted once its confirmed with rpi-virtuell which OER model they actually use here:
+    # deleted once it's confirmed with rpi-virtuell which OER model they actually use here:
     copyright_debug_list = {
         'Zur Wiederverwendung und Veränderung gekennzeichnet': "",
         'Zur Wiederverwendung und Veränderung gekennzeichnet\t        \t        \t\t        frei zugänglich': "",
@@ -88,7 +87,8 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
                            'Gebet/Lied': "",
                            'Gottesdienstentwurf': "",
                            'Internetportal': "web page",
-                           'Lernorte': "", 'Lernstationen': "",
+                           'Lernorte': "",
+                           'Lernstationen': "",
                            'Lokale Einrichtung': "",
                            'Medien': "audiovisual medium",
                            'Online Lesson': "",
@@ -123,7 +123,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         Before starting the actual parsing this method determines in which format the url in start_urls was provided.
         If "?page="-query-parameters are missing, it attaches these via urljoin before parsing.
         """
-        # typically we want to iterate through all pages, starting at 1:
+        # typically, we want to iterate through all pages, starting at 1:
         # https://material.rpi-virtuell.de/wp-json/mymaterial/v1/material/?page=1&per_page=100
         # the following method checks if the urls listed in start_urls are in a format that we can use, e.g. either ends
         # with [...]/material/
@@ -152,8 +152,8 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
         first_page = int(self.get_first_page_parameter())
         last_page = int(self.get_total_pages(response))
-        print("LAST PAGE will be: ", last_page)
-        # first_run_page_number helps avoiding duplicate requests
+        # logging.debug(f"LAST PAGE will be: {last_page}")
+        # first_run_page_number helps avoid duplicate requests
         first_run_page_number = self.get_current_page_number(response)
         for i in range(first_page, (last_page + 1)):
             if i == first_run_page_number:
@@ -175,9 +175,9 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         yield response.follow(current_url, callback=self.parse_page)
         next_page_number = current_page_number + 1
         if current_page_number < last_page:
-            print("Next Page #: ", next_page_number)
+            # logging.debug(f"Next Page #: {next_page_number}")
             next_url = response.urljoin(f'?page={next_page_number}&per_page={self.get_per_page_parameter()}')
-            print("Next URL will be: ", next_url)
+            # logging.debug(f"Next URL will be: {next_url}")
             yield response.follow(next_url, callback=self.parse)
 
     def get_first_page_parameter(self) -> int:
@@ -214,7 +214,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
     @staticmethod
     def get_total_pages(response) -> str:
         """
-        the number of total_pages that are returned by the "wp_json"-API are dependant on which
+        the number of total_pages that are returned by the "wp_json"-API are dependent on which
         "?per_page"-query-parameter was used during a GET-Request.
 
         This method grabs "X-WP-TotalPages" from the header to determine how many "wp_json"-pages need to be parsed in
@@ -224,53 +224,33 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
         :return: the amount of pages that can be returned by the API
         """
-        # the number of total_pages is dependant on how many elements per_page are served during a GET-Request
+        # the number of total_pages is dependent on how many elements per_page are served during a GET-Request
         if response.headers.get("X-Wp-TotalPages") is not None:
             # X-WP-TotalPages is returned as a byte, therefore we need to decode it first
             total_pages = response.headers.get("X-Wp-TotalPages").decode()
             # logging.debug("Total Pages: ", total_pages)
             return total_pages
 
-    def parse_page(self, response: scrapy.http.Response = None):
+    def parse_page(self, response: scrapy.http.TextResponse = None):
         """
-        Parses a "wp_json"-page for individual json items. After fetching an json-item, a dictionary consisting of the
+        Parses a "wp_json"-page for individual json items. After fetching a json-item, a dictionary consisting of the
         "material_review_url" and a copy of the json item is passed on to the "get_metadata_from_review_url"-method.
 
         :param response: the current "wp_json"-page that needs to be parsed for individual json items
         """
-        print("REACHED PARSE_PAGE")
-        current_page_json: dict = json.loads(response.body)
-        # on 2021-09-01: the rpi-virtuell API response format changed
-        # since, for some reason, the API returns a JSON with keys ranging from ("0", "1", ... "99" and adds
-        #       "width": 1000,
-        #       "height": 700,
-        #       "html": ""
-        # right before the final closing }, we now have to make sure we're actually parsing an actual element
-        # and not these last 3 strings.
-        # ATTENTION: The numbers are strings, so current_page_json[0] won't access a value,
-        # but current_page_json["0"] will.
+        # logging.debug("REACHED PARSE_PAGE")
+        current_page_json: dict = response.json()
 
-        # First step is cleaning up the list of valid keys:
-        current_page_json_keys = list(current_page_json.keys())
-        if 'width' in current_page_json_keys:
-            current_page_json_keys.remove('width')
-        if 'height' in current_page_json_keys:
-            current_page_json_keys.remove('height')
-        if 'html' in current_page_json_keys:
-            current_page_json_keys.remove('html')
-        # this should give us a list of keys (strings) that we need to call the individual items with:
-        for key in current_page_json_keys:
-            temp_key = str(key)
-            # we have to access individual items by current_page_json["0"] instead of current_page_json[0]
-            if isinstance(current_page_json[temp_key], dict) and current_page_json[temp_key] != '':
-                item_copy: dict = current_page_json[temp_key]
-                wp_json_item = {
-                    "id": item_copy.get("material_review_url"),
-                    "item": item_copy
-                }
-                review_url = item_copy.get("material_review_url")
-                yield scrapy.Request(url=review_url, callback=self.get_metadata_from_review_url,
-                                     cb_kwargs=wp_json_item)
+        for item in current_page_json:
+            item_copy: dict = item
+            wp_json_item = {
+                "id": item_copy.get("material_review_url"),
+                "item": item_copy
+            }
+            review_url = item_copy.get("material_review_url")
+            yield scrapy.Request(url=review_url,
+                                 callback=self.get_metadata_from_review_url,
+                                 cb_kwargs=wp_json_item)
 
     def get_metadata_from_review_url(self, response: scrapy.http.Response, **kwargs):
         """
@@ -285,49 +265,18 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # logging.debug("DEBUG inside get_metadata_from_review_url: response type = ", type(response),
         #               "url =", response.url)
 
-        ld_json_string = response.xpath('/html/head/script[@type="application/ld+json"]/text()').get().strip()
-        ld_json_string = html.unescape(ld_json_string)
-
-        ld_json = json.loads(ld_json_string)
-
-        hash_temp: Optional[str] = None
-        language_temp: Optional[str] = None
-        pub_date: Optional[str] = None
-        organization_id: Optional[str] = None
-        organization_name: Optional[str] = None
-        date_modified: Optional[str] = None
-        # this is a workaround to make sure that we actually grab the following data,
-        # no matter where they are positioned in the list:
-        #   - dateModified
-        #   - inLanguage
-        #   - datePublished
-        #   - organization_name and url
-        # e.g.: since there seems to be fluctuation how many elements the "@graph"-Array holds, we can't be sure
-        # which position "dateModified" actually has:
-        # sometimes it's ld_json.get("@graph")[2], sometimes on [3] etc., therefore we must check all of them
-        ld_graph_items = ld_json.get("@graph")
-        for item in ld_graph_items:
-            if item.get("dateModified") is not None:
-                date_modified = item.get("dateModified")  # this can be used instead of 'date' in lastModified
-                hash_temp = item.get("dateModified") + self.version
-            if item.get("@type") == "WebSite":
-                language_temp = item.get("inLanguage")
-            if item.get("@type") == "WebPage":
-                pub_date = item.get("datePublished")
-            if item.get("@type") == "Organization":
-                organization_id = item.get("@id")
-                organization_name = item.get("name")
-
         base = BaseItemLoader()
         base.add_value("sourceId", response.url)
+        date_modified: str = response.xpath('//meta[@property="og:article:modified_time"]/@content').get()
+        hash_temp = date_modified + self.version
         base.add_value("hash", hash_temp)
 
         # base.add_value("response", super().mapResponse(response).load_item())
 
-        base.add_value("type", Constants.TYPE_MATERIAL)  # TODO: is this correct? use mapping for edu-context?
+        base.add_value("type", Constants.TYPE_MATERIAL)
         base.add_value("thumbnail", wp_json_item.get("material_screenshot"))
         # base.add_value("lastModified", wp_json_item.get("date"))  # is "date" from wp_json for lastModified correct?
-        base.add_value("lastModified", date_modified)  # or is this one better (grabbed from from material_review_url)?
+        base.add_value("lastModified", date_modified)  # or is this one better (grabbed from material_review_url)?
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
@@ -340,10 +289,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         raw_description = w3lib.html.strip_html5_whitespace(raw_description)
         clean_description = w3lib.html.replace_escape_chars(raw_description)
         general.add_value("description", clean_description)
-
         general.add_value("identifier", wp_json_item.get("id"))
-        if language_temp is not None:
-            general.add_value("language", language_temp)
 
         kw_temp = list()
         for item in wp_json_item.get("material_schlagworte"):
@@ -352,23 +298,17 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
-
         technical.add_value("format", "text/html")
         technical.add_value("location", wp_json_item.get("material_review_url"))
         lom.add_value("technical", technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
-        if organization_name is not None:
-            lifecycle.add_value("organization", organization_name)
-        if organization_id is not None:
-            lifecycle.add_value("url", organization_id)
-        if pub_date is not None:
-            lifecycle.add_value("date", pub_date)
-
+        date_published = response.xpath('//meta[@property="og:article:published_time"]/@content').get()
+        if date_published is not None:
+            lifecycle.add_value("date", date_published)
         lom.add_value("lifecycle", lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
-
         if wp_json_item.get("material_altersstufe") is not None:
             # age range is returned as a list of <from_age>-<to_age>-Strings, possible return values are:
             # e.g. "01-05", "05-10", "10-13", "13-15", "15-19" and "18-99"
@@ -386,7 +326,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
                 age_range_item_loader.add_value("fromRange", min(age_range))
                 age_range_item_loader.add_value("toRange", max(age_range))
                 educational.add_value("typicalAgeRange", age_range_item_loader.load_item())
-
         lom.add_value("educational", educational.load_item())
         base.add_value("lom", lom.load_item())
 
@@ -441,7 +380,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
             cc_by_nc_nd = license_regex_nc_reuse.search(license_description)
             cc_by_nc_sa = license_regex_nc_reuse_and_change.search(license_description)
-            # if the RegEx search finds something, it returns a match-object. otherwise by default it returns None
+            # if the RegEx search finds something, it returns a match-object. otherwise, by default it returns None
             if cc_by_nc_nd is not None:
                 lic.add_value("url", Constants.LICENSE_CC_BY_NC_ND_40)
             if cc_by_nc_sa is not None:
@@ -469,7 +408,12 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             if item.get("name") is not None:
                 if item.get("name").strip() != "":
                     authors.append(item.get("name"))
-        lic.add_value("author", authors)
+        if len(authors) == 0:
+            author_from_header: str = response.xpath('//meta[@name="author"]/@content').get()
+            if author_from_header is not None:
+                authors.append(author_from_header)
+        if len(authors) > 0:
+            lic.add_value("author", authors)
 
         base.add_value("valuespaces", vs.load_item())
 
