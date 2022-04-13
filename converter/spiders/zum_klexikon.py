@@ -5,7 +5,7 @@ import scrapy
 import w3lib.html
 from scrapy import Selector
 
-from converter.items import LomTechnicalItem, LicenseItem, LomGeneralItemloader, ValuespaceItemLoader
+from converter.items import LomTechnicalItem, LicenseItem, LomGeneralItemloader, ValuespaceItemLoader, ValuespaceItem
 from .base_classes.mediawiki_base import MediaWikiBase, jmes_pageids, jmes_title, jmes_links, jmes_continue
 from ..constants import Constants
 
@@ -90,23 +90,10 @@ class ZUMKlexikonSpider(MediaWikiBase, scrapy.Spider):
             general.add_value('description', first_paragraph)
         return general
 
-    def getValuespaces(self, response) -> ValuespaceItemLoader:
+    def valuespace_item(self, response) -> ValuespaceItem:
         """
         Scrapy Contracts:
         @url https://klexikon.zum.de/api.php?format=json&action=parse&pageid=10031&prop=text|langlinks|categories|links|templates|images|externallinks|sections|revid|displaytitle|iwlinks|properties
         """
         response.meta['item'] = json.loads(response.body)
-        vs = ValuespaceItemLoader()
-        data = response.meta['item']
-        # this jmespath expression doesn't distinguish between values for
-        #  'discipline', 'educationalContext' or 'intendedEndUserRole'
-        # it tries to fit the values into each metadata-field
-        # and the non-fitting values get dropped by the valuespaces pipeline
-        jmes_categories = jmespath.compile('parse.categories[]."*"')
-        categories = jmes_categories.search(data)  # ['Ethik', 'Sekundarstufe_1']
-        if categories is not None:
-            vs.add_value("discipline", categories)
-            vs.add_value("educationalContext", categories)
-            vs.add_value("intendedEndUserRole", categories)
-        vs.add_value("new_lrt", "Wiki (dynamisch)")
-        return vs
+        return self.getValuespaces(response).load_item()
