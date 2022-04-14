@@ -272,9 +272,7 @@ class ProcessValuespacePipeline(BasicPipeline):
                 for v in valuespace:
                     labels = list(v["prefLabel"].values())
                     if "altLabel" in v:
-                        labels = labels + list(
-                            [x for y in list(v["altLabel"].values()) for x in y]
-                        )
+                        labels = labels + list(v["altLabel"].values())
                     labels = list(map(lambda x: x.casefold(), labels))
                     if v["id"].endswith(entry) or entry.casefold() in labels:
                         _id = v["id"]
