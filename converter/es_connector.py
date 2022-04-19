@@ -346,6 +346,7 @@ class EduSharing:
             "intendedEndUserRole": "ccm:educationalintendedenduserrole",
             "educationalContext": "ccm:educationalcontext",
             "learningResourceType": "ccm:educationallearningresourcetype",
+            "new_lrt": "ccm:oeh_lrt",
             "sourceContentType": "ccm:sourceContentType",
             "toolCategory": "ccm:toolCategory",
             "conditionsOfAccess": "ccm:conditionsOfAccess",
