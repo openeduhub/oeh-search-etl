@@ -162,7 +162,7 @@ class GrundSchulKoenigSpider(scrapy.Spider, LomBase):
         vs.add_value('discipline', 'Allgemein')
         vs.add_value('educationalContext', 'Primarstufe')
         vs.add_value('sourceContentType', "Unterrichtsmaterial- und Aufgaben-Sammlung")
-        vs.add_value('learningResourceType', 'other_asset_type')
+        # vs.add_value('learningResourceType', 'other_asset_type')
         # ToDo: new_lrt
         if "/vorschule/" in response.url:
             vs.add_value('educationalContext', "Elementarbereich")
