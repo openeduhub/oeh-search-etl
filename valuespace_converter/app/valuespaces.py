@@ -5,7 +5,7 @@ import json
 
 class Valuespaces:
     idsVocabs = ['intendedEndUserRole', 'discipline', 'educationalContext', 'learningResourceType',
-                 'sourceContentType', 'toolCategory', 'conditionsOfAccess', 'oer']
+                 'sourceContentType', 'toolCategory', 'conditionsOfAccess', 'oer', 'new_lrt']
     idsW3ID = ['containsAdvertisement', 'price', 'accessibilitySummary', 'dataProtectionConformity', 'fskRating']
     data = {}
     def __init__(self):
@@ -17,9 +17,16 @@ class Valuespaces:
         for url in urls:
             #try:
             r = requests.get(url['url'])
-            self.data[url['key']] = r.json()['hasTopConcept']
+            self.data[url['key']] = self.flatten(r.json()['hasTopConcept'])
             #except:
             #    self.valuespaces[v] = {}
+
+    def flatten(self, tree: []):
+        result = tree
+        for leaf in tree:
+            if 'narrower' in leaf:
+                result.extend(self.flatten(leaf['narrower']))
+        return result
 
     @staticmethod
     def findKey(valuespaceId: string, id: string, valuespace = None):
