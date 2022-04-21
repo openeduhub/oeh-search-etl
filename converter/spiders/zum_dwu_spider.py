@@ -19,7 +19,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         "http://www.zum.de/dwu/umamtg.htm",  # Mathematik-Teilgebiete
         "http://www.zum.de/dwu/umaptg.htm"  # Physik-Teilgebiete
     ]
-    version = "0.0.1"
+    version = "0.0.2"  # last update: 2022-04-21
     parsed_urls = set()  # holds the already parsed urls to minimize the amount of duplicate requests
     debug_xls_set = set()
     # The author used a HTML suite for building the .htm documents (Hot Potatoes by Half-Baked Software)
@@ -124,7 +124,8 @@ class ZumDwuSpider(CrawlSpider, LomBase):
             # therefore we need to grab the title from a better suited element.
             # This also means that the "description" is most probably wrong and needs a replacement as well:
             title = response.xpath('//td[@class="tt1math"]/text()').get()
-            title = title.strip()
+            if title is not None:
+                title = title.strip()
             # desc_list = response.xpath('/html/body/table[2]/tr/td/table/tr[1]/td[1]/text()').getall()
             desc_list = response.xpath('//td[@class="t1fbs"]/text()').getall()
             if desc_list is not None and len(desc_list) == 0:
