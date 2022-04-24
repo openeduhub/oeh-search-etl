@@ -1,5 +1,4 @@
 import json
-import logging
 from typing import Optional
 
 import scrapy.http
@@ -7,16 +6,16 @@ from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
+    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader, \
+    LomClassificationItemLoader
 from converter.spiders.base_classes import LomBase
-from converter.valuespace_helper import ValuespaceHelper
 from converter.web_tools import WebTools, WebEngine
 
 
 class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     name = "materialnetzwerk_spider"
     friendlyName = "Materialnetzwerk.org"
-    version = "0.0.6"  # last update: 2022-04-14
+    version = "0.0.6"  # last update: 2022-04-24
     start_urls = [
         # 'https://editor.mnweg.org/?p=1&materialType=bundle',
         # this doesn't list any materials since they're loaded dynamically
@@ -28,7 +27,15 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         # inward-facing
     ]
     custom_settings = {
-        'ROBOTSTXT_OBEY': False
+        'CONCURRENT_REQUESTS': 32,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 12,
+        # 'AUTOTHROTTLE_ENABLED': True,
+        # 'AUTOTHROTTLE_DEBUG': True,
+        # 'AUTOTHROTTLE_START_DELAY': 0.25,
+        # 'AUTOTHROTTLE_MAX_DELAY': 5,
+        # 'AUTOTHROTTLE_TARGET_CONCURRENCY': 2,
+        'RETRY_TIMES_3': 3,
+        'RETRY_PRIORITY_ADJUST': 1,
     }
     discipline_mapping = {
         'AES': "Ernährung und Hauswirtschaft",  # Ernährung und Hauswirtschaft
@@ -74,10 +81,6 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
             bundle_urls.append(current_url)
             yield scrapy.Request(url=current_url, callback=self.parse_bundle_overview)
 
-        # for debugging only, to check if the urls are valid (and which urls were gathered)
-        # bundle_urls.sort()
-        # print(bundle_urls)
-
     def parse_bundle_overview(self, response: scrapy.http.Response):
         """
 
@@ -89,32 +92,50 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         :return: yields a scrapy.Request for the first worksheet
         """
 
+        bundle_dict = dict()
+        bundle_dict["bundle_url"] = response.url
         # render the web page to execute js and copy to the response
-        body = WebTools.getUrlData(response.url, WebEngine.Pyppeteer)
+        body = WebTools.getUrlData(response.url, WebEngine.Playwright)
         response = response.replace(body=body['html'])
 
         # a typical bundle_overview looks like this: https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78
         # there's minimal metadata to be found, but we can grab the descriptions of each worksheet and use the
         # accumulated strings as our description for the bundle page
-        bundle_title = response.xpath('//*/div[@class="l-container content"]/h2/text()').get()
-        bundle_description = response.xpath('/html/head/meta[@property="description"]/@content').get()
+        bundle_title = response.xpath('//*[@class="l-container content"]/header/h2/text()').get()
+        if bundle_title is None:
+            # if we can't get the (clean) title, we need to grab the title from the header and clean it up manually
+            bundle_title: str = response.xpath('//head/meta[@property="og:title"]/@content').get()
+            if bundle_title.endswith("  — mnweg.org"):
+                bundle_title = bundle_title.replace("— mnweg.org", "").strip()
+        bundle_dict["bundle_title"] = bundle_title
+        bundle_dict["bundle_description"] = response.xpath('//head/meta[@property="description"]/@content').get()
         # div class tutoryMark holds the same content as the description in the header
         # bundle_tutory_mark = response.xpath('//div[@class="tutoryMark"]/text()').getall()
 
-        meta_values_fach = response.xpath('//dl[@class="metaValues"]/dt[1]/text()').get()
-        bundle_discipline = str()
-        education_level = list()
-        if meta_values_fach == "Fach":
-            meta_values_fach_value = response.xpath('//dl[@class="metaValues"]/dd[1]/text()').get()
+        # there are some basic metadata values in a "metaValues" container, keys differ from topic to topic
+        # keys could be: "Fach", "Kompetenzbereich", "Phase" or "Niveaustufe"
+        mv_keys = response.xpath('//dl[@class="metaValues"]/dt/text()').getall()
+        mv_values = response.xpath('//dl[@class="metaValues"]/dd/text()').getall()
+        meta_values_dict = dict(zip(mv_keys, mv_values))
+
+        if "Fach" in meta_values_dict:
+            meta_values_fach_value = meta_values_dict.get("Fach")
             if meta_values_fach_value is not None:
                 # self.debug_disciplines.add(meta_values_fach_value)
-                bundle_discipline = meta_values_fach_value
+                bundle_dict["bundle_discipline"] = meta_values_fach_value
         # "phase" is their term for "Klassenstufe"
-        meta_values_phase = response.xpath('//dl[@class="metaValues"]/dt[2]/text()').get()
-        if meta_values_phase == "Phase":
-            meta_values_phase_value = response.xpath('//dl[@class="metaValues"]/dd[2]/text()').get()
+        if "Phase" in meta_values_dict:
+            meta_values_phase_value = meta_values_dict.get("Phase")
             edu_level_temp = meta_values_phase_value.replace(" ", "")  # stripping empty spaces between the comma
-            education_level = edu_level_temp.split(',')  # these values will be used for educationLevel
+            educational_level = edu_level_temp.split(',')  # these values will be used for educationLevel
+            bundle_dict["bundle_educational_level"] = educational_level
+        if "Kompetenzbereich" in meta_values_dict:
+            meta_values_competency_value = meta_values_dict.get("Kompetenzbereich")
+            bundle_dict["bundle_competency"] = meta_values_competency_value
+        if "Niveaustufe" in meta_values_dict:
+            meta_values_niveau = meta_values_dict.get("Niveaustufe")
+            bundle_dict["bundle_niveau"] = meta_values_niveau
+
         # materialnetzwerk lists 3 "Niveaustufen": M, R, E
         # meta_values_niveaustufe = response.xpath('//dl[@class="metaValues"]/dt[3]/text()').get()
         # if meta_values_niveaustufe == "Niveaustufe":
@@ -135,6 +156,7 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
             # worksheet_url = worksheet.xpath('@href').get()
         # print(worksheet_descriptions)
         worksheet_description_string: str = ''.join(worksheet_descriptions)
+        bundle_dict["worksheet_description_summary"] = worksheet_description_string
 
         # debug output to check if there are new disciplines that still need to be mapped:
         # debug_disciplines_sorted = list(self.debug_disciplines)
@@ -143,39 +165,41 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         # There are two "application/ld+json"-scripts on the website -> XPath: /html/body/script[1]
         # one is of @type Organization, the other of @type LocalBusiness
         # ld_json_string = response.xpath('/html/body/script[@type="application/ld+json"]/text()').get().strip()
-        ld_json_organization = dict()
-        ld_json_local_business = dict()
+
         for ld_json_block in response.xpath('/html/body/script[@type="application/ld+json"]/text()'):
             ld_json_string = ld_json_block.get().strip()
             ld_json_temp = json.loads(ld_json_string)
             if ld_json_temp.get("@type") == "Organization":
                 ld_json_organization = json.loads(ld_json_string)
+                bundle_dict["bundle_ld_json_organization"] = ld_json_organization
             elif ld_json_temp.get("@type") == "LocalBusiness":
                 ld_json_local_business = json.loads(ld_json_string)
+                bundle_dict["bundle_ld_json_local_business"] = ld_json_local_business
 
         # the publication date is only available on the individual worksheet page, but it seems like the individual
         # pages of a bundle are all carrying the same date, therefore it should be enough to only parse the first
         # worksheet (and reduce load on the website)
         first_worksheet_url = response.xpath('//a[@class="worksheet"]/@href').get()
         first_worksheet_thumbnail = response.xpath('/html/body/main/div/ul/a[1]/div[1]/img/@data-src').get()
+        bundle_dict["bundle_thumbnail"] = first_worksheet_thumbnail
         # there isn't a lot of metadata available on the bundle overview page, but we still need to carry it over to
         # the parse method since that's where the BaseItemLoader is built
-        bundle_dict = {
-            'bundle_title': bundle_title,
-            'bundle_description': bundle_description,
-            'bundle_url': response.url,
-            'worksheet_description_summary': worksheet_description_string,
-            'bundle_discipline': bundle_discipline,
-            'bundle_education_level': education_level,
-            'bundle_ld_json_organization': ld_json_organization,
-            'bundle_ld_json_local_business': ld_json_local_business,
-            'bundle_thumbnail': first_worksheet_thumbnail
-        }
+
+        # bundle_dict contains the following keys:
+        # - bundle_description
+        # - bundle_competency                       (optional)
+        # - bundle_discipline                       (optional)
+        # - bundle_educational_level                  (optional)
+        # - bundle_ld_json_organization
+        # - bundle_ld_json_local_business
+        # - bundle_niveau                           (optional, currently unmapped in edu-sharing)
+        # - bundle_thumbnail
+        # - bundle_title
+        # - bundle_url
+        # - worksheet_description_summary
+
         if first_worksheet_url is not None:
-            logging.debug(first_worksheet_url)
             yield scrapy.Request(url=first_worksheet_url, callback=self.parse, cb_kwargs=bundle_dict)
-        # print(debug_disciplines_sorted)
-        pass
 
     def parse(self, response: scrapy.http.Response, **kwargs):
         """
@@ -244,11 +268,20 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         lifecycle.add_value('date', date_published)
         lom.add_value('lifecycle', lifecycle.load_item())
 
+        classification = LomClassificationItemLoader()
+        competency_description = kwargs.get("bundle_competency")
+        if competency_description is not None:
+            classification.add_value('description', competency_description)
+        lom.add_value('classification', classification.load_item())
+
         educational = LomEducationalItemLoader()
-        # TODO: educationalLevel is currently unsupported in the items.py backend?
         educational_level = kwargs.get('bundle_educational_level')
-        if educational_level is not None:
-            educational.add_value('educationalLevel', educational_level)
+
+        # TODO: educationalLevel is currently unsupported in the items.py backend? (there exists a vocab for it, though:
+        # https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/educationalLevel.ttl
+        # if educational_level is not None:
+        #     educational.add_value('educationalLevel', educational_level)
+
         lom.add_value('educational', educational.load_item())
         base.add_value('lom', lom.load_item())
 
@@ -272,7 +305,13 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         vs.add_value('price', 'no')
         # we can map "Phase" to our educationalContext with the following ValuespaceHelper method:
         if educational_level is not None:
-            vs.add_value("educationalContext", ValuespaceHelper.educationalContextByGrade(educational_level))
+            for educational_level_item in educational_level:
+                if int(educational_level_item) <= 4:
+                    vs.add_value("educationalContext", "grundschule")
+                if 4 < int(educational_level_item) <= 10:
+                    vs.add_value("educationalContext", "sekundarstufe_1")
+                if 10 < int(educational_level_item) <= 13:
+                    vs.add_value("educationalContext", "sekundarstufe_2")
 
         lic = LicenseItemLoader()
         # everything is CC-BY-SA 3.0 according to the FAQs: https://mnweg.org/faqs
