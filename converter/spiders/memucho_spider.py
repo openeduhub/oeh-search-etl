@@ -132,11 +132,11 @@ class MemuchoSpider(CrawlSpider, LomBase, JSONBase):
     def getLicense(self, response):
         license_loader = LomBase.getLicense(self, response)
         license_loader.add_value("url", Constants.LICENSE_CC_BY_40)
-        author = response.meta["item"].get("Author")
+        # author = response.meta["item"].get("Author")
         # the author information comes straight from the memucho API and consists of memucho usernames
         # ToDo: confirm if memucho usernames are desired values for author information
-        if author is not None:
-            license_loader.add_value("author", author)
+        # if author is not None:
+        #     license_loader.add_value("author", author)
         return license_loader
 
     def getValuespaces(self, response):
