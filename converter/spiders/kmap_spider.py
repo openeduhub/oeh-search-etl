@@ -7,7 +7,7 @@ from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
+    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
 from converter.spiders.base_classes import LomBase
 from converter.util.sitemap import from_xml_response
 from converter.web_tools import WebEngine, WebTools
@@ -16,7 +16,7 @@ from converter.web_tools import WebEngine, WebTools
 class KMapSpider(CrawlSpider, LomBase):
     name = "kmap_spider"
     friendlyName = "KMap.eu"
-    version = "0.0.5"   # last update: 2021-10-04
+    version = "0.0.6"   # last update: 2022-04-25
     sitemap_urls = [
         "https://kmap.eu/server/sitemap/Mathematik",
         "https://kmap.eu/server/sitemap/Physik"
@@ -58,8 +58,8 @@ class KMapSpider(CrawlSpider, LomBase):
         @returns item 1
         """
         last_modified = kwargs.get("lastModified")
-        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Pyppeteer)
-        splash_html_string = url_data_splash_dict.get('html')
+        url_data_web_tools_dict = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
+        splash_html_string = url_data_web_tools_dict.get('html')
         json_ld_string: str = Selector(text=splash_html_string).xpath('//*[@id="ld"]/text()').get()
         json_ld: dict = json.loads(json_ld_string)
         # TODO: skip item method - (skips item if it's an empty knowledge map)
@@ -126,5 +126,8 @@ class KMapSpider(CrawlSpider, LomBase):
         base.add_value("permissions", permissions.load_item())
 
         base.add_value('response', super().mapResponse(response).load_item())
-
+        # KMap doesn't deliver fulltext to neither splash nor playwright, the fulltext object will be showing up as
+        #   'text': 'JavaScript wird benötigt!\n\n',
+        # in the final "scrapy.Item". As long as KMap doesn't change the way it's delivering its JavaScript content,
+        # our crawler won't be able to work around this limitation.
         return base.load_item()
