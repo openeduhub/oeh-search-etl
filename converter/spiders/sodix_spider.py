@@ -45,13 +45,13 @@ class SodixSpider(CrawlSpider, LomBase):
         )
                  
     def parse(self, response: scrapy.http.Response):
-        json_response_body = json.loads(response.body) if response.status==200 else print("LOGIN ERROR")
+        json_response_body  = json.loads(response.body) if response.status==200 else print("LOGIN ERROR")
         
-        access_token = str(json_response_body['access_token'])
-        headers      = { 
-                         'Authorization':'Bearer ' + access_token,
-                         'Content-Type' : 'application/json'
-                       } 
+        access_token        = str(json_response_body['access_token'])
+        headers             = { 
+                                'Authorization':'Bearer ' + access_token,
+                                'Content-Type' : 'application/json'
+                              } 
 
         # add the metadata that you want to extract here
         body         = json.dumps({"query":
@@ -93,7 +93,7 @@ class SodixSpider(CrawlSpider, LomBase):
         source       = response.meta["item"]
 
         for i in range(len(source['metadata'])):
-            base.add_value("thumbnail", source['metadata'][i]['media']['thumbPreview'])        
+            base.add_value("thumbnail"  , source['metadata'][i]['media']['thumbPreview'])        
         return base  
 
     def getId(self, response) :
@@ -105,9 +105,9 @@ class SodixSpider(CrawlSpider, LomBase):
 
     def mapResponse(self, response):
         r = ResponseItemLoader(response=response)
-        r.add_value("status", response.status)
-        r.add_value("headers", response.headers)
-        r.add_value("url", response.url)
+        r.add_value("status"    , response.status)
+        r.add_value("headers"   , response.headers)
+        r.add_value("url"       , response.url)
         return r     
  
     def getLOMGeneral(self, response):
@@ -128,8 +128,8 @@ class SodixSpider(CrawlSpider, LomBase):
         source      = response.meta["item"]
 
         for i in range(len(source['metadata'])):
-            educational.add_value("description", source['metadata'][i]['description'])
-            educational.add_value("language", source['metadata'][i]['language'])
+            educational.add_value("description" , source['metadata'][i]['description'])
+            educational.add_value("language"    , source['metadata'][i]['language'])
         return educational
     
     def getLicense(self, response=None):
@@ -150,16 +150,19 @@ class SodixSpider(CrawlSpider, LomBase):
 
         return valuespaces
 
+    # TODO
     def getPermissions(self, response):
         permissions = LomBase.getPermissions(self, response)
 
         return permissions    
 
+    # TODO 
     def getLOMAnnotation(self, response=None) -> LomAnnotationItemLoader:
         annotation = LomBase.getLOMAnnotation(self, response)
 
         return annotation
 
+    # TODO
     def getLOMRelation(self, response=None) -> LomRelationItemLoader:
         relation = LomBase.getLOMRelation(self, response)
 
@@ -167,12 +170,10 @@ class SodixSpider(CrawlSpider, LomBase):
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
-        source       = response.meta["item"]
+        source    = response.meta["item"]
 
         for i in range(len(source['metadata'])):
-
-            technical.add_value("format", "text/html")
-            technical.add_value("location", source['metadata'][i]['media']['originalUrl'])
-            technical.add_value("size", source['metadata'][i]['media']['size'])
-
+            technical.add_value("format"    , "text/html")
+            technical.add_value("location"  , source['metadata'][i]['media']['originalUrl'])
+            technical.add_value("size"      , source['metadata'][i]['media']['size'])
         return technical
