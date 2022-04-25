@@ -98,7 +98,7 @@ class SodixSpider(CrawlSpider, LomBase):
             yield failure.request
 
     def get_new_token(self):
-        print("start get_new_token")
+        print("called get_new_token")
         yield scrapy.http.Request(
             url=self.apiUrl,
             callback=self.at,
