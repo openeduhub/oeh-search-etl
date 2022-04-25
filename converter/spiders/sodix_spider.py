@@ -30,12 +30,13 @@ class SodixSpider(CrawlSpider, LomBase):
     apiUrl2         = "https://api.sodix.de/gql/graphql"
     user            = env.get("SODIX_USER")
     password        = env.get("SODIX_PASSWORD")
+    access_token = "null"
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
-    # login into sodix page, then call parse function. 
-    def start_requests(self):    
+    # login into sodix page, then call parse function.
+    def start_requests(self):
         yield scrapy.Request(
             url      = self.apiUrl,
             callback = self.parse,
@@ -43,15 +44,14 @@ class SodixSpider(CrawlSpider, LomBase):
             headers  = { 'Content-Type': 'application/json' },
             body     ="{\"login\": \""+self.user+"\",\"password\": \""+self.password+"\"}"
         )
-                 
+
     def parse(self, response: scrapy.http.Response):
         json_response_body  = json.loads(response.body) if response.status==200 else print("LOGIN ERROR")
-        
-        access_token        = str(json_response_body['access_token'])
-        headers             = { 
-                                'Authorization':'Bearer ' + access_token,
+        self.access_token        = str(json_response_body['access_token'])
+        headers             = {
+                                'Authorization':'Bearer ' + self.access_token +"1",
                                 'Content-Type' : 'application/json'
-                              } 
+                              }
 
         # add the metadata that you want to extract here
         body         = json.dumps({"query":
@@ -61,8 +61,9 @@ class SodixSpider(CrawlSpider, LomBase):
                                 callback = self.parse_sodix,
                                 method   = 'POST',
                                 headers  = headers,
-                                body     = body   
-                            ) 
+                                errback = self.errback_sodix,
+                                body     = body
+                            )
 
     # to access sodix with access_token
     def parse_sodix(self, response):
@@ -84,17 +85,43 @@ class SodixSpider(CrawlSpider, LomBase):
 
             if self.hasChanged(copyResponse):
                 yield LomBase.parse(self, copyResponse)
-            
+
             LomBase.parse(self, copyResponse)
             print('Finish parsing: ' + str(i+1) + '/' + str(requestCount))
-    
+
+    def errback_sodix(self, failure):
+        print("called Errback")
+        status = failure.value.response.status
+        if status == 401:
+            print("got 401")
+            self.get_new_token()
+            yield failure.request
+
+    def get_new_token(self):
+        print("start get_new_token")
+        yield scrapy.http.Request(
+            url=self.apiUrl,
+            callback=self.at,
+            method="POST",
+            errback=self.errback_sodix,
+            headers={
+                "Content-Type": "application/json",
+            },
+            body="{\"login\": \""+self.user+"\",\"password\": \""+self.password+"\"}"
+        )
+
+    def get_new_access_token(self, response):
+        json_response_body  = json.loads(response.body)
+        self.access_token        = str(json_response_body['access_token'])
+
+
     def getBase(self, response):
         base         = LomBase.getBase(self, response)
         source       = response.meta["item"]
 
         for i in range(len(source['metadata'])):
-            base.add_value("thumbnail"  , source['metadata'][i]['media']['thumbPreview'])        
-        return base  
+            base.add_value("thumbnail"  , source['metadata'][i]['media']['thumbPreview'])
+        return base
 
     def getId(self, response) :
         source = response.meta["item"]
@@ -108,8 +135,8 @@ class SodixSpider(CrawlSpider, LomBase):
         r.add_value("status"    , response.status)
         r.add_value("headers"   , response.headers)
         r.add_value("url"       , response.url)
-        return r     
- 
+        return r
+
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
         source  = response.meta["item"]
@@ -117,7 +144,7 @@ class SodixSpider(CrawlSpider, LomBase):
         general.add_value("identifier"  , source['id'])
 
         for i in range(len(source['metadata'])):
-            general.add_value("title"       , source['metadata'][i]['title'])        
+            general.add_value("title"       , source['metadata'][i]['title'])
             general.add_value("keyword"     , source['metadata'][i]['keywords'])
             general.add_value("language"    , source['metadata'][i]['language'])
             general.add_value("description" , source['metadata'][i]['description'])
@@ -131,11 +158,11 @@ class SodixSpider(CrawlSpider, LomBase):
             educational.add_value("description" , source['metadata'][i]['description'])
             educational.add_value("language"    , source['metadata'][i]['language'])
         return educational
-    
+
     def getLicense(self, response=None):
         license = LomBase.getLicense(self, response)
         source  = response.meta["item"]
- 
+
         for i in range(len(source['metadata'])):
             for j in range(len(source['metadata'][i]['publishers'])):
                 license.add_value("description",source['metadata'][i]['publishers'][j]['linkToGeneralUseRights'])
