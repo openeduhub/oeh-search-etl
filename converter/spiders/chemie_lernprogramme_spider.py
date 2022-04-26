@@ -11,7 +11,10 @@ class ChemieLernprogrammeSpider(LernprogrammeSpiderBase, CrawlSpider):
     name = "chemie_lernprogramme_spider"
     friendlyName = "Chemie-Lernprogramme"
     url = "https://chemie-lernprogramme.de/"
-    version = "0.1.1"  # last update: 2022-02-22
+    version = "0.1.1"  # last update: 2022-04-26
+    custom_settings = {
+        "ROBOTSTXT_OBEY": False
+    }
 
     static_values = {
         "author": {
