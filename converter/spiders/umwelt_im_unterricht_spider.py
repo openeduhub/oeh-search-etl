@@ -33,7 +33,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_images",
         # Typ: Bilderserie
     ]
-    version = "0.0.3"  # last update: 2022-04-12
+    version = "0.0.4"  # last update: 2022-04-26
     topic_urls = set()  # urls that need to be parsed will be added here
     topic_urls_parsed = set()  # this set is used for 'checking off' already parsed (individual) topic urls
     overview_urls_already_parsed = set()  # this set is used for 'checking off' already parsed overview_pages
@@ -155,7 +155,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         lifecycle = LomLifecycleItemloader()
         lifecycle.add_value('role', 'publisher')
         lifecycle.add_value('date', date_cleaned_up)
-        lifecycle.add_value('url', "https://www.umwelt-im-unterricht.de/impressum/")
+        lifecycle.add_value('url', "https://www.umwelt-im-unterricht.de/")
         lifecycle.add_value('organization', 'Bundesministerium für Umwelt, Naturschutz und nukleare Sicherheit (BMU)')
         lom.add_value('lifecycle', lifecycle.load_item())
 
@@ -284,11 +284,13 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
                 license_url = license_url.replace("http://", "https://")
             lic.replace_value('url', license_url)
         else:
-            lic.add_value('url', Constants.LICENSE_COPYRIGHT_LAW)
-            # ToDo: change the fallback-license if necessary
-        # since there are a lot of articles with missing license-information (especially "Thema der Woche",
-        # "Bilderserien" and other mixed forms of articles), we're setting the default license to "copyright" until we
-        # get a response/confirmation from Umwelt-im-Unterricht in regards to what the default should be
+            lic.add_value('url', Constants.LICENSE_CC_BY_SA_40)
+            # since there are a lot of articles with missing license-information (especially "Thema der Woche",
+            # "Bilderserien" and other mixed forms of articles), we're setting the default license to CC-BY-SA 4.0
+            # EMail-Confirmation from Umwelt-im-Unterricht (2022-04-26):
+            # this license is covering the texts that were produced by UIU! (teasers, intro-texts, summaries)
+            # individual pictures from "Bilderserie"-type of topics still carry their own respective licenses (which we
+            # currently don't crawl individually)
 
         license_description_raw: str = response.xpath('//div[@class="cc-licence-info"]').get()
         if license_description_raw is not None:
