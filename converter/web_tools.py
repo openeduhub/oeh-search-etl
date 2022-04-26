@@ -47,7 +47,10 @@ class WebTools:
     def __getUrlDataSplash(url: str):
         settings = get_project_settings()
         # html = None
-        if settings.get("SPLASH_URL"):
+        if settings.get("SPLASH_URL") and not url.endswith((".pdf", ".docx")):
+            # Splash can't handle some binary direct-links (Splash will throw "LUA Error 400: Bad Request" as a result)
+            # ToDo: which additional filetypes need to be added to the exclusion list?
+            # ToDo: find general solution for extracting metadata from .pdf-files?
             result = requests.post(
                 settings.get("SPLASH_URL") + "/render.json",
                 json={
