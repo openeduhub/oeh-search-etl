@@ -1,11 +1,13 @@
 import json
 import time
-import scrapy as scrapy
-import converter.env as env
 
+import scrapy as scrapy
+from scrapy.spiders import CrawlSpider
+import requests
+
+import converter.env as env
 from converter.items import *
 from converter.spiders.base_classes.lom_base import LomBase
-from scrapy.spiders import CrawlSpider
 
 
 class SodixSpider(CrawlSpider, LomBase):
@@ -35,23 +37,18 @@ class SodixSpider(CrawlSpider, LomBase):
 
     # login into sodix page, then call parse function. 
     def start_requests(self):
-        yield self.login()
+        self.login()
         yield self.make_requests()
 
     def login(self):
-        yield scrapy.Request(
-            url=self.apiUrl,
-            callback=self.login_callback,
-            method='POST',
+        response = requests.post(
+            self.apiUrl,
             headers={'Content-Type': 'application/json'},
-            body="{\"login\": \"" + self.user + "\",\"password\": \"" + self.password + "\"}"
+            data=f'{{"login": "{self.user}", "password": "{self.password}"}}'
         )
-
-    def login_callback(self, response):
-        if not response.status == 200:
-            raise RuntimeError(f'Unexpected response status: {response.status}')
-        json_response_body = json.loads(response.body)
-        self.access_token = str(json_response_body['access_token'])
+        if not response.status_code == 200:
+            raise RuntimeError(f'Unexpected response status: {response.status_code}')
+        self.access_token = response.json()['access_token']
 
     def make_requests(self):
         headers = {
@@ -61,7 +58,7 @@ class SodixSpider(CrawlSpider, LomBase):
 
         # add the metadata that you want to extract here
         body = json.dumps({"query": "{\n sources { id\n name\n created\n metadata { description\n keywords\n language\n learnResourceType\n media { dataType\n originalUrl\n size\n thumbPreview\n } publishers { linkToGeneralUseRights\n } title\n } }\n}"})
-        yield scrapy.Request(
+        return scrapy.Request(
             url=self.apiUrl2,
             callback=self.parse_sodix,
             method='POST',
