@@ -1,23 +1,12 @@
-import ast
-from email.quoprimime import body_check
-import json
-from re import X
+
 import time
+import json
 
-import scrapy as scrapy
-from scrapy.spiders import CrawlSpider
 import requests
+import scrapy
+from scrapy.spiders import CrawlSpider
 
 import converter.env as env
-from converter.items import *
-from converter.spiders.base_classes.lom_base import LomBase
-from types import SimpleNamespace
-import xmltodict as xmltodict
-from lxml import etree
-from scrapy.spiders import CrawlSpider
-import scrapy as scrapy
-import converter.env as env
-from converter.constants import Constants
 from converter.items import *
 from converter.spiders.base_classes.lom_base import LomBase
 
