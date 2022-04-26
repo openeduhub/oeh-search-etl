@@ -1,5 +1,4 @@
 import json
-import logging
 
 import requests
 import scrapy
@@ -107,7 +106,6 @@ class SerloSpider(CrawlSpider, LomBase):
 
     def parse(self, response, **kwargs):
         graphql_json: dict = kwargs.get("graphql_item")
-        # logging.debug(f"GraphQL Item: {graphql_json}")
 
         json_ld = response.xpath('//*[@type="application/ld+json"]/text()').get()
         json_ld = json.loads(json_ld)
