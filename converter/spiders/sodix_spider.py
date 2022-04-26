@@ -14,8 +14,8 @@ class SodixSpider(CrawlSpider, LomBase):
     The Response will be convert to python dictionary using json.dumps(). Response.meta["item"] is used in every
     get function to facilitate access to metadata. 
 
-    For better understanding, please refer to mediothek_pixiothek_spider.py, merlin_spider.py and openduhub / oeh-search-etl in 
-    Github(https://github.com/openeduhub/oeh-search-etl/wiki/How-To-build-a-crawler-for-edu-sharing-(alternative-method))
+    For better understanding, please refer to LOM documentation(http://sodis.de/lom-de/LOM-DE.doc), mediothek_pixiothek_spider.py, merlin_spider.py
+    and openduhub / oeh-search-etl in Github(https://github.com/openeduhub/oeh-search-etl/wiki/How-To-build-a-crawler-for-edu-sharing-(alternative-method))
 
     Author: BRB team
     """
@@ -175,8 +175,10 @@ class SodixSpider(CrawlSpider, LomBase):
     # TODO 
     def getLOMAnnotation(self, response=None) -> LomAnnotationItemLoader:
         annotation = LomBase.getLOMAnnotation(self, response)
-        metadata  = response.meta["item"]
+        #metadata  = response.meta["item"]
 
+        # Adding a default searchable value to constitute this element (node) as a valid-to-be-returned object.
+        annotation.add_value("entity", "crawler")
         annotation.add_value("description" , "searchable==0")
 
         return annotation
