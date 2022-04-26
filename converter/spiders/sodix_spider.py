@@ -40,8 +40,8 @@ class SodixSpider(CrawlSpider, LomBase):
     def login(self):
         response = requests.post(
             self.apiUrl,
-            headers =   {'Content-Type': 'application/json'},
-            data    =   f'{{"login": "{self.user}", "password": "{self.password}"}}'
+            headers={'Content-Type': 'application/json'},
+            data=f'{{"login": "{self.user}", "password": "{self.password}"}}'
         )
         if not response.status_code == 200:
             raise RuntimeError(f'Unexpected response status: {response.status_code}')
@@ -65,6 +65,7 @@ class SodixSpider(CrawlSpider, LomBase):
                                 body     = body   
                             ) 
 
+    # to access sodix with access_token
     def parse_sodix(self, response):
         elements       = json.loads(response.body.decode('utf-8'))
         requestCount   = len(elements['data']['sources'])
@@ -118,14 +119,14 @@ class SodixSpider(CrawlSpider, LomBase):
 
     def getLOMEducational(self, response=None):
         educational = LomBase.getLOMEducational(self, response)
-        metadata    = response.meta["item"]
+        metadata      = response.meta["item"]
 
         educational.add_value("language"    , metadata['language'])
 
         return educational
     
     def getLOMGeneral(self, response):
-        general   = LomBase.getLOMGeneral(self, response)
+        general = LomBase.getLOMGeneral(self, response)
         metadata  = response.meta["item"]
 
         general.add_value("aggregationLevel", "1")
@@ -174,7 +175,7 @@ class SodixSpider(CrawlSpider, LomBase):
     # TODO 
     def getLOMAnnotation(self, response=None) -> LomAnnotationItemLoader:
         annotation = LomBase.getLOMAnnotation(self, response)
-        #metadata  = response.meta["item"]
+        metadata  = response.meta["item"]
 
         annotation.add_value("description" , "searchable==0")
 
