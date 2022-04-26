@@ -1,4 +1,7 @@
+import ast
+from email.quoprimime import body_check
 import json
+from re import X
 import time
 
 import scrapy as scrapy
@@ -8,20 +11,24 @@ import requests
 import converter.env as env
 from converter.items import *
 from converter.spiders.base_classes.lom_base import LomBase
+from types import SimpleNamespace
+import xmltodict as xmltodict
+from lxml import etree
+from scrapy.spiders import CrawlSpider
+import scrapy as scrapy
+import converter.env as env
+from converter.constants import Constants
+from converter.items import *
+from converter.spiders.base_classes.lom_base import LomBase
 
 
 class SodixSpider(CrawlSpider, LomBase):
     """
-    This crawler fetches data from the SODIX. The Scrapy request with GraphQL in JSON (please refer to body in parse() function). 
-    The Response will be convert to python dictionary using json.dumps(). Response.meta["item"] is used in every
-    get function to facilitate access to metadata. 
-
-    For better understanding, please refer to mediothek_pixiothek_spider.py, merlin_spider.py and openduhub / oeh-search-etl in 
-    Github(https://github.com/openeduhub/oeh-search-etl/wiki/How-To-build-a-crawler-for-edu-sharing-(alternative-method))
+    This crawler fetches data from the Merlin content source, which provides us paginated XML data. For every element
+    in the returned XML array we call LomBase.parse(), which in return calls methods, such as getId(), getBase() etc.
 
     Author: BRB team
     """
-
     name = "sodix_spider"
     url = "https://www.sodix.de/"  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = "Sodix"  # name as shown in the search ui
@@ -35,7 +42,7 @@ class SodixSpider(CrawlSpider, LomBase):
         LomBase.__init__(self, **kwargs)
         self.access_token = None
 
-    # login into sodix page, then call parse function. 
+    # login into sodix page, then call parse function.
     def start_requests(self):
         self.login()
         yield self.make_requests()
@@ -71,6 +78,7 @@ class SodixSpider(CrawlSpider, LomBase):
         elements = json.loads(response.body.decode('utf-8'))
         requestCount = len(elements['data']['sources'])
 
+        # For testing
         for i in range(requestCount):
             # For debugging
             # if i == 10:
@@ -84,13 +92,11 @@ class SodixSpider(CrawlSpider, LomBase):
 
             copyResponse._set_body(json_str)
 
-            # In order to transfer data to CSV/JSON, implement these 2 lines. 
             if self.hasChanged(copyResponse):
                 yield LomBase.parse(self, copyResponse)
 
-            # to call LomBase functions 
             LomBase.parse(self, copyResponse)
-            print('Finish parsing: ' + str(i + 1) + '/' + str(requestCount))
+            print('Finish parsing: ' + str(i+1) + '/' + str(requestCount))
 
     def getBase(self, response):
         base = LomBase.getBase(self, response)
@@ -113,6 +119,19 @@ class SodixSpider(CrawlSpider, LomBase):
         r.add_value("headers", response.headers)
         r.add_value("url", response.url)
         return r
+
+    def getLOMGeneral(self, response):
+        general = LomBase.getLOMGeneral(self, response)
+        source  = response.meta["item"]
+
+        general.add_value("identifier"  , source['id'])
+
+        for i in range(len(source['metadata'])):
+            general.add_value("title"       , source['metadata'][i]['title'])
+            general.add_value("keyword"     , source['metadata'][i]['keywords'])
+            general.add_value("language"    , source['metadata'][i]['language'])
+            general.add_value("description" , source['metadata'][i]['description'])
+            return general
 
     def getLOMEducational(self, response=None):
         educational = LomBase.getLOMEducational(self, response)
@@ -158,10 +177,8 @@ class SodixSpider(CrawlSpider, LomBase):
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
         source = response.meta["item"]
-
         for i in range(len(source['metadata'])):
             valuespaces.add_value("learningResourceType", source['metadata'][i]['learnResourceType'])
-
         return valuespaces
 
     # TODO
@@ -169,8 +186,7 @@ class SodixSpider(CrawlSpider, LomBase):
         permissions = LomBase.getPermissions(self, response)
         return permissions
 
-        # TODO
-
+    # TODO
     def getLOMAnnotation(self, response=None) -> LomAnnotationItemLoader:
         annotation = LomBase.getLOMAnnotation(self, response)
         return annotation
