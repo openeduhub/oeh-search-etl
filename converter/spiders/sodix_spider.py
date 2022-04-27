@@ -1,6 +1,10 @@
-import json
-import requests
 import time
+from typing import Dict
+import json
+
+import requests
+
+import scrapy.http
 
 import converter.env as env
 from converter.items import *
@@ -58,9 +62,15 @@ class SodixSpider(CrawlSpider, LomBase):
         self.access_token = ''
 
     def start_requests(self):
-        # self.login()
-        self.make_requests()
+        self.login()
+        self.request_metadata()
         return iter(())
+
+    def request_metadata(self):
+        headers = self.get_headers()
+        body = json.dumps({"query": query_string})
+        response = self.make_request('POST', self.urlRequest, headers=headers, body=body)
+        self.parse_sodix(response)
 
     def login(self):
         response = requests.post(
@@ -82,30 +92,19 @@ class SodixSpider(CrawlSpider, LomBase):
             'Content-Type': 'application/json'
         }
 
-    def make_requests(self):
-        response = self.sodix_requests()
-        print("weiter---------------------------------------------------------------------------------")
-        print(f'make_request_graph: {response.text}')
-        self.parse_sodix(response)
-
-    def sodix_requests(self):
+    def make_request(self, method: str, url: str, headers: Dict = None, body: str = None):
         for i in range(10):
-            headers = self.get_headers()
-            body = json.dumps({"query": query_string})
-
-            response = requests.post(self.urlRequest, headers=headers, data=body)
-            print(f'make_request_graph: {response.status_code}')
-            # TODO: error handling (401, etc.)
-            if response.status_code==401:
+            response = requests.request(method=method, url=url, headers=headers, data=body)
+            if response.status_code == 401:
                 self.login()
                 continue
+            elif not response.status_code == 200:
+                raise UnexpectedResponseError(f'Response: {response.url} -> {response.status_code}')
             return response
 
     # to access sodix with access_token
     def parse_sodix(self, response: requests.Response):
-        print("Start pare_sodix-----------------------------------------------------------------------------------------")
-        # TODO: make independent from scrapy (response)
-        elements = json.loads(response.body.decode('utf-8'))
+        elements = response.json()
         requestCount = len(elements['data']['sources'])
 
         for i in range(requestCount):
@@ -115,20 +114,21 @@ class SodixSpider(CrawlSpider, LomBase):
                 break
             for j in range(len(elements['data']['sources'][i]['metadata'])):
 
-                copyResponse = response.copy()
-                copyResponse.meta["item"] = elements['data']['sources'][i]['metadata'][j]
+                dummy_request = scrapy.Request('http://localhost')
+                dummy_response = scrapy.http.TextResponse('http://localhost', request=dummy_request, encoding='utf-8')
+                dummy_response.meta["item"] = elements['data']['sources'][i]['metadata'][j]
 
-                json_str = json.dumps(elements['data']['sources'][i]['metadata'][j], indent=4, sort_keys=True,
+                json_str = json.dumps(dummy_response.meta["item"], indent=4, sort_keys=True,
                                       ensure_ascii=False)
 
-                copyResponse._set_body(json_str)
+                dummy_response._set_body(json_str)
 
                 # In order to transfer data to CSV/JSON, implement these 2 lines.
-                if self.hasChanged(copyResponse):
-                    yield LomBase.parse(self, copyResponse)
+                if self.hasChanged(dummy_response):
+                    LomBase.parse(self, dummy_response)
 
                 # to call LomBase functions
-                LomBase.parse(self, copyResponse)
+                LomBase.parse(self, dummy_response)
             print('Finish parsing: ' + str(i + 1) + '/' + str(requestCount))
 
     def getBase(self, response):
