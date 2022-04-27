@@ -60,6 +60,7 @@ class SodixSpider(CrawlSpider, LomBase):
     def start_requests(self):
         # self.login()
         self.make_requests()
+        return iter(())
 
     def login(self):
         response = requests.post(
@@ -71,6 +72,7 @@ class SodixSpider(CrawlSpider, LomBase):
             self.access_token = response.json()['access_token']
             if not self.access_token:
                 raise UnexpectedResponseError()
+            print(f'login: {response.status_code}')
         except (KeyError, UnexpectedResponseError):
             raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
 
@@ -81,18 +83,27 @@ class SodixSpider(CrawlSpider, LomBase):
         }
 
     def make_requests(self):
-        headers = self.get_headers()
-
-        # add the metadata that you want to extract here
-
-        body = json.dumps({"query": query_string})
-
-        response = requests.post(self.urlRequest, headers=headers, data=body)
-        # TODO: error handling (401, etc.)
+        response = self.sodix_requests()
+        print("weiter---------------------------------------------------------------------------------")
+        print(f'make_request_graph: {response.text}')
         self.parse_sodix(response)
+
+    def sodix_requests(self):
+        for i in range(10):
+            headers = self.get_headers()
+            body = json.dumps({"query": query_string})
+
+            response = requests.post(self.urlRequest, headers=headers, data=body)
+            print(f'make_request_graph: {response.status_code}')
+            # TODO: error handling (401, etc.)
+            if response.status_code==401:
+                self.login()
+                continue
+            return response
 
     # to access sodix with access_token
     def parse_sodix(self, response: requests.Response):
+        print("Start pare_sodix-----------------------------------------------------------------------------------------")
         # TODO: make independent from scrapy (response)
         elements = json.loads(response.body.decode('utf-8'))
         requestCount = len(elements['data']['sources'])
@@ -112,11 +123,11 @@ class SodixSpider(CrawlSpider, LomBase):
 
                 copyResponse._set_body(json_str)
 
-                # In order to transfer data to CSV/JSON, implement these 2 lines. 
+                # In order to transfer data to CSV/JSON, implement these 2 lines.
                 if self.hasChanged(copyResponse):
                     yield LomBase.parse(self, copyResponse)
 
-                # to call LomBase functions 
+                # to call LomBase functions
                 LomBase.parse(self, copyResponse)
             print('Finish parsing: ' + str(i + 1) + '/' + str(requestCount))
 
