@@ -2,7 +2,6 @@ import json
 import requests
 import time
 
-import scrapy
 import converter.env as env
 from converter.items import *
 from converter.spiders.base_classes.lom_base import LomBase
@@ -68,9 +67,12 @@ class SodixSpider(CrawlSpider, LomBase):
             headers={'Content-Type': 'application/json'},
             data=f'{{"login": "{self.user}", "password": "{self.password}"}}'
         )
-        if not response.status_code == 200:
-            raise RuntimeError(f'Unexpected login response: {response.status_code}')
-        self.access_token = response.json()['access_token']
+        try:
+            self.access_token = response.json()['access_token']
+            if not self.access_token:
+                raise UnexpectedResponseError()
+        except (KeyError, UnexpectedResponseError):
+            raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
 
     def get_headers(self):
         return {
@@ -213,3 +215,7 @@ class SodixSpider(CrawlSpider, LomBase):
         relation = LomBase.getLOMRelation(self, response)
 
         return relation
+
+
+class UnexpectedResponseError(Exception):
+    pass
