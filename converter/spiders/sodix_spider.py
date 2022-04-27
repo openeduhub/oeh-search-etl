@@ -1,12 +1,14 @@
 import json
 import requests
 import time
+import queue
+
 import scrapy as scrapy
 import converter.env as env
-
 from converter.items import *
 from converter.spiders.base_classes.lom_base import LomBase
 from scrapy.spiders import CrawlSpider
+
 
 class SodixSpider(CrawlSpider, LomBase):
     """
@@ -31,11 +33,27 @@ class SodixSpider(CrawlSpider, LomBase):
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
-        self.access_token = None
+        self.access_token = ''
+        self.requests_in_progress = 0
+        self.rescheduled_requests = queue.LifoQueue()
 
     def start_requests(self):
-        self.login()
+        #self.login()
+        self.requests_in_progress += 1
         yield self.make_requests()
+
+        i = 0
+        while self.requests_in_progress:
+            time.sleep(1)
+            yield scrapy.Request('http://localhost' + str(i), priority=0)
+            i += 1
+            while True:
+                try:
+                    request = self.rescheduled_requests.get_nowait()
+                    self.requests_in_progress += 1
+                    yield request
+                except queue.Empty:
+                    break
 
     def login(self):
         response = requests.post(
@@ -46,13 +64,32 @@ class SodixSpider(CrawlSpider, LomBase):
         if not response.status_code == 200:
             raise RuntimeError(f'Unexpected response status: {response.status_code}')
         self.access_token = response.json()['access_token']
-        
-                 
+
+    def get_headers(self):
+        return {
+            'Authorization': 'Bearer ' + self.access_token,
+            'Content-Type': 'application/json'
+        }
+
+    def reschedule_request(self, request: scrapy.Request):
+        new_request = scrapy.Request(
+            request.url,
+            callback=request.callback,
+            method=request.method,
+            headers=self.get_headers(),
+            body=request.body,
+            cookies=request.cookies,
+            meta=request.meta,
+            priority=request.priority,
+            dont_filter=request.dont_filter,
+            errback=request.errback,
+            flags=request.flags,
+            cb_kwargs=request.cb_kwargs
+        )
+        self.rescheduled_requests.put(new_request)
+
     def make_requests(self):
-        headers             = { 
-                                'Authorization':'Bearer ' + self.access_token,
-                                'Content-Type' : 'application/json'
-                              } 
+        headers = self.get_headers()
 
         # add the metadata that you want to extract here
         body         = json.dumps({"query":
@@ -60,10 +97,31 @@ class SodixSpider(CrawlSpider, LomBase):
         return scrapy.Request(
                                 url      = self.apiUrl2,
                                 callback = self.parse_sodix,
+                                errback  = self.handle_error,
+                                priority=1,
+                                dont_filter=True,
                                 method   = 'POST',
                                 headers  = headers,
                                 body     = body   
-                            ) 
+                            )
+
+    def handle_response(self, response):
+        self.requests_in_progress -= 1
+        self.parse_sodix(response)
+
+    def handle_error(self, failure):
+        if failure.value.response.status == 401:
+            self.relogin(failure)
+        self.requests_in_progress -= 1
+
+    def relogin(self, failure):
+        if not self.crawler.engine.paused:
+            print('##################### relogin')
+            self.crawler.engine.pause()
+            self.login()
+            self.crawler.engine.unpause()
+        # re-schedule
+        self.reschedule_request(failure.request)
 
     # to access sodix with access_token
     def parse_sodix(self, response):
