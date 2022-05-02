@@ -54,6 +54,7 @@ class SodixSpider(CrawlSpider, LomBase):
     user = env.get("SODIX_USER")
     password = env.get("SODIX_PASSWORD")
     counter = 1
+    statusCode = None
 
     #reference : https://stackoverflow.com/questions/62061219/use-a-specific-scrapy-downloader-middleware-per-request
     # custom_settings = {
@@ -86,7 +87,7 @@ class SodixSpider(CrawlSpider, LomBase):
             headers={'Content-Type': 'application/json'},
             data=f'{{"login": "{self.user}", "password": "{self.password}"}}'
         )
-
+        self.statusCode = response.status_code
         try :
             if not response.json()['error']:
                 self.access_token = response.json()['access_token']
@@ -96,6 +97,9 @@ class SodixSpider(CrawlSpider, LomBase):
                 raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
         except (KeyError, UnexpectedResponseError):
             raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
+
+    def getLoginRepsonseStatusCode(self):
+        return self.statusCode
 
     def get_headers(self, num):
         return {
