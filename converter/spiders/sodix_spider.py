@@ -11,23 +11,25 @@ from scrapy.exceptions import CloseSpider
 
 query_string = '''
 {
-    sources {
-        metadata {
-            description
-            id
-            keywords
-            language
-            learnResourceType
-            media {
-                dataType
-                originalUrl
-                size
-                thumbPreview
-            }
-            publishers {
-                linkToGeneralUseRights
-            }
-            title
+    findAllMetadata(page: 0, pageSize: 5000000) {
+        id
+        description
+        keywords
+        language
+        learnResourceType
+        title
+        creationDate
+        license {
+            name
+            text
+        }
+        publishers {
+            linkToGeneralUseRights
+        }
+        media {
+            dataType
+            thumbPreview
+            url
         }
     }
 }
@@ -102,9 +104,9 @@ class SodixSpider(CrawlSpider, LomBase):
             'Authorization': 'Bearer ' + self.access_token,
             'Content-Type': 'application/json'
         }
+
     def get_body(self):
-        return json.dumps({"query":
-            "{\n sources { metadata { description\n id\n keywords\n language\n learnResourceType\n media { dataType\n originalUrl\n size\n thumbPreview\n } publishers { linkToGeneralUseRights\n } title\n } }\n}"})
+        return json.dumps({"query": query_string})
 
     def errback_error(self, failure, method):
         if failure.check(HttpError) and self.counter < 3 :
@@ -114,32 +116,32 @@ class SodixSpider(CrawlSpider, LomBase):
             self.logger.error('HTTP Error on %s', response.status)
             yield method()
 
- # to access sodix with access_token
+    # to access sodix with access_token
     def parse_sodix(self, response:scrapy.http.Response):
         elements       = json.loads(response.body.decode('utf-8'))
-        requestCount   = len(elements['data']['sources'])
+        requestCount   = len(elements['data']['findAllMetadata'])
 
-        for i in range(requestCount):
-            #for debugging
-            if i == 1:
-                    print('dev-mode : 1 requests done, exiting...')
-                    break
-            for j in range(len(elements['data']['sources'][i]['metadata'])):
+        # for i in range(requestCount):
+        #     #for debugging
+        #     if i == 1:
+        #             print('dev-mode : 1 requests done, exiting...')
+        #             break
+        for j in range(len(elements['data']['findAllMetadata'])):
 
-                copyResponse              = response.copy()
-                copyResponse.meta["item"] = elements['data']['sources'][i]['metadata'][j]
+            copyResponse              = response.copy()
+            copyResponse.meta["item"] = elements['data']['findAllMetadata'][j]
 
-                json_str = json.dumps(elements['data']['sources'][i]['metadata'][j], indent=4, sort_keys=True, ensure_ascii=False)
+            json_str = json.dumps(elements['data']['findAllMetadata'][j], indent=4, sort_keys=True, ensure_ascii=False)
 
-                copyResponse._set_body(json_str)
+            copyResponse._set_body(json_str)
 
-                # In order to transfer data to CSV/JSON, implement these 2 lines.
-                if self.hasChanged(copyResponse):
-                    yield LomBase.parse(self, copyResponse)
+            # In order to transfer data to CSV/JSON, implement these 2 lines.
+            if self.hasChanged(copyResponse):
+                yield LomBase.parse(self, copyResponse)
 
-                # to call LomBase functions
-                LomBase.parse(self, copyResponse)
-            print('Finish parsing: ' + str(i+1) + '/' + str(requestCount))
+            # to call LomBase functions
+            LomBase.parse(self, copyResponse)
+            print('Finish parsing: ' + str(j+1) + '/' + str(requestCount))
 
     def getBase(self, response):
         base         = LomBase.getBase(self, response)
@@ -151,11 +153,9 @@ class SodixSpider(CrawlSpider, LomBase):
 
     def getId(self, response) :
         metadata = response.meta["item"]
-
         return metadata['id']
 
     def getHash(self, response):
-
         return hash(str(self.version)+str(time.time()))
 
     def mapResponse(self, response):
@@ -179,7 +179,7 @@ class SodixSpider(CrawlSpider, LomBase):
         metadata  = response.meta["item"]
 
         general.add_value("aggregationLevel", "1")
-        general.add_value("identifier"  , metadata['id'])
+        # general.add_value("identifier"  , metadata['id'])
         general.add_value("title"       , metadata['title'])
         general.add_value("keyword"     , metadata['keywords'])
         general.add_value("language"    , metadata['language'])
@@ -192,8 +192,8 @@ class SodixSpider(CrawlSpider, LomBase):
         license     = LomBase.getLicense(self, response)
         metadata    = response.meta["item"]
 
-        for i in range(len(metadata['publishers'])):
-            license.add_value("description", metadata['publishers'][i]['linkToGeneralUseRights'])
+        license.add_value("internal", metadata['license']['name'])
+        license.add_value("description", metadata['license']['text'])
 
         return license
 
@@ -202,8 +202,7 @@ class SodixSpider(CrawlSpider, LomBase):
         metadata  = response.meta["item"]
 
         technical.add_value("format"    , metadata['media']['dataType'])
-        technical.add_value("location"  , metadata['media']['originalUrl'])
-        technical.add_value("size"      , metadata['media']['size'])
+        technical.add_value("location"  , metadata['media']['url'])
 
         return technical
 
