@@ -1,13 +1,12 @@
 import json
 import requests
 import scrapy.http
-import time
+import datetime
 import converter.env as env
 from converter.items import *
 from converter.spiders.base_classes.lom_base import LomBase
 from scrapy.spiders import CrawlSpider
 from scrapy.spidermiddlewares.httperror import HttpError
-from scrapy.exceptions import CloseSpider
 
 query_string = '''
 {
@@ -30,6 +29,7 @@ query_string = '''
             dataType
             thumbPreview
             url
+            size
         }
     }
 }
@@ -96,7 +96,7 @@ class SodixSpider(CrawlSpider, LomBase):
                 self.access_token = response.json()['access_token']
                 self.logger.info("access token is available")
             else:
-                print("access_token is not available")
+                self.logger.error("The login was not successful")
                 raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
         except (KeyError, UnexpectedResponseError):
             raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
@@ -116,7 +116,7 @@ class SodixSpider(CrawlSpider, LomBase):
     def errback_error(self, failure, method):
         if failure.check(HttpError) and self.counter < 3 :
             response = failure.value.response
-            print(f'HTTP error retry login counts : {self.counter}')
+            self.logger.error(f'HTTP error retry login counts : {self.counter}')
             self.counter += 1
             self.logger.error('HTTP Error on %s', response.status)
             self.login()
@@ -147,7 +147,7 @@ class SodixSpider(CrawlSpider, LomBase):
 
             # to call LomBase functions
             LomBase.parse(self, copyResponse)
-            print('Finish parsing: ' + str(j+1) + '/' + str(requestCount))
+            self.logger.info('Finish parsing: ' + str(j+1) + '/' + str(requestCount))
 
     def getBase(self, response):
         base         = LomBase.getBase(self, response)
@@ -162,7 +162,7 @@ class SodixSpider(CrawlSpider, LomBase):
         return metadata['id']
 
     def getHash(self, response):
-        return hash(str(self.version)+str(time.time()))
+        return hash(str(self.version)+str(datetime.datetime.now()))
 
     def mapResponse(self, response):
         r = ResponseItemLoader(response=response)
@@ -209,6 +209,7 @@ class SodixSpider(CrawlSpider, LomBase):
 
         technical.add_value("format"    , metadata['media']['dataType'])
         technical.add_value("location"  , metadata['media']['url'])
+        technical.add_value("size", metadata['media']['size'])
 
         return technical
 
