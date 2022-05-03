@@ -2,6 +2,9 @@ import unittest
 from converter.spiders.sodix_spider import SodixSpider, UnexpectedResponseError
 import converter.env as env
 
+# To run this test_sodix_spider, use the following command line : python -m unittest tests/test_sodix_spider.py
+# To test parse_sodix function and lomBase functions in sodix_spider.py, it is recommended to run sodix_spider.py. 
+# If Scrapy's response is parsed correctly, it will return the sorted Metadata in JSON or CSV file. 
 class TestSodixSpider(unittest.TestCase):
 
     def setUp(self):

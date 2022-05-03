@@ -96,7 +96,7 @@ class SodixSpider(CrawlSpider, LomBase):
                 self.access_token = response.json()['access_token']
                 self.logger.info("access token is available")
             else:
-                print("notworking")
+                print("access_token is not available")
                 raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
         except (KeyError, UnexpectedResponseError):
             raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
