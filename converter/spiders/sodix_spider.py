@@ -56,7 +56,8 @@ class SodixSpider(CrawlSpider, LomBase):
     user = env.get("SODIX_USER")
     password = env.get("SODIX_PASSWORD")
     counter = 1
-    statusCode = None
+    loginStatusCode = None
+
 
     #reference : https://stackoverflow.com/questions/62061219/use-a-specific-scrapy-downloader-middleware-per-request
     # custom_settings = {
@@ -78,7 +79,7 @@ class SodixSpider(CrawlSpider, LomBase):
                         callback    = self.parse_sodix,
                         dont_filter = True,
                         errback     = lambda failure: self.errback_error(failure, self.make_request),
-                        headers     = self.get_headers(self.counter),
+                        headers     = self.get_headers(),
                         method      = 'POST',
                         url         = self.urlRequest,
                     )
@@ -89,7 +90,7 @@ class SodixSpider(CrawlSpider, LomBase):
             headers={'Content-Type': 'application/json'},
             data=f'{{"login": "{self.user}", "password": "{self.password}"}}'
         )
-        self.statusCode = response.status_code
+        self.loginStatusCode = response.status_code
         try :
             if not response.json()['error']:
                 self.access_token = response.json()['access_token']
@@ -101,9 +102,9 @@ class SodixSpider(CrawlSpider, LomBase):
             raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
 
     def getLoginRepsonseStatusCode(self):
-        return self.statusCode
+        return self.loginStatusCode
 
-    def get_headers(self, num):
+    def get_headers(self):
         return {
             'Authorization': 'Bearer ' + self.access_token,
             'Content-Type': 'application/json'
@@ -118,6 +119,7 @@ class SodixSpider(CrawlSpider, LomBase):
             print(f'HTTP error retry login counts : {self.counter}')
             self.counter += 1
             self.logger.error('HTTP Error on %s', response.status)
+            self.login()
             yield method()
 
     # to access sodix with access_token
@@ -235,6 +237,5 @@ class SodixSpider(CrawlSpider, LomBase):
         relation = LomBase.getLOMRelation(self, response)
 
         return relation
-
 class UnexpectedResponseError(Exception):
     pass
