@@ -2,51 +2,60 @@ import re
 
 import scrapy
 from scrapy import Request
+from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, PermissionItemLoader, ResponseItemLoader, \
-    LomLifecycleItemloader, LomClassificationItemLoader
+    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, LomLifecycleItemloader, \
+    LomClassificationItemLoader
 from converter.spiders.base_classes import LomBase
 from converter.util.sitemap import from_xml_response, SitemapEntry
 
 
-class GrundSchulKoenigSpider(scrapy.Spider, LomBase):
+class GrundSchulKoenigSpider(CrawlSpider, LomBase):
     """
     scrapes the Grundschulkönig website.
     """
 
     start_urls = ['https://www.grundschulkoenig.de/sitemap.xml?sitemap=pages&cHash=b8e1a6633393d69093d0ebe93a3d2616']
     name = 'grundschulkoenig_spider'
-    version = "0.0.3"  # last update: 2022-04-14
-    excluded_url_paths = ["/blog/",
-                          "/rechtliches/",
+    version = "0.0.4"  # last update: 2022-05-06
+    custom_settings = {
+        "ROBOTSTXT_OBEY": False,
+        # while there is no robots.txt, there is a 404-forward-page that gets misinterpreted by Scrapy
+        "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_DEBUG": True
+    }
+
+    excluded_url_paths = ["/404-page-not-found/",
+                          "/blog/",
                           "/footer-bottom/",
+                          "/rechtliches/",
                           "/suche/",
-                          "/404-page-not-found/"]
+                          ]
     excluded_overview_pages = [
+        "https://www.grundschulkoenig.de/",
         "https://www.grundschulkoenig.de/deutsch/",
+        "https://www.grundschulkoenig.de/deutsch/deutsch-als-fremdsprache/",
         "https://www.grundschulkoenig.de/englisch/",
+        "https://www.grundschulkoenig.de/globale-elemente/",
         "https://www.grundschulkoenig.de/hsu-sachkunde/",
-        "https://www.grundschulkoenig.de/mehr/jahreskreis/"
+        "https://www.grundschulkoenig.de/landing/",
+        "https://www.grundschulkoenig.de/links/",
+        "https://www.grundschulkoenig.de/mehr/",
+        "https://www.grundschulkoenig.de/mehr/jahreskreis/",
         "https://www.grundschulkoenig.de/mathe/",
         "https://www.grundschulkoenig.de/musikkunst/kunst/",
         "https://www.grundschulkoenig.de/musikkunst/musik/",
         "https://www.grundschulkoenig.de/religion/",
         "https://www.grundschulkoenig.de/weitere-faecher/",
         "https://www.grundschulkoenig.de/vorschule/",
-        "https://www.grundschulkoenig.de/",
-        "https://www.grundschulkoenig.de/links/",
         "https://www.grundschulkoenig.de/suchergebnisse/",
-        "https://www.grundschulkoenig.de/landing/",
-        "https://www.grundschulkoenig.de/globale-elemente/",
-        ""
     ]
 
     def start_requests(self):
         for url in self.start_urls:
             yield Request(url=url, callback=self.parse_sitemap)
-        pass
 
     def getHash(self, response=None) -> str:
         pass
@@ -79,11 +88,15 @@ class GrundSchulKoenigSpider(scrapy.Spider, LomBase):
                 full_url_regex = re.compile(full_url)
                 if full_url_regex.fullmatch(item.loc) is not None:
                     skip_url = True
-            for url_pattern in self.excluded_url_paths:
-                current_page_regex = re.compile(url_pattern)
-                if current_page_regex.search(item.loc) is not None:
-                    skip_url = True
-            if self.hasChanged(response) and skip_url is False:
+                    break
+            if skip_url is False:
+                # in case the URL is already marked as to-be-skipped, we can skip this additional check
+                for url_pattern in self.excluded_url_paths:
+                    current_page_regex = re.compile(url_pattern)
+                    if current_page_regex.search(item.loc) is not None:
+                        skip_url = True
+                        break
+            if skip_url is False:
                 yield response.follow(item.loc, callback=self.parse, cb_kwargs={'sitemap_entry': item})
 
     def parse(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None):
@@ -91,7 +104,7 @@ class GrundSchulKoenigSpider(scrapy.Spider, LomBase):
         # content = response.xpath('//div[@class="page__content"]')
         # Worksheets are grouped, sometimes several worksheet-containers per page exist
         # worksheet_containers = response.xpath('//div[@class="module-worksheet"]')
-        # the worksheet_containers hold the links to invididual worksheet .pdf files
+        # the worksheet_containers hold the links to individual worksheet .pdf files
 
         base = BaseItemLoader(response=response)
         base.add_value("sourceId", response.url)
@@ -106,6 +119,9 @@ class GrundSchulKoenigSpider(scrapy.Spider, LomBase):
         general = LomGeneralItemloader(response=response)
         general.add_value('title', title)
         description: str = response.xpath('//meta[@name="description"]/@content').get()
+        if description is None:
+            # this is a workaround for (currently: 4) sub-pages that have no description in the header meta-fields
+            description = response.xpath('//div[@class="content-item module-headline-paragraph"]/p/text()').get()
         general.add_value('description', description)
         # ToDo: check if "keywords" are available at the source when the next crawler update becomes necessary
         lom.add_value("general", general.load_item())
@@ -175,11 +191,10 @@ class GrundSchulKoenigSpider(scrapy.Spider, LomBase):
         lic.add_value('url', Constants.LICENSE_COPYRIGHT_LAW)
         base.add_value("license", lic.load_item())
 
-        permissions = PermissionItemLoader(response=response)
+        permissions = super().getPermissions(response)
         base.add_value("permissions", permissions.load_item())
 
-        response_loader = ResponseItemLoader()
-        response_loader.add_value('url', response.url)
-        base.add_value("response", response_loader.load_item())
+        response_loader = super().mapResponse(response)
+        base.add_value('response', response_loader.load_item())
 
         yield base.load_item()
