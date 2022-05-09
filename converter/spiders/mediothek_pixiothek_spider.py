@@ -17,10 +17,13 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
     name = "mediothek_pixiothek_spider"
     url = "https://www.schulportal-thueringen.de/"  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = "MediothekPixiothek"  # name as shown in the search ui
-    version = "0.1.1"  # last update: 2022-02-21
+    version = "0.1.1"  # last update: 2022-05-09
     start_urls = [
         "https://www.schulportal-thueringen.de/tip-ms/api/public_mediothek_metadatenexport/publicMediendatei"
     ]
+    custom_settings = {
+        "ROBOTSTXT_OBEY": False,
+    }
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
