@@ -12,6 +12,9 @@ class BiologieLernprogrammeSpider(LernprogrammeSpiderBase, CrawlSpider):
     friendlyName = "Biologie-Lernprogramme"
     url = "https://biologie-lernprogramme.de/"
     version = "0.1.1"  # last update: 2022-02-22
+    custom_settings = {
+        "ROBOTSTXT_OBEY": False
+    }
 
     static_values = {
         "author": {
