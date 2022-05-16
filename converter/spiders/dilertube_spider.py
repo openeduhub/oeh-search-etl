@@ -1,7 +1,6 @@
 import re
 from datetime import datetime
 
-import dateparser
 import scrapy
 import w3lib.html
 from scrapy.spiders import CrawlSpider
@@ -140,7 +139,9 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
         @returns item 1
         """
         date_string_raw, date_string = str(), str()
-        date_regex = re.compile(r'(?P<day>\d{2}).(?P<month>\d{2}).(?P<year>\d{4})')
+        date_regex = re.compile(r'((?P<day>\d{2})\.)?'
+                                r'((?<=\.)(?P<month>\d{2})\.)?'
+                                r'(?P<year>\d{4})')
         channel_info_box: list = response.xpath('//div[@class="jv-channel"]/small/text()').getall()
         for channel_info_item in channel_info_box:
             if "Veröffentlicht am" in channel_info_item:
@@ -150,7 +151,8 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
             if date_regex.search(date_string_raw):
                 date_string = date_regex.search(date_string_raw).group()
         if date_string is not None:
-            date_parsed: datetime = dateparser.parse(date_string)
+            # ToDo RegEx discerning between Year-only and proper dates
+            date_parsed: datetime = datetime.strptime(date_string, "%d.%m.%Y")
             if date_parsed is not None:
                 date_string = date_parsed.isoformat()
             else:
@@ -279,9 +281,16 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
 
         lifecycle = LomLifecycleItemloader()
         if "production_year" in video_info_dict.keys():
-            lifecycle.add_value('date', video_info_dict.get("production_year"))
+            # this is a necessary workaround because dateparser.parse() would mis-calculate year-only representations of
+            # the date
+            datetime_production_year: datetime = datetime.strptime(video_info_dict.get("production_year"), "%Y")
+            datetime_production_year: str = datetime_production_year.isoformat()
+            lifecycle.add_value('date', datetime_production_year)
         if "production_date" in video_info_dict.keys():
-            lifecycle.add_value('date', video_info_dict.get("production_date"))
+            # this is a necessary workaround because dateparser.parse() would confuse de-DE time-formats as en-US
+            datetime_production_date: datetime = datetime.strptime(video_info_dict.get("production_date"), "%d.%m.%Y")
+            datetime_production_date: str = datetime_production_date.isoformat()
+            lifecycle.add_value('date', datetime_production_date)
         lom.add_value('lifecycle', lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
