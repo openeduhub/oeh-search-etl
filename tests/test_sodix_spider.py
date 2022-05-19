@@ -11,8 +11,8 @@ class TestSodixSpider(unittest.TestCase):
         self.sodixSpider = SodixSpider()
         self.unexpectedResponseError = UnexpectedResponseError()
 
-    def test_placeholder(self):
-        self.assertEqual("test1","test1")
+    # def test_placeholder(self):
+    #     self.assertEqual("test1","test1")
 
     def test_login_statusCode200(self):
         self.sodixSpider.login()

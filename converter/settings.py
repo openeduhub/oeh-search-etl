@@ -158,7 +158,7 @@ FEED_EXPORT_FIELDS = [
     # "response",
     "sourceId",
     # Too much clutter
-    # "thumbnail",
+    "thumbnail",
     "type",
     "uuid",
     "valuespaces",
