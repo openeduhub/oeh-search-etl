@@ -1,5 +1,10 @@
 .idea/
 __pycache__/
 .venv/
+venv/
+converter/.env
+converter/.env.dev
+converter/.env.prod
 .env
+nohups
 out
