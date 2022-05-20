@@ -229,11 +229,6 @@ class SodixSpider(CrawlSpider, LomBase):
 
         return valuespaces
 
-    def getPermissions(self, response):
-        permissions = LomBase.getPermissions(self, response)
-
-        return permissions
-
     def getLOMAnnotation(self, response=None) -> LomAnnotationItemLoader:
         annotation = LomBase.getLOMAnnotation(self, response)
         metadata  = response.meta["item"]
