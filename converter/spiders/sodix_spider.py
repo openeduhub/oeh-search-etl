@@ -185,7 +185,6 @@ class SodixSpider(CrawlSpider, LomBase):
         metadata  = response.meta["item"]
 
         general.add_value("aggregationLevel", "1")
-        # general.add_value("identifier"  , metadata['id'])
         general.add_value("title"       , metadata['title'])
         general.add_value("keyword"     , metadata['keywords'])
         general.add_value("language"    , metadata['language'])
@@ -198,8 +197,37 @@ class SodixSpider(CrawlSpider, LomBase):
         license     = LomBase.getLicense(self, response)
         metadata    = response.meta["item"]
 
-        license.add_value("internal", metadata['license']['name'])
-        license.add_value("description", metadata['license']['text'])
+        try:
+            license.add_value("internal", metadata['license']['name'])
+        except TypeError:
+            self.logger.info("Metadata LicenceName is None.")
+            license.add_value("internal", "None")
+
+        try:
+            license.add_value("internal", metadata['license']['text'])
+        except TypeError:
+            self.logger.info("Metadata LicenceText is None.")
+            license.add_value("description", "None")
+
+        #     if metadata['license']['name'] is None:
+        #         self.logger.info("Metadata LicenceName is None.")
+        #         license.add_value("internal", "None")
+        #     else:
+        #         license.add_value("internal", metadata['license']['name'])
+        #
+        #     if metadata['license']['text'] is None:
+        #         self.logger.info("Metadata LicenceText is None.")
+        #         license.add_value("description", "None")
+        #     else:
+        #         license.add_value("description", metadata['license']['text'])
+        #
+        #
+        #     if not response.json()['error']:
+        #         self.access_token = response.json()['access_token']
+        #         self.logger.info("access token is available")
+        #     else:
+        #         self.logger.error("The login was not successful")
+        #         raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
 
         return license
 
