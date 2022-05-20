@@ -127,13 +127,13 @@ class SodixSpider(CrawlSpider, LomBase):
         elements       = json.loads(response.body.decode('utf-8'))
         requestCount   = len(elements['data']['findAllMetadata'])
 
-        for i in range(requestCount):
-            #for debugging
-            if i == 1:
-                    print('dev-mode : 1 requests done, exiting...')
-                    break
-        #for j in range(len(elements['data']['findAllMetadata'])):
-        for j in range(1):
+        # for i in range(requestCount):
+        #     #for debugging
+        #     if i == 1:
+        #             print('dev-mode : 1 requests done, exiting...')
+        #             break
+        for j in range(len(elements['data']['findAllMetadata'])):
+    
             copyResponse              = response.copy()
             copyResponse.meta["item"] = elements['data']['findAllMetadata'][j]
 
