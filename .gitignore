@@ -6,4 +6,5 @@ converter/.env
 converter/.env.dev
 converter/.env.prod
 .env
+nohups
 out
