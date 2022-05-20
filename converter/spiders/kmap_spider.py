@@ -16,11 +16,16 @@ from converter.web_tools import WebEngine, WebTools
 class KMapSpider(CrawlSpider, LomBase):
     name = "kmap_spider"
     friendlyName = "KMap.eu"
-    version = "0.0.6"   # last update: 2022-04-25
+    version = "0.0.6"   # last update: 2022-05-20
     sitemap_urls = [
         "https://kmap.eu/server/sitemap/Mathematik",
         "https://kmap.eu/server/sitemap/Physik"
     ]
+    custom_settings = {
+        "ROBOTSTXT_OBEY": False,
+        "AUTOTHROTTLE_ENABLED": True,
+        # "AUTOTHROTTLE_DEBUG": True
+    }
     allowed_domains = ['kmap.eu']
     # keep the console clean from spammy DEBUG-level logging messages, adjust as needed:
     logging.getLogger('websockets.server').setLevel(logging.ERROR)
