@@ -208,27 +208,7 @@ class SodixSpider(CrawlSpider, LomBase):
         except TypeError:
             self.logger.info("Metadata LicenceText is None.")
             license.add_value("description", "None")
-
-        #     if metadata['license']['name'] is None:
-        #         self.logger.info("Metadata LicenceName is None.")
-        #         license.add_value("internal", "None")
-        #     else:
-        #         license.add_value("internal", metadata['license']['name'])
-        #
-        #     if metadata['license']['text'] is None:
-        #         self.logger.info("Metadata LicenceText is None.")
-        #         license.add_value("description", "None")
-        #     else:
-        #         license.add_value("description", metadata['license']['text'])
-        #
-        #
-        #     if not response.json()['error']:
-        #         self.access_token = response.json()['access_token']
-        #         self.logger.info("access token is available")
-        #     else:
-        #         self.logger.error("The login was not successful")
-        #         raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
-
+    
         return license
 
     def getLOMTechnical(self, response):
@@ -267,5 +247,14 @@ class SodixSpider(CrawlSpider, LomBase):
         relation = LomBase.getLOMRelation(self, response)
 
         return relation
+
+    #refer to getPermissions in mediothek_pixiothek
+    def getPermissions(self, response):
+        permissions = LomBase.getPermissions(self, response)
+
+        permissions.add_value("autoCreateGroups", True)
+        permissions.add_value('groups', ['Thuringia-public'])
+
+        return permissions
 class UnexpectedResponseError(Exception):
     pass
