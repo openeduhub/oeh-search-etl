@@ -3,6 +3,7 @@ import requests
 import scrapy.http
 import datetime
 import converter.env as env
+from converter.constants import Constants
 from converter.items import *
 from converter.spiders.base_classes.lom_base import LomBase
 from scrapy.spiders import CrawlSpider
@@ -195,19 +196,19 @@ class SodixSpider(CrawlSpider, LomBase):
 
     def getLicense(self, response=None):
         license     = LomBase.getLicense(self, response)
-        metadata    = response.meta["item"]
 
         try:
-            license.add_value("internal", metadata['license']['name'])
+            # license.add_value("internal", metadata['license']['name'])
+            license.replace_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
         except TypeError:
             self.logger.info("Metadata LicenceName is None.")
             license.add_value("internal", "None")
 
-        try:
-            license.add_value("internal", metadata['license']['text'])
-        except TypeError:
-            self.logger.info("Metadata LicenceText is None.")
-            license.add_value("description", "None")
+        # try:
+        #     license.add_value("internal", metadata['license']['text'])
+        # except TypeError:
+        #     self.logger.info("Metadata LicenceText is None.")
+        #     license.add_value("description", "None")
     
         return license
 
