@@ -232,7 +232,6 @@ class SodixSpider(CrawlSpider, LomBase):
 
     def getLOMAnnotation(self, response=None) -> LomAnnotationItemLoader:
         annotation = LomBase.getLOMAnnotation(self, response)
-        metadata  = response.meta["item"]
 
         annotation.add_value("entity", "crawler")
         annotation.add_value("description" , "searchable==1")
@@ -241,6 +240,12 @@ class SodixSpider(CrawlSpider, LomBase):
 
     def getLOMRelation(self, response=None) -> LomRelationItemLoader:
         relation = LomBase.getLOMRelation(self, response)
+
+        metadata = response.meta["item"]
+
+        resource = LomRelationResourceItem()
+        resource["identifier"] = metadata['id']
+        relation.add_value("resource", resource)
 
         return relation
 
