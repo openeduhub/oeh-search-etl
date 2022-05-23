@@ -20,6 +20,11 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         "http://www.zum.de/dwu/umaptg.htm"  # Physik-Teilgebiete
     ]
     version = "0.0.2"  # last update: 2022-04-21
+    custom_settings = {
+        "AUTOTHROTTLE_ENABLED": True,
+        # "AUTOTHROTTLE_DEBUG": True
+    }
+
     parsed_urls = set()  # holds the already parsed urls to minimize the amount of duplicate requests
     debug_xls_set = set()
     # The author used a HTML suite for building the .htm documents (Hot Potatoes by Half-Baked Software)
