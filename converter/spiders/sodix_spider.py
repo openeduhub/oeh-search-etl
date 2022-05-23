@@ -134,7 +134,6 @@ class SodixSpider(CrawlSpider, LomBase):
         #             print('dev-mode : 1 requests done, exiting...')
         #             break
         for j in range(len(elements['data']['findAllMetadata'])):
-    
             copyResponse              = response.copy()
             copyResponse.meta["item"] = elements['data']['findAllMetadata'][j]
 
