@@ -240,11 +240,11 @@ class SodixSpider(CrawlSpider, LomBase):
     def getLOMRelation(self, response=None) -> LomRelationItemLoader:
         relation = LomBase.getLOMRelation(self, response)
 
-        metadata = response.meta["item"]
-
-        resource = LomRelationResourceItem()
-        resource["identifier"] = metadata['id']
-        relation.add_value("resource", resource)
+        # metadata = response.meta["item"]
+        #
+        # resource = LomRelationResourceItem()
+        # resource["identifier"] = metadata['id']
+        # relation.add_value("resource", resource)
 
         return relation
 
