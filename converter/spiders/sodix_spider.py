@@ -244,7 +244,7 @@ class SodixSpider(CrawlSpider, LomBase):
         metadata = response.meta["item"]
 
         resource = LomRelationResourceItem()
-        resource["parent_identifier"] = metadata['id']
+        resource["ccm:replicationsourceuuid"] = metadata['id']
         relation.add_value("resource", resource)
 
         return relation
