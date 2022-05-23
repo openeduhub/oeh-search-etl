@@ -21,7 +21,11 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
         "https://www.walter-fendt.de/html5/mde/",
         # "http://www.zum.de/ma/fendt/mde/"
     ]
-    version = "0.0.5"  # reflects the structure of ZUM Mathe Apps on 2021-09-30
+    version = "0.0.6"  # last update: 2022-05-23 - items expected after a successful crawl: 95
+    custom_settings = {
+        "AUTOTHROTTLE_ENABLED": True,
+        # "AUTOTHROTTLE_DEBUG": True
+    }
     # keep the console clean from spammy DEBUG-level logging messages, adjust as needed:
     logging.getLogger('websockets.server').setLevel(logging.ERROR)
     logging.getLogger('websockets.protocol').setLevel(logging.ERROR)
@@ -80,7 +84,7 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
         @returns items 1
         """
         # fetching publication date and lastModified from dynamically loaded <p class="Ende">-element:
-        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Pyppeteer)
+        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
         splash_html_string = url_data_splash_dict.get('html')
         page_end_element = Selector(text=splash_html_string).xpath('//p[@class="Ende"]').get()
         line_regex = re.compile(r'<br>')

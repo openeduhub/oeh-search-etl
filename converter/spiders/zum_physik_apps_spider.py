@@ -20,9 +20,12 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         "https://www.walter-fendt.de/html5/phde/",
         # "https://www.zum.de/ma/fendt/phde/"
     ]
-    version = "0.0.5"  # reflects the structure of ZUM Physik Apps on 2021-09-30 (there should be 55 scraped items
-
-    # when the crawling process is done)
+    version = "0.0.6"  # last update: 2022-05-23
+    # expected amount of items after a successful crawl: 55
+    custom_settings = {
+        "AUTOTHROTTLE_ENABLED": True,
+        # "AUTOTHROTTLE_DEBUG": True
+    }
 
     def getId(self, response=None) -> str:
         return response.url
@@ -61,7 +64,7 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         @returns item 1
         """
         # fetching publication date and lastModified from dynamically loaded <p class="Ende">-element:
-        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Pyppeteer)
+        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
         splash_html_string = url_data_splash_dict.get('html')
         page_end_element = Selector(text=splash_html_string).xpath('//p[@class="Ende"]').get()
         line_regex = re.compile(r'<br>')
