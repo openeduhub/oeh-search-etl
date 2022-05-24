@@ -1,0 +1,535 @@
+from datetime import datetime
+
+import scrapy.selector.unified
+import w3lib.html
+from scrapy.spiders import XMLFeedSpider
+
+from converter.constants import Constants
+from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
+    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, \
+    LicenseItemLoader
+from converter.spiders.base_classes import LomBase
+
+
+class LehrerOnlineSpider(XMLFeedSpider, LomBase):
+    name = "lehreronline_spider"
+    friendlyName = "Lehrer-Online"
+    start_urls = [
+        "https://www.lehrer-online.de/?type=3030",  # only the 25 newest items per category (275 in total)
+        # "https://www.lehrer-online.de/?type=4040&limit=10000"  # complete data-set (~5688 URLs in total, the initial
+        # API response is currently ~18MB. The initial loading of the API response takes about ~56s to complete)
+    ]
+    version = "0.0.1"  # last update: 2022-05-31
+    custom_settings = {
+        "ROBOTSTXT_OBEY": False,
+        "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_DEBUG": True,
+        # "DUPEFILTER_DEBUG": True
+    }
+    iterator = 'iternodes'
+    itertag = 'datensatz'
+
+    MAPPING_EDU_CONTEXT = {
+        'Elementarbildung': 'Elementarbereich',
+        'Fort- und Weiterbildung': 'Fortbildung',
+        'Spezieller Förderbedarf': 'Förderschule'
+    }
+
+    MAPPING_MATERIAL_TYPE_TO_NEW_LRT = {
+        'Blog': '5204fc81-5dac-4cc4-a28b-aad5c241fa19',  # "Webblog (dynamisch)"
+        'Cartoon': '667f5063-70b9-400c-b1f7-7702ec9487f1',  # "Cartoon, Comic"
+        'Dossier': '7381f17f-50a6-4ce1-b3a0-9d85a482eec0',  # "Unterrichtsplanung"
+        # Dossiers are hard to categorize, they typically consist of several types (news, "Unterrichtseinheit" etc.)
+        # that are put together as a "Fokusthema", similar to how Umwelt-im-Unterricht.de groups together several
+        # articles into a "Thema der Woche"
+        'Fachartikel': 'b98c0c8c-5696-4537-82fa-dded7236081e',  # "Artikel und Einzelpublikation"
+        'Fundstueck': 'dc5763ab-6f47-4aa3-9ff3-1303efbeef6e',  # "Nachrichten und Neuigkeiten
+        'Interaktives': '4665caac-99d7-4da3-b9fb-498d8ece034f',  # "Interaktives Medium"
+        'Kopiervorlage': '6a15628c-0e59-43e3-9fc5-9a7f7fa261c4',  # "Skript, Handout und Handreichung"
+        'News': 'dc5763ab-6f47-4aa3-9ff3-1303efbeef6e',  # "Nachrichten und Neuigkeiten"
+        'Rechtsfall': 'dc5763ab-6f47-4aa3-9ff3-1303efbeef6e',  # "Nachrichten und Neuigkeiten"
+        # ToDo: could this be mapped to either "Fachliche News", "Alltags News" or "Pädagogische News"?
+        'Unterrichtseinheit': 'ef58097d-c1de-4e6a-b4da-6f10e3716d3d',  # "Unterrichtseinheit"
+        'Videos': '7a6e9608-2554-4981-95dc-47ab9ba924de'  # "Video (Material)"
+    }
+
+    MAPPING_RIGHTS_TO_URLS = {
+        'CC-by': 'https://creativecommons.org/licenses/by/3.0',
+        'CC-by-nc': 'https://creativecommons.org/licenses/by-nc/3.0',
+        'CC-by-nc-nd': 'https://creativecommons.org/licenses/by-nc-nd/3.0',
+        'CC-by-nc-nd 4.0': 'https://creativecommons.org/licenses/by-nc-nd/4.0',
+        'CC-by-nc-sa': 'https://creativecommons.org/licenses/by-nc-sa/3.0/',
+        'CC-by-nc-sa 4.0': 'https://creativecommons.org/licenses/by-nc-sa/4.0',
+        'CC-by-nd': 'https://creativecommons.org/licenses/by-nd/3.0',
+        'CC-by-sa': 'https://creativecommons.org/licenses/by-sa/3.0',
+        'CC-by-sa 4.0': 'https://creativecommons.org/licenses/by-sa/4.0/',
+    }
+
+    FACH_IS_ACTUALLY_A_KEYWORD = [
+        'Besondere Förderung',
+        'Computer, Internet & Co.',
+        'Deutsch / Kommunikation',  # "Deutsch / Kommunikation" is part of "Berufsbildung", not "Deutschunterricht"
+        # therefore we need to treat it as a keyword
+        'Fachcurricula',
+        'Feste und Feiertage',
+        'Früher und Heute',
+        'Ich und meine Welt',
+        'Kulturelle Bildung',
+        'Jahreszeiten',
+        'Lehrerbildung und Schulentwicklung',
+        'Lesen und Schreiben',
+        'Mediennutzung und Medienkompetenz: Analysieren und Reflektieren',
+        'Mediennutzung und Medienkompetenz: Kommunizieren und Kooperieren',
+        'Mediennutzung und Medienkompetenz: Problemlösen und Handeln',
+        'Mediennutzung und Medienkompetenz: Produzieren und Präsentieren',
+        'Mediennutzung und Medienkompetenz: Schützen und sicher agieren',
+        'Mediennutzung und Medienkompetenz: Suchen, Verarbeiten und Aufbewahren',
+        'Orga und Bürowirtschaft',
+        'Pflege, Therapie, Pharmazie',
+        'Rechnen und Logik',
+        'Rechnungswesen',
+        'Sache und Technik',
+        'Schuleingangsphase',
+        'Schulrecht, Schulorganisation, Schulentwicklung',
+        'Sprache und Literatur',
+        'Technik',
+        'Wirtschaftsinformatik',
+        'Kunst, Musik und Kultur',
+    ]
+
+    MAPPING_FACH_TO_DISCIPLINES = {
+        'Arbeitsschutz und Arbeitssicherheit': 'Arbeitssicherheit',
+        'Astronomie': 'Astronomie',
+        'Berufs- und Arbeitswelt': 'Arbeitslehre',
+        'Berufsvorbereitung, Berufsalltag, Arbeitsrecht': 'Arbeitslehre',
+        'Biologie': 'Biologie',
+        'Chemie': 'Chemie',
+        'DaF / DaZ': 'Deutsch als Zweitsprache',
+        'Deutsch': 'Deutsch',
+        'Elektrotechnik': 'Elektrotechnik',
+        'Englisch': 'Englisch',
+        'Ernährung und Gesundheit': ['Ernährung und Hauswirtschaft', 'Gesundheit'],
+        'Französisch': 'Französisch',
+        'Fächerübergreifender Unterricht': 'Allgemein',
+        'Geographie': 'Geographie',
+        'Geschichte': 'Geschichte',
+        'Geschichte, Politik und Gesellschaftswissenschaften': ['Geschichte', 'Politik', 'Gesellschaftskunde'],
+        'Gesundheit und Gesundheitsschutz': 'Gesundheit',
+        'Informatik': 'Informatik',
+        'Informationstechnik': 'Informatik',
+        'Klima, Umwelt, Nachhaltigkeit': 'Nachhaltigkeit',
+        'Kunst': 'Kunst',
+        'Latein': 'Latein',
+        'MINT: Mathematik, Informatik, Naturwissenschaften und Technik': 'MINT',
+        'Mathematik': 'Mathematik',
+        'Metalltechnik': 'Metalltechnik',
+        'Musik': 'Musik',
+        'Natur und Umwelt': 'Environmental education',
+        'Physik': 'Physik',
+        'Politik / SoWi': ['Politik', 'Social education'],
+        'Pädagogik': 'Pädagogik',
+        'Religion / Ethik': ['Religion', 'Ethik'],
+        'Religion und Ethik': ['Religion', 'Ethik'],
+        'Spanisch': 'Spanisch',
+        'Sport': 'Sport',
+        'Sport und Bewegung': 'Sport',
+        'WiSo / Politik': ['Economics', 'Social education', 'Politik'],
+        'Wirtschaftslehre': 'Economics'
+    }
+
+    def getId(self, response=None) -> str:
+        pass
+
+    def getHash(self, response=None) -> str:
+        pass
+
+    def parse_node(self, response, selector: scrapy.selector.unified.Selector) -> scrapy.Request:
+        """
+        Parses the Lehrer-Online API for individual <datensatz>-nodes and yields URLs found within <url_ressource>-tags
+        to the parse()-method. Additionally this method builds a "cleaned up" metadata_dict that gets handed over within
+        cb_kwargs.
+        :param response:
+        :param selector: scrapy.selector.unified.Selector
+        :return: scrapy.Request
+
+        Scrapy Contracts:
+        @url https://www.lehrer-online.de/?type=3030
+        @returns item 250
+        """
+        # an individual <datensatz> can hold the following elements:
+        # <element-name>                            availability
+        # - titel                                   always
+        # - sprache                                 always (currently: 100% "Deutsch")
+        # - beschreibung                            always
+        # - beschreibung_lang                       sometimes (>50%)
+        # - schlagwort                              sometimes (unpredictable)
+        # - kostenpflichtig                         always
+        # - autor                                   sometimes
+        # - autor_email                             always ("redaktion@lehrer-online.de")
+        # - anbieter_herkunft                       always (Impressum)
+        # - einsteller                              always ("Redaktion Lehrer-Online")
+        # - einsteller_email                        always ("redaktion@lehrer-online.de")
+        # - letzte_aenderung                        sometimes ("2022-02-18")
+        # - publikationsdatum                       always ("2022-02-18")
+        # - verfallsdatum                           never
+        # - fach                                    sometimes (often: multiple <fach>-elements)
+        # - bildungsebene                           sometimes (>50%, sometimes completely empty)
+        # - material_type                           always
+        # - material_id_location                    always
+        # - url_ressource                           always
+        # - lernressourcentyp                       never
+        # - zielgruppe                              always
+        # - rechte                                  sometimes
+        # - frei_zugaenglich                        always
+        # - quelle_id                               always (currently holds "LO" 100% of the time)
+        # - quelle_logo_url                         always
+        # - quelle_homepage_url                     always
+        # - quelle_pfad                             always
+
+        # self.logger.info(f"Currently crawling {self.itertag.join(selector.getall())}")
+        metadata_dict = dict()
+
+        title_raw: str = selector.xpath('titel/text()').get()
+        # self.logger.info(f"the title is: {title_raw}")
+        if title_raw:
+            metadata_dict.update({'title': title_raw})
+
+        in_language: str = selector.xpath('sprache/text()').get()
+        if in_language:
+            if in_language == "Deutsch":
+                metadata_dict.update({'language': 'de'})
+
+        description_short: str = selector.xpath('beschreibung/text()').get()
+        if description_short:
+            metadata_dict.update({'description_short': description_short})
+
+        description_long: str = selector.xpath('beschreibung_lang/text()').get()
+        if description_long:
+            metadata_dict.update({'description_long': description_long})
+
+        thumbnail_url: str = selector.xpath('bild_url/text()').get()
+        if thumbnail_url:
+            metadata_dict.update({'thumbnail_url': thumbnail_url})
+
+        keyword_list: list = selector.xpath('schlagwort/text()').getall()
+        if keyword_list:
+            metadata_dict.update({'keywords': keyword_list})
+        # self.logger.info(f"the keywords are: {keyword_list}")
+
+        with_costs_string: str = selector.xpath('kostenpflichtig/text()').get()
+        # with_costs_string can be either "ja" or "nein"
+        if with_costs_string == "ja":
+            metadata_dict.update({'price': 'yes'})
+        elif with_costs_string == "nein":
+            metadata_dict.update({'price': 'no'})
+
+        author_raw: str = selector.xpath('autor/text()').get()
+        if author_raw:
+            metadata_dict.update({'author': author_raw})
+
+        author_email: str = selector.xpath('autor_email/text()').get()
+        if author_email:
+            metadata_dict.update({'author_email': author_email})
+
+        provider_address: str = selector.xpath('anbieter_herkunft/text()').get()
+        # provider_address is (currently?) always the address found in the Impressum
+        if provider_address:
+            metadata_dict.update({'provider_address': provider_address})
+        provider_name: str = selector.xpath('einsteller/text()').get()
+        # the value for "einsteller" is currently "Redaktion Lehrer-Online" in 100% of cases
+        if provider_name:
+            metadata_dict.update({'provider_name': provider_name})
+        provider_email: str = selector.xpath('einsteller_email/text()').get()
+        # the value for "einsteller_email" is currently "redaktion@lehrer-online.de" in 100% of cases
+        if provider_email:
+            metadata_dict.update({'provider_email': provider_email})
+
+        # both last_modified and date_published will be surrounded by lots of whitespace, tabs and newlines
+        # therefore we need to clean up the string before saving it into our dictionary
+        last_modified: str = selector.xpath('letzte_aenderung/text()').get()
+        if last_modified is not None:
+            last_modified = w3lib.html.strip_html5_whitespace(last_modified)
+            if last_modified:
+                # last_modified is not always available, sometimes it's an empty string
+                last_modified_datetime: datetime = datetime.strptime(last_modified, '%Y-%m-%d')
+                last_modified = last_modified_datetime.isoformat()
+                metadata_dict.update({'last_modified': last_modified})
+
+        date_published: str = selector.xpath('publikationsdatum/text()').get()
+        if date_published is not None:
+            date_published = w3lib.html.strip_html5_whitespace(date_published)
+            if date_published:
+                # date_published is not always available in the API, but when it is, it follows a strict syntax
+                date_published: str = w3lib.html.strip_html5_whitespace(date_published)
+                date_published_datetime: datetime = datetime.strptime(date_published, '%Y-%m-%d')
+                date_published = date_published_datetime.isoformat()
+                metadata_dict.update({'date_published': date_published})
+            else:
+                # since date_published is used for our hash, we need this fallback in case it isn't available in the API
+                metadata_dict.update({'date_published': datetime.now().isoformat()})
+
+        # ToDo: there is a <verfallsdatum>-Element, that is (in the API) currently empty 100% of the time, check again
+        #  during the next crawler-update if this data is available in the API by then
+        # expiration_date = selector.xpath('verfallsdatum/text()').get()
+        # if expiration_date:
+        #     metadata_dict.update({'expiration_date': expiration_date})
+
+        # <fach> can either be completely empty or there can be several <fach>-elements within a <datensatz>
+        disciplines_or_additional_keywords_raw: list = selector.xpath('fach/text()').getall()
+        actual_disciplines = list()
+        additional_keywords = list()
+        if disciplines_or_additional_keywords_raw:
+            for potential_discipline_item in disciplines_or_additional_keywords_raw:
+                if potential_discipline_item in self.MAPPING_FACH_TO_DISCIPLINES:
+                    # since not every "fach"-value is the same as our discipline-vocabs, mapping is necessary
+                    discipline = self.MAPPING_FACH_TO_DISCIPLINES.get(potential_discipline_item)
+                    if type(discipline) is list:
+                        actual_disciplines.extend(discipline)
+                    else:
+                        actual_disciplines.append(discipline)
+                    continue
+                elif potential_discipline_item in self.FACH_IS_ACTUALLY_A_KEYWORD or potential_discipline_item:
+                    # not all "fach"-values are valid disciplines, but they can be used as additional keywords
+                    # basically: everything that's not a correct discipline is treated as an additional keyword
+                    additional_keywords.append(potential_discipline_item)
+                    continue
+            # once we iterated through all <fach>-elements, we can set/update the actual fields in metadata_dict
+            if actual_disciplines:
+                metadata_dict.update({'discipline': actual_disciplines})
+            if additional_keywords:
+                keyword_list.extend(additional_keywords)
+                metadata_dict.update({'keywords': keyword_list})
+
+        educational_context_raw: str = selector.xpath('bildungsebene/text()').get()
+        educational_context_cleaned_up = set()
+        if educational_context_raw is not None:
+            # if this metadata-field is left empty by Lehrer-Online, it will hold a string full of whitespaces
+            # '\n\t\t\t\t\n\t\t\t\t\t\t\n\t\t\t\t\t\n\t\t\t' gets filtered out here:
+            educational_context_raw: str = w3lib.html.strip_html5_whitespace(educational_context_raw)
+            if ";" in educational_context_raw:
+                # if there's multiple values, they are surrounded by whitespaces and separated by a semicolon
+                educational_level_list: list = educational_context_raw.split(sep=";")
+                for educational_level_item in educational_level_list:
+                    edu_level_temp: str = w3lib.html.strip_html5_whitespace(educational_level_item)
+                    educational_context_cleaned_up.add(edu_level_temp)
+            elif educational_context_raw:
+                # if there's only one entry it needs to be longer than an empty string
+                educational_context_raw: str = w3lib.html.strip_html5_whitespace(educational_context_raw)
+                educational_context_cleaned_up.add(educational_context_raw)
+        if educational_context_cleaned_up:
+            educational_context_cleaned_up = list(educational_context_cleaned_up)
+            educational_context = list()
+            # we need to map some values to our educatonalContext vocabulary
+            for edu_context_item in educational_context_cleaned_up:
+                if edu_context_item in self.MAPPING_EDU_CONTEXT.keys():
+                    edu_context_temp = self.MAPPING_EDU_CONTEXT.get(edu_context_item)
+                    educational_context.append(edu_context_temp)
+                else:
+                    educational_context.append(edu_context_item)
+            metadata_dict.update({'educational_context': educational_context})
+
+        material_type_raw: str = selector.xpath('material_type/text()').get()
+        if material_type_raw:
+            if material_type_raw in self.MAPPING_MATERIAL_TYPE_TO_NEW_LRT.keys():
+                new_lrt = self.MAPPING_MATERIAL_TYPE_TO_NEW_LRT.get(material_type_raw)
+                metadata_dict.update({'new_lrt': new_lrt})
+            metadata_dict.update({'material_type_raw': material_type_raw})
+
+        material_id_local: str = selector.xpath('material_id_local/text()').get()
+        if material_id_local:
+            # the material_id_local seems to be a stable string (including an uuid) that is suitable for our sourceId
+            metadata_dict.update({'source_id': material_id_local})
+
+        material_url: str = selector.xpath('url_ressource/text()').get()
+        if material_url is not None:
+            material_url = w3lib.html.strip_html5_whitespace(material_url)
+            if material_url:
+                # checking explicitly for an empty URL-string (2 out of 5688 <url_ressource>-tags were empty)
+                # see: https://docs.python.org/3/library/stdtypes.html#truth-value-testing
+                metadata_dict.update({'url': material_url})
+
+        # ToDo: lernressourcentyp - currently: always (100%!) empty, needs to be implemented in a future version
+        #  when the API actually has data for us.
+        #  this might become useful for mapping additional values to new_lrt in the future
+        # lrt_raw = selector.xpath('lernressourcentyp/text()').get()
+
+        intended_end_user_role: str = selector.xpath('zielgruppe/text()').get()
+        if intended_end_user_role:
+            metadata_dict.update({'intended_end_user': intended_end_user_role})
+
+        rights_raw: str = selector.xpath('rechte/text()').get()
+        if rights_raw:
+            rights_raw: str = w3lib.html.strip_html5_whitespace(rights_raw)
+            if rights_raw:
+                # after stripping the whitespace characters, we need to make sure that strings aren't empty
+                if rights_raw in self.MAPPING_RIGHTS_TO_URLS:
+                    license_url = self.MAPPING_RIGHTS_TO_URLS.get(rights_raw)
+                    if license_url:
+                        metadata_dict.update({'license_url': license_url})
+                else:
+                    metadata_dict.update({'license_description': rights_raw})
+
+        free_to_access: str = selector.xpath('frei_zugaenglich/text()').get()
+        # ToDo: Confirm if behaviour is still correct after LO implemented filtering for free materials into the API
+        # can be either 'ja' or 'nein', but it has a different meaning when "kostenpflichtig"-element is set to "ja":
+        # frei_zugaenglich (ja) & kostenpflichtig (nein)        = truly free to access, no log-in required
+        # frei_zugaenglich (ja) & kostenpflichtig (ja)          = available for free, but log-in required (free)
+        # frei_zugaenglich (nein) & kostenpflichtig (ja)        = login required, paywalled content
+        # frei_zugaenglich (nein) & kostenpflichtig (nein)      = Premium-Account only, paywalled content (this might
+        #                                                       be an oversight in the API, could change in the future)
+        if free_to_access == "ja":
+            if metadata_dict.get("price") == "yes":
+                metadata_dict.update({'conditions_of_access': 'login_for_additional_features'})
+                metadata_dict.update({'origin_folder_name': 'free_account_required'})
+            elif metadata_dict.get("price") == "no":
+                metadata_dict.update({'conditions_of_access': 'no_login'})
+                metadata_dict.update({'origin_folder_name': 'frei_und_kostenlos'})
+        elif free_to_access == "nein":
+            metadata_dict.update({'conditions_of_access': 'login'})
+            metadata_dict.update({'origin_folder_name': 'premium_only'})
+
+        # quelle_id currently holds just the abbreviation "LO" for all elements, check again later
+        # quelle_logo_url is different from bild_url, always holds (the same) URL to the Lehrer-Online logo
+        # quelle_homepage_url always holds a link to "https://www.lehrer-online.de"
+
+        # self.logger.info(f"metadata_dict = {metadata_dict}")
+        if material_url:
+            # not every <datensatz>-element actually holds a valid URL to parse for us - we need to skip those empty
+            # strings otherwise the parse_node() method throws an error on that entry (and skips the rest)
+            yield scrapy.Request(url=material_url, callback=self.parse, cb_kwargs={'metadata_dict': metadata_dict})
+        else:
+            pass
+
+    def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
+        """
+        Uses the metadata_dict that was built in parse_node() and extracts additional metadata from the DOM itself to
+        create and fill a BaseItem with the gathered metadata.
+        :param response: scrapy.http.Response
+        :param kwargs: a dictionary that always holds a "metadata_dict"-key (which itself holds a dictionary)
+        :return: BaseItemLoader
+        """
+        metadata_dict: dict = kwargs.get("metadata_dict")
+        # self.logger.info(f"Metadata inside PARSE-METHOD for {response.url}: {metadata_dict.keys()}")
+
+        base = BaseItemLoader()
+
+        base.add_value('sourceId', metadata_dict.get("source_id"))
+        hash_temp: str = metadata_dict.get("date_published") + self.version
+        base.add_value('hash', hash_temp)
+        if "last_modified" in metadata_dict.keys():
+            last_modified = metadata_dict.get("last_modified")
+            base.add_value('lastModified', last_modified)
+        else:
+            # if last_modified is not available in the API, we use the publication date instead as a workaround
+            base.add_value('lastModified', metadata_dict.get("date_published"))
+        if "provider_address" in metadata_dict.keys():
+            base.add_value('publisher', metadata_dict.get("provider_address"))
+        base.add_value('type', Constants.TYPE_MATERIAL)
+        if "thumbnail_url" in metadata_dict.keys():
+            thumbnail_url: str = metadata_dict.get("thumbnail_url")
+            if thumbnail_url:
+                base.add_value('thumbnail', thumbnail_url)
+        if "origin_folder_name" in metadata_dict.keys():
+            base.add_value('origin', metadata_dict.get("origin_folder_name"))
+
+        lom = LomBaseItemloader()
+
+        general = LomGeneralItemloader()
+        general.add_value('identifier', response.url)
+        general.add_value('title', metadata_dict.get("title"))
+        if "keywords" in metadata_dict.keys():
+            general.add_value('keyword', metadata_dict.get("keywords"))
+        if "description_long" in metadata_dict.keys():
+            general.add_value('description', metadata_dict.get("description_long"))
+        elif "description_short" in metadata_dict.keys():
+            general.add_value('description', metadata_dict.get("description_short"))
+        if "language" in metadata_dict.keys():
+            general.add_value('language', metadata_dict.get("language"))
+
+        # noinspection DuplicatedCode
+        lom.add_value('general', general.load_item())
+
+        technical = LomTechnicalItemLoader()
+        technical.add_value('format', 'text/html')
+        technical.add_value('location', response.url)
+        lom.add_value('technical', technical.load_item())
+
+        lifecycle = LomLifecycleItemloader()
+        lifecycle.add_value('role', 'publisher')  # supported roles: "author" / "editor" / "publisher"
+        lifecycle.add_value('date', metadata_dict.get("date_published"))
+        if "provider_name" in metadata_dict.keys():
+            lifecycle.add_value('organization', metadata_dict.get("provider_name"))
+        if "provider_email" in metadata_dict.keys():
+            lifecycle.add_value('email', metadata_dict.get("provider_email"))
+        lom.add_value('lifecycle', lifecycle.load_item())
+
+        educational = LomEducationalItemLoader()
+        if "description_short" in metadata_dict.keys():
+            educational.add_value('description', metadata_dict.get("description_short"))
+        #  - typicalLearningTime            optional
+        if "language" in metadata_dict.keys():
+            educational.add_value('language', metadata_dict.get("language"))
+        # ToDo: RegEx-extract typicalLearningTime? (needs to be a duration; LO serves this metadata as a string)
+        # the time-format on the DOM is a wildly irregular String (from "3 Unterrichtsstunden" to "3x90 Minuten",
+        # "mindestens 12 Unterrichtsstunden plus Lektüre" etc.); maybe consider this for later crawler-versions
+        # learning_time_string =  response.xpath('//li[@class="icon-count-hours"]/span/text()').get()
+        lom.add_value('educational', educational.load_item())
+
+        # classification = super().getLOMClassification()
+        # lom.add_value('classification', classification.load_item())
+
+        base.add_value('lom', lom.load_item())
+
+        vs = ValuespaceItemLoader()
+        vs.add_value('containsAdvertisement', 'yes')
+        # vs.add_value('dataProtectionConformity', 'generalDataProtectionRegulation')
+        # see: https://www.eduversum.de/datenschutz/ - ToDo: can this be considered "Datensparsam" or not?
+        if "conditions_of_access" in metadata_dict.keys():
+            vs.add_value('conditionsOfAccess', metadata_dict.get("conditions_of_access"))
+        if "discipline" in metadata_dict.keys():
+            vs.add_value('discipline', metadata_dict.get("discipline"))
+        if "educational_context" in metadata_dict.keys():
+            vs.add_value('educationalContext', metadata_dict.get("educational_context"))
+        if "intended_end_user" in metadata_dict.keys():
+            vs.add_value('intendedEndUserRole', metadata_dict.get("intended_end_user"))
+        if "new_lrt" in metadata_dict.keys():
+            vs.add_value('new_lrt', metadata_dict.get("new_lrt"))
+        if "price" in metadata_dict.keys():
+            vs.add_value('price', metadata_dict.get("price"))
+        vs.add_value('sourceContentType', '004')  # "Unterrichtsmaterial- und Aufgaben-Sammlung"
+        base.add_value('valuespaces', vs.load_item())
+
+        license_loader = LicenseItemLoader()
+        if "license_url" in metadata_dict.keys():
+            license_url = metadata_dict.get("license_url")
+            license_loader.add_value('url', license_url)
+        elif "license_description" in metadata_dict.keys():
+            license_description = metadata_dict.get("license_description")
+            if license_description == 'Frei nutzbares Material':
+                # just in case the license-description changes over time, we're gathering the description from the DOM
+                license_title: str = response.xpath('//div[@class="license-title"]/text()').get()
+                license_text: str = response.xpath('//div[@class="license-text"]/text()').get()
+                if license_text and license_title:
+                    license_full_desc: str = license_text.join(license_title)
+                    license_loader.add_value('description', license_full_desc)
+                else:
+                    license_loader.add_value('description', license_description)
+            if not license_description or license_description == 'Keine Angabe':
+                license_loader.add_value('internal', Constants.LICENSE_COPYRIGHT_LAW)
+        # noinspection DuplicatedCode
+        if "author" in metadata_dict.keys():
+            license_loader.add_value('author', metadata_dict.get("author"))
+        # if "expiration_date" in metadata_dict.keys():
+        #     # ToDo: activate gathering of expiration_date once the data is available in the API
+        #     #  - make sure that the dateparser correctly recognizes the date
+        #     expiration_date = metadata_dict.get("expiration_date")
+        #     license_loader.add_value('expirationDate', expiration_date)
+        base.add_value('license', license_loader.load_item())
+
+        permissions = super().getPermissions(response)
+        base.add_value('permissions', permissions.load_item())
+
+        response_loader = super().mapResponse(response)
+        base.add_value('response', response_loader.load_item())
+
+        yield base.load_item()
