@@ -168,7 +168,6 @@ class SodixSpider(CrawlSpider, LomBase):
         r = ResponseItemLoader(response=response)
         r.add_value("status"    , response.status)
         r.add_value("headers"   , response.headers)
-        r.add_value("url"       , response.url)
 
         return r
 
