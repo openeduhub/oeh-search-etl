@@ -11,7 +11,7 @@ from scrapy.spidermiddlewares.httperror import HttpError
 
 query_string = '''
 {
-    findAllMetadata(page: 0, pageSize: 5000000) {
+    findAllMetadata(page: 0, pageSize: 16) {
         id
         description
         keywords
@@ -36,6 +36,7 @@ query_string = '''
 }
 '''
 
+
 class SodixSpider(CrawlSpider, LomBase):
     """
     This crawler fetches data from the SODIX. The Scrapy request with GraphQL in JSON (please refer to body in parse() function).
@@ -59,8 +60,7 @@ class SodixSpider(CrawlSpider, LomBase):
     counter = 1
     loginStatusCode = None
 
-
-    #reference : https://stackoverflow.com/questions/62061219/use-a-specific-scrapy-downloader-middleware-per-request
+    # reference : https://stackoverflow.com/questions/62061219/use-a-specific-scrapy-downloader-middleware-per-request
     # custom_settings = {
     #     'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,
     #     'DOWNLOADER_MIDDLEWARES': {'converter.middlewares.CustomRetryMiddleware' : 543},
@@ -76,14 +76,14 @@ class SodixSpider(CrawlSpider, LomBase):
 
     def make_request(self):
         return scrapy.Request(
-                        body        = self.get_body(),
-                        callback    = self.parse_sodix,
-                        dont_filter = True,
-                        errback     = lambda failure: self.errback_error(failure, self.make_request),
-                        headers     = self.get_headers(),
-                        method      = 'POST',
-                        url         = self.urlRequest,
-                    )
+            body=self.get_body(),
+            callback=self.parse_sodix,
+            dont_filter=True,
+            errback=lambda failure: self.errback_error(failure, self.make_request),
+            headers=self.get_headers(),
+            method='POST',
+            url=self.urlRequest,
+        )
 
     def login(self):
         response = requests.post(
@@ -92,7 +92,7 @@ class SodixSpider(CrawlSpider, LomBase):
             data=f'{{"login": "{self.user}", "password": "{self.password}"}}'
         )
         self.loginStatusCode = response.status_code
-        try :
+        try:
             if not response.json()['error']:
                 self.access_token = response.json()['access_token']
                 self.logger.info("access token is available")
@@ -115,7 +115,7 @@ class SodixSpider(CrawlSpider, LomBase):
         return json.dumps({"query": query_string})
 
     def errback_error(self, failure, method):
-        if failure.check(HttpError) and self.counter < 3 :
+        if failure.check(HttpError) and self.counter < 3:
             response = failure.value.response
             self.logger.error(f'HTTP error retry login counts : {self.counter}')
             self.counter += 1
@@ -124,9 +124,9 @@ class SodixSpider(CrawlSpider, LomBase):
             yield method()
 
     # to access sodix with access_token
-    def parse_sodix(self, response:scrapy.http.Response):
-        elements       = json.loads(response.body.decode('utf-8'))
-        requestCount   = len(elements['data']['findAllMetadata'])
+    def parse_sodix(self, response: scrapy.http.Response):
+        elements = json.loads(response.body.decode('utf-8'))
+        requestCount = len(elements['data']['findAllMetadata'])
 
         # for i in range(requestCount):
         #     #for debugging
@@ -134,7 +134,7 @@ class SodixSpider(CrawlSpider, LomBase):
         #             print('dev-mode : 1 requests done, exiting...')
         #             break
         for j in range(len(elements['data']['findAllMetadata'])):
-            copyResponse              = response.copy()
+            copyResponse = response.copy()
             copyResponse.meta["item"] = elements['data']['findAllMetadata'][j]
 
             json_str = json.dumps(elements['data']['findAllMetadata'][j], indent=4, sort_keys=True, ensure_ascii=False)
@@ -147,53 +147,52 @@ class SodixSpider(CrawlSpider, LomBase):
 
             # to call LomBase functions
             LomBase.parse(self, copyResponse)
-            self.logger.info('Finish parsing: ' + str(j+1) + '/' + str(requestCount))
+            self.logger.info('Finish parsing: ' + str(j + 1) + '/' + str(requestCount))
 
     def getBase(self, response):
-        base         = LomBase.getBase(self, response)
-        metadata     = response.meta["item"]
+        base = LomBase.getBase(self, response)
+        metadata = response.meta["item"]
 
-        base.add_value("thumbnail"  , metadata['media']['thumbPreview'])
+        base.add_value("thumbnail", metadata['media']['thumbPreview'])
 
         return base
 
-    def getId(self, response) :
+    def getId(self, response):
         metadata = response.meta["item"]
         return metadata['id']
 
     def getHash(self, response):
-        return hash(str(self.version)+str(datetime.datetime.now()))
+        return hash(str(self.version) + str(datetime.datetime.now()))
 
     def mapResponse(self, response):
         r = ResponseItemLoader(response=response)
-        r.add_value("status"    , response.status)
-        r.add_value("headers"   , response.headers)
+        r.add_value("status", response.status)
+        r.add_value("headers", response.headers)
 
         return r
 
     def getLOMEducational(self, response=None):
         educational = LomBase.getLOMEducational(self, response)
-        metadata      = response.meta["item"]
+        metadata = response.meta["item"]
 
-        educational.add_value("language"    , metadata['language'])
+        educational.add_value("language", metadata['language'])
 
         return educational
 
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
-        metadata  = response.meta["item"]
+        metadata = response.meta["item"]
 
         general.add_value("aggregationLevel", "1")
-        general.add_value("title"       , metadata['title'])
-        general.add_value("keyword"     , metadata['keywords'])
-        general.add_value("language"    , metadata['language'])
-        general.add_value("description" , metadata['description'])
+        general.add_value("title", metadata['title'])
+        general.add_value("keyword", metadata['keywords'])
+        general.add_value("language", metadata['language'])
+        general.add_value("description", metadata['description'])
 
         return general
 
-
     def getLicense(self, response=None):
-        license     = LomBase.getLicense(self, response)
+        license = LomBase.getLicense(self, response)
 
         try:
             # license.add_value("internal", metadata['license']['name'])
@@ -207,22 +206,22 @@ class SodixSpider(CrawlSpider, LomBase):
         # except TypeError:
         #     self.logger.info("Metadata LicenceText is None.")
         #     license.add_value("description", "None")
-    
+
         return license
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
-        metadata  = response.meta["item"]
+        metadata = response.meta["item"]
 
-        technical.add_value("format"    , metadata['media']['dataType'])
-        technical.add_value("location"  , metadata['media']['url'])
+        technical.add_value("format", metadata['media']['dataType'])
+        technical.add_value("location", metadata['media']['url'])
         technical.add_value("size", metadata['media']['size'])
 
         return technical
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
-        metadata    = response.meta["item"]
+        metadata = response.meta["item"]
 
         valuespaces.add_value("learningResourceType", metadata['learnResourceType'])
 
@@ -232,7 +231,7 @@ class SodixSpider(CrawlSpider, LomBase):
         annotation = LomBase.getLOMAnnotation(self, response)
 
         annotation.add_value("entity", "crawler")
-        annotation.add_value("description" , "searchable==1")
+        annotation.add_value("description", "searchable==1")
 
         return annotation
 
@@ -247,13 +246,15 @@ class SodixSpider(CrawlSpider, LomBase):
 
         return relation
 
-    #refer to getPermissions in mediothek_pixiothek
+    # refer to getPermissions in mediothek_pixiothek
     def getPermissions(self, response):
         permissions = LomBase.getPermissions(self, response)
 
         permissions.add_value("autoCreateGroups", True)
-        permissions.add_value('groups', ['Thuringia-public'])
+        # permissions.add_value('groups', ['Brandenburg-public'])
 
         return permissions
+
+
 class UnexpectedResponseError(Exception):
     pass
