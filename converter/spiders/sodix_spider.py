@@ -13,7 +13,7 @@ from scrapy.spidermiddlewares.httperror import HttpError
 
 query_string = '''
 {
-    findAllMetadata(page: 0, pageSize: 16) {
+    findAllMetadata(page: 0, pageSize: 4) {
         id
         description
         keywords
@@ -27,6 +27,8 @@ query_string = '''
         }
         publishers {
             linkToGeneralUseRights
+            id
+            title
         }
         media {
             dataType
@@ -144,7 +146,7 @@ class SodixSpider(CrawlSpider, LomBase):
         metadata = response.meta['item']
 
         base.add_value('thumbnail', metadata['media']['thumbPreview'])
-        #base.add_value('origin', random.choice(['telekom', 'vodafone']))
+        base.add_value('origin', metadata['publishers'][0]['id'])
 
         return base
 
@@ -176,7 +178,7 @@ class SodixSpider(CrawlSpider, LomBase):
 
         general.add_value('aggregationLevel', '1')
         general.add_value('title', metadata['title'])
-        general.add_value('keyword', metadata['keywords'])
+        general.add_value('keyword', metadata['keywords'] + [metadata['publishers'][0]['title']])
         general.add_value('language', metadata['language'])
         general.add_value('description', metadata['description'])
 
@@ -199,6 +201,15 @@ class SodixSpider(CrawlSpider, LomBase):
         #     license.add_value('description', 'None')
 
         return license
+
+    def getLOMLifecycle(self, response=None) -> LomLifecycleItemloader:
+        lifecycle = LomBase.getLOMLifecycle(self, response)
+        metadata = response.meta['item']
+
+        lifecycle.add_value('role', 'publisher')
+        lifecycle.add_value('organization', metadata['publishers'][0]['title'])
+
+        return lifecycle
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
@@ -241,8 +252,12 @@ class SodixSpider(CrawlSpider, LomBase):
     def getPermissions(self, response):
         permissions = LomBase.getPermissions(self, response)
 
+        #permissions.replace_value("public", False)
         permissions.add_value('autoCreateGroups', True)
-        # permissions.add_value('groups', ['Brandenburg-public'])
+        #permissions.add_value('groups', ['public'])
+        permissions.add_value('groups', ['Brandenburg'])
+        permissions.add_value('groups', ['Niedersachsen'])
+        permissions.add_value('groups', ['Thueringen'])
 
         return permissions
 
