@@ -1,4 +1,6 @@
 import json
+import random
+
 import requests
 import scrapy.http
 import datetime
@@ -38,25 +40,25 @@ query_string = '''
 
 
 class SodixSpider(CrawlSpider, LomBase):
-    """
+    '''
     This crawler fetches data from the SODIX. The Scrapy request with GraphQL in JSON (please refer to body in parse() function).
-    The Response will be convert to python dictionary using json.dumps(). Response.meta["item"] is used in every
+    The Response will be convert to python dictionary using json.dumps(). Response.meta['item'] is used in every
     get function to facilitate access to metadata.
 
     For better understanding, please refer to LOM documentation(http://sodis.de/lom-de/LOM-DE.doc), mediothek_pixiothek_spider.py, merlin_spider.py
     and openduhub / oeh-search-etl in Github(https://github.com/openeduhub/oeh-search-etl/wiki/How-To-build-a-crawler-for-edu-sharing-(alternative-method))
 
     Author: BRB team
-    """
+    '''
 
-    name = "sodix_spider"
-    url = "https://www.sodix.de/"  # the url which will be linked as the primary link to your source (should be the main url of your site)
-    friendlyName = "Sodix"  # name as shown in the search ui
-    version = "0.1"  # the version of your crawler, used to identify if a reimport is necessary
-    urlLogin = "https://api.sodix.de/gql/auth/login"  # * regular expression, to represent all possible values.
-    urlRequest = "https://api.sodix.de/gql/graphql"
-    user = env.get("SODIX_USER")
-    password = env.get("SODIX_PASSWORD")
+    name = 'sodix_spider'
+    url = 'https://www.sodix.de/'  # the url which will be linked as the primary link to your source (should be the main url of your site)
+    friendlyName = 'Sodix'  # name as shown in the search ui
+    version = '0.1'  # the version of your crawler, used to identify if a reimport is necessary
+    urlLogin = 'https://api.sodix.de/gql/auth/login'  # * regular expression, to represent all possible values.
+    urlRequest = 'https://api.sodix.de/gql/graphql'
+    user = env.get('SODIX_USER')
+    password = env.get('SODIX_PASSWORD')
     counter = 1
     loginStatusCode = None
 
@@ -95,9 +97,9 @@ class SodixSpider(CrawlSpider, LomBase):
         try:
             if not response.json()['error']:
                 self.access_token = response.json()['access_token']
-                self.logger.info("access token is available")
+                self.logger.info('access token is available')
             else:
-                self.logger.error("The login was not successful")
+                self.logger.error('The login was not successful')
                 raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
         except (KeyError, UnexpectedResponseError):
             raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
@@ -112,7 +114,7 @@ class SodixSpider(CrawlSpider, LomBase):
         }
 
     def get_body(self):
-        return json.dumps({"query": query_string})
+        return json.dumps({'query': query_string})
 
     def errback_error(self, failure, method):
         if failure.check(HttpError) and self.counter < 3:
@@ -125,40 +127,29 @@ class SodixSpider(CrawlSpider, LomBase):
 
     # to access sodix with access_token
     def parse_sodix(self, response: scrapy.http.Response):
-        elements = json.loads(response.body.decode('utf-8'))
-        requestCount = len(elements['data']['findAllMetadata'])
+        json_response = json.loads(response.body.decode())
+        metadata = json_response['data']['findAllMetadata']
 
-        # for i in range(requestCount):
-        #     #for debugging
-        #     if i == 1:
-        #             print('dev-mode : 1 requests done, exiting...')
-        #             break
-        for j in range(len(elements['data']['findAllMetadata'])):
-            copyResponse = response.copy()
-            copyResponse.meta["item"] = elements['data']['findAllMetadata'][j]
-
-            json_str = json.dumps(elements['data']['findAllMetadata'][j], indent=4, sort_keys=True, ensure_ascii=False)
-
-            copyResponse._set_body(json_str)
+        # split response metadata into one response per metadata object
+        for meta_obj in metadata:
+            response_copy = response.copy()
+            response_copy.meta['item'] = meta_obj
+            response_copy._set_body(json.dumps(meta_obj))
 
             # In order to transfer data to CSV/JSON, implement these 2 lines.
-            if self.hasChanged(copyResponse):
-                yield LomBase.parse(self, copyResponse)
-
-            # to call LomBase functions
-            LomBase.parse(self, copyResponse)
-            self.logger.info('Finish parsing: ' + str(j + 1) + '/' + str(requestCount))
+            yield LomBase.parse(self, response_copy)
 
     def getBase(self, response):
         base = LomBase.getBase(self, response)
-        metadata = response.meta["item"]
+        metadata = response.meta['item']
 
-        base.add_value("thumbnail", metadata['media']['thumbPreview'])
+        base.add_value('thumbnail', metadata['media']['thumbPreview'])
+        #base.add_value('origin', random.choice(['telekom', 'vodafone']))
 
         return base
 
     def getId(self, response):
-        metadata = response.meta["item"]
+        metadata = response.meta['item']
         return metadata['id']
 
     def getHash(self, response):
@@ -166,28 +157,28 @@ class SodixSpider(CrawlSpider, LomBase):
 
     def mapResponse(self, response):
         r = ResponseItemLoader(response=response)
-        r.add_value("status", response.status)
-        r.add_value("headers", response.headers)
+        r.add_value('status', response.status)
+        r.add_value('headers', response.headers)
 
         return r
 
     def getLOMEducational(self, response=None):
         educational = LomBase.getLOMEducational(self, response)
-        metadata = response.meta["item"]
+        metadata = response.meta['item']
 
-        educational.add_value("language", metadata['language'])
+        educational.add_value('language', metadata['language'])
 
         return educational
 
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
-        metadata = response.meta["item"]
+        metadata = response.meta['item']
 
-        general.add_value("aggregationLevel", "1")
-        general.add_value("title", metadata['title'])
-        general.add_value("keyword", metadata['keywords'])
-        general.add_value("language", metadata['language'])
-        general.add_value("description", metadata['description'])
+        general.add_value('aggregationLevel', '1')
+        general.add_value('title', metadata['title'])
+        general.add_value('keyword', metadata['keywords'])
+        general.add_value('language', metadata['language'])
+        general.add_value('description', metadata['description'])
 
         return general
 
@@ -195,54 +186,54 @@ class SodixSpider(CrawlSpider, LomBase):
         license = LomBase.getLicense(self, response)
 
         try:
-            # license.add_value("internal", metadata['license']['name'])
-            license.replace_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
+            # license.add_value('internal', metadata['license']['name'])
+            license.replace_value('internal', Constants.LICENSE_COPYRIGHT_LAW)
         except TypeError:
-            self.logger.info("Metadata LicenceName is None.")
-            license.add_value("internal", "None")
+            self.logger.info('Metadata LicenceName is None.')
+            license.add_value('internal', 'None')
 
         # try:
-        #     license.add_value("internal", metadata['license']['text'])
+        #     license.add_value('internal', metadata['license']['text'])
         # except TypeError:
-        #     self.logger.info("Metadata LicenceText is None.")
-        #     license.add_value("description", "None")
+        #     self.logger.info('Metadata LicenceText is None.')
+        #     license.add_value('description', 'None')
 
         return license
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
-        metadata = response.meta["item"]
+        metadata = response.meta['item']
 
-        technical.add_value("format", metadata['media']['dataType'])
-        technical.add_value("location", metadata['media']['url'])
-        technical.add_value("size", metadata['media']['size'])
+        technical.add_value('format', metadata['media']['dataType'])
+        technical.add_value('location', metadata['media']['url'])
+        technical.add_value('size', metadata['media']['size'])
 
         return technical
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
-        metadata = response.meta["item"]
+        metadata = response.meta['item']
 
-        valuespaces.add_value("learningResourceType", metadata['learnResourceType'])
+        valuespaces.add_value('learningResourceType', metadata['learnResourceType'])
 
         return valuespaces
 
     def getLOMAnnotation(self, response=None) -> LomAnnotationItemLoader:
         annotation = LomBase.getLOMAnnotation(self, response)
 
-        annotation.add_value("entity", "crawler")
-        annotation.add_value("description", "searchable==1")
+        annotation.add_value('entity', 'crawler')
+        annotation.add_value('description', 'searchable==1')
 
         return annotation
 
     def getLOMRelation(self, response=None) -> LomRelationItemLoader:
         relation = LomBase.getLOMRelation(self, response)
 
-        # metadata = response.meta["item"]
+        # metadata = response.meta['item']
         #
         # resource = LomRelationResourceItem()
-        # resource["identifier"] = metadata['id']
-        # relation.add_value("resource", resource)
+        # resource['identifier'] = metadata['id']
+        # relation.add_value('resource', resource)
 
         return relation
 
@@ -250,7 +241,7 @@ class SodixSpider(CrawlSpider, LomBase):
     def getPermissions(self, response):
         permissions = LomBase.getPermissions(self, response)
 
-        permissions.add_value("autoCreateGroups", True)
+        permissions.add_value('autoCreateGroups', True)
         # permissions.add_value('groups', ['Brandenburg-public'])
 
         return permissions
