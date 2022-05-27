@@ -146,8 +146,17 @@ class SodixSpider(CrawlSpider, LomBase):
         metadata = response.meta['item']
 
         base.add_value('thumbnail', metadata['media']['thumbPreview'])
-        base.add_value('origin', metadata['publishers'][0]['id'])
+        #base.add_value('origin', metadata['publishers'][0]['id'])
+        publisher_list = []
+        print(len(metadata['publishers']) )
+        for i in range(len(metadata['publishers'])):  
+            if(len(metadata['publishers'])) == 2:
+                publisher = metadata['publishers'][0]['title'] + " + " +metadata['publishers'][1]['title']
+            else :
+                publisher = metadata['publishers'][i]['title'] 
 
+        publisher_list.append(publisher)
+        base.add_value('origin',publisher_list)
         return base
 
     def getId(self, response):
