@@ -1,6 +1,6 @@
 import json
 import random
-
+import re
 import requests
 import scrapy.http
 import datetime
@@ -13,7 +13,7 @@ from scrapy.spidermiddlewares.httperror import HttpError
 
 query_string = '''
 {
-    findAllMetadata(page: 0, pageSize: 4) {
+    findAllMetadata(page: 0, pageSize: 500) {
         id
         description
         keywords
@@ -54,21 +54,15 @@ class SodixSpider(CrawlSpider, LomBase):
     '''
 
     name = 'sodix_spider'
-    url = 'https://www.sodix.de/'  # the url which will be linked as the primary link to your source (should be the main url of your site)
-    friendlyName = 'Sodix'  # name as shown in the search ui
-    version = '0.1'  # the version of your crawler, used to identify if a reimport is necessary
-    urlLogin = 'https://api.sodix.de/gql/auth/login'  # * regular expression, to represent all possible values.
+    url = 'https://www.sodix.de/'
+    friendlyName = 'Sodix'
+    version = '0.1'
+    urlLogin = 'https://api.sodix.de/gql/auth/login'
     urlRequest = 'https://api.sodix.de/gql/graphql'
     user = env.get('SODIX_USER')
     password = env.get('SODIX_PASSWORD')
     counter = 1
     loginStatusCode = None
-
-    # reference : https://stackoverflow.com/questions/62061219/use-a-specific-scrapy-downloader-middleware-per-request
-    # custom_settings = {
-    #     'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,
-    #     'DOWNLOADER_MIDDLEWARES': {'converter.middlewares.CustomRetryMiddleware' : 543},
-    # }
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -127,7 +121,6 @@ class SodixSpider(CrawlSpider, LomBase):
             self.login()
             yield method()
 
-    # to access sodix with access_token
     def parse_sodix(self, response: scrapy.http.Response):
         json_response = json.loads(response.body.decode())
         metadata = json_response['data']['findAllMetadata']
@@ -144,19 +137,20 @@ class SodixSpider(CrawlSpider, LomBase):
     def getBase(self, response):
         base = LomBase.getBase(self, response)
         metadata = response.meta['item']
-
         base.add_value('thumbnail', metadata['media']['thumbPreview'])
-        #base.add_value('origin', metadata['publishers'][0]['id'])
-        publisher_list = []
-        print(len(metadata['publishers']) )
-        for i in range(len(metadata['publishers'])):  
-            if(len(metadata['publishers'])) == 2:
-                publisher = metadata['publishers'][0]['title'] + " + " +metadata['publishers'][1]['title']
-            else :
-                publisher = metadata['publishers'][i]['title'] 
 
-        publisher_list.append(publisher)
-        base.add_value('origin',publisher_list)
+        publisher_list = []
+        for i in range(len(metadata['publishers'])):
+            if(len(metadata['publishers'])) == 2:
+                publisher = metadata['publishers'][0]['title'] + " + " + metadata['publishers'][1]['title']
+                publisherClean = re.sub("[^a-zA-Z0-9()]", "", publisher)
+            else:
+                publisher = metadata['publishers'][i]['title']
+                publisherClean = re.sub("[^a-zA-Z0-9()]", "", publisher)
+
+        publisher_list.append(publisherClean)
+        base.add_value('origin', publisher_list)
+
         return base
 
     def getId(self, response):
@@ -200,13 +194,13 @@ class SodixSpider(CrawlSpider, LomBase):
             # license.add_value('internal', metadata['license']['name'])
             license.replace_value('internal', Constants.LICENSE_COPYRIGHT_LAW)
         except TypeError:
-            self.logger.info('Metadata LicenceName is None.')
+            self.logger.error('Metadata LicenceName is None.')
             license.add_value('internal', 'None')
 
         # try:
         #     license.add_value('internal', metadata['license']['text'])
         # except TypeError:
-        #     self.logger.info('Metadata LicenceText is None.')
+        #     self.logger.error('Metadata LicenceText is None.')
         #     license.add_value('description', 'None')
 
         return license
@@ -249,12 +243,6 @@ class SodixSpider(CrawlSpider, LomBase):
     def getLOMRelation(self, response=None) -> LomRelationItemLoader:
         relation = LomBase.getLOMRelation(self, response)
 
-        # metadata = response.meta['item']
-        #
-        # resource = LomRelationResourceItem()
-        # resource['identifier'] = metadata['id']
-        # relation.add_value('resource', resource)
-
         return relation
 
     # refer to getPermissions in mediothek_pixiothek
@@ -263,7 +251,7 @@ class SodixSpider(CrawlSpider, LomBase):
 
         #permissions.replace_value("public", False)
         permissions.add_value('autoCreateGroups', True)
-        #permissions.add_value('groups', ['public'])
+        permissions.add_value('groups', ['public'])
         permissions.add_value('groups', ['Brandenburg'])
         permissions.add_value('groups', ['Niedersachsen'])
         permissions.add_value('groups', ['Thueringen'])
