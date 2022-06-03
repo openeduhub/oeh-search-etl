@@ -13,7 +13,7 @@ from scrapy.spidermiddlewares.httperror import HttpError
 
 query_string = '''
 {
-    findAllMetadata(page: 0, pageSize: 500) {
+    findAllMetadata(page: 0, pageSize: 50000000) {
         id
         description
         keywords
@@ -221,6 +221,7 @@ class SodixSpider(CrawlSpider, LomBase):
         technical.add_value('format', metadata['media']['dataType'])
         technical.add_value('location', metadata['media']['url'])
         technical.add_value('size', metadata['media']['size'])
+        # time.sleep(1.0)
 
         return technical
 
@@ -245,16 +246,16 @@ class SodixSpider(CrawlSpider, LomBase):
 
         return relation
 
-    # refer to getPermissions in mediothek_pixiothek
+
     def getPermissions(self, response):
         permissions = LomBase.getPermissions(self, response)
 
         #permissions.replace_value("public", False)
         permissions.add_value('autoCreateGroups', True)
         permissions.add_value('groups', ['public'])
-        permissions.add_value('groups', ['Brandenburg'])
-        permissions.add_value('groups', ['Niedersachsen'])
-        permissions.add_value('groups', ['Thueringen'])
+        # permissions.add_value('groups', ['Brandenburg-public'])
+        # permissions.add_value('groups', ['LowerSaxony-public'])
+        # permissions.add_value('groups', ['Thuringia-public'])
 
         return permissions
 
