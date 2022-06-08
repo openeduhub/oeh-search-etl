@@ -63,6 +63,7 @@ class SodixSpider(CrawlSpider, LomBase):
     password = env.get('SODIX_PASSWORD')
     counter = 1
     loginStatusCode = None
+    download_delay = 0.25
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
