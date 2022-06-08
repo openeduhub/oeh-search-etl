@@ -1,5 +1,4 @@
 import json
-import random
 import re
 import requests
 import scrapy.http
@@ -10,6 +9,7 @@ from converter.items import *
 from converter.spiders.base_classes.lom_base import LomBase
 from scrapy.spiders import CrawlSpider
 from scrapy.spidermiddlewares.httperror import HttpError
+
 
 query_string = '''
 {
@@ -42,7 +42,7 @@ query_string = '''
 
 
 class SodixSpider(CrawlSpider, LomBase):
-    '''
+    """
     This crawler fetches data from the SODIX. The Scrapy request with GraphQL in JSON (please refer to body in parse() function).
     The Response will be convert to python dictionary using json.dumps(). Response.meta['item'] is used in every
     get function to facilitate access to metadata.
@@ -51,7 +51,7 @@ class SodixSpider(CrawlSpider, LomBase):
     and openduhub / oeh-search-etl in Github(https://github.com/openeduhub/oeh-search-etl/wiki/How-To-build-a-crawler-for-edu-sharing-(alternative-method))
 
     Author: BRB team
-    '''
+    """
 
     name = 'sodix_spider'
     url = 'https://www.sodix.de/'
@@ -137,19 +137,13 @@ class SodixSpider(CrawlSpider, LomBase):
     def getBase(self, response):
         base = LomBase.getBase(self, response)
         metadata = response.meta['item']
-        base.add_value('thumbnail', metadata['media']['thumbPreview'])
+        if metadata['media'] and metadata['media']['thumbPreview']:
+            base.add_value('thumbnail', metadata['media']['thumbPreview'])
 
-        publisher_list = []
-        for i in range(len(metadata['publishers'])):
-            if(len(metadata['publishers'])) == 2:
-                publisher = metadata['publishers'][0]['title'] + " + " + metadata['publishers'][1]['title']
-                publisherClean = re.sub("[^a-zA-Z0-9()]", "", publisher)
-            else:
-                publisher = metadata['publishers'][i]['title']
-                publisherClean = re.sub("[^a-zA-Z0-9()]", "", publisher)
-
-        publisher_list.append(publisherClean)
-        base.add_value('origin', publisher_list)
+        if metadata['publishers']:
+            base.add_value('origin', [metadata['publishers'][0]['id']])
+        #    publishers = [re.sub('[^a-zA-Z0-9()]', '_', publisher['title']) for publisher in metadata['publishers']]
+        #    base.add_value('origin', '_'.join(publishers))
 
         return base
 
@@ -171,7 +165,8 @@ class SodixSpider(CrawlSpider, LomBase):
         educational = LomBase.getLOMEducational(self, response)
         metadata = response.meta['item']
 
-        educational.add_value('language', metadata['language'])
+        if metadata['language']:
+            educational.add_value('language', metadata['language'])
 
         return educational
 
@@ -180,28 +175,27 @@ class SodixSpider(CrawlSpider, LomBase):
         metadata = response.meta['item']
 
         general.add_value('aggregationLevel', '1')
-        general.add_value('title', metadata['title'])
-        general.add_value('keyword', metadata['keywords'] + [metadata['publishers'][0]['title']])
-        general.add_value('language', metadata['language'])
-        general.add_value('description', metadata['description'])
+
+        for value in 'title', 'language', 'description':
+            if metadata[value]:
+                general.add_value(value, metadata[value])
+
+        keywords = []
+        if metadata['keywords']:
+            keywords.extend(metadata['keywords'])
+        for publisher in metadata['publishers']:
+            keywords.append(publisher['title'])
+        general.add_value('keyword', keywords)
 
         return general
 
     def getLicense(self, response=None):
         license = LomBase.getLicense(self, response)
+        metadata = response.meta['item']
 
-        try:
-            # license.add_value('internal', metadata['license']['name'])
-            license.replace_value('internal', Constants.LICENSE_COPYRIGHT_LAW)
-        except TypeError:
-            self.logger.error('Metadata LicenceName is None.')
-            license.add_value('internal', 'None')
-
-        # try:
-        #     license.add_value('internal', metadata['license']['text'])
-        # except TypeError:
-        #     self.logger.error('Metadata LicenceText is None.')
-        #     license.add_value('description', 'None')
+        if metadata['license']:
+            license.replace_value('internal', Constants.LICENSE_CUSTOM)
+            license.replace_value('description', f'{metadata["license"]["name"]}; {metadata["license"]["text"]}')
 
         return license
 
@@ -209,8 +203,9 @@ class SodixSpider(CrawlSpider, LomBase):
         lifecycle = LomBase.getLOMLifecycle(self, response)
         metadata = response.meta['item']
 
-        lifecycle.add_value('role', 'publisher')
-        lifecycle.add_value('organization', metadata['publishers'][0]['title'])
+        if metadata['publishers']:
+            lifecycle.add_value('role', 'publisher')
+            lifecycle.add_value('organization', metadata['publishers'][0]['title'])
 
         return lifecycle
 
@@ -221,7 +216,6 @@ class SodixSpider(CrawlSpider, LomBase):
         technical.add_value('format', metadata['media']['dataType'])
         technical.add_value('location', metadata['media']['url'])
         technical.add_value('size', metadata['media']['size'])
-        # time.sleep(1.0)
 
         return technical
 
@@ -245,7 +239,6 @@ class SodixSpider(CrawlSpider, LomBase):
         relation = LomBase.getLOMRelation(self, response)
 
         return relation
-
 
     def getPermissions(self, response):
         permissions = LomBase.getPermissions(self, response)
