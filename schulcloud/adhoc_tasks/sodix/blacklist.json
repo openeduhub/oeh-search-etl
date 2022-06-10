@@ -1,0 +1,11 @@
+{
+    "all_groups": ["Brandenburg-public", "LowerSaxony-public", "Thuringia-public"],
+    "blacklist": {
+        "Brandenburg-public": [
+            {
+                "id": "604b7373465ea86af1e973bf",
+                "title": "Apple"
+            }
+        ]
+    }
+}
