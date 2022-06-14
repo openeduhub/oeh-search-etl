@@ -7,7 +7,6 @@ from typing import List
 import edusharing
 import util
 
-
 ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
 
 
@@ -25,8 +24,8 @@ class Blacklist:
     def get_groups(self, publisher_id: str):
         if publisher_id in self.permissions:
             return self.permissions[publisher_id]
-        else:
-            return self.all_groups
+        # else:
+        # return self.all_groups
 
 
 def find_node_by_name(api: edusharing.EdusharingAPI, parent_id: str, child_name: str) -> edusharing.Node:
@@ -71,18 +70,13 @@ def main():
 
     for dir in publisher_directories:
         publisher_id = dir.name
-        if not (dir.name.isalnum() and len(dir.name) == 24):
-            logging.warning(f'Skipped directory because name is not a proper id: {publisher_id}')
+        # if not (dir.name.isalnum() and len(dir.name) == 24):
+            # logging.warning(f'Skipped directory because name is not a proper id: {publisher_id}')
 
-        groups = blacklist.get_groups(publisher_id)
+        groups_blacklist = blacklist.get_groups(publisher_id)
 
-        if groups is blacklist.all_groups:
-            api.set_permissions(dir.id, [], inheritance=True)
-        else:
-            # if we want, we could turn off inheritance even if all groups are allowed
-            api.set_permissions(dir.id, groups, inheritance=False)
-        #print(f'{dir.name} -> {groups}')
-
+        if groups_blacklist is not None:
+            api.set_permissions(dir.id, groups_blacklist, inheritance=False)
 
 if __name__ == '__main__':
     main()
