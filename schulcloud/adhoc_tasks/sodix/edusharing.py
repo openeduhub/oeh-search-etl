@@ -54,30 +54,11 @@ class EdusharingAPI:
                 f'''\u007b
     "editable": true,
     "authority": \u007b
-        "properties": \u007b\u007d,
         "authorityName": "GROUP_{groupBlacklist}",
         "authorityType": "GROUP"
     \u007d,
-    "user": \u007b
-        "primaryAffiliation": "string",
-        "skills": [
-            "string"
-        ],
-        "types": [
-            "string"
-        ],
-        "vcard": "string",
-        "firstName": "string",
-        "lastName": "string",
-        "email": "string",
-        "avatar": "string",
-        "about": "string"
-    \u007d,
     "group": \u007b
-        "groupEmail": "string",
-        "displayName": "{groupBlacklist}",
-        "groupType": "string",
-        "scopeType": "string"
+        "displayName": "{groupBlacklist}"
     \u007d,
     "permissions": [
         "Consumer"
