@@ -3,13 +3,11 @@
 import json
 import logging
 from typing import List
-
-import converter.env as env
 import edusharing
 import util
 
 
-# ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
+ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
 
 
 class Blacklist:
@@ -58,16 +56,13 @@ def create_blacklist_from_json(file_path: str):
 
 
 def main():
-    # environment = util.Environment(ENV_VARS, ask_for_missing=True)
+    environment = util.Environment(ENV_VARS, ask_for_missing=True)
     blacklist = create_blacklist_from_json('blacklist.json')
 
     api = edusharing.EdusharingAPI(
-        # environment['EDU_SHARING_BASE_URL'],
-        # environment['EDU_SHARING_USERNAME'],
-        # environment['EDU_SHARING_PASSWORD'])
-        base_url=env.get('EDU_SHARING_BASE_URL'),
-        username=env.get('EDU_SHARING_USERNAME'),
-        password=env.get('EDU_SHARING_PASSWORD'))
+        environment['EDU_SHARING_BASE_URL'],
+        environment['EDU_SHARING_USERNAME'],
+        environment['EDU_SHARING_PASSWORD'])
 
     sync = find_node_by_name(api, '-userhome-', 'SYNC_OBJ')
     sodix_spider = find_node_by_name(api, sync.id, 'sodix_spider')
@@ -85,6 +80,8 @@ def main():
             api.set_permissions(dir.id, [], inheritance="true")
         elif groups_blacklist is not None:
             api.set_permissions(dir.id, groups_blacklist, inheritance="false")
+
+    print('All permissions have been set :-)')
 
 
 if __name__ == '__main__':
