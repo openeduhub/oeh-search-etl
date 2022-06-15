@@ -26,8 +26,8 @@ class Blacklist:
     def get_groups(self, publisher_id: str):
         if publisher_id in self.permissions:
             return self.permissions[publisher_id]
-        # else:
-        # return self.all_groups
+        else:
+            return self.all_groups
 
 
 def find_node_by_name(api: edusharing.EdusharingAPI, parent_id: str, child_name: str) -> edusharing.Node:
@@ -58,7 +58,7 @@ def create_blacklist_from_json(file_path: str):
 
 
 def main():
-    #environment = util.Environment(ENV_VARS, ask_for_missing=True)
+    # environment = util.Environment(ENV_VARS, ask_for_missing=True)
     blacklist = create_blacklist_from_json('blacklist.json')
 
     api = edusharing.EdusharingAPI(
@@ -75,13 +75,16 @@ def main():
 
     for dir in publisher_directories:
         publisher_id = dir.name
-        # if not (dir.name.isalnum() and len(dir.name) == 24):
-        # logging.warning(f'Skipped directory because name is not a proper id: {publisher_id}')
+        if not (dir.name.isalnum() and len(dir.name) == 24):
+            logging.warning(f'Skipped directory because name is not a proper id: {publisher_id}')
+            continue
 
         groups_blacklist = blacklist.get_groups(publisher_id)
 
-        if groups_blacklist is not None:
-            api.set_permissions(dir.id, groups_blacklist, inheritance=False)
+        if groups_blacklist is blacklist.all_groups:
+            api.set_permissions(dir.id, [], inheritance="true")
+        elif groups_blacklist is not None:
+            api.set_permissions(dir.id, groups_blacklist, inheritance="false")
 
 
 if __name__ == '__main__':

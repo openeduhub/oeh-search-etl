@@ -45,11 +45,12 @@ class EdusharingAPI:
         headers = {"Accept": "application/json"}
         return self.session.request(method, url, params=params, json=self.get_body(), headers=headers)
 
-    def set_body(self, groups: List[str]):
+    def set_body(self, groups: List[str], inheritance: str):
 
         string_parts = []
-        for groupBlacklist in groups:
-            string_part = \
+        if groups is not None:
+            for groupBlacklist in groups:
+                string_part = \
                 f'''\u007b
     "editable": true,
     "authority": \u007b
@@ -83,18 +84,19 @@ class EdusharingAPI:
     ]
 \u007d'''
 
-            string_parts.append(string_part)
+                string_parts.append(string_part)
 
         complete_string = ""
-        for i in range(len(string_parts)):
-            if i == len(string_parts) - 1:
-                complete_string = complete_string + string_parts[i]
-            else:
-                complete_string = complete_string + string_parts[i] + ",\n"
+        if groups is not None:
+            for i in range(len(string_parts)):
+                if i == len(string_parts) - 1:
+                    complete_string = complete_string + string_parts[i]
+                else:
+                    complete_string = complete_string + string_parts[i] + ",\n"
 
         self.query_string = \
             f'''\u007b
-    "inherited": false,
+    "inherited": {inheritance},
     "permissions": [
         {complete_string} 
     ]
@@ -120,10 +122,10 @@ class EdusharingAPI:
         if not response.status_code == 200:
             raise RuntimeError(f'Request failed: {response.status_code}: {response.text}')
 
-    def set_permissions(self, node_id: str, groups: List[str], inheritance: bool = False):
+    def set_permissions(self, node_id: str, groups: List[str], inheritance: str):
         # TODO: implement api call: https://edusharing.staging.hpi-schul-cloud.org/edu-sharing/swagger/#!/NODE_v1/setPermission
         url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
-        self.set_body(groups)
+        self.set_body(groups, inheritance)
         response = self.make_request_permissions('POST', url)
         if not response.status_code == 200:
             raise RuntimeError(f'Request failed: {response.status_code}: {response.text}')
