@@ -5,7 +5,110 @@
             {
                 "id": "604b7373465ea86af1e973bf",
                 "title": "Apple"
+            },
+            {
+                "id": "604b73a8465ea86af1e9b704",
+                "title": "123Chemie"
+            },
+            {
+                "id": "624bd536b085a21ed659b163",
+                "title": "Arillus gemeinnützige GmbH i. L."
+            },
+            {
+                "id": "614088439c6eee23ae8d8f6b",
+                "title": "Attac Trägerverein e.V."
+            },
+            {
+                "id": "604b73f5465ea86af1e9fe6b",
+                "title": "Pixabay"
+            },
+            {
+                "id": "611611ed3f52c64a180f6fe0",
+                "title": "Pushkin State Russian Language Institute"
+            },
+            {
+                "id": "604b73f5465ea86af1ea0063",
+                "title": "Serlo"
+            },
+            {
+                "id": "607fbb1e8ad91c655e42d2ef",
+                "title": "Wolfgang Dehmer"
+            },
+            {
+                "id": "61a6342b33f2e85b69d350ee",
+                "title": "ANU - Arbeitsgemeinschaft Natur- und Umweltbildung"
+            },
+            {
+                "id": "604b737d465ea86af1e979b7",
+                "title": "Age Exchange"
+            },
+            {
+                "id": "60e6b2306d481d154d2b6728",
+                "title": "Berufswahlpass"
+            },
+            {
+                "id": "604b73b3465ea86af1e9bb3d",
+                "title": "Chemistry@home"
+            },
+            {
+                "id": "62445e9293b0373146061587",
+                "title": "ClimateScience"
+            },
+            {
+                "id": "604b7373465ea86af1e973b3",
+                "title": "Culture Street"
+            },
+            {
+                "id": "604b73a7465ea86af1e9b6ee",
+                "title": "Arbeitgeberverband Chemie Baden-Württemberg e.V."
+            },
+            {
+                "id": "6130da20a96ff943b936e7de",
+                "title": "Alexander König | Gedanken - Ideen - Artefakte"
+            },
+            {
+                "id": "604b73b9465ea86af1e9c738",
+                "title": "Khan Academy"
+            },
+            {
+                "id": "604b73ba465ea86af1e9c74d",
+                "title": "Learning Snacks GmbH"
+            },
+            {
+                "id": "604b737f465ea86af1e97bce",
+                "title": "LearningApps"
+            },
+            {
+                "id": "6179621e373d710e746ef65f",
+                "title": "Andreas Breuer | Medien in Schule"
+            },
+            {
+                "id": "604b73ba465ea86af1e9c73d",
+                "title": "Medieninstitut des Verlegerverbandes Schweizer Medien"
+            },
+            {
+                "id": "604b73b6465ea86af1e9c12b",
+                "title": "openclipart"
+            },
+            {
+                "id": "622b025f9ec93b3512e87961",
+                "title": "dSign Systems GmbH | TaskCards"
+            },
+            {
+                "id": "604b73ba465ea86af1e9c73f",
+                "title": "TermTrainer"
+            },
+            {
+                "id": "604b737f465ea86af1e97bee",
+                "title": "WetterKontor GmbH"
             }
+        ],
+        "LowerSaxony-public": [
+
+        ],
+        "Thuringia-public": [
+
         ]
     }
+
 }
