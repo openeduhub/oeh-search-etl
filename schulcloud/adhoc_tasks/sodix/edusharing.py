@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Optional, Any
 
 import requests
 import requests.auth
@@ -21,7 +21,29 @@ class Node:
 
 
 class EdusharingAPI:
-    query_string = ""
+
+    @staticmethod
+    def _craft_permission_body(groups: List[str], inheritance: bool):
+        permissions = []
+        for group in groups:
+            permission = {
+                'editable': True,
+                'authority': {
+                    'authorityName': f'GROUP_{group}',
+                    'authorityType': 'GROUP'
+                },
+                'group': {
+                    'displayName': group
+                },
+                'permissions': ['Consumer']
+            }
+
+            permissions.append(permission)
+
+        return {
+            'inherited': inheritance,
+            'permissions': permissions
+        }
 
     def __init__(self, base_url: str, username: str, password: str):
         self.base_url = base_url + 'rest'
@@ -30,61 +52,11 @@ class EdusharingAPI:
         self.session = requests.Session()
         self.session.auth = requests.auth.HTTPBasicAuth(self.username, self.password)
 
-    def make_request(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str, params: Dict[str, str] = None):
-        if not params:
-            params = {}
+    def make_request(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str,
+                     params: Optional[Dict[str, str]] = None, json_data: Optional[Dict] = None):
         url = f'{self.base_url}{url}'
         headers = {'Accept': 'application/json'}
-        return self.session.request(method, url, params=params, headers=headers)
-
-    def make_request_permissions(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str,
-                                 params: Dict[str, str] = None):
-        if not params:
-            params = {}
-        url = f'{self.base_url}{url}'
-        headers = {"Accept": "application/json"}
-        return self.session.request(method, url, params=params, json=self.get_body(), headers=headers)
-
-    def set_body(self, groups: List[str], inheritance: str):
-
-        string_parts = []
-        if groups is not None:
-            for groupBlacklist in groups:
-                string_part = \
-                f'''\u007b
-    "editable": true,
-    "authority": \u007b
-        "authorityName": "GROUP_{groupBlacklist}",
-        "authorityType": "GROUP"
-    \u007d,
-    "group": \u007b
-        "displayName": "{groupBlacklist}"
-    \u007d,
-    "permissions": [
-        "Consumer"
-    ]
-\u007d'''
-
-                string_parts.append(string_part)
-
-        complete_string = ""
-        if groups is not None:
-            for i in range(len(string_parts)):
-                if i == len(string_parts) - 1:
-                    complete_string = complete_string + string_parts[i]
-                else:
-                    complete_string = complete_string + string_parts[i] + ",\n"
-
-        self.query_string = \
-            f'''\u007b
-    "inherited": {inheritance},
-    "permissions": [
-        {complete_string} 
-    ]
-\u007d'''
-
-    def get_body(self):
-        return json.loads(self.query_string)
+        return self.session.request(method, url, params=params, headers=headers, json=json_data)
 
     def get_children(self, node_id: str) -> List[Node]:
         url = f'/node/v1/nodes/-home-/{node_id}/children'
@@ -103,10 +75,8 @@ class EdusharingAPI:
         if not response.status_code == 200:
             raise RuntimeError(f'Request failed: {response.status_code}: {response.text}')
 
-    def set_permissions(self, node_id: str, groups: List[str], inheritance: str):
-        # TODO: implement api call: https://edusharing.staging.hpi-schul-cloud.org/edu-sharing/swagger/#!/NODE_v1/setPermission
+    def set_permissions(self, node_id: str, groups: List[str], inheritance: bool):
         url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
-        self.set_body(groups, inheritance)
-        response = self.make_request_permissions('POST', url)
+        response = self.make_request('POST', url, json_data=self._craft_permission_body(groups, inheritance))
         if not response.status_code == 200:
             raise RuntimeError(f'Request failed: {response.status_code}: {response.text}')

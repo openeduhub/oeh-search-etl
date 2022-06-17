@@ -77,9 +77,9 @@ def main():
         groups_blacklist = blacklist.get_groups(publisher_id)
 
         if groups_blacklist is blacklist.all_groups:
-            api.set_permissions(dir.id, [], inheritance="true")
+            api.set_permissions(dir.id, [], inheritance=True)
         elif groups_blacklist is not None:
-            api.set_permissions(dir.id, groups_blacklist, inheritance="false")
+            api.set_permissions(dir.id, groups_blacklist, inheritance=True)
 
     print('All permissions have been set :-)')
 
