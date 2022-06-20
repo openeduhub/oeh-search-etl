@@ -79,7 +79,7 @@ def main():
         if groups_blacklist is blacklist.all_groups:
             api.set_permissions(dir.id, [], inheritance=True)
         elif groups_blacklist is not None:
-            api.set_permissions(dir.id, groups_blacklist, inheritance=True)
+            api.set_permissions(dir.id, groups_blacklist, inheritance=False)
 
     print('All permissions have been set :-)')
 
