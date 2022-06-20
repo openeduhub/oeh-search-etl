@@ -88,6 +88,7 @@ def main():
 
         count += 1
         progress_bar.update(count)
+    progress_bar.close()
 
     print('All permissions have been set :-)')
 
