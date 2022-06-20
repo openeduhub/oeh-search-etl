@@ -2,6 +2,9 @@
 import json
 import logging
 from typing import List
+
+import tqdm
+
 import edusharing
 import util
 
@@ -67,10 +70,13 @@ def main():
     sodix_spider = find_node_by_name(api, sync.id, 'sodix_spider')
     publisher_directories = [node for node in api.get_children(sodix_spider.id) if node.is_directory]
 
+    count = 0
+    progress_bar = tqdm.tqdm(total=len(publisher_directories))
     for dir in publisher_directories:
+        progress_bar.update()
         publisher_id = dir.name
         if not (dir.name.isalnum() and len(dir.name) == 24):
-            logging.warning(f'Skipped directory because name is not a proper id: {publisher_id}')
+            progress_bar.write(f'Warning: Skipped directory because name is not a proper id: {publisher_id}')
             continue
 
         groups_blacklist = blacklist.get_groups(publisher_id)
@@ -79,6 +85,9 @@ def main():
             api.set_permissions(dir.id, [], inheritance=True)
         elif groups_blacklist is not None:
             api.set_permissions(dir.id, groups_blacklist, inheritance=False)
+
+        count += 1
+        progress_bar.update(count)
 
     print('All permissions have been set :-)')
 
