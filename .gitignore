@@ -7,5 +7,6 @@ converter/.env.dev
 converter/.env.prod
 *.csv
 .env
+.env.*
 nohups
 out
