@@ -70,7 +70,6 @@ def main():
     sodix_spider = find_node_by_name(api, sync.id, 'sodix_spider')
     publisher_directories = [node for node in api.get_children(sodix_spider.id) if node.is_directory]
 
-    count = 0
     progress_bar = tqdm.tqdm(total=len(publisher_directories))
     for dir in publisher_directories:
         publisher_id = dir.name
@@ -85,8 +84,7 @@ def main():
         elif groups_blacklist is not None:
             api.set_permissions(dir.id, groups_blacklist, inheritance=False)
 
-        count += 1
-        progress_bar.update(count)
+        progress_bar.update()
     progress_bar.close()
 
     print('All permissions have been set :-)')
