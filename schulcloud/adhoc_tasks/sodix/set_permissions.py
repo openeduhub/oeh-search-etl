@@ -73,7 +73,6 @@ def main():
     count = 0
     progress_bar = tqdm.tqdm(total=len(publisher_directories))
     for dir in publisher_directories:
-        progress_bar.update()
         publisher_id = dir.name
         if not (dir.name.isalnum() and len(dir.name) == 24):
             progress_bar.write(f'Warning: Skipped directory because name is not a proper id: {publisher_id}')
