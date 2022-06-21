@@ -38,6 +38,4 @@ class IRightsSpider(RSSBase):
         valuespaces.add_value("educationalContext", "erwachsenenbildung")
         valuespaces.add_value("discipline", "700")  # Wirtschaftskunde
         valuespaces.add_value("discipline", "48005")  # Gesellschaftskunde
-        # ToDo: confirm new_lrt values
-        valuespaces.add_value("new_lrt", "d8c3ef03-b3ab-4a5e-bcc9-5a546fefa2e9")    # "Webseite und Portal (stabil)"
         return valuespaces
