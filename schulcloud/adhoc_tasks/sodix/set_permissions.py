@@ -1,6 +1,5 @@
 
 import json
-import logging
 from typing import List
 
 import tqdm
@@ -86,8 +85,6 @@ def main():
 
         progress_bar.update()
     progress_bar.close()
-
-    print('All permissions have been set :-)')
 
 
 if __name__ == '__main__':
