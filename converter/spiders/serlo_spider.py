@@ -4,6 +4,7 @@ import requests
 import scrapy
 from scrapy.spiders import CrawlSpider
 
+from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
 from converter.spiders.base_classes import LomBase
@@ -124,7 +125,6 @@ class SerloSpider(CrawlSpider, LomBase):
         base.add_value('hash', hash_temp)
         base.add_value('lastModified', graphql_json["dateModified"])
         type_list: list = graphql_json["type"]
-        base.add_value('type', type_list)
         # thumbnail_url: str = "This string should hold the thumbnail URL"
         # base.add_value('thumbnail', thumbnail_url)
         if "publisher" in json_ld:
@@ -236,6 +236,8 @@ class SerloSpider(CrawlSpider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
+        vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
+        vs.add_value('new_lrt', type_list)
         # # for possible values, either consult https://vocabs.openeduhub.de
         # # or take a look at https://github.com/openeduhub/oeh-metadata-vocabs
         # # TODO: fill "valuespaces"-keys with values for
