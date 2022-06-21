@@ -54,6 +54,7 @@ class SodixDownloader:
         file = open('all_publishers.json', 'w')
         file.write(json.dumps(response.json()['data']['publishers'], indent=4))
         file.close()
+        print('Success.')
 
 
 class UnexpectedResponseError(Exception):
