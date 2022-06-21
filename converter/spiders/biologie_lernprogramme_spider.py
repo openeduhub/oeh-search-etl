@@ -21,11 +21,11 @@ class BiologieLernprogrammeSpider(LernprogrammeSpiderBase, CrawlSpider):
             "first_name": "Joachim",
             "last_name": "Jakob",
         },
-        "type": Constants.TYPE_TOOL,
         "format": "text/html",
         "language": "de",
         "licence_url": "https://creativecommons.org/licenses/by/4.0/legalcode",
         "skos": {
+            "new_lrt": Constants.NEW_LRT_MATERIAL,
             "learningResourceType": [
                 "http://w3id.org/openeduhub/vocabs/learningResourceType/application",
                 "http://w3id.org/openeduhub/vocabs/learningResourceType/web_page",
@@ -51,9 +51,9 @@ class BiologieLernprogrammeSpider(LernprogrammeSpiderBase, CrawlSpider):
 
     exercises = {
         "static_value_overrides": {
-            "type": Constants.TYPE_MATERIAL,
             "format": "application/pdf",
             "skos": {
+                "new_lrt": Constants.NEW_LRT_MATERIAL,
                 "learningResourceType": [
                     "http://w3id.org/openeduhub/vocabs/learningResourceType/drill_and_practice"
                 ],

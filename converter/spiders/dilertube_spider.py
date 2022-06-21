@@ -226,7 +226,6 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
         last_modified = published_date
         # while this is not strictly the last_modified date, it is the only date we can gather from the OOM
         base.add_value('lastModified', last_modified)
-        base.add_value('type', Constants.TYPE_MATERIAL)
         # thumbnail_url: str = response.xpath('//meta[@property="og:image"]/@content').get()
         # ToDo: DiLerTube provides thumbnails, but they are locked behind an error 423 when directly accessing the link
         # if thumbnail_url is not None:
@@ -318,7 +317,6 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
         # see https://www.dilertube.de/datenschutz.html
         vs.add_value('price', "no")
         base.add_value('valuespaces', vs.load_item())
-
         lic = LicenseItemLoader()
         if "license_description" in video_info_dict.keys():
             # DiLerTube allows the uploaders to enter freeform text into the license field

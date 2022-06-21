@@ -104,7 +104,6 @@ class ZumDwuSpider(CrawlSpider, LomBase):
     def parse(self, response: scrapy.http.Response, **kwargs):
         base = super().getBase(response=response)
         # there are no suitable images to serve as thumbnails, therefore SPLASH will have to do
-        base.add_value('type', Constants.TYPE_MATERIAL)
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
@@ -208,6 +207,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
+        vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
         # since the website holds both mathematics- and physics-related materials, we need to take a look at the last
         # section of the url: .htm filenames that start with
         #   m | hpm | tkm       belong to the discipline mathematics
@@ -219,7 +219,6 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         if url_last_part.startswith("p") or url_last_part.startswith("kwp") or url_last_part.startswith("hpp") \
                 or url_last_part.startswith("vcp"):
             vs.add_value('discipline', "Physics")
-        vs.add_value('learningResourceType', Constants.TYPE_MATERIAL)
         vs.add_value('intendedEndUserRole', ['learner',
                                              'teacher',
                                              'parent',

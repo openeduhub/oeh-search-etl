@@ -40,10 +40,8 @@ class Constants:
     LICENSE_CUSTOM = "CUSTOM" # Custom License, use the license description field for arbitrary values
     LICENSE_NONPUBLIC = "NONPUBLIC"
 
-    TYPE_MATERIAL = "MATERIAL"
-    TYPE_TOOL = "TOOL"
-    TYPE_SOURCE = "SOURCE"
-    TYPE_LESSONPLANNING = "LESSONPLANNING"
+    NEW_LRT_MATERIAL = "http://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb"
+    NEW_LRT_TOOL = "http://w3id.org/openeduhub/vocabs/new_lrt/cefccf75-cba3-427d-9a0f-35b4fedcbba1"
 
     SOURCE_TYPE_SPIDER = 1
     SOURCE_TYPE_EDITORIAL = 2

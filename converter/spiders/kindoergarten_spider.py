@@ -84,7 +84,6 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         base = super().getBase(response=response)
         base.add_value("response", super().mapResponse(response).load_item())
         # we assume that content is imported. Please use replace_value if you import something different
-        base.add_value("type", Constants.TYPE_MATERIAL)
         # thumbnail_href = response.css('.post-thumbnail img::attr(src)').get()
         base.add_value('thumbnail', response.css('.post-thumbnail img::attr(src)').get())
         base.add_value('lastModified', sitemap_entry.lastmod)

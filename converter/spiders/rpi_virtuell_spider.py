@@ -273,7 +273,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
         # base.add_value("response", super().mapResponse(response).load_item())
 
-        base.add_value("type", Constants.TYPE_MATERIAL)
+        # base.add_value("type", Constants.TYPE_MATERIAL)
         base.add_value("thumbnail", wp_json_item.get("material_screenshot"))
         # base.add_value("lastModified", wp_json_item.get("date"))  # is "date" from wp_json for lastModified correct?
         base.add_value("lastModified", date_modified)  # or is this one better (grabbed from material_review_url)?
@@ -330,6 +330,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         base.add_value("lom", lom.load_item())
 
         vs = ValuespaceItemLoader()
+        vs.add_value("new_lrt", Constants.NEW_LRT_MATERIAL)
         vs.add_value("discipline", "http://w3id.org/openeduhub/vocabs/discipline/520")  # Religion
         # mapping educationalContext
         educational_context = list()

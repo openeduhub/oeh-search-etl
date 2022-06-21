@@ -175,7 +175,6 @@ class BaseItem(Item):
     hash = Field()
     collection = Field(output_processor=JoinMultivalues())
     "id of collections this entry should be placed into"
-    type = Field()
     origin = Field()
     "in case it was fetched from a referatorium, the real origin name may be included here"
     response = Field(serializer=ResponseItem)

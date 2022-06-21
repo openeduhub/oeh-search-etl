@@ -128,7 +128,6 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         hash_temp = str(date_cleaned_up + self.version)
         base.add_value('hash', hash_temp)
         base.add_value('lastModified', date_cleaned_up)
-        base.add_value('type', Constants.TYPE_MATERIAL)
         # base.add_value('thumbnail', thumbnail_url)
 
         lom = LomBaseItemloader()

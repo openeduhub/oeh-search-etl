@@ -60,9 +60,6 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         base.add_value('hash', hash_temp)
         last_modified = None
         base.add_value('lastModified', last_modified)
-        # sometimes you might get a "type"-value from the JSON_LD. If it's not supplied by the website you're crawling,
-        # you might need to use a constant:
-        base.add_value('type', Constants.TYPE_MATERIAL)
         thumbnail_url: str = "This string should hold the thumbnail URL"
         base.add_value('thumbnail', thumbnail_url)
 
@@ -180,6 +177,7 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/fskRating.ttl)
         #  - oer                            optional
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/oer.ttl)
+        vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
         base.add_value('valuespaces', vs.load_item())
 
         lic = LicenseItemLoader()

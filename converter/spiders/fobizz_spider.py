@@ -102,7 +102,6 @@ class FobizzSpider(scrapy.Spider, LomBase):
         base = super().getBase(response=response)
         base.add_value("response", super().mapResponse(response).load_item())
         # we assume that content is imported. Please use replace_value if you import something different
-        base.add_value("type", Constants.TYPE_MATERIAL)
         base.add_value('thumbnail', data.get("thumbnailUrl", None))
         base.add_value('lastModified', data.get("dateModified", None))
         for publisher in data.get("publisher", []):
@@ -132,6 +131,7 @@ class FobizzSpider(scrapy.Spider, LomBase):
         base.add_value("lom", lom.load_item())
 
         vs = ValuespaceItemLoader()
+        vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
         for audience in data.get("audience", []):
             vs.add_value("intendedEndUserRole", audience)
 
@@ -141,7 +141,7 @@ class FobizzSpider(scrapy.Spider, LomBase):
             vs.add_value('discipline', discipline)
 
         for lrt in data.get("type", []):
-            vs.add_value('learningResourceType', lrt)
+            vs.add_value('new_lrt', lrt)
         base.add_value("valuespaces", vs.load_item())
 
         lic = LicenseItemLoader()

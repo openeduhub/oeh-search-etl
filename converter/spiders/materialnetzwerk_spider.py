@@ -225,7 +225,6 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         bundle_thumbnail = kwargs.get('bundle_thumbnail')
         if bundle_thumbnail is not None:
             base.add_value('thumbnail', bundle_thumbnail)
-        base.add_value('type', Constants.TYPE_MATERIAL)
         base.add_value('lastModified', date_published)
 
         lom = LomBaseItemloader()

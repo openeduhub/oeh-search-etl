@@ -75,7 +75,6 @@ class KMapSpider(CrawlSpider, LomBase):
         hash_temp += self.version
         base.add_value('hash', hash_temp)
         base.add_value('lastModified', last_modified)
-        base.add_value('type', Constants.TYPE_MATERIAL)
         # Thumbnails have their own url path, which can be found in the json+ld:
         #   "thumbnailUrl": "/snappy/Physik/Grundlagen/Potenzschreibweise"
         # e.g. for the item https://kmap.eu/app/browser/Physik/Grundlagen/Potenzschreibweise
@@ -115,9 +114,10 @@ class KMapSpider(CrawlSpider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
+        vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
         vs.add_value('discipline', json_ld.get("mainEntity").get("about"))
         vs.add_value('intendedEndUserRole', json_ld.get("mainEntity").get("audience"))
-        vs.add_value('learningResourceType', json_ld.get("mainEntity").get("learningResourceType"))
+        vs.add_value('new_lrt', json_ld.get("mainEntity").get("learningResourceType"))
         vs.add_value('price', 'no')
         vs.add_value('conditionsOfAccess', 'login required for additional features')
         base.add_value('valuespaces', vs.load_item())

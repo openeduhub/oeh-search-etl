@@ -110,7 +110,6 @@ class GrundSchulKoenigSpider(CrawlSpider, LomBase):
         base.add_value("sourceId", response.url)
         hash_temp = str(sitemap_entry.lastmod + self.version)
         base.add_value("hash", hash_temp)
-        base.add_value("type", Constants.TYPE_MATERIAL)
         thumbnail_url = response.xpath('//meta[@property="og:image"]/@content').get()
         if thumbnail_url is not None:
             base.add_value('thumbnail', thumbnail_url)

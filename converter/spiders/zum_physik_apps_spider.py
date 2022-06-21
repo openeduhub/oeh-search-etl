@@ -89,7 +89,6 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
                         last_modified = dateparser.parse(item2)
 
         base = super().getBase(response=response)
-        base.add_value('type', Constants.TYPE_MATERIAL)
         if last_modified is not None:
             hash_temp = last_modified.isoformat() + self.version
             base.add_value('hash', hash_temp)
@@ -129,10 +128,10 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
+        vs.add_value('new_lrt', Constants.NEW_LRT_TOOL)
         vs.add_value('conditionsOfAccess', 'no login')
         vs.add_value('discipline', 'Physik')
         vs.add_value('intendedEndUserRole', ['learner', 'teacher', 'parent'])
-        vs.add_value('learningResourceType', ['application', 'web page'])
         vs.add_value('price', 'no')
         base.add_value('valuespaces', vs.load_item())
 

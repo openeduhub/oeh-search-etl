@@ -261,7 +261,6 @@ class EduSharing:
             "ccm:replicationsource": spider.name,
             "ccm:replicationsourceid": item["sourceId"],
             "ccm:replicationsourcehash": item["hash"],
-            "ccm:objecttype": item["type"],
             "ccm:replicationsourceuuid": uuid,
             "cm:name": item["lom"]["general"]["title"],
             "ccm:wwwurl": item["lom"]["technical"]["location"] if "location" in item["lom"]["technical"] else None,

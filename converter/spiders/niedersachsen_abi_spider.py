@@ -101,7 +101,6 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
             base.add_value('sourceId', pdf_item)
             hash_temp = str(f"{datetime.now().isoformat()}{self.version}")
             base.add_value('hash', hash_temp)
-            base.add_value('type', Constants.TYPE_MATERIAL)
             base.add_value('binary', self.get_binary(current_dict, pdf_item))
 
             lom = LomBaseItemloader()
@@ -161,7 +160,6 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
             base.add_value('sourceId', pdf_item)
             hash_temp = str(f"{datetime.now().isoformat()}{self.version}")
             base.add_value('hash', hash_temp)
-            base.add_value('type', Constants.TYPE_MATERIAL)
             base.add_value('binary', self.get_binary(current_dict, pdf_item))
 
             lom = LomBaseItemloader()

@@ -82,7 +82,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
         yield self.startRequest("edutool")
 
     def parseRequest(self, response):
-        results = json.loads(response.body_as_unicode())
+        results = json.loads(response.body)
         if results:
             for item in results:
                 copyResponse = response.copy()
@@ -96,9 +96,9 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
 
     def getType(self, response):
         if response.meta["type"] == "edusource":
-            return Constants.TYPE_SOURCE
+            return Constants.NEW_LRT_MATERIAL
         elif response.meta["type"] == "edutool":
-            return Constants.TYPE_TOOL
+            return Constants.NEW_LRT_TOOL
         return None
 
     # thumbnail is always the same, do not use the one from rss
@@ -107,7 +107,6 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
         base.replace_value(
             "thumbnail", self.get("acf.thumbnail.url", json=response.meta["item"])
         )
-        base.replace_value("type", self.getType(response))
         fulltext = self.get("acf.long_text", json=response.meta["item"])
         base.replace_value("fulltext", html.unescape(fulltext))
         try:
@@ -161,6 +160,7 @@ class WirLernenOnlineSpider(scrapy.Spider, LomBase, JSONBase):
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
+        valuespaces.replace_value("new_lrt", self.getType(response))
         discipline = list(
             map(
                 lambda x: x["value"],

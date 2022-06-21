@@ -77,11 +77,11 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
         return LrmiBase.parse(self, response)
 
     @staticmethod
-    def get_type(response):
+    def get_new_lrt(response):
         if response.meta["type"] == "tools":
-            return Constants.TYPE_TOOL
+            return Constants.NEW_LRT_TOOL
         else:
-            return Constants.TYPE_MATERIAL
+            return Constants.NEW_LRT_MATERIAL
 
     # thumbnail is always the same, do not use the one from rss
     def getBase(self, response):
@@ -91,7 +91,6 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
             "thumbnail",
             response.xpath('//img[@class="content-info__image"]/@src').get(),
         )
-        base.replace_value("type", self.get_type(response))
         return base
 
     def getLOMGeneral(self, response):
@@ -117,6 +116,7 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
 
     def getValuespaces(self, response):
         valuespaces = LrmiBase.getValuespaces(self, response)
+        valuespaces.replace_value('new_lrt', self.get_new_lrt(response))
         try:
             range = (
                 response.xpath(
@@ -142,7 +142,7 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
         except:
             pass
         lrt = response.meta["item"].get("type")
-        valuespaces.add_value("learningResourceType", lrt)
+        valuespaces.add_value("new_lrt", lrt)
         try:
             tool_type = list(
                 map(
@@ -153,7 +153,7 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
                 )
             )
             # @TODO: proper mapping, maybe specialised tool field?
-            valuespaces.add_value("learningResourceType", tool_type)
+            valuespaces.add_value("new_lrt", tool_type)
         except:
             pass
         return valuespaces
