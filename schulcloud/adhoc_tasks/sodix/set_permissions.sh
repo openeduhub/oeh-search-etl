@@ -3,6 +3,7 @@
 echo Pulling repository...
 git pull
 
+source ../../../.venv/bin/activate
 source load_env.sh
 
 echo "To which environment do you want to apply the permissions?"
