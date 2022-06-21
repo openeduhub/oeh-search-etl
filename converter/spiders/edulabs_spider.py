@@ -148,10 +148,6 @@ class EdulabsSpider(scrapy.Spider, LomBase):
             date_modified: str = json_ld.get("dateModified")
             if date_modified:
                 base.add_value('lastModified', date_modified)
-        if type_str:
-            base.add_value('type', type_str)
-        else:
-            base.add_value('type', Constants.TYPE_MATERIAL)
         lom: LomBaseItemloader = LomBaseItemloader()
 
         general = LomGeneralItemloader()
