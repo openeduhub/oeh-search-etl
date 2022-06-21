@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import urllib.parse
 from pathlib import Path
 from urllib import parse
 
@@ -239,7 +240,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
         loader.replace_value('format', 'text/html')
         data = response.meta['item']
         title = jmes_title.search(data)
-        loader.replace_value('location', f'{self.url}wiki/{title}')
+        loader.replace_value('location', f'{self.url}wiki/{urllib.parse.quote(title)}')
         return loader
 
     def getValuespaces(self, response):
