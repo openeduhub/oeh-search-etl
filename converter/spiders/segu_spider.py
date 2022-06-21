@@ -1,31 +1,35 @@
-from converter.items import *
-from .base_classes import LomBase, JSONBase
 import json
+
 import requests
-from converter.constants import *
 import scrapy
-# Spider to fetch RSS from planet schule
-class SeguSpider(scrapy.Spider, LomBase, JSONBase):
+from scrapy.spiders import CrawlSpider
+
+from converter.constants import *
+from .base_classes import LomBase, JSONBase
+
+
+class SeguSpider(CrawlSpider, LomBase, JSONBase):
     name = "segu_spider"
     friendlyName = "segu"
     url = "https://segu-geschichte.de/"
-    version = "0.1.0"
+    version = "0.1.1"  # last update: 2022-05-20
     apiUrl = "https://segu-geschichte.de/wp-json/wp/v2/pages?page=%page"
     categories = {}
+
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
-    def mapResponse(self, response):
+    def mapResponse(self, response, **kwargs):
         r = LomBase.mapResponse(self, response, fetchData=False)
         r.replace_value("text", "")
         r.replace_value("html", "")
         r.replace_value("url", response.meta["item"].get("link"))
         return r
 
-    def getId(self, response):
+    def getId(self, response=None) -> str:
         return response.meta["item"].get("id")
 
-    def getHash(self, response):
+    def getHash(self, response=None):
         return response.meta["item"].get("modified") + self.version
 
     def start_requests(self):
@@ -37,31 +41,32 @@ class SeguSpider(scrapy.Spider, LomBase, JSONBase):
         for cat in categories:
             self.categories[cat["id"]] = cat["name"]
 
-        yield self.fetchPage()
+        yield self.fetch_page()
 
-    def fetchPage(self, page = 1):
+    def fetch_page(self, page=1):
         return scrapy.Request(
             url=self.apiUrl.replace("%page", str(page)),
-            callback=self.parseRequest,
+            callback=self.parse_request,
             headers={"Accept": "application/json", "Content-Type": "application/json"},
             meta={"page": page, "type": type},
         )
-    def parseRequest(self, response):
-        results = json.loads(response.body_as_unicode())
+
+    def parse_request(self, response: scrapy.http.TextResponse):
+        results = response.json()
         if results:
             for item in results:
-                copyResponse = response.copy()
-                copyResponse.meta["item"] = item
-                if self.hasChanged(copyResponse):
-                    yield self.handleEntry(copyResponse)
-            yield self.fetchPage(response.meta["page"] + 1)
+                response_copy = response.copy()
+                response_copy.meta["item"] = item
+                if self.hasChanged(response_copy):
+                    yield self.handle_entry(response_copy)
+            yield self.fetch_page(response.meta["page"] + 1)
 
-    def handleEntry(self, response):
+    def handle_entry(self, response):
         return LomBase.parse(self, response)
 
-    # thumbnail is always the same, do not use the one from rss
-    def getBase(self, response):
+    def getBase(self, response=None):
         base = LomBase.getBase(self, response)
+        # thumbnail is always the same, do not use the one from rss
         base.replace_value(
             "thumbnail", self.get("acf.thumbnail.url", json=response.meta["item"])
         )
@@ -73,7 +78,7 @@ class SeguSpider(scrapy.Spider, LomBase, JSONBase):
         )
         return base
 
-    def getLOMGeneral(self, response):
+    def getLOMGeneral(self, response=None):
         general = LomBase.getLOMGeneral(self, response)
         general.replace_value(
             "title",
@@ -93,7 +98,7 @@ class SeguSpider(scrapy.Spider, LomBase, JSONBase):
             general.add_value("keyword", list(map(lambda x: self.categories[x], cat)))
         return general
 
-    def getLOMTechnical(self, response):
+    def getLOMTechnical(self, response=None):
         technical = LomBase.getLOMTechnical(self, response)
         technical.replace_value("format", "text/html")
         technical.replace_value(
@@ -101,12 +106,15 @@ class SeguSpider(scrapy.Spider, LomBase, JSONBase):
         )
         return technical
 
-    def getLicense(self, response):
-        license = LomBase.getLicense(self, response)
-        license.add_value("url", Constants.LICENSE_CC_BY_SA_40)
-        return license
+    def getLicense(self, response=None):
+        license_loader = LomBase.getLicense(self, response)
+        license_loader.add_value("url", Constants.LICENSE_CC_BY_SA_40)
+        return license_loader
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
         valuespaces.add_value("discipline", "Geschichte")
         return valuespaces
+
+    def parse(self, response, **kwargs):
+        super().parse(response)

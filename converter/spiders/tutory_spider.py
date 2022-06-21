@@ -1,44 +1,49 @@
-from converter.items import *
-from .base_classes import LomBase, JSONBase
-import json
-from converter.constants import Constants
-from scrapy.selector import Selector
 import scrapy
+from scrapy.selector import Selector
+from scrapy.spiders import CrawlSpider
 
-# Spider to fetch API from Serlo
-class TutorySpider(scrapy.Spider, LomBase, JSONBase):
+from converter.constants import Constants
+from .base_classes import LomBase, JSONBase
+
+
+class TutorySpider(CrawlSpider, LomBase, JSONBase):
     name = "tutory_spider"
     friendlyName = "tutory"
     url = "https://www.tutory.de/"
     objectUrl = "https://www.tutory.de/bereitstellung/dokument/"
     baseUrl = "https://www.tutory.de/api/v1/share/"
-    version = "0.1.1"
+    version = "0.1.2"  # last update: 2022-05-23
+    custom_settings = {
+        "AUTOTHROTTLE_ENABLED": True,
+        "ROBOTSTXT_OBEY": False,
+        "AUTOTHROTTLE_DEBUG": True
+    }
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
     def start_requests(self):
         url = self.baseUrl + "worksheet?groupSlug=entdecken&pageSize=999999"
-        yield scrapy.Request(url=url, callback=self.parseList)
+        yield scrapy.Request(url=url, callback=self.parse_list)
 
-    def parseList(self, response):
-        data = json.loads(response.body)
+    def parse_list(self, response: scrapy.http.TextResponse):
+        data = response.json()
         for j in data["worksheets"]:
-            responseCopy = response.replace(url=self.objectUrl + j["id"])
-            responseCopy.meta["item"] = j
-            if self.hasChanged(responseCopy):
-                yield self.parse(responseCopy)
+            response_copy = response.replace(url=self.objectUrl + j["id"])
+            response_copy.meta["item"] = j
+            if self.hasChanged(response_copy):
+                yield self.parse(response_copy)
 
-    def getId(self, response):
+    def getId(self, response=None):
         return str(response.meta["item"]["id"])
 
-    def getHash(self, response):
+    def getHash(self, response=None):
         return response.meta["item"]["updatedAt"] + self.version
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         return LomBase.parse(self, response)
 
-    def getBase(self, response):
+    def getBase(self, response=None):
         base = LomBase.getBase(self, response)
         base.add_value("lastModified", response.meta["item"]["updatedAt"])
         base.add_value(
@@ -60,15 +65,16 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
         )
         valuespaces.add_value("discipline", discipline)
 
-        valuespaces.add_value("learningResourceType", "worksheet")
+        # valuespaces.add_value("learningResourceType", "worksheet")  # remove this value when reaching crawler v0.1.3
+        valuespaces.add_value("new_lrt", "36e68792-6159-481d-a97b-2c00901f4f78")  # Arbeitsblatt
         return valuespaces
 
-    def getLicense(self, response):
-        license = LomBase.getLicense(self, response)
-        license.add_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
-        return license
+    def getLicense(self, response=None):
+        license_loader = LomBase.getLicense(self, response)
+        license_loader.add_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
+        return license_loader
 
-    def getLOMGeneral(self, response):
+    def getLOMGeneral(self, response=None):
         general = LomBase.getLOMGeneral(self, response)
         general.add_value("title", response.meta["item"]["name"])
         if 'description' in response.meta["item"]:
@@ -77,9 +83,7 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
             html = self.getUrlData(response.url)["html"]
             if html:
                 data = (
-                    Selector(text=html)
-                    .xpath('//ul[contains(@class,"worksheet-pages")]//text()')
-                    .getall()
+                    Selector(text=html).xpath('//ul[contains(@class,"worksheet-pages")]//text()').getall()
                 )
                 cutoff = 4
                 if len(data) > cutoff:
@@ -91,7 +95,7 @@ class TutorySpider(scrapy.Spider, LomBase, JSONBase):
                 general.add_value("description", text)
         return general
 
-    def getLOMTechnical(self, response):
+    def getLOMTechnical(self, response=None):
         technical = LomBase.getLOMTechnical(self, response)
         technical.add_value("location", response.url)
         technical.add_value("format", "text/html")

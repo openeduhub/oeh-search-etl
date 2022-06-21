@@ -9,7 +9,6 @@ import jmespath
 import requests
 import scrapy
 
-from converter.constants import Constants
 from converter.items import BaseItemLoader, LomGeneralItemloader, LomTechnicalItemLoader, LicenseItemLoader
 from converter.spiders.base_classes.meta_base import SpiderBase
 from .lom_base import LomBase
@@ -155,7 +154,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
 
         yield self.query_for_pages()
 
-    def query_for_pages(self, continue_token: dict[str,str] = None):
+    def query_for_pages(self, continue_token: dict[str, str] = None):
         params = self._query_params
         if continue_token is None:
             continue_token = {}
@@ -251,6 +250,5 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
             loader.add_value("discipline", categories)
             loader.add_value("educationalContext", categories)
             loader.add_value("intendedEndUserRole", categories)
+        loader.add_value("new_lrt", "6b9748e4-fb3b-4082-ae08-c7a11c717256")  # "Wiki (dynamisch)"
         return loader
-
-

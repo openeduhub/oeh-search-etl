@@ -1,22 +1,26 @@
+from scrapy import Request
+from scrapy.spiders import CrawlSpider
+
 from converter.constants import Constants
-from .base_classes import LernprogrammeSpiderBase
+from converter.spiders.base_classes import LernprogrammeSpiderBase
 
 
-class QuizdidaktikSpider(LernprogrammeSpiderBase):
+class QuizdidaktikSpider(LernprogrammeSpiderBase, CrawlSpider):
     name = "quizdidaktik_spider"
     friendlyName = "Quizdidaktik"
     url = "https://quizdidaktik.de/"
+    version = "0.1.1"  # last update: 2022-02-22
 
     static_values = {
         "author": {
             "first_name": "Joachim",
             "last_name": "Jakob",
         },
-        "type": Constants.TYPE_TOOL,
         "format": "text/html",
         "language": "de",
         "licence_url": "https://creativecommons.org/licenses/by/4.0/legalcode",
         "skos": {
+            "new_lrt": Constants.NEW_LRT_TOOL,
             "learningResourceType": [
                 "http://w3id.org/openeduhub/vocabs/learningResourceType/application",
                 "http://w3id.org/openeduhub/vocabs/learningResourceType/web_page",
@@ -50,3 +54,7 @@ class QuizdidaktikSpider(LernprogrammeSpiderBase):
                 row["thumbnail"]
             ),
         }
+
+    def start_requests(self):
+        for url in self.start_urls:
+            yield Request(url=url, callback=self.parse)

@@ -19,7 +19,7 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
 
     allowed_domains = ['za-aufgaben.nibis.de']
     start_urls = ['https://za-aufgaben.nibis.de']
-    version = "0.0.2"
+    version = "0.0.3"  # last update: 2022-04-12
     # Default values for the 2 expected parameters. Parameter "filename" is always required, "skip_unzip" is optional.
     filename = None
     skip_unzip = False
@@ -30,9 +30,6 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
     #   scrapy crawl niedersachsen_abi_spider -a filename="za-download-6e05cbbb6e07250c69ebe95ae972fe8a.zip"
     #   -a skip_unzip="yes"
     # Make sure that there is a corresponding .zip file inside the /zip_download/-folder in the project root
-
-    # def start_requests(self):
-    #    yield self.parse(None)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -70,13 +67,13 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
                     logging.debug(un_zipper.zip_files_already_extracted)
 
         # always scan the /zip_extract/-directory for pdfs and try to extract metadata
-        print(
+        logging.debug(
             f"Analyzing file paths for '.pdf'-files inside "
             f"{directory_paths.path_storage.path_to_extraction_directory}")
         pdfs_in_directory: dict = \
             DirectoryScanner.scan_directory_for_pdfs(directory_paths.path_storage.path_to_extraction_directory)
         # logging.debug(pp.pformat(pdfs_in_directory))
-        print(f"Total .pdf items in the above mentioned directory: {len(pdfs_in_directory.keys())}")
+        logging.debug(f"Total .pdf items in the above mentioned directory: {len(pdfs_in_directory.keys())}")
         if len(pdfs_in_directory.keys()) == 0:
             raise Exception(f"No .pdf files found inside {directory_paths.path_storage.path_to_extraction_directory}. "
                             f"Please make sure that you've run the crawler with '-a filename=<zip filename>' "
@@ -93,8 +90,6 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
         pass
 
     def parse(self, response, **kwargs):
-        # print(f"filename = {self.filename}")
-        # print(f"skip_unzip = {self.skip_unzip}")
         logging.debug(f"The .pdf (general) dictionary has {len(self.pdf_dictionary_general.keys())} files")
         logging.debug(f"The dictionary for additional .pdf files has "
                       f"{len(self.pdf_dictionary_additional.keys())} entries")
@@ -102,12 +97,10 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
         # first we're scraping all the .pdf files that follow the more general RegEx syntax
         for pdf_item in self.pdf_dictionary_general:
             current_dict: dict = self.pdf_dictionary_general.get(pdf_item)
-            # pprint.pprint(current_dict)
             base = BaseItemLoader()
             base.add_value('sourceId', pdf_item)
             hash_temp = str(f"{datetime.now().isoformat()}{self.version}")
             base.add_value('hash', hash_temp)
-            base.add_value('type', Constants.TYPE_MATERIAL)
             base.add_value('binary', self.get_binary(current_dict, pdf_item))
 
             lom = LomBaseItemloader()
@@ -134,10 +127,19 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
             base.add_value('lom', lom.load_item())
 
             vs = ValuespaceItemLoader()
+            # all files are considered "Abituraufgaben"
+            vs.add_value('new_lrt', "9cf3c183-f37c-4b6b-8beb-65f530595dff")
+            # "Klausur, Klassenarbeit und Test"
             if current_dict.get('discipline') is not None:
                 vs.add_value('discipline', current_dict.get('discipline'))
             if current_dict.get('intendedEndUserRole') is not None:
                 vs.add_value('intendedEndUserRole', current_dict.get('intendedEndUserRole'))
+                if current_dict.get("intendedEndUserRole") == "teacher":
+                    # filenames that are ending with "L" or "Lehrer" are always
+                    # "Erwartungshorizont/Bewertungsmuster"-type of pdfs, therefore we can derive the new_lrt from
+                    # the filename
+                    vs.add_value('new_lrt', "7c236821-bfae-4eeb-bc79-590bf8ea1d96")
+                    # "Lösungs(beispiel) und Erwartungshorizont"
             base.add_value('valuespaces', vs.load_item())
 
             lic = LicenseItemLoader()
@@ -154,12 +156,10 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
         # Making sure that we also grab the additional .pdf files that don't follow the general filename syntax
         for pdf_item in self.pdf_dictionary_additional:
             current_dict: dict = self.pdf_dictionary_additional.get(pdf_item)
-            # pprint.pprint(current_dict)
             base = BaseItemLoader()
             base.add_value('sourceId', pdf_item)
             hash_temp = str(f"{datetime.now().isoformat()}{self.version}")
             base.add_value('hash', hash_temp)
-            base.add_value('type', Constants.TYPE_MATERIAL)
             base.add_value('binary', self.get_binary(current_dict, pdf_item))
 
             lom = LomBaseItemloader()
@@ -187,6 +187,14 @@ class NiedersachsenAbiSpider(scrapy.Spider, LomBase):
             vs = ValuespaceItemLoader()
             if current_dict.get('discipline') is not None:
                 vs.add_value('discipline', current_dict.get('discipline'))
+            # all files are considered "Abituraufgaben":
+            vs.add_value('new_lrt', "9cf3c183-f37c-4b6b-8beb-65f530595dff")
+            # "Klausur, Klassenarbeit und Test"
+            if current_dict.get("intendedEndUserRole") == "teacher":
+                # filenames that are ending with "L" or "Lehrer" are always "Erwartungshorizont/Bewertungsmuster"-type
+                # of pdfs, therefore we can derive the new_lrt from the filename
+                vs.add_value('new_lrt', "7c236821-bfae-4eeb-bc79-590bf8ea1d96")
+                # "Lösungs(beispiel) und Erwartungshorizont"
             base.add_value('valuespaces', vs.load_item())
 
             lic = LicenseItemLoader()

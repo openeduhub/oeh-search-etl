@@ -7,7 +7,7 @@ import w3lib.html
 
 from converter.constants import Constants
 from converter.items import LomGeneralItemloader, LomBaseItemloader, LomTechnicalItemLoader, \
-    LicenseItemLoader, ResponseItemLoader, LomEducationalItemLoader, ValuespaceItemLoader
+    LicenseItemLoader, ResponseItemLoader, LomEducationalItemLoader, ValuespaceItemLoader, BaseItem
 from converter.spiders.base_classes import LomBase
 from converter.util.sitemap import SitemapEntry, from_xml_response
 
@@ -21,9 +21,7 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
 
     start_urls = ['https://kindoergarten.wordpress.com/sitemap.xml']
     name = 'kindoergarten_spider'
-    version = '0.1.2'
-    # TODO:
-    #   do additional urls need to be skipped?
+    version = '0.1.4'   # last update: 2022-04-14
     skip_these_urls = [
         '/impressum/',
         '/nutzungsbedingungen/',
@@ -43,18 +41,21 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         """
         parse XML sitemap for items and afterwards follow individual items by their item.loc (url)
         with a callback to parse_site
+
+        Scrapy Contracts:
+        @url https://kindoergarten.wordpress.com/sitemap.xml
+        @returns requests 105
         """
         # one url element usually looks like this:
         # <url>
-        #     <loc>https://kindoergarten.wordpress.com/2017/10/20/wuerfelblatt-trauben-bis-3-0047/</loc>
-        #     <mobile:mobile/>
+        #     <loc>https://kindoergarten.wordpress.com/2018/07/30/buchstabe-k-0095/</loc>
         #     <image:image>
-        #     <image:loc>https://kindoergarten.files.wordpress.com/2017/08/ankuendigung-wuerfelblatt_trauben_bis3.jpg</image:loc>
-        #     <image:title>Ankuendigung-Wuerfelblatt_Trauben_bis3</image:title>
+        #       <image:loc>https://kindoergarten.files.wordpress.com/2018/05/ankucc88ndigung_buchstabenk.jpg</image:loc>
+        #       <image:title>ankündigung_buchstabenK</image:title>
         #     </image:image>
-        #     <lastmod>2018-05-29T20:47:12+00:00</lastmod>
+        #     <lastmod>2018-05-29T21:12:41+00:00</lastmod>
         #     <changefreq>monthly</changefreq>
-        # </url>
+        #   </url>
 
         items = from_xml_response(response)
         for item in items:
@@ -71,7 +72,7 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
             if self.hasChanged(response) and skip_check is False:
                 yield response.follow(item.loc, callback=self.parse_site, cb_kwargs={'sitemap_entry': item})
 
-    def parse_site(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None):
+    def parse_site(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None) -> BaseItem:
         """
         parses metadata from an individual item both by its HtmlResponse and its sitemap tags
 
@@ -83,7 +84,6 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         base = super().getBase(response=response)
         base.add_value("response", super().mapResponse(response).load_item())
         # we assume that content is imported. Please use replace_value if you import something different
-        base.add_value("type", Constants.TYPE_MATERIAL)
         # thumbnail_href = response.css('.post-thumbnail img::attr(src)').get()
         base.add_value('thumbnail', response.css('.post-thumbnail img::attr(src)').get())
         base.add_value('lastModified', sitemap_entry.lastmod)
@@ -144,7 +144,16 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         vs.add_value('discipline', 'Allgemein')
         vs.add_value('educationalContext', 'Elementarbereich')
         # vs.add_value('toolCategory', 'noGeneralDataProtectionRegulation')
-        vs.add_value('learningResourceType', 'other_asset_type')
+        # ToDo: remove old learningResourceType code when reaching crawler v0.1.4
+        # vs.add_value('learningResourceType', 'other_asset_type')
+        vs.add_value('new_lrt', "65330f23-2802-4789-86ee-c21f9afe74b1")
+        # default for all scrapy items: "Frühkindliches Bildungsangebot und KITA", "Lehr- und Lernmaterial"
+        if "arbeitsblatt" in response.url:
+            vs.add_value('new_lrt', "36e68792-6159-481d-a97b-2c00901f4f78")  # "Arbeitsblatt"
+        if "spiel" in response.url or "wuerfelblatt" in response.url:
+            vs.add_value('new_lrt', "b0495f44-b05d-4bde-9dc5-34d7b5234d76")  # "Lernspiel"
+        if "malvorlage" in response.url:
+            vs.add_value('new_lrt', "39db0dbd-cb6f-4153-910f-9f11177b48f2")  # "Mal- und Bastelvorlage"
         base.add_value("valuespaces", vs.load_item())
 
         lic = LicenseItemLoader()

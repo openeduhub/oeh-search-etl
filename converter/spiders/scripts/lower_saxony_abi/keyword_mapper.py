@@ -56,6 +56,8 @@ class LoSaxKeywordMapper:
         'GA': 'Kurs auf grundlegendem Anforderungsniveau (gA)',
         'HV': 'Hörverständnis',
         'ME': 'Material',  # for students or teachers
+        'L': 'Erwartungshorizont / Bewertungsbogen (Lehrer)',
+        'Lehrer': 'Erwartungshorizont / Bewertungsbogen (Lehrer)',
         'mitExp': 'mit Experimentieren',
         'ohneExp': 'ohne Experimentieren',
         'mitExpElektrik': 'mit Experimentieren - Elektrik',
@@ -120,9 +122,9 @@ class LoSaxKeywordMapper:
                                            # Allgemein / LinAlg / analytische Geometrie / Stochastik
                                            r'(?P<attachment_2nd>Anlagen|AnlagenTSP|TS|TS\d{4})?'
                                            # TSP bzw. TS = Thematische Schwerpunkte / Themenschwerpunkte
-                                           r'(?P<assignment_part>Aufg\d)?'
-                                           r'(?P<teacher>Lehrer)?'
-                                           r'(.pdf)')
+                                           r'(?P<assignment_part>Aufg\d|A\d)?'
+                                           r'(?P<teacher>Lehrer|L)?'
+                                           r'(\.pdf)')
                 if regex_general.search(pdf_item) is not None:
                     regex_result_dict = regex_general.search(pdf_item).groupdict()
 
@@ -153,8 +155,13 @@ class LoSaxKeywordMapper:
                     for potential_keyword in only_valid_values:
                         if potential_keyword in self.keyword_mapping:
                             potential_keyword = self.keyword_mapping.get(potential_keyword)
-                        if potential_keyword.startswith('Aufg'):
+                        assignment_regex = re.compile(r"Aufg\d")
+                        if assignment_regex.search(potential_keyword) is not None:
                             potential_keyword = potential_keyword.replace('Aufg', 'Aufgabe ')
+                        assignment_regex = re.compile(r"A\d")
+                        if assignment_regex.search(potential_keyword) is not None:
+                            # matches "A1", "A2" etc. to find "Aufgabe"-acronyms
+                            potential_keyword = potential_keyword.replace('A', 'Aufgabe ')
                         keywords_cleaned_and_mapped.append(potential_keyword)
                     logging.debug(self.pp.pformat(keywords_cleaned_and_mapped))
 

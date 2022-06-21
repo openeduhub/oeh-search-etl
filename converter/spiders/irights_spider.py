@@ -1,16 +1,19 @@
+from scrapy import Request
+
 from .base_classes import LomBase, RSSBase
 
 
-
-# Spider to fetch RSS from planet schule
 class IRightsSpider(RSSBase):
     name = "irights_spider"
     friendlyName = "iRights.info"
     start_urls = ["https://irights.info/feed"]
-    version = "0.1.0"
+    version = "0.1.1"   # last update: 2022-02-21
 
     def __init__(self, **kwargs):
         RSSBase.__init__(self, **kwargs)
+
+    def start_requests(self):
+        yield Request(url=self.start_urls[0], callback=self.parse)
 
     def getLOMGeneral(self, response):
         general = RSSBase.getLOMGeneral(self, response)

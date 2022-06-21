@@ -1,24 +1,31 @@
 import re
 
+from scrapy import Request
+from scrapy.spiders import CrawlSpider
+
 from converter.constants import Constants
 from .base_classes import LernprogrammeSpiderBase
 
 
-class ChemieLernprogrammeSpider(LernprogrammeSpiderBase):
+class ChemieLernprogrammeSpider(LernprogrammeSpiderBase, CrawlSpider):
     name = "chemie_lernprogramme_spider"
     friendlyName = "Chemie-Lernprogramme"
     url = "https://chemie-lernprogramme.de/"
+    version = "0.1.1"  # last update: 2022-04-26
+    custom_settings = {
+        "ROBOTSTXT_OBEY": False
+    }
 
     static_values = {
         "author": {
             "first_name": "Joachim",
             "last_name": "Jakob",
         },
-        "type": Constants.TYPE_TOOL,
         "format": "text/html",
         "language": "de",
         "licence_url": "https://creativecommons.org/licenses/by/4.0/legalcode",
         "skos": {
+            "new_lrt": Constants.NEW_LRT_TOOL,
             "learningResourceType": [
                 "http://w3id.org/openeduhub/vocabs/learningResourceType/application",
                 "http://w3id.org/openeduhub/vocabs/learningResourceType/web_page",
@@ -44,9 +51,9 @@ class ChemieLernprogrammeSpider(LernprogrammeSpiderBase):
 
     exercises = {
         "static_value_overrides": {
-            "type": Constants.TYPE_MATERIAL,
             "format": "application/pdf",
             "skos": {
+                "new_lrt": Constants.NEW_LRT_MATERIAL,
                 "learningResourceType": [
                     "http://w3id.org/openeduhub/vocabs/learningResourceType/drill_and_practice"
                 ],
@@ -69,3 +76,7 @@ class ChemieLernprogrammeSpider(LernprogrammeSpiderBase):
             }
         ),
     }
+
+    def start_requests(self):
+        for url in self.start_urls:
+            yield Request(url=url, callback=self.parse)
