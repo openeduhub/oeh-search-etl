@@ -24,6 +24,7 @@ services:
     extra_hosts:
       host.docker.internal: host-gateway
     image: openeduhub/oeh-search-etl:develop
+    build: .
     environment:
       - "SPLASH_URL=http://splash:8050"
       - "CRAWLER=${CRAWLER}"

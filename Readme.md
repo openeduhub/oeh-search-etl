@@ -31,6 +31,7 @@ git clone https://github.com/openeduhub/oeh-search-etl
 cd oeh-search-etl
 cp .env.example .env
 # modify .env with your edu sharing instance
+docker compose build scrapy
 export CRAWLER=your_crawler_id_spider # i.e. wirlernenonline_spider
 docker compose up
 ```
