@@ -5,14 +5,8 @@
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-import json
-from wsgiref.util import request_uri
-from regex import R
 from scrapy import signals
 
-from scrapy.downloadermiddlewares.retry import RetryMiddleware
-from scrapy.utils.response import response_status_message
-from scrapy.exceptions import IgnoreRequest
 
 class OerScrapySpiderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,
