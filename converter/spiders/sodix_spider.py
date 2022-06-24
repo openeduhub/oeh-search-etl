@@ -1,5 +1,4 @@
 import json
-import re
 import requests
 import scrapy.http
 import datetime
@@ -132,7 +131,7 @@ class SodixSpider(CrawlSpider, LomBase):
             response_copy.meta['item'] = meta_obj
             response_copy._set_body(json.dumps(meta_obj))
 
-            # In order to transfer data to CSV/JSON, implement these 2 lines.
+            # In order to transfer data to CSV/JSON
             yield LomBase.parse(self, response_copy)
 
     def getBase(self, response):
@@ -143,8 +142,6 @@ class SodixSpider(CrawlSpider, LomBase):
 
         if metadata['publishers']:
             base.add_value('origin', [metadata['publishers'][0]['id']])
-        #    publishers = [re.sub('[^a-zA-Z0-9()]', '_', publisher['title']) for publisher in metadata['publishers']]
-        #    base.add_value('origin', '_'.join(publishers))
 
         return base
 
@@ -244,12 +241,8 @@ class SodixSpider(CrawlSpider, LomBase):
     def getPermissions(self, response):
         permissions = LomBase.getPermissions(self, response)
 
-        #permissions.replace_value("public", False)
         permissions.add_value('autoCreateGroups', True)
         permissions.add_value('groups', ['public'])
-        # permissions.add_value('groups', ['Brandenburg-public'])
-        # permissions.add_value('groups', ['LowerSaxony-public'])
-        # permissions.add_value('groups', ['Thuringia-public'])
 
         return permissions
 
