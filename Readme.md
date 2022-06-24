@@ -24,6 +24,17 @@ As a last step, set up your config variables by copying the `.env.example`-file 
 - A crawler can be run with `scrapy crawl <spider-name>`. It assumes that you have an edu-sharing 6.0 instance in your `.env` settings configured which can accept the data.
 - If a crawler has [Scrapy Spider Contracts](https://docs.scrapy.org/en/latest/topics/contracts.html#spiders-contracts) implemented, you can test those by running `scrapy check <spider-name>`
 
+
+## Run via Docker
+```bash
+git clone https://github.com/openeduhub/oeh-search-etl
+cd oeh-search-etl
+cp .env.example .env
+# modify .env with your edu sharing instance
+export CRAWLER=your_crawler_id_spider # i.e. wirlernenonline_spider
+docker compose up
+```
+
 ## Building a Crawler
 
 - We use Scrapy as a framework. Please check out the guides for Scrapy spider (https://docs.scrapy.org/en/latest/intro/tutorial.html)
