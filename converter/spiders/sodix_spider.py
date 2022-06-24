@@ -60,13 +60,12 @@ class SodixSpider(CrawlSpider, LomBase):
     urlRequest = 'https://api.sodix.de/gql/graphql'
     user = env.get('SODIX_USER')
     password = env.get('SODIX_PASSWORD')
-    counter = 1
-    loginStatusCode = None
     download_delay = 0.5
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
         self.access_token = ''
+        self.retry_counter = 0
 
     def start_requests(self):
         self.login()
@@ -89,19 +88,12 @@ class SodixSpider(CrawlSpider, LomBase):
             headers={'Content-Type': 'application/json'},
             data=f'{{"login": "{self.user}", "password": "{self.password}"}}'
         )
-        self.loginStatusCode = response.status_code
         try:
-            if not response.json()['error']:
-                self.access_token = response.json()['access_token']
-                self.logger.info('access token is available')
-            else:
-                self.logger.error('The login was not successful')
+            if response.json()['error'] or not response.status_code == 200:
                 raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
+            self.access_token = response.json()['access_token']
         except (KeyError, UnexpectedResponseError):
             raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
-
-    def getLoginRepsonseStatusCode(self):
-        return self.loginStatusCode
 
     def get_headers(self):
         return {
@@ -112,14 +104,12 @@ class SodixSpider(CrawlSpider, LomBase):
     def get_body(self):
         return json.dumps({'query': query_string})
 
-    def errback_error(self, failure, method):
-        if failure.check(HttpError) and self.counter < 3:
-            response = failure.value.response
-            self.logger.error(f'HTTP error retry login counts : {self.counter}')
-            self.counter += 1
-            self.logger.error('HTTP Error on %s', response.status)
+    def errback_error(self, failure, make_request_method):
+        if failure.check(HttpError) and self.retry_counter < 3:
+            self.retry_counter += 1
+            self.logger.warning(f'Re-login ({self.retry_counter}) ...')
             self.login()
-            yield method()
+            yield make_request_method()
 
     def parse_sodix(self, response: scrapy.http.Response):
         json_response = json.loads(response.body.decode())
