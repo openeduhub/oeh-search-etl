@@ -519,16 +519,12 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         super().__init__()
         self.counter = 0
 
-    def process_item(self, raw_item, spider):       
+    def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
         title = "<no title>"
         if "title" in item["lom"]["general"]:
-            title = str(item["lom"]["general"]["title"])        
-        if (spider.name == "sodix_spider"):
-            entryUUID = EduSharing.buildUUID(str(item["hash"]))
-        else:
-            entryUUID = EduSharing.buildUUID(item["response"]["url"] if "url" in item["response"] else item["hash"])
-
+            title = str(item["lom"]["general"]["title"])
+        entryUUID = EduSharing.buildUUID(item["response"]["url"] if "url" in item["response"] else item["hash"])
         self.insertItem(spider, entryUUID, item)
         logging.info("item " + entryUUID + " inserted/updated")
 
