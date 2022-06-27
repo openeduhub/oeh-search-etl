@@ -48,7 +48,7 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - permissions        required    (see: PermissionItemLoader below)
         #  - license            required    (see: LicenseItemLoader below)
         #  - lastModified       recommended
-        #  - type               recommended
+        #  - origin             optional    (only necessary if items need to be sorted into a specific sub-folder)
         #  - thumbnail          recommended
         #  - publisher          optional
         #  - binary             optional    (only needed if you're working with binary files (e.g. .pdf-files),
@@ -61,6 +61,11 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         last_modified = None
         base.add_value('lastModified', last_modified)
         thumbnail_url: str = "This string should hold the thumbnail URL"
+        base.add_value('origin', 'premium_only')  # the OPTIONAL value for "origin" controls the subfolder-name
+        # in the edu-sharing repository (e.g. if you need to make a distinction between learning objects that are free
+        # to access or premium_only). in this example, items that have the "premium_only"-value will be sent to the
+        # "SYNC_OBJ/<crawler_name>/premium_only/"-folder.
+        # (This field is used in two different use-cases, both in "youtube_spider" and "lehreronline_spider")
         base.add_value('thumbnail', thumbnail_url)
 
         lom = LomBaseItemloader()
