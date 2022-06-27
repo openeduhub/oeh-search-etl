@@ -44,8 +44,7 @@ services:
       - "SPLASH_URL=http://splash:8050"
       - "CRAWLER=${CRAWLER}"
       - "DRY_RUN=False"
+      - "LOG_LEVEL=${LOG_LEVEL:-INFO}"
       - "EDU_SHARING_BASE_URL=${EDU_SHARING_BASE_URL}"
       - "EDU_SHARING_USERNAME=${EDU_SHARING_USERNAME}"
       - "EDU_SHARING_PASSWORD=${EDU_SHARING_PASSWORD}"
-
-      
