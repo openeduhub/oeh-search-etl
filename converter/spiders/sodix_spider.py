@@ -60,7 +60,7 @@ class SodixSpider(CrawlSpider, LomBase):
     urlRequest = 'https://api.sodix.de/gql/graphql'
     user = env.get('SODIX_USER')
     password = env.get('SODIX_PASSWORD')
-    download_delay = float(env.get('SODIX_DOWNLOAD_DELAY', default='0.5'))
+    download_delay = float(env.get('SODIX_DOWNLOAD_DELAY', default='0.5'))  # don't stress sodix image server
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
