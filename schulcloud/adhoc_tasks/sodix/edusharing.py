@@ -57,6 +57,23 @@ class EdusharingAPI:
         headers = {'Accept': 'application/json'}
         return self.session.request(method, url, params=params, headers=headers, json=json_data)
 
+    def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024**2):
+        url = f'/iam/v1/people/-home-/{username}?password={password}'
+        body = {
+            'primaryAffiliation': type,
+            'skills': None,
+            'types': [],
+            'sizeQuota': quota,
+            'vcard': None,
+            'firstName': username,
+            'lastName': username,
+            'email': 'nomail',
+            'avatar': None,
+            'about': None
+        }
+        response = self.make_request('POST', url, json_data=body)
+        response.raise_for_status()
+
     def get_children(self, node_id: str) -> List[Node]:
         url = f'/node/v1/nodes/-home-/{node_id}/children'
         response = self.make_request('GET', url, {'maxItems': '500', 'skipCount': '0'})
