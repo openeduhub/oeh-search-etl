@@ -140,7 +140,7 @@ class SodixSpider(CrawlSpider, LomBase):
         return metadata['id']
 
     def getHash(self, response):
-        return hash(str(self.version) + str(datetime.datetime.now()))
+        return str(self.version) + str(datetime.datetime.now())
 
     def mapResponse(self, response):
         r = ResponseItemLoader(response=response)
