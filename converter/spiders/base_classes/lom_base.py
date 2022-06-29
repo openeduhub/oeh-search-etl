@@ -73,7 +73,10 @@ class LomBase:
         db = EduSharing().findItem(self.getId(response), self)
         changed = db == None or db[1] != self.getHash(response)
         if not changed:
-            logging.info("Item " + db[0] + " has not changed")
+            logging.info(
+                "Item " + self.getId(response) +
+                "(uuid: " + db[0] + ") has not changed"
+             )
         return changed
 
     # you might override this method if you don't want to import specific entries
