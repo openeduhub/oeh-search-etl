@@ -15,11 +15,11 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     name = "lehreronline_spider"
     friendlyName = "Lehrer-Online"
     start_urls = [
-        "https://www.lehrer-online.de/?type=3030",  # only the 25 newest items per category (275 in total)
-        # "https://www.lehrer-online.de/?type=4040&limit=10000"  # complete data-set (~5688 URLs in total, the initial
-        # API response is currently ~18MB. The initial loading of the API response takes about ~56s to complete)
+        "https://www.lehrer-online.de/?type=3030&limit=10000"
+        # the limit parameter controls the amount of results PER CATEGORY (NOT the total amount of results)
+        # API response with a "limit"-value set to 10.000 might take more than 90s (17.7 MB, 5912 URLs to crawl)
     ]
-    version = "0.0.1"  # last update: 2022-05-31
+    version = "0.0.2"  # last update: 2022-06-29
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -33,6 +33,50 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         'Elementarbildung': 'Elementarbereich',
         'Fort- und Weiterbildung': 'Fortbildung',
         'Spezieller Förderbedarf': 'Förderschule'
+    }
+
+    MAPPING_LO_LRT_TO_NEW_LRT = {
+        # Lehrer-Online uses a different vocabulary for their "lernressourcentyp"
+        "Ablaufplan": "7381f17f-50a6-4ce1-b3a0-9d85a482eec0",  # "Unterrichtsplanung" # ToDo: confirm this mapping
+        "Arbeitsblatt": "36e68792-6159-481d-a97b-2c00901f4f78",  # Arbeitsblatt
+        # "Arbeitsblatt interaktiv": "36e68792-6159-481d-a97b-2c00901f4f78",  # Arbeitsblatt # ToDo: missing vocab?
+        # "Arbeitsheft": "",
+        # "Außerschulischer Lernort": "",
+        # "Didaktik/Methodik": "",
+        "Diskussion": "61462395-8303-44bf-95a4-6a4297013283",
+        # "Argumentation, Plattformen für strukturierte Diskussion" # ToDo: this is a "Tool"
+        # "Einzelarbeit": "",
+        "Experiment": "4735c61a-429b-4909-9f3c-cbf975e2aa0e",  # "Experiment"
+        # "Folien": "",  # ToDo: missing vocab? slides?
+        # "Hausaufgabe": "",
+        # "Interaktives Quiz": "",  # ToDo: missing vocab?
+        # "Internetressource": "",
+        "Kurs": "4e16015a-7862-49ed-9b5e-6c1c6e0ffcd1",  # "Kurs"
+        # "Lehrer-Begleitheft": "",
+        "Lehrerhandreichung": "6a15628c-0e59-43e3-9fc5-9a7f7fa261c4",  # "Skript, Handout und Handreichung"
+        # "Lehrerheft": "",
+        # "Lernkontrolle": "",
+        "Lernspiel": "b0495f44-b05d-4bde-9dc5-34d7b5234d76",  # "Lernspiel"
+        "Nachrichten": "dc5763ab-6f47-4aa3-9ff3-1303efbeef6e",  # "Nachrichten und Neuigkeiten"
+        "Nachschlagewerk": "c022c920-c236-4234-bae1-e264a3e2bdf6",  # "Nachschlagewerk und Glossar"
+        "Poster": "c382a478-74e0-42f1-96dd-fcfb5c27f746",  # "Poster und Plakat"
+        "Primärmaterial": "ab5b99ea-551c-42f3-995b-e4b5f469ad7e",  # "Primärmaterial und Quelle"
+        "Projekt": "22823ca9-7175-4b24-892e-19ebbf5fe0e7",  # "Projekt (Lehr- und Lernmaterial)"
+        "Präsentation": "92c7a50c-6243-45d9-8b11-e79cbbda6305",  # "Präsentation"
+        "Quiz": "7d591b84-9171-47cb-809a-74ef07f07261",  # "Quiz" # ToDo: this is a "Tool", not a "Material"
+        "Recherche-Auftrag": "1cac68e6-dafe-4ce4-a52f-f33cde26da59",  # "Recherche und Lernauftrag"
+        "Rollenspiel": "ac82dc13-3be1-464d-9cdc-88e608d99c39",  # "Rollenspiel"
+        "Schaubild": "1dc4ed81-718c-4b76-86cb-947a86875973",  # "Veranschaulichung, Schaubild und Tafelbild"
+        # "Schülerheft": "",
+        # "Schülermagazin": "",
+        # "Software": "",
+        "Stationenlernen": "ee738203-44af-4150-986f-ef01fb883f00",  # "Stationenlernen"
+        "Tondokument": "ec2682af-08a9-4ab1-a324-9dca5151e99f",  # "Audio"
+        "Video": "7a6e9608-2554-4981-95dc-47ab9ba924de",  # Video
+        # "Webquest": "",
+        "entdeckendes Lernen": "9a86beb5-1a65-48ca-99c8-e8c789cfe2f8",  # "Entdeckendes Lernen (Lehr- und Lernmaterial)"
+        # "kooperatives Lernen": "",
+        "Übung": "a33ef73d-9210-4305-97f9-7357bbf43486",  # Übungsmaterial
     }
 
     MAPPING_MATERIAL_TYPE_TO_NEW_LRT = {
@@ -66,6 +110,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     }
 
     FACH_IS_ACTUALLY_A_KEYWORD = [
+        # ToDo: remove usage of this list after checking the Vocabs if any of these values could be used for altLabels
         'Besondere Förderung',
         'Computer, Internet & Co.',
         'Deutsch / Kommunikation',  # "Deutsch / Kommunikation" is part of "Berufsbildung", not "Deutschunterricht"
@@ -188,6 +233,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
 
         # self.logger.info(f"Currently crawling {self.itertag.join(selector.getall())}")
         metadata_dict = dict()
+        new_lrts = set()
 
         title_raw: str = selector.xpath('titel/text()').get()
         # self.logger.info(f"the title is: {title_raw}")
@@ -277,7 +323,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         # <fach> can either be completely empty or there can be several <fach>-elements within a <datensatz>
         disciplines_or_additional_keywords_raw: list = selector.xpath('fach/text()').getall()
         actual_disciplines = list()
-        additional_keywords = list()
+        additional_keywords_from_disciplines = set()
         if disciplines_or_additional_keywords_raw:
             for potential_discipline_item in disciplines_or_additional_keywords_raw:
                 if potential_discipline_item in self.MAPPING_FACH_TO_DISCIPLINES:
@@ -291,13 +337,13 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 elif potential_discipline_item in self.FACH_IS_ACTUALLY_A_KEYWORD or potential_discipline_item:
                     # not all "fach"-values are valid disciplines, but they can be used as additional keywords
                     # basically: everything that's not a correct discipline is treated as an additional keyword
-                    additional_keywords.append(potential_discipline_item)
+                    additional_keywords_from_disciplines.add(potential_discipline_item)
                     continue
             # once we iterated through all <fach>-elements, we can set/update the actual fields in metadata_dict
             if actual_disciplines:
                 metadata_dict.update({'discipline': actual_disciplines})
-            if additional_keywords:
-                keyword_list.extend(additional_keywords)
+            if additional_keywords_from_disciplines:
+                keyword_list.extend(additional_keywords_from_disciplines)
                 metadata_dict.update({'keywords': keyword_list})
 
         educational_context_raw: str = selector.xpath('bildungsebene/text()').get()
@@ -330,8 +376,9 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
 
         material_type_raw: str = selector.xpath('material_type/text()').get()
         if material_type_raw:
-            if material_type_raw in self.MAPPING_MATERIAL_TYPE_TO_NEW_LRT.keys():
+            if material_type_raw in self.MAPPING_MATERIAL_TYPE_TO_NEW_LRT:
                 new_lrt = self.MAPPING_MATERIAL_TYPE_TO_NEW_LRT.get(material_type_raw)
+                new_lrts.add(new_lrt)
                 metadata_dict.update({'new_lrt': new_lrt})
             metadata_dict.update({'material_type_raw': material_type_raw})
 
@@ -348,10 +395,20 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 # see: https://docs.python.org/3/library/stdtypes.html#truth-value-testing
                 metadata_dict.update({'url': material_url})
 
-        # ToDo: lernressourcentyp - currently: always (100%!) empty, needs to be implemented in a future version
-        #  when the API actually has data for us.
-        #  this might become useful for mapping additional values to new_lrt in the future
-        # lrt_raw = selector.xpath('lernressourcentyp/text()').get()
+        # ToDo: lernressourcentyp
+        lrt_raw = selector.xpath('lernressourcentyp/text()').getall()
+        # there can be SEVERAL "lernressourcentyp"-elements per item
+        if lrt_raw:
+            additional_keywords_from_lo_lrt = set()
+            for lrt_possible_value in lrt_raw:
+                if lrt_possible_value in self.MAPPING_LO_LRT_TO_NEW_LRT:
+                    new_lrt = self.MAPPING_LO_LRT_TO_NEW_LRT.get(lrt_possible_value)
+                    new_lrts.add(new_lrt)
+                else:
+                    additional_keywords_from_lo_lrt.add(lrt_possible_value)
+            metadata_dict.update({'new_lrt': list(new_lrts)})
+            keyword_list.extend(additional_keywords_from_lo_lrt)
+            metadata_dict.update({'keywords': keyword_list})
 
         intended_end_user_role: str = selector.xpath('zielgruppe/text()').get()
         if intended_end_user_role:
@@ -373,20 +430,21 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         # ToDo: Confirm if behaviour is still correct after LO implemented filtering for free materials into the API
         # can be either 'ja' or 'nein', but it has a different meaning when "kostenpflichtig"-element is set to "ja":
         # frei_zugaenglich (ja) & kostenpflichtig (nein)        = truly free to access, no log-in required
+        # frei_zugaenglich (nein) & kostenpflichtig (nein)      = available for free, but log-in required (free)
+        # frei_zugaenglich (nein) & kostenpflichtig (ja)        = login required, paywalled (premium) content
+        # ToDo: this is now obsolete
         # frei_zugaenglich (ja) & kostenpflichtig (ja)          = available for free, but log-in required (free)
-        # frei_zugaenglich (nein) & kostenpflichtig (ja)        = login required, paywalled content
-        # frei_zugaenglich (nein) & kostenpflichtig (nein)      = Premium-Account only, paywalled content (this might
-        #                                                       be an oversight in the API, could change in the future)
         if free_to_access == "ja":
+            if metadata_dict.get("price") == "no":
+                metadata_dict.update({'conditions_of_access': 'no_login'})
+                metadata_dict.update({'origin_folder_name': 'free'})
+        elif free_to_access == "nein":
             if metadata_dict.get("price") == "yes":
+                metadata_dict.update({'conditions_of_access': 'login'})
+                metadata_dict.update({'origin_folder_name': 'premium_only'})
+            elif metadata_dict.get("price") == "no":
                 metadata_dict.update({'conditions_of_access': 'login_for_additional_features'})
                 metadata_dict.update({'origin_folder_name': 'free_account_required'})
-            elif metadata_dict.get("price") == "no":
-                metadata_dict.update({'conditions_of_access': 'no_login'})
-                metadata_dict.update({'origin_folder_name': 'frei_und_kostenlos'})
-        elif free_to_access == "nein":
-            metadata_dict.update({'conditions_of_access': 'login'})
-            metadata_dict.update({'origin_folder_name': 'premium_only'})
 
         # quelle_id currently holds just the abbreviation "LO" for all elements, check again later
         # quelle_logo_url is different from bild_url, always holds (the same) URL to the Lehrer-Online logo
@@ -424,7 +482,6 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             base.add_value('lastModified', metadata_dict.get("date_published"))
         if "provider_address" in metadata_dict.keys():
             base.add_value('publisher', metadata_dict.get("provider_address"))
-        base.add_value('type', Constants.TYPE_MATERIAL)
         if "thumbnail_url" in metadata_dict.keys():
             thumbnail_url: str = metadata_dict.get("thumbnail_url")
             if thumbnail_url:
@@ -482,8 +539,8 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
 
         vs = ValuespaceItemLoader()
         vs.add_value('containsAdvertisement', 'yes')
-        # vs.add_value('dataProtectionConformity', 'generalDataProtectionRegulation')
-        # see: https://www.eduversum.de/datenschutz/ - ToDo: can this be considered "Datensparsam" or not?
+        vs.add_value('dataProtectionConformity', 'generalDataProtectionRegulation')
+        # see: https://www.eduversum.de/datenschutz/
         if "conditions_of_access" in metadata_dict.keys():
             vs.add_value('conditionsOfAccess', metadata_dict.get("conditions_of_access"))
         if "discipline" in metadata_dict.keys():
@@ -494,6 +551,8 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             vs.add_value('intendedEndUserRole', metadata_dict.get("intended_end_user"))
         if "new_lrt" in metadata_dict.keys():
             vs.add_value('new_lrt', metadata_dict.get("new_lrt"))
+        else:
+            vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
         if "price" in metadata_dict.keys():
             vs.add_value('price', metadata_dict.get("price"))
         vs.add_value('sourceContentType', '004')  # "Unterrichtsmaterial- und Aufgaben-Sammlung"
