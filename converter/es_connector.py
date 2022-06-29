@@ -288,7 +288,13 @@ class EduSharing:
             spaces["cclom:general_keyword"] = None
         if "technical" in item["lom"]:
             if "duration" in item["lom"]["technical"]:
-                spaces["cclom:duration"] = item["lom"]["technical"]["duration"]
+                duration = item["lom"]["technical"]["duration"]
+                try:
+                    # edusharing requries milliseconds
+                    duration = int(float(duration) * 1000)
+                except:
+                    pass
+                spaces["cclom:duration"] = duration
 
         # TODO: this does currently not support multiple values per role
         if "lifecycle" in item["lom"]:
@@ -358,13 +364,12 @@ class EduSharing:
         }
         for key in item["valuespaces"]:
             spaces[valuespaceMapping[key]] = item["valuespaces"][key]
-        if "typicalagerange" in item["lom"]["educational"]:
-            spaces["ccm:educationaltypicalagerange_from"] = item["lom"]["educational"][
-                "typicalagerange"
-            ]["fromRange"]
-            spaces["ccm:educationaltypicalagerange_to"] = item["lom"]["educational"][
-                "typicalagerange"
-            ]["toRange"]
+        if "typicalAgeRange" in item["lom"]["educational"]:
+            tar = item["lom"]["educational"]["typicalAgeRange"]
+            if "fromRange" in tar:
+                spaces["ccm:educationaltypicalagerange_from"] = tar["fromRange"]
+            if "toRange" in tar:
+                spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
         # intendedEndUserRole = Field(output_processor=JoinMultivalues())
         # discipline = Field(output_processor=JoinMultivalues())
         # educationalContext = Field(output_processor=JoinMultivalues())
