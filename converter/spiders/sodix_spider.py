@@ -16,7 +16,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.1.3"
+    version = "0.1.4"
     apiUrl = "https://api.sodix.de/gql/graphql"
     access_token: str = None
     page_size = 2500
@@ -43,7 +43,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         return response.meta["item"].get("id")
 
     def getHash(self, response):
-        return response.meta["item"].get("updated") + self.version
+        return response.meta["item"].get("updated") + "v" + self.version
 
     def getUri(self, response=None) -> str:
         # or media.originalUrl?
@@ -52,10 +52,85 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     def startRequest(self, offset=0):
         return scrapy.Request(
             url=self.apiUrl,
-            callback=self.parseRequest,
+            callback=self.parse_request,
             body=json.dumps({
-                "query": "{\n    findAllMetadata(page: " + str(offset) + ", pageSize: " + str(
-                    self.page_size) + ") {\n        id\n        identifier\n        title\n        description\n        keywords\n        language\n        creationDate\n        updated\n        publishedTime\n        availableTo\n        recordStatus\n        author\n        authorWebsite\n        producer\n        publishers{\n            id\n            title\n            description\n            imageDetails\n            imagePreview\n            officialWebsite\n            linkToGeneralUseRights       \n        }\n        source{\n            id\n            name\n            description\n            imageUrl\n            termsOfUse\n            generalUseRights\n            website\n            sourceStatus\n            created\n            edited            \n        }\n        media {\n            size\n            dataType\n            duration\n            thumbDetails\n            thumbPreview\n            url\n            originalUrl           \n        }\n        targetAudience\n        learnResourceType\n        educationalLevels\n        classLevel\n        schoolTypes\n        eafCode\n        subject{\n            id\n            name\n            level\n            path\n        }        \n        competencies{\n            id\n            level\n            name\n            path            \n        }\n        license{\n            name\n            version\n            country\n            url\n            text            \n        }\n        additionalLicenseInformation\n        downloadRight\n        cost\n        linkedObjects             \n    }\n}\n\n",
+                "query": f"""{{
+                    findAllMetadata(page: {offset}, pageSize: {self.page_size}) {{
+                        id
+                        identifier
+                        title
+                        description
+                        keywords
+                        language
+                        creationDate
+                        updated
+                        publishedTime
+                        availableTo
+                        recordStatus
+                        author
+                        authorWebsite
+                        producer
+                        publishers {{
+                            id
+                            title
+                            description
+                            imageDetails
+                            imagePreview
+                            officialWebsite
+                            linkToGeneralUseRights
+                        }}
+                        source {{
+                            id
+                            name
+                            description
+                            imageUrl
+                            termsOfUse
+                            generalUseRights
+                            website
+                            sourceStatus
+                            created
+                            edited
+                        }}
+                        media {{
+                            size
+                            dataType
+                            duration
+                            thumbDetails
+                            thumbPreview
+                            url
+                            originalUrl
+                        }}
+                        targetAudience
+                        learnResourceType
+                        educationalLevels
+                        classLevel
+                        schoolTypes
+                        eafCode
+                        subject {{
+                            id
+                            name
+                            level
+                            path
+                        }}
+                        competencies {{
+                            id
+                            level
+                            name
+                            path
+                        }}
+                        license {{
+                        name
+                        version
+                        country
+                        url
+                        text
+                        }}
+                        additionalLicenseInformation
+                        downloadRight
+                        cost
+                        linkedObjects
+                        }}
+                    }}""",
                 "operationName": None
             }),
             method="POST",
@@ -70,7 +145,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     def start_requests(self):
         yield self.startRequest()
 
-    def parseRequest(self, response):
+    def parse_request(self, response):
         results = json.loads(response.body)
         if results:
             for item in results['data']['findAllMetadata']:
@@ -94,6 +169,11 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 "publisher", publisher['title']
             )
         return base
+
+    def getLOMLifecycle(self, response=None) -> LomLifecycleItemloader:
+        lifecycle = LomBase.getLOMLifecycle(response)
+
+        return lifecycle
 
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
@@ -128,6 +208,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     def getLicense(self, response):
         license = LomBase.getLicense(self, response)
         licenseId = self.get("license.name", json=response.meta["item"])
+        licenseUrl = self.get("license.url", json=response.meta["item"])
         # @TODO: add mappings for the sodix names
         url = None
         license.add_value("url", url)
@@ -139,13 +220,14 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         if class_level and len(class_level.split("-")) == 2:
             split = class_level.split("-")
             tar = LomAgeRangeItemLoader()
+            # mapping from classLevel to ageRange
             tar.add_value(
                 "fromRange",
-                split[0]
+                int(split[0]) + 5
             )
             tar.add_value(
                 "toRange",
-                split[1]
+                int(split[1]) + 5
             )
             educational.add_value("typicalAgeRange", tar.load_item())
         return educational
