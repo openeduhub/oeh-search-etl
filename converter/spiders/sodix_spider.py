@@ -1,13 +1,16 @@
 import json
+import datetime
+import time
+
 import requests
 import scrapy.http
-import datetime
+from scrapy.spiders import CrawlSpider
+from scrapy.spidermiddlewares.httperror import HttpError
+
 import converter.env as env
 from converter.constants import Constants
 from converter.items import *
 from converter.spiders.base_classes.lom_base import LomBase
-from scrapy.spiders import CrawlSpider
-from scrapy.spidermiddlewares.httperror import HttpError
 
 
 query_string = '''
@@ -66,8 +69,12 @@ class SodixSpider(CrawlSpider, LomBase):
         LomBase.__init__(self, **kwargs)
         self.access_token = ''
         self.retry_counter = 0
+        self.start_time = 0.0
+        self.item_pos = 0
+        self.item_count = 0
 
     def start_requests(self):
+        self.start_time = time.time()
         self.login()
         yield self.make_request()
 
@@ -104,6 +111,24 @@ class SodixSpider(CrawlSpider, LomBase):
     def get_body(self):
         return json.dumps({'query': query_string})
 
+    def log_progress(self):
+        def seconds_to_str(t: float):
+            sec = int(t) % 60
+            min = int(t / 60) % 60
+            hours = int(t / 3600) % 24
+            days = int(t / 3600 / 24)
+            s = f'{min:02}:{sec:02}'
+            if days:
+                s = f'{days:02}:{hours:02}:{s}'
+            elif hours:
+                s = f'{hours:02}:{s}'
+            return s
+        percentage = f'{int(self.item_pos / self.item_count * 100)}%'
+        absolute = f'{self.item_pos} / {self.item_count}'
+        elapsed = time.time() - self.start_time
+        remaining = (self.item_count - self.item_pos) / self.item_pos * elapsed
+        self.logger.info(f'Progress: |{percentage :^6}|{absolute:^18}|{seconds_to_str(elapsed):^14}|{seconds_to_str(remaining):^14}|')
+
     def errback_error(self, failure, make_request_method):
         if failure.check(HttpError) and self.retry_counter < 3:
             self.retry_counter += 1
@@ -114,6 +139,7 @@ class SodixSpider(CrawlSpider, LomBase):
     def parse_sodix(self, response: scrapy.http.Response):
         json_response = json.loads(response.body.decode())
         metadata = json_response['data']['findAllMetadata']
+        self.item_count = len(metadata)
 
         # split response metadata into one response per metadata object
         for meta_obj in metadata:
@@ -125,6 +151,9 @@ class SodixSpider(CrawlSpider, LomBase):
             yield LomBase.parse(self, response_copy)
 
     def getBase(self, response):
+        self.item_pos += 1
+        self.log_progress()
+
         base = LomBase.getBase(self, response)
         metadata = response.meta['item']
         if metadata['media'] and metadata['media']['thumbPreview']:
