@@ -49,13 +49,13 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         # or media.originalUrl?
         return self.get("media.url", json=response.meta["item"])
 
-    def startRequest(self, offset=0):
+    def startRequest(self, page=0):
         return scrapy.Request(
             url=self.apiUrl,
             callback=self.parse_request,
             body=json.dumps({
                 "query": f"""{{
-                    findAllMetadata(page: {offset}, pageSize: {self.page_size}) {{
+                    findAllMetadata(page: {page}, pageSize: {self.page_size}) {{
                         id
                         identifier
                         title
@@ -139,7 +139,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 "Content-Type": "application/json",
                 "Authorization": "Bearer " + self.access_token
             },
-            meta={"offset": offset},
+            meta={"page": page},
         )
 
     def start_requests(self):
@@ -148,12 +148,15 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     def parse_request(self, response):
         results = json.loads(response.body)
         if results:
-            for item in results['data']['findAllMetadata']:
+            list = results['data']['findAllMetadata']
+            if len(list) == 0:
+                return
+            for item in list:
                 copyResponse = response.copy()
                 copyResponse.meta["item"] = item
                 if self.hasChanged(copyResponse):
                     yield self.handleEntry(copyResponse)
-            yield self.startRequest(response.meta["offset"] + self.page_size)
+            yield self.startRequest(response.meta["page"] + 1)
 
     def handleEntry(self, response):
         return LomBase.parse(self, response)
