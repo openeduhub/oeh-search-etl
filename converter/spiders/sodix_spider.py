@@ -16,10 +16,60 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.1.4"
+    version = "0.1.5"
     apiUrl = "https://api.sodix.de/gql/graphql"
     access_token: str = None
     page_size = 2500
+
+    MAPPING_LRT = {
+        "APP": "application",
+        "ARBEITSBLATT": "worksheet",
+        "AUDIO": "audio",
+        "AUDIOVISUELLES": "audiovisual medium",
+        "BILD": "image",
+        "DATEN": "data",
+        "ENTDECKENDES": "exploration",
+        "EXPERIMENT": "experiment",
+        "FALLSTUDIE": "case_study",
+        "GLOSSAR": "glossary",
+        "HANDBUCH": "guide",
+        # "INTERAKTION": "",
+        "KARTE": "map",
+        "KURS": "course",
+        "LERNKONTROLLE": "assessment",
+        "LERNSPIEL": "educational Game",
+        "MODELL": "model",
+        "OFFENE": "open activity",
+        "PRESENTATION": "presentation",
+        "PROJECT": "project",
+        "QUELLE": "reference",
+        "RADIO": "broadcast",
+        "RECHERCHE": "enquiry-oriented activity",
+        "RESSOURCENTYP": "other",  # "Anderer Ressourcentyp"
+        "ROLLENSPIEL": "role play",
+        "SIMULATION": "simulation",
+        "SOFTWARE": "application",
+        "SONSTIGES": "other",
+        # "TEST": "",
+        "TEXT": "text",
+        "UBUNG": "drill and practice",
+        "UNTERRICHTSBAUSTEIN": "teaching module",
+        "UNTERRICHTSPLANUNG": "lesson plan",
+        "VERANSCHAULICHUNG": "demonstration",
+        "VIDEO": "video",
+        "WEBSEITE": "web page",
+        "WEBTOOL": ["web page", "tool"],
+
+    }
+    MAPPING_EDUCONTEXT = {
+        "Primarbereich": "Primarstufe",
+        "Fort- und Weiterbildung": "Fortbildung"
+    }
+
+    MAPPING_INTENDED_END_USER_ROLE = {
+        "pupils": "learner",
+
+    }
 
     def __init__(self, **kwargs):
         self.access_token = requests.post(
@@ -43,7 +93,8 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         return response.meta["item"].get("id")
 
     def getHash(self, response):
-        return response.meta["item"].get("updated") + "v" + self.version
+        return f"{response.meta['item'].get('updated')}v{self.version}"
+        # return response.meta["item"].get("updated") + "v" + self.version
 
     def getUri(self, response=None) -> str:
         # or media.originalUrl?
@@ -242,52 +293,31 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         subjects = self.get('subject', json=response.meta['item'])
         for subject in subjects if subjects else []:
             valuespaces.add_value("discipline", subject['name'])
-        valuespaces.add_value("educationalContext", self.get('educationalLevels', json=response.meta['item']))
-        # @TODO: add mappings!
+        educational_context_list = self.get('educationalLevels', json=response.meta['item'])
+        if educational_context_list:
+            for potential_edu_context in educational_context_list:
+                if potential_edu_context in self.MAPPING_EDUCONTEXT:
+                    potential_edu_context = self.MAPPING_EDUCONTEXT.get(potential_edu_context)
+                valuespaces.add_value('educationalContext', potential_edu_context)
+        target_audience_list = self.get('targetAudience', json=response.meta['item'])
+        if target_audience_list:
+            for target_audience_item in target_audience_list:
+                if target_audience_item in self.MAPPING_INTENDED_END_USER_ROLE:
+                    target_audience_item = self.MAPPING_INTENDED_END_USER_ROLE.get(target_audience_item)
+                valuespaces.add_value('intendedEndUserRole', target_audience_item)
         valuespaces.add_value("intendedEndUserRole", self.get('targetAudience', json=response.meta['item']))
+
         if self.get('cost', json=response.meta['item']) == "FREE":
             valuespaces.add_value("price", "no")
-
-        # @TODO: mapping required:
-        # enum LRT {
-        #     APP
-        # ARBEITSBLATT
-        # AUDIO
-        # AUDIOVISUELLES
-        # BILD
-        # DATEN
-        # ENTDECKENDES
-        # EXPERIMENT
-        # FALLSTUDIE
-        # GLOSSAR
-        # HANDBUCH
-        # INTERAKTION
-        # KARTE
-        # KURS
-        # LERNKONTROLLE
-        # LERNSPIEL
-        # MODELL
-        # OFFENE
-        # PRESENTATION
-        # PROJECT
-        # QUELLE
-        # RADIO
-        # RECHERCHE
-        # RESSOURCENTYP
-        # ROLLENSPIEL
-        # SIMULATION
-        # SOFTWARE
-        # SONSTIGES
-        # TEST
-        # TEXT
-        # UBUNG
-        # UNTERRICHTSBAUSTEIN
-        # UNTERRICHTSPLANUNG
-        # VERANSCHAULICHUNG
-        # VIDEO
-        # WEBSEITE
-        # WEBTOOL
-        # }
-        valuespaces.add_value("learningResourceType", self.get('learnResourceType', json=response.meta['item']))
+        potential_lrts = self.get('learnResourceType', json=response.meta['item'])
+        # attention: sodix calls their LRT "learnResourceType"
+        if potential_lrts:
+            for potential_lrt in potential_lrts:
+                if potential_lrt in self.MAPPING_LRT:
+                    potential_lrt = self.MAPPING_LRT.get(potential_lrt)
+                    valuespaces.add_value('learningResourceType', potential_lrt)
+                else:
+                    # ToDo: lrt values that can't get mapped should be put into "keywords" to avoid losing them
+                    pass
         return valuespaces
 
