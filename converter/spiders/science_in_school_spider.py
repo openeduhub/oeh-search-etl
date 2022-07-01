@@ -17,7 +17,7 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
     start_urls = [
         "https://www.scienceinschool.org/issue/"
     ]
-    version = "0.0.1"
+    version = "0.0.2"  # last update: 2022-07-01
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True
@@ -25,8 +25,7 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
     allowed_domains = [
         "scienceinschool.org"
     ]
-    DEBUG_ALL_ARTICLE_URLS = set()
-    DEBUG_LANGUAGES_AVAILABLE = set()
+    ALL_ARTICLE_URLS = set()
 
     TOPICS_TO_DISCIPLINES_MAPPING = {
         "Astronomy / space": "Astronomy",
@@ -82,8 +81,8 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
         """
         article_urls = response.xpath('//h3[@class="vf-card__heading"]/a[@class="vf-card__link"]/@href').getall()
         # self.logger.info(f"Currently on {response.url} // Found {len(article_urls)} individual articles")
-        self.DEBUG_ALL_ARTICLE_URLS.update(article_urls)
-        # self.logger.info(f"Total URLs gathered so far: {len(self.DEBUG_ALL_ARTICLE_URLS)}")
+        self.ALL_ARTICLE_URLS.update(article_urls)
+        # self.logger.info(f"Total URLs gathered so far: {len(self.ALL_ARTICLE_URLS)}")
         for article_url in article_urls:
             yield scrapy.Request(url=article_url, callback=self.parse)
         pass
@@ -112,10 +111,10 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
         # on the left side of each article is a list of "Available languages", which holds URLs to all available
         # versions of the (currently visited) article, including its own URL. We need to make sure that we're only
         # gathering URLs that haven't been parsed before:
-        # self.logger.info(f"Before gathering article translations: {len(self.DEBUG_ALL_ARTICLE_URLS)}")
+        # self.logger.info(f"Before gathering article translations: {len(self.ALL_ARTICLE_URLS)}")
         if multilanguage_article_list:
             for article_translation_url in multilanguage_article_list:
-                if article_translation_url not in self.DEBUG_ALL_ARTICLE_URLS:
+                if article_translation_url not in self.ALL_ARTICLE_URLS:
                     # making sure we're not parsing translated articles more than once or causing loops
                     if article_translation_url.endswith('.pdf'):
                         # skipping direct-links to .pdf files because scrapy / splash can't handle these
@@ -126,9 +125,9 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
                         continue
                     else:
                         yield scrapy.Request(url=article_translation_url, callback=self.parse)
-            self.DEBUG_ALL_ARTICLE_URLS.update(multilanguage_article_list)
+            self.ALL_ARTICLE_URLS.update(multilanguage_article_list)
         # self.logger.info(f"This message should still be appearing after fetching article translations. URLs gathered "
-        #                  f"so far: {len(self.DEBUG_ALL_ARTICLE_URLS)}")
+        #                  f"so far: {len(self.ALL_ARTICLE_URLS)}")
 
         title: str = response.xpath('//meta[@property="og:title"]/@content').get()
         if title is None:
@@ -251,7 +250,10 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
         if description:
             general.add_value('description', description)
         if language:
-            general.add_value('language', language)
+            for language_item in language:
+                # edu-sharing expects the base.language value to be using underscores
+                language_underscore: str = language_item.replace('-', '_')
+                general.add_value('language', language_underscore)
             # depending on the article language, we're creating sub-folders within edu-sharing:
             # SYNC_OBJ/science_in_school_spider/<language_code>/
             base.add_value('origin', language)
