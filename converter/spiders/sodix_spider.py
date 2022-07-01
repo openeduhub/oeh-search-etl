@@ -1,13 +1,12 @@
-from converter.items import *
-from .base_classes import LomBase
-from .base_classes import JSONBase
 import json
-import logging
+
 import requests
-import html
-from converter.constants import *
 import scrapy
 
+from converter.constants import *
+from converter.items import *
+from .base_classes import JSONBase
+from .base_classes import LomBase
 # Spider to fetch RSS from planet schule
 from .. import env
 
@@ -16,7 +15,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.1.5"
+    version = "0.1.6"
     apiUrl = "https://api.sodix.de/gql/graphql"
     access_token: str = None
     page_size = 2500
@@ -68,7 +67,21 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
 
     MAPPING_INTENDED_END_USER_ROLE = {
         "pupils": "learner",
+    }
 
+    MAPPING_LICENSE_NAMES = {
+        'CC BY': Constants.LICENSE_CC_BY_40,
+        'CC BY-NC': Constants.LICENSE_CC_BY_NC_40,
+        'CC BY-NC-ND': Constants.LICENSE_CC_BY_NC_ND_40,
+        'CC BY-NC-SA': Constants.LICENSE_CC_BY_NC_SA_40,
+        'CC BY-ND': Constants.LICENSE_CC_BY_ND_40,
+        'CC BY-SA': Constants.LICENSE_CC_BY_SA_40,
+        'CC0': Constants.LICENSE_CC_ZERO_10,
+        'Copyright, freier Zugang': Constants.LICENSE_COPYRIGHT_LAW,
+        'Copyright, lizenzpflichtig': Constants.LICENSE_COPYRIGHT_LAW,
+        'Gemeinfrei / Public Domain': Constants.LICENSE_PDM,
+        'freie Lizenz': Constants.LICENSE_CUSTOM,
+        'keine Angaben (gesetzliche Regelung)': Constants.LICENSE_CUSTOM,
     }
 
     def __init__(self, **kwargs):
@@ -94,7 +107,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
 
     def getHash(self, response):
         return f"{response.meta['item'].get('updated')}v{self.version}"
-        # return response.meta["item"].get("updated") + "v" + self.version
 
     def getUri(self, response=None) -> str:
         # or media.originalUrl?
@@ -207,6 +219,8 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 copyResponse.meta["item"] = item
                 if self.hasChanged(copyResponse):
                     yield self.handleEntry(copyResponse)
+            # ToDo: links to binary files (.jpeg) cause errors while building the BaseItem, we might have to filter
+            #  specific media types / URLs
             yield self.startRequest(response.meta["page"] + 1)
 
     def handleEntry(self, response):
@@ -260,15 +274,73 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         return technical
 
     def getLicense(self, response):
-        license = LomBase.getLicense(self, response)
-        licenseId = self.get("license.name", json=response.meta["item"])
-        licenseUrl = self.get("license.url", json=response.meta["item"])
-        # @TODO: add mappings for the sodix names
-        # {None, 'CC BY-NC-SA', 'Copyright, lizenzpflichtig', 'CC BY-SA', 'CC BY-ND', 'CC BY', 'CC0', 'freie Lizenz', 'CC BY-NC-ND', 'keine Angaben (gesetzliche Regelung)', 'CC BY-NC', 'Gemeinfrei / Public Domain', 'Copyright, freier Zugang'}
-        url = None
-        # {'', 'https://creativecommons.org/licenses/by-nd/4.0/deed.de', 'https://creativecommons.org/licenses/by-sa/3.0/deed.de', 'https://creativecommons.org/licenses/by/3.0/deed.de', 'https://creativecommons.org/licenses/by-nc-sa/4.0/deed.de', 'https://creativecommons.org/licenses/by-nc-nd/4.0/deed.de', 'https://creativecommons.org/licenses/by/2.0/deed.de', 'https://creativecommons.org/licenses/by/4.0/', 'https://creativecommons.org/licenses/by-nc-nd/2.0/de/', 'https://creativecommons.org/licenses/by-nc-nd/3.0/de/', 'https://creativecommons.org/licenses/by-sa/2.0/deed.de', 'https://creativecommons.org/licenses/by-nd/3.0/deed.de', 'https://creativecommons.org/licenses/by-nd/2.0/de/', 'https://creativecommons.org/licenses/by-nc-sa/3.0/deed.de', 'https://creativecommons.org/licenses/by-sa/4.0/deed.de', 'https://creativecommons.org/licenses/by/2.5/deed.de', 'https://creativecommons.org/licenses/by-sa/2.0/de/', 'https://creativecommons.org/licenses/by/3.0/de/', 'https://creativecommons.org/licenses/by-nc-nd/3.0/deed.de', 'https://creativecommons.org/licenses/by-nc/3.0/de/', 'https://creativecommons.org/licenses/by-nd/3.0/de/', 'https://creativecommons.org/licenses/by-sa/2.5/deed.de', 'https://creativecommons.org/publicdomain/mark/1.0/deed.de', 'https://creativecommons.org/licenses/by-nc-sa/2.0/deed.de', 'https://creativecommons.org/licenses/by-sa/2.0/fr/deed.de', 'https://creativecommons.org/licenses/by-nc/3.0/deed.de', None, 'https://creativecommons.org/licenses/by-nc-sa/2.5/deed.de', 'https://creativecommons.org/licenses/by-nc/4.0/deed.de', 'https://creativecommons.org/publicdomain/zero/1.0/deed.de', 'https://creativecommons.org/licenses/by-sa/3.0/de/', 'https://creativecommons.org/licenses/by-nc-sa/3.0/de/'}
-        license.add_value("url", url)
-        return license
+        license_loader = LomBase.getLicense(self, response)
+
+        author: str = self.get('author', json=response.meta['item'])
+        if author:
+            license_loader.add_value('author', author)
+        license_description: str = self.get("license.text", json=response.meta["item"])
+        if license_description:
+            license_loader.add_value('description', license_description)
+        license_name: str = self.get("license.name", json=response.meta["item"])
+        if license_name:
+            if license_name in self.MAPPING_LICENSE_NAMES:
+                license_internal_mapped = self.MAPPING_LICENSE_NAMES.get(license_name)
+                if license_name.startswith("CC"):
+                    # ToDo: for CC-licenses the actual URL is more precise than our 'internal' license mapping
+                    # (you will see differences between the 'internal' value and the actual URL from the API,
+                    # e.g. a license pointing to v3.0 and v4.0 at the same time)
+                    pass
+                else:
+                    license_loader.add_value('internal', license_internal_mapped)
+                    if not license_description:
+                        # "name"-fields with the "Copyright, freier Zugang"-value don't have "text"-fields, therefore
+                        # we're carrying over the custom description, just in case
+                        license_loader.replace_value('description', license_name)
+
+        license_url: str = self.get("license.url", json=response.meta["item"])
+        # license_urls_sorted = ['https://creativecommons.org/licenses/by-nc-nd/2.0/de/',
+        #                        'https://creativecommons.org/licenses/by-nc-nd/3.0/de/',
+        #                        'https://creativecommons.org/licenses/by-nc-nd/3.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by-nc-nd/4.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by-nc-sa/2.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by-nc-sa/2.5/deed.de',
+        #                        'https://creativecommons.org/licenses/by-nc-sa/3.0/de/',
+        #                        'https://creativecommons.org/licenses/by-nc-sa/3.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by-nc-sa/4.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by-nc/3.0/de/',
+        #                        'https://creativecommons.org/licenses/by-nc/3.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by-nc/4.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by-nd/2.0/de/',
+        #                        'https://creativecommons.org/licenses/by-nd/3.0/de/',
+        #                        'https://creativecommons.org/licenses/by-nd/3.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by-nd/4.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by-sa/2.0/de/',
+        #                        'https://creativecommons.org/licenses/by-sa/2.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by-sa/2.0/fr/deed.de',
+        #                        'https://creativecommons.org/licenses/by-sa/2.5/deed.de',
+        #                        'https://creativecommons.org/licenses/by-sa/3.0/de/',
+        #                        'https://creativecommons.org/licenses/by-sa/3.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by-sa/4.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by/2.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by/2.5/deed.de',
+        #                        'https://creativecommons.org/licenses/by/3.0/de/',
+        #                        'https://creativecommons.org/licenses/by/3.0/deed.de',
+        #                        'https://creativecommons.org/licenses/by/4.0/',
+        #                        'https://creativecommons.org/publicdomain/mark/1.0/deed.de',
+        #                        'https://creativecommons.org/publicdomain/zero/1.0/deed.de']
+        # ToDo: our constants.py doesn't have entries for v2.0 or 2.5 values of CC licenses
+        if license_url:
+            # making sure to only handle valid license urls, since the API result can be NoneType or empty string ('')
+            if license_url.endswith("deed.de"):
+                license_url = license_url[:-len("deed.de")]
+            if license_url.endswith("/de/"):
+                license_url = license_url[:-len("de/")]
+                # cutting off the "de/"-part of the URL while leaving the rest intact
+            elif license_url.endswith("/fr/"):
+                license_url = license_url[:-len("fr/")]
+            license_loader.replace_value('url', license_url)
+        return license_loader
 
     def getLOMEducational(self, response=None) -> LomEducationalItemLoader:
         educational = LomBase.getLOMEducational(response)
@@ -320,4 +392,3 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                     # ToDo: lrt values that can't get mapped should be put into "keywords" to avoid losing them
                     pass
         return valuespaces
-
