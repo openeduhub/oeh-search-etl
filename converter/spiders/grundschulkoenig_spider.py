@@ -19,7 +19,7 @@ class GrundSchulKoenigSpider(CrawlSpider, LomBase):
 
     start_urls = ['https://www.grundschulkoenig.de/sitemap.xml?sitemap=pages&cHash=b8e1a6633393d69093d0ebe93a3d2616']
     name = 'grundschulkoenig_spider'
-    version = "0.0.4"  # last update: 2022-05-06
+    version = "0.0.5"  # last update: 2022-06-27
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         # while there is no robots.txt, there is a 404-forward-page that gets misinterpreted by Scrapy
@@ -187,7 +187,7 @@ class GrundSchulKoenigSpider(CrawlSpider, LomBase):
         base.add_value("valuespaces", vs.load_item())
 
         lic = LicenseItemLoader()
-        lic.add_value('url', Constants.LICENSE_COPYRIGHT_LAW)
+        lic.add_value('internal', Constants.LICENSE_COPYRIGHT_LAW)
         base.add_value("license", lic.load_item())
 
         permissions = super().getPermissions(response)
