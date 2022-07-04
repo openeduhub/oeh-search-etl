@@ -82,7 +82,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - title                          required
         #  - keyword                        required
         #  - description                    required
-        #  - language                       recommended
+        #  - language                       recommended (edu-sharing expects underscores in language-codes, e.g. 'en-US'
+        #                                               needs to be replaced by 'en_US')
         #  - coverage                       optional
         #  - structure                      optional
         #  - aggregationLevel               optional
