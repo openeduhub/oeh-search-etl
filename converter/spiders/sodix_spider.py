@@ -15,9 +15,12 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.1.6"
+    version = "0.1.7"
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
+    custom_settings = {
+        "ROBOTSTXT_OBEY": False  # returns an 401-error anyway, we might as well skip this scrapy.Request
+    }
 
     MAPPING_LRT = {
         "APP": "application",
@@ -48,7 +51,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         "SIMULATION": "simulation",
         "SOFTWARE": "application",
         "SONSTIGES": "other",
-        # "TEST": "",
+        "TEST": "assessment",
         "TEXT": "text",
         "UBUNG": "drill and practice",
         "UNTERRICHTSBAUSTEIN": "teaching module",
@@ -83,6 +86,8 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         'keine Angaben (gesetzliche Regelung)': Constants.LICENSE_CUSTOM,
     }
 
+    # DEBUG_SUBJECTS = set()
+
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
@@ -90,7 +95,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         r = LomBase.mapResponse(self, response, fetchData=False)
         r.replace_value("text", "")
         r.replace_value("html", "")
-        r.replace_value("url", response.meta["item"].get("link"))
+        r.replace_value("url", response.meta["item"].get("media").get("url"))
         return r
 
     def getId(self, response):
@@ -210,17 +215,19 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     def parse_request(self, response):
         results = json.loads(response.body)
         if results:
-            list = results['data']['findAllMetadata']
-            if len(list) == 0:
-                return
-            for item in list:
-                copyResponse = response.copy()
-                copyResponse.meta["item"] = item
-                if self.hasChanged(copyResponse):
-                    yield self.handleEntry(copyResponse)
-            # ToDo: links to binary files (.jpeg) cause errors while building the BaseItem, we might have to filter
-            #  specific media types / URLs
-            yield self.startRequest(response.meta["page"] + 1)
+            metadata_items: dict = results['data']['findAllMetadata']
+            # if len(metadata_items) == 0:
+            #     return
+            if metadata_items:
+                # lists and dictionaries only become True if they have >0 entries, empty lists are considered False
+                for item in metadata_items:
+                    response_copy = response.copy()
+                    response_copy.meta["item"] = item
+                    if self.hasChanged(response_copy):
+                        yield self.handleEntry(response_copy)
+                # ToDo: links to binary files (.jpeg) cause errors while building the BaseItem, we might have to filter
+                #  specific media types / URLs
+                yield self.startRequest(response.meta["page"] + 1)
 
     def handleEntry(self, response):
         return LomBase.parse(self, response)
@@ -248,10 +255,14 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             "title",
             self.get("title", json=response.meta["item"])
         )
-        general.add_value(
-            "keyword",
-            self.get("keywords", json=response.meta["item"])
-        )
+        if "keywords" in response.meta["item"]:
+            keywords: list = self.get("keywords", json=response.meta["item"])
+            if keywords:
+                # making sure that we're not receiving an empty list
+                for individual_keyword in keywords:
+                    if individual_keyword.strip():
+                        # we're only adding valid keywords, none of the empty (whitespace) strings
+                        general.add_value('keyword', individual_keyword)
         general.add_value(
             "description",
             self.get("description", json=response.meta["item"])
@@ -269,9 +280,10 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             technical.add_value(
                 "location", original
             )
-        technical.add_value(
-            "duration", self.get("media.duration", json=response.meta["item"])
-        )
+        duration: str = self.get("media.duration", json=response.meta["item"])
+        if duration and duration != 0:
+            # the API response contains "null"-values, we're making sure to only add valid duration values to our item
+            technical.add_value("duration", duration)
         technical.add_value(
             "size", self.get("media.size", json=response.meta["item"])
         )
@@ -366,9 +378,19 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
-        subjects = self.get('subject', json=response.meta['item'])
-        for subject in subjects if subjects else []:
-            valuespaces.add_value("discipline", subject['name'])
+        if "subject" in response.meta['item'] is not None:
+            # the "subject"-field does not exist in every item returned by the sodix API
+            subjects = self.get('subject', json=response.meta['item'])
+            if subjects:
+                # the "subject"-key might exist in the API, but still be 'none'
+                for subject in subjects:
+                    # ToDo: there are (currently) 837 unique subjects across all 50.697 Items
+                    #  - these values would be suitable as additional keywords
+                    subject_name = subject['name']
+                    # self.DEBUG_SUBJECTS.add(subject_name)
+                    # print(f"Amount of Subjects: {len(self.DEBUG_SUBJECTS)} // SUBJECT SET: \n {self.DEBUG_SUBJECTS}")
+                    valuespaces.add_value('discipline', subject_name)
+
         educational_context_list = self.get('educationalLevels', json=response.meta['item'])
         if educational_context_list:
             for potential_edu_context in educational_context_list:
@@ -381,7 +403,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 if target_audience_item in self.MAPPING_INTENDED_END_USER_ROLE:
                     target_audience_item = self.MAPPING_INTENDED_END_USER_ROLE.get(target_audience_item)
                 valuespaces.add_value('intendedEndUserRole', target_audience_item)
-        valuespaces.add_value("intendedEndUserRole", self.get('targetAudience', json=response.meta['item']))
 
         if self.get('cost', json=response.meta['item']) == "FREE":
             valuespaces.add_value("price", "no")
