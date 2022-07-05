@@ -17,7 +17,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     url = "https://sodix.de/"
     version = "0.1.6"
     apiUrl = "https://api.sodix.de/gql/graphql"
-    access_token: str = None
     page_size = 2500
 
     MAPPING_LRT = {
@@ -85,14 +84,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     }
 
     def __init__(self, **kwargs):
-        self.access_token = requests.post(
-            "https://api.sodix.de/gql/auth/login",
-            None,
-            {
-                "login": env.get("SODIX_SPIDER_USERNAME"),
-                "password": env.get("SODIX_SPIDER_PASSWORD"),
-            }
-        ).json()['access_token']
         LomBase.__init__(self, **kwargs)
 
     def mapResponse(self, response):
@@ -113,6 +104,14 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         return self.get("media.url", json=response.meta["item"])
 
     def startRequest(self, page=0):
+        access_token = requests.post(
+            "https://api.sodix.de/gql/auth/login",
+            None,
+            {
+                "login": env.get("SODIX_SPIDER_USERNAME"),
+                "password": env.get("SODIX_SPIDER_PASSWORD"),
+            }
+        ).json()['access_token']
         return scrapy.Request(
             url=self.apiUrl,
             callback=self.parse_request,
@@ -200,7 +199,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             headers={
                 "Accept": "application/json",
                 "Content-Type": "application/json",
-                "Authorization": "Bearer " + self.access_token
+                "Authorization": "Bearer " + access_token
             },
             meta={"page": page},
         )
