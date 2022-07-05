@@ -105,7 +105,7 @@ class LomBase:
         main.add_value("valuespaces", self.getValuespaces(response).load_item())
         main.add_value("license", self.getLicense(response).load_item())
         main.add_value("permissions", self.getPermissions(response).load_item())
-        logging.debug(main.load_item())
+        # logging.debug(main.load_item())
         main.add_value("response", self.mapResponse(response).load_item())
         return main.load_item()
 
