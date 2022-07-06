@@ -56,7 +56,8 @@ class LomLifecycleItem(Item):
 class LomTechnicalItem(Item):
     format = Field()
     size = Field()
-    location = Field()
+    location = Field(output_processor=JoinMultivalues())
+    "URI/location of the element, multiple values are supported, the first entry is the primary location, while all others are secondary locations"
     requirement = Field()
     installationRemarks = Field()
     otherPlatformRequirements = Field()
