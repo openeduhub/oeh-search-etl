@@ -1,7 +1,7 @@
 {
     "all_groups": ["Brandenburg-public", "LowerSaxony-public", "Thuringia-public"],
     "blacklist": {
-        "Brandenburg-public": [
+        "all": [
             {
                 "id": "604b7373465ea86af1e973bf",
                 "title": "Apple"
@@ -102,6 +102,9 @@
                 "id": "604b737f465ea86af1e97bee",
                 "title": "WetterKontor GmbH"
             }
+        ],
+        "Brandenburg-public": [
+
         ],
         "LowerSaxony-public": [
 

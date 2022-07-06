@@ -14,13 +14,18 @@ ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWOR
 class Blacklist:
 
     def __init__(self, all_groups: List[str]):
-        self.all_groups = all_groups
+        if 'all' in all_groups:
+            raise RuntimeError('Group cannot be named "all"')
+        self.all_groups = set(all_groups)
         self.permissions = {}
 
     def block_permission(self, group: str, publisher_id: str):
-        if publisher_id not in self.permissions:
-            self.permissions[publisher_id] = set(self.all_groups)
-        self.permissions[publisher_id].remove(group)
+        if group == 'all':
+            self.permissions[publisher_id] = set()
+        else:
+            if publisher_id not in self.permissions:
+                self.permissions[publisher_id] = set(self.all_groups)
+            self.permissions[publisher_id].remove(group)
 
     def get_groups(self, publisher_id: str):
         if publisher_id in self.permissions:
@@ -50,8 +55,13 @@ def create_blacklist_from_json(file_path: str):
     blacklist = Blacklist(all_groups)
 
     for group in permission_file['blacklist']:
-        for publisher in permission_file['blacklist'][group]:
-            blacklist.block_permission(group, publisher['id'])
+        if group == 'all':
+            # handle edge case explicitly
+            for publisher in permission_file['blacklist']['all']:
+                blacklist.block_permission('all', publisher['id'])
+        else:
+            for publisher in permission_file['blacklist'][group]:
+                blacklist.block_permission(group, publisher['id'])
 
     return blacklist
 
@@ -60,6 +70,7 @@ def main():
     environment = util.Environment(ENV_VARS, ask_for_missing=True)
     blacklist = create_blacklist_from_json('blacklist.json')
 
+    print('Edusharing:', environment['EDU_SHARING_BASE_URL'])
     api = edusharing.EdusharingAPI(
         environment['EDU_SHARING_BASE_URL'],
         environment['EDU_SHARING_USERNAME'],
@@ -81,7 +92,7 @@ def main():
         if groups_blacklist is blacklist.all_groups:
             api.set_permissions(dir.id, [], inheritance=True)
         elif groups_blacklist is not None:
-            api.set_permissions(dir.id, groups_blacklist, inheritance=False)
+            api.set_permissions(dir.id, list(groups_blacklist), inheritance=False)
 
         progress_bar.update()
     progress_bar.close()
