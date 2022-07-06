@@ -263,8 +263,10 @@ class EduSharing:
             "ccm:replicationsourcehash": item["hash"],
             "ccm:replicationsourceuuid": uuid,
             "cm:name": item["lom"]["general"]["title"],
-            "ccm:wwwurl": item["lom"]["technical"]["location"] if "location" in item["lom"]["technical"] else None,
-            "cclom:location": item["lom"]["technical"]["location"] if "location" in item["lom"]["technical"] else None,
+            "ccm:wwwurl": item["lom"]["technical"]["location"][0]
+            if "location" in item["lom"]["technical"] else None,
+            "cclom:location": item["lom"]["technical"]["location"]
+            if "location" in item["lom"]["technical"] else None,
             "cclom:format": item["lom"]["technical"]["format"] if "format" in item["lom"]["technical"] else None,
             "cclom:title": item["lom"]["general"]["title"],
         }

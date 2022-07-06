@@ -264,6 +264,11 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         technical.replace_value(
             "location", self.getUri(response)
         )
+        original = self.get("media.originalUrl", json=response.meta["item"])
+        if original:
+            technical.add_value(
+                "location", original
+            )
         technical.add_value(
             "duration", self.get("media.duration", json=response.meta["item"])
         )
