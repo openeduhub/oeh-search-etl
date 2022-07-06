@@ -19,7 +19,12 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         "http://www.zum.de/dwu/umamtg.htm",  # Mathematik-Teilgebiete
         "http://www.zum.de/dwu/umaptg.htm"  # Physik-Teilgebiete
     ]
-    version = "0.0.1"
+    version = "0.0.2"  # last update: 2022-04-21
+    custom_settings = {
+        "AUTOTHROTTLE_ENABLED": True,
+        # "AUTOTHROTTLE_DEBUG": True
+    }
+
     parsed_urls = set()  # holds the already parsed urls to minimize the amount of duplicate requests
     debug_xls_set = set()
     # The author used a HTML suite for building the .htm documents (Hot Potatoes by Half-Baked Software)
@@ -99,7 +104,6 @@ class ZumDwuSpider(CrawlSpider, LomBase):
     def parse(self, response: scrapy.http.Response, **kwargs):
         base = super().getBase(response=response)
         # there are no suitable images to serve as thumbnails, therefore SPLASH will have to do
-        base.add_value('type', Constants.TYPE_MATERIAL)
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
@@ -124,7 +128,8 @@ class ZumDwuSpider(CrawlSpider, LomBase):
             # therefore we need to grab the title from a better suited element.
             # This also means that the "description" is most probably wrong and needs a replacement as well:
             title = response.xpath('//td[@class="tt1math"]/text()').get()
-            title = title.strip()
+            if title is not None:
+                title = title.strip()
             # desc_list = response.xpath('/html/body/table[2]/tr/td/table/tr[1]/td[1]/text()').getall()
             desc_list = response.xpath('//td[@class="t1fbs"]/text()').getall()
             if desc_list is not None and len(desc_list) == 0:
@@ -202,6 +207,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
+        vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
         # since the website holds both mathematics- and physics-related materials, we need to take a look at the last
         # section of the url: .htm filenames that start with
         #   m | hpm | tkm       belong to the discipline mathematics
@@ -213,7 +219,6 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         if url_last_part.startswith("p") or url_last_part.startswith("kwp") or url_last_part.startswith("hpp") \
                 or url_last_part.startswith("vcp"):
             vs.add_value('discipline', "Physics")
-        vs.add_value('learningResourceType', Constants.TYPE_MATERIAL)
         vs.add_value('intendedEndUserRole', ['learner',
                                              'teacher',
                                              'parent',

@@ -73,7 +73,10 @@ class LomBase:
         db = EduSharing().findItem(self.getId(response), self)
         changed = db == None or db[1] != self.getHash(response)
         if not changed:
-            logging.info("Item " + db[0] + " has not changed")
+            logging.info(
+                "Item " + self.getId(response) +
+                "(uuid: " + db[0] + ") has not changed"
+             )
         return changed
 
     # you might override this method if you don't want to import specific entries
@@ -124,7 +127,10 @@ class LomBase:
         return r
 
     def getValuespaces(self, response):
-        return ValuespaceItemLoader(response=response)
+        valuespaces = ValuespaceItemLoader(response=response)
+        # we assume that content is imported. Please use replace_value if you import something different
+        valuespaces.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
+        return valuespaces
 
     def getLOM(self, response) -> LomBaseItemloader:
         lom = LomBaseItemloader(response=response)
@@ -135,7 +141,7 @@ class LomBase:
         else:
             # support yield and generator for multiple values
             for contribute in lifecycle:
-                lom.add_value("lifecycle" ,contribute.load_item())
+                lom.add_value("lifecycle", contribute.load_item())
         lom.add_value("technical", self.getLOMTechnical(response).load_item())
         lom.add_value("educational", self.getLOMEducational(response).load_item())
         lom.add_value("classification", self.getLOMClassification(response).load_item())
@@ -145,8 +151,6 @@ class LomBase:
         base = BaseItemLoader()
         base.add_value("sourceId", self.getId(response))
         base.add_value("hash", self.getHash(response))
-        # we assume that content is imported. Please use replace_value if you import something different
-        base.add_value("type", Constants.TYPE_MATERIAL)
         return base
 
     def getLOMGeneral(self, response=None) -> LomGeneralItemloader:

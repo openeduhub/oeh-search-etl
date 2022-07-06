@@ -37,7 +37,7 @@ class YoutubeSpider(Spider):
     name = "youtube_spider"
     friendlyName = "Youtube"
     url = "https://www.youtube.com/"
-    version = "0.2.0"
+    version = "0.2.1"  # last update: 2022-04-07
 
     @staticmethod
     def get_video_url(item: dict) -> str:
@@ -101,11 +101,12 @@ class YoutubeSpider(Spider):
 
     def request_channel(self, channel_id: str, meta: dict) -> Request:
         part = ["snippet", "contentDetails", "statistics"]
+        # see: https://developers.google.com/youtube/v3/docs/channels
         request_url = (
-            "https://www.googleapis.com/youtube/v3/channels"
-            + "?part={}&id={}&key={}".format(
-                "%2C".join(part), channel_id, env.get("YOUTUBE_API_KEY", False)
-            )
+                "https://www.googleapis.com/youtube/v3/channels"
+                + "?part={}&id={}&key={}".format(
+            "%2C".join(part), channel_id, env.get("YOUTUBE_API_KEY", False)
+        )
         )
         return Request(url=request_url, meta=meta, callback=self.parse_channel)
 
@@ -120,11 +121,12 @@ class YoutubeSpider(Spider):
 
     def request_playlist(self, playlist_id: str, meta: dict) -> Request:
         part = ["snippet"]
+        # see: https://developers.google.com/youtube/v3/docs/playlists
         request_url = (
-            "https://www.googleapis.com/youtube/v3/playlists"
-            + "?part={}&id={}&key={}".format(
-                "%2C".join(part), playlist_id, env.get("YOUTUBE_API_KEY"),
-            )
+                "https://www.googleapis.com/youtube/v3/playlists"
+                + "?part={}&id={}&key={}".format(
+            "%2C".join(part), playlist_id, env.get("YOUTUBE_API_KEY"),
+        )
         )
         return Request(request_url, meta=meta, callback=self.parse_playlist)
 
@@ -137,6 +139,7 @@ class YoutubeSpider(Spider):
 
     def request_playlist_items(self, playlist_id: str, meta: dict) -> Request:
         part = ["snippet"]
+        # see: https://developers.google.com/youtube/v3/docs/playlistItems
         request_url = (
             "https://www.googleapis.com/youtube/v3/playlistItems"
             + "?part={}&playlistId={}&key={}".format(
@@ -160,6 +163,7 @@ class YoutubeSpider(Spider):
 
     def request_videos(self, ids: List[str], meta: dict):
         part = ["snippet", "status", "contentDetails"]
+        # see: https://developers.google.com/youtube/v3/docs/videos
         request_url = (
             "https://www.googleapis.com/youtube/v3/videos"
             + "?part={}&id={}&key={}".format(
@@ -182,7 +186,7 @@ class YoutubeSpider(Spider):
             channel_id = match.group(1)
             return self.request_channel(channel_id, meta=response.meta)
         else:
-            logging.warn("Could not extract channel id for {}".format(response.url))
+            logging.warning("Could not extract channel id for {}".format(response.url))
 
 
 class YoutubeLomLoader(LomBase):
@@ -190,10 +194,10 @@ class YoutubeLomLoader(LomBase):
     #   - `row`: The row of the CSV file containing the channel or playlist to be scraped with some
     #     additional information regarding all found videos.
     #   - `item`: Information about the video, obtained from the Youtube API.
-    #   - `channel`: Information about the Youtube channel, obtained from the Youtuber API. Only
+    #   - `channel`: Information about the YouTube channel, obtained from the YouTube API. Only
     #     populated if an entire channel was given in the CSV row.
-    #   - `playlist`: Information about the Youtube playlist, obtained from the Youtuber API. These
-    #     information are more relevant than the channel information when a specific playlist was
+    #   - `playlist`: Information about the YouTube playlist, obtained from the YouTube API. This
+    #     information is more relevant than the channel information when a specific playlist was
     #     given in the CSV row. However, when an entire channel was requested, we fall back to the
     #     `uploads` playlist, which provides only a generated title.
 
@@ -354,5 +358,19 @@ class YoutubeLomLoader(LomBase):
         valuespaces.add_value(
             "educationalContext", self.parse_csv_field(row[CSVBase.COLUMN_EDUCATIONAL_CONTEXT]),
         )
+        if "fskRating" in response.meta["item"]["contentDetails"]:
+            # the majority of videos doesn't have a fskRating, but if they do, we try to map the YT values to our vocab:
+            fsk_rating_yt: str = response.meta["item"]["contentDetails"]["fskRating"]
+            # see: https://developers.google.com/youtube/v3/docs/videos#contentDetails.contentRating.fskRating
+            # YouTube's "fskRating"-property allows a value ("fskUnrated") which isn't in SkoHub-Vocab (yet)
+            if fsk_rating_yt == "fsk0":
+                valuespaces.add_value("fskRating", "0")
+            if fsk_rating_yt == "fsk6":
+                valuespaces.add_value("fskRating", "6")
+            if fsk_rating_yt == "fsk12":
+                valuespaces.add_value("fskRating", "12")
+            if fsk_rating_yt == "fsk16":
+                valuespaces.add_value("fskRating", "16")
+            if fsk_rating_yt == "fsk18":
+                valuespaces.add_value("fskRating", "18")
         return valuespaces
-

@@ -4,7 +4,10 @@ class Constants:
     LICENSE_CC_BY_SA_40 = "https://creativecommons.org/licenses/by-sa/4.0/"
     LICENSE_CC_BY_30 = "https://creativecommons.org/licenses/by/3.0/"
     LICENSE_CC_BY_40 = "https://creativecommons.org/licenses/by/4.0/"
+    LICENSE_CC_BY_NC_40 = "https://creativecommons.org/licenses/by-nc/4.0/"
+    LICENSE_CC_BY_ND_40 = "https://creativecommons.org/licenses/by-nd/4.0/"
     LICENSE_CC_BY_NC_SA_30 = "https://creativecommons.org/licenses/by-nc-sa/3.0/"
+    LICENSE_CC_BY_NC_SA_40 = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
     LICENSE_CC_BY_NC_ND_30 = "https://creativecommons.org/licenses/by-nc-nd/3.0/"
     LICENSE_CC_BY_NC_ND_40 = "https://creativecommons.org/licenses/by-nc-nd/4.0/"
     LICENSE_PDM = "https://creativecommons.org/publicdomain/mark/1.0/"
@@ -40,10 +43,8 @@ class Constants:
     LICENSE_CUSTOM = "CUSTOM" # Custom License, use the license description field for arbitrary values
     LICENSE_NONPUBLIC = "NONPUBLIC"
 
-    TYPE_MATERIAL = "MATERIAL"
-    TYPE_TOOL = "TOOL"
-    TYPE_SOURCE = "SOURCE"
-    TYPE_LESSONPLANNING = "LESSONPLANNING"
+    NEW_LRT_MATERIAL = "http://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb"
+    NEW_LRT_TOOL = "http://w3id.org/openeduhub/vocabs/new_lrt/cefccf75-cba3-427d-9a0f-35b4fedcbba1"
 
     SOURCE_TYPE_SPIDER = 1
     SOURCE_TYPE_EDITORIAL = 2

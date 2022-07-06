@@ -48,9 +48,11 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - permissions        required    (see: PermissionItemLoader below)
         #  - license            required    (see: LicenseItemLoader below)
         #  - lastModified       recommended
-        #  - type               recommended
+        #  - origin             optional    (only necessary if items need to be sorted into a specific sub-folder)
         #  - thumbnail          recommended
         #  - publisher          optional
+        #  - binary             optional    (only needed if you're working with binary files (e.g. .pdf-files),
+        #                                   if you want to see an example, check out "niedersachsen_abi_spider.py")
         base.add_value('sourceId', response.url)
         # if the source doesn't have a "datePublished" or "lastModified"-value in its header or JSON_LD,
         # you might have to help yourself with a unique string consisting of the datetime of the crawl + self.version
@@ -58,10 +60,12 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         base.add_value('hash', hash_temp)
         last_modified = None
         base.add_value('lastModified', last_modified)
-        # sometimes you might get a "type"-value from the JSON_LD. If it's not supplied by the website you're crawling,
-        # you might need to use a constant:
-        base.add_value('type', Constants.TYPE_MATERIAL)
         thumbnail_url: str = "This string should hold the thumbnail URL"
+        base.add_value('origin', 'premium_only')  # the OPTIONAL value for "origin" controls the subfolder-name
+        # in the edu-sharing repository (e.g. if you need to make a distinction between learning objects that are free
+        # to access or premium_only). in this example, items that have the "premium_only"-value will be sent to the
+        # "SYNC_OBJ/<crawler_name>/premium_only/"-folder.
+        # (This field is used in two different use-cases, both in "youtube_spider" and "lehreronline_spider")
         base.add_value('thumbnail', thumbnail_url)
 
         lom = LomBaseItemloader()
@@ -78,7 +82,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - title                          required
         #  - keyword                        required
         #  - description                    required
-        #  - language                       recommended
+        #  - language                       recommended (edu-sharing expects underscores in language-codes, e.g. 'en-US'
+        #                                               needs to be replaced by 'en_US')
         #  - coverage                       optional
         #  - structure                      optional
         #  - aggregationLevel               optional
@@ -156,6 +161,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl)
         #  - learningResourceType           recommended
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/learningResourceType.ttl)
+        #  - new_lrt                        recommended
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/new_lrt.ttl)
         #  - conditionsOfAccess             recommended
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/conditionsOfAccess.ttl)
         #  - containsAdvertisement          recommended
@@ -176,6 +183,7 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/fskRating.ttl)
         #  - oer                            optional
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/oer.ttl)
+        vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
         base.add_value('valuespaces', vs.load_item())
 
         lic = LicenseItemLoader()

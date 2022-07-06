@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import urllib.parse
 from pathlib import Path
 from urllib import parse
 
@@ -9,7 +10,6 @@ import jmespath
 import requests
 import scrapy
 
-from converter.constants import Constants
 from converter.items import BaseItemLoader, LomGeneralItemloader, LomTechnicalItemLoader, LicenseItemLoader
 from converter.spiders.base_classes.meta_base import SpiderBase
 from .lom_base import LomBase
@@ -155,7 +155,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
 
         yield self.query_for_pages()
 
-    def query_for_pages(self, continue_token: dict[str,str] = None):
+    def query_for_pages(self, continue_token: dict[str, str] = None):
         params = self._query_params
         if continue_token is None:
             continue_token = {}
@@ -240,7 +240,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
         loader.replace_value('format', 'text/html')
         data = response.meta['item']
         title = jmes_title.search(data)
-        loader.replace_value('location', f'{self.url}wiki/{title}')
+        loader.replace_value('location', f'{self.url}wiki/{urllib.parse.quote(title)}')
         return loader
 
     def getValuespaces(self, response):
@@ -251,6 +251,5 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
             loader.add_value("discipline", categories)
             loader.add_value("educationalContext", categories)
             loader.add_value("intendedEndUserRole", categories)
+        loader.add_value("new_lrt", "6b9748e4-fb3b-4082-ae08-c7a11c717256")  # "Wiki (dynamisch)"
         return loader
-
-

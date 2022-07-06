@@ -130,7 +130,6 @@ class LernprogrammeLomLoader(LomBase):
     @overrides  # LomBase
     def getBase(self, response: Response) -> items.BaseItemLoader:
         base = LomBase.getBase(self, response)
-        base.replace_value("type", self.static_values["type"])
         if response.meta["row"]["thumbnail"] is not None:
             base.add_value("thumbnail", response.meta["row"]["thumbnail"])
         return base
@@ -172,6 +171,7 @@ class LernprogrammeLomLoader(LomBase):
     def getValuespaces(self, response: Response) -> items.ValuespaceItemLoader:
         valuespaces = LomBase.getValuespaces(self, response)
         skos = self.static_values["skos"]
+        valuespaces.replace_value("new_lrt", skos["new_lrt"])
         valuespaces.add_value(
             "learningResourceType",
             skos["learningResourceType"],

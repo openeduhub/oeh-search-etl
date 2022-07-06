@@ -7,7 +7,7 @@ from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
+    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
 from converter.spiders.base_classes import LomBase
 from converter.util.sitemap import from_xml_response
 from converter.web_tools import WebEngine, WebTools
@@ -16,11 +16,16 @@ from converter.web_tools import WebEngine, WebTools
 class KMapSpider(CrawlSpider, LomBase):
     name = "kmap_spider"
     friendlyName = "KMap.eu"
-    version = "0.0.5"   # last update: 2021-10-04
+    version = "0.0.6"   # last update: 2022-05-20
     sitemap_urls = [
         "https://kmap.eu/server/sitemap/Mathematik",
         "https://kmap.eu/server/sitemap/Physik"
     ]
+    custom_settings = {
+        "ROBOTSTXT_OBEY": False,
+        "AUTOTHROTTLE_ENABLED": True,
+        # "AUTOTHROTTLE_DEBUG": True
+    }
     allowed_domains = ['kmap.eu']
     # keep the console clean from spammy DEBUG-level logging messages, adjust as needed:
     logging.getLogger('websockets.server').setLevel(logging.ERROR)
@@ -58,8 +63,8 @@ class KMapSpider(CrawlSpider, LomBase):
         @returns item 1
         """
         last_modified = kwargs.get("lastModified")
-        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Pyppeteer)
-        splash_html_string = url_data_splash_dict.get('html')
+        url_data_web_tools_dict = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
+        splash_html_string = url_data_web_tools_dict.get('html')
         json_ld_string: str = Selector(text=splash_html_string).xpath('//*[@id="ld"]/text()').get()
         json_ld: dict = json.loads(json_ld_string)
         # TODO: skip item method - (skips item if it's an empty knowledge map)
@@ -70,7 +75,6 @@ class KMapSpider(CrawlSpider, LomBase):
         hash_temp += self.version
         base.add_value('hash', hash_temp)
         base.add_value('lastModified', last_modified)
-        base.add_value('type', Constants.TYPE_MATERIAL)
         # Thumbnails have their own url path, which can be found in the json+ld:
         #   "thumbnailUrl": "/snappy/Physik/Grundlagen/Potenzschreibweise"
         # e.g. for the item https://kmap.eu/app/browser/Physik/Grundlagen/Potenzschreibweise
@@ -110,9 +114,10 @@ class KMapSpider(CrawlSpider, LomBase):
         base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
+        vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
         vs.add_value('discipline', json_ld.get("mainEntity").get("about"))
         vs.add_value('intendedEndUserRole', json_ld.get("mainEntity").get("audience"))
-        vs.add_value('learningResourceType', json_ld.get("mainEntity").get("learningResourceType"))
+        vs.add_value('new_lrt', json_ld.get("mainEntity").get("learningResourceType"))
         vs.add_value('price', 'no')
         vs.add_value('conditionsOfAccess', 'login required for additional features')
         base.add_value('valuespaces', vs.load_item())
@@ -126,5 +131,8 @@ class KMapSpider(CrawlSpider, LomBase):
         base.add_value("permissions", permissions.load_item())
 
         base.add_value('response', super().mapResponse(response).load_item())
-
+        # KMap doesn't deliver fulltext to neither splash nor playwright, the fulltext object will be showing up as
+        #   'text': 'JavaScript wird benötigt!\n\n',
+        # in the final "scrapy.Item". As long as KMap doesn't change the way it's delivering its JavaScript content,
+        # our crawler won't be able to work around this limitation.
         return base.load_item()

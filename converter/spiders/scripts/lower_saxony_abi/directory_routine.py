@@ -1,5 +1,7 @@
+import glob
 import logging
 import os
+import pathlib
 import pprint
 import zipfile
 from dataclasses import dataclass
@@ -235,12 +237,11 @@ class DirectoryScanner:
         dict() = { filename : directory }
         """
         directory_to_scan = target_directory
-        pdf_list = set()
         pdf_dictionary_temp = dict()
-        for folder_name, sub_folders, filenames in os.walk(directory_to_scan):
-            for _ in sub_folders:
-                for filename in filenames:
-                    if filename.endswith('.pdf') and filename not in pdf_list:
-                        pdf_list.add(filename)
-                        pdf_dictionary_temp.update({filename: folder_name})
+        pdf_iterator = glob.iglob(f"{directory_to_scan}/**/*.pdf", recursive=True)
+        for pdf_item in pdf_iterator:
+            pdf_pure_path = pathlib.PurePath(pdf_item)
+            pdf_name = pdf_pure_path.name
+            pdf_directory = str(pdf_pure_path.parent)
+            pdf_dictionary_temp.update({pdf_name: pdf_directory})
         return pdf_dictionary_temp

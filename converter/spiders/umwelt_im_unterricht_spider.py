@@ -1,3 +1,4 @@
+import datetime
 import re
 
 import scrapy
@@ -32,12 +33,16 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         "https://www.umwelt-im-unterricht.de/suche/?tx_solr%5Bfilter%5D%5B0%5D=type%3Amaterials_images",
         # Typ: Bilderserie
     ]
-    version = "0.0.2"  # last update: 2021-10-08
+    version = "0.0.4"  # last update: 2022-04-26
     topic_urls = set()  # urls that need to be parsed will be added here
     topic_urls_parsed = set()  # this set is used for 'checking off' already parsed (individual) topic urls
     overview_urls_already_parsed = set()  # this set is used for 'checking off' already parsed overview_pages
 
     EDUCATIONAL_CONTEXT_MAPPING: dict = {
+        'Grundschule': "Primarstufe",
+        # ToDo: find out why the pipeline doesn't map altLabels by itself
+        # while "Grundschule" is the altLabel for "Primarstufe" in our educationalContext Vocab,
+        # the valuespaces converter / pipeline only seems to map to 'prefLabel' entries?
         'Sekundarstufe': ['Sekundarstufe I', 'Sekundarstufe II']
     }
     DISCIPLINE_MAPPING: dict = {
@@ -95,7 +100,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
             self.overview_urls_already_parsed.update(overview_urls_parsed)  # checking off the (10) URLs that we yielded
 
         parsed_urls: set = set()    # temporary set used for checking off already visited topics
-        for url in self.topic_urls:
+        for url in self.topic_urls.copy():
             if url not in self.topic_urls_parsed:
                 # making sure that we don't accidentally crawl individual pages more than once
                 yield scrapy.Request(url=url, callback=self.parse)
@@ -116,10 +121,13 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         base.add_value('sourceId', response.url)
         date_raw: str = response.xpath('//div[@class="b-cpsuiu-show-info"]/span/text()').get()
         date_cleaned_up: str = w3lib.html.strip_html5_whitespace(date_raw)
+        if date_cleaned_up is not None:
+            # converting the german date format "DD.MM.YYYY" to YYYY-MM-DD
+            date_iso = datetime.datetime.strptime(date_cleaned_up, "%d.%m.%Y")
+            date_cleaned_up = date_iso.isoformat()
         hash_temp = str(date_cleaned_up + self.version)
         base.add_value('hash', hash_temp)
         base.add_value('lastModified', date_cleaned_up)
-        base.add_value('type', Constants.TYPE_MATERIAL)
         # base.add_value('thumbnail', thumbnail_url)
 
         lom = LomBaseItemloader()
@@ -146,7 +154,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         lifecycle = LomLifecycleItemloader()
         lifecycle.add_value('role', 'publisher')
         lifecycle.add_value('date', date_cleaned_up)
-        lifecycle.add_value('url', "https://www.umwelt-im-unterricht.de/impressum/")
+        lifecycle.add_value('url', "https://www.umwelt-im-unterricht.de/")
         lifecycle.add_value('organization', 'Bundesministerium für Umwelt, Naturschutz und nukleare Sicherheit (BMU)')
         lom.add_value('lifecycle', lifecycle.load_item())
 
@@ -193,21 +201,36 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
 
         vs = ValuespaceItemLoader()
 
+        vs.add_value('new_lrt', "d8c3ef03-b3ab-4a5e-bcc9-5a546fefa2e9")
+        # 'Webseite und Portal (stabil)'
         # depending on the website-category, we need to set a specific learningResourceType
-        # because the value 'website' for all crawled items would not be helpful enough
+        # because just the value 'website' for all crawled items would not be helpful enough
         if "/wochenthemen/" in current_url or "/unterrichtsvorschlaege/" in current_url:
-            vs.add_value('learningResourceType', 'lesson plan')
+            # vs.add_value('learningResourceType', 'lesson plan') # ToDo
+            vs.add_value('new_lrt', '7381f17f-50a6-4ce1-b3a0-9d85a482eec0')  # Unterrichtsplanung
         if "/hintergrund/" in current_url:
-            vs.add_value('learningResourceType', 'Text')
+            # vs.add_value('learningResourceType', 'Text')    # ToDo
+            vs.add_value('new_lrt', ['b98c0c8c-5696-4537-82fa-dded7236081e', '7381f17f-50a6-4ce1-b3a0-9d85a482eec0'])
+            # "Artikel und Einzelpublikation" , "Unterrichtsplanung"
         if "/medien/dateien/" in current_url:
-            # topics categorized as "Arbeitsmaterial" offer customizable worksheets to teachers
-            vs.add_value('learningResourceType', 'worksheet')
+            # topics categorized as "Arbeitsmaterial" offer customizable worksheets to teachers, most of the time
+            # consisting of both an "Unterrichtsvorschlag" and a worksheet
+            # vs.add_value('learningResourceType', 'worksheet')   # ToDo
+            vs.add_value('new_lrt', ['36e68792-6159-481d-a97b-2c00901f4f78', '7381f17f-50a6-4ce1-b3a0-9d85a482eec0'])
+            # "Arbeitsblatt", "Unterrichtsplanung"
         if "/medien/videos/" in current_url:
-            vs.add_value('learningResourceType', 'video')
+            # each video is served together with one or several "Unterrichtsvorschlag"-documents
+            # vs.add_value('learningResourceType', 'video')   # ToDo
+            vs.add_value('new_lrt', ['7a6e9608-2554-4981-95dc-47ab9ba924de', '7381f17f-50a6-4ce1-b3a0-9d85a482eec0'])
+            # "Video (Material)" ,"Unterrichtsplanung"
         if "/medien/bilder/" in current_url:
-            # topics categorized as "Bilderserie" hold several images in a gallery (with individual licenses)
-            vs.add_value('learningResourceType', 'image')
-
+            # topics categorized as "Bilderserie" hold several images in a gallery (with individual licenses),
+            # they also come with one or several "Unterrichtsvorschlag"-documents that are linked to further below
+            # vs.add_value('learningResourceType', 'image')   # ToDo
+            vs.add_value('new_lrt', ["a6d1ac52-c557-4151-bc6f-0d99b0b96fb9", "7381f17f-50a6-4ce1-b3a0-9d85a482eec0"])
+            # "Bild (Material)" , "Unterrichtsplanung"
+        # ToDo: once new_lrt goes live:
+        #  - remove the old learningResourceType with the next crawler update
         vs.add_value('price', 'no')
         vs.add_value('containsAdvertisement', 'no')
         vs.add_value('conditionsOfAccess', 'no login')
@@ -237,17 +260,18 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         educational_context_raw = response.xpath('//div[@class="b-cpsuiu-show-targets"]/ul/li/a/text()').getall()
         if len(educational_context_raw) >= 1:
             # the educationalContext-mapping is only done when there's at least one educational_context found
-            educational_context = list()
+            educational_context = set()
             for educational_context_value in educational_context_raw:
                 # self.debug_educational_context_values.add(educational_context_value)
                 if educational_context_value in self.EDUCATIONAL_CONTEXT_MAPPING.keys():
                     educational_context_value = self.EDUCATIONAL_CONTEXT_MAPPING.get(educational_context_value)
                 if type(educational_context_value) is list:
-                    educational_context.extend(educational_context_value)
-                else:
-                    educational_context.append(educational_context_value)
+                    for educational_context_list_item in educational_context_value:
+                        educational_context.add(educational_context_list_item)
+                if type(educational_context_value) is str:
+                    educational_context.add(educational_context_value)
             if len(educational_context) >= 1:
-                vs.add_value('educationalContext', educational_context)
+                vs.add_value('educationalContext', list(educational_context))
 
         base.add_value('valuespaces', vs.load_item())
 
@@ -257,7 +281,15 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
             if license_url.startswith("http://"):
                 # the license-mapper expects urls that are in https:// format, but UIU uses http:// links to CC-licenses
                 license_url = license_url.replace("http://", "https://")
-            lic.add_value('url', license_url)
+            lic.replace_value('url', license_url)
+        else:
+            lic.add_value('url', Constants.LICENSE_CC_BY_SA_40)
+            # since there are a lot of articles with missing license-information (especially "Thema der Woche",
+            # "Bilderserien" and other mixed forms of articles), we're setting the default license to CC-BY-SA 4.0
+            # EMail-Confirmation from Umwelt-im-Unterricht (2022-04-26):
+            # this license is covering the texts that were produced by UIU! (teasers, intro-texts, summaries)
+            # individual pictures from "Bilderserie"-type of topics still carry their own respective licenses (which we
+            # currently don't crawl individually)
 
         license_description_raw: str = response.xpath('//div[@class="cc-licence-info"]').get()
         if license_description_raw is not None:

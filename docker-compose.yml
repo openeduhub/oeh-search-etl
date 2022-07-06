@@ -1,5 +1,8 @@
 version: "3.4"
 
+networks:
+  scrapy:
+
 services:
   splash:
     image: scrapinghub/splash:master
@@ -7,6 +10,8 @@ services:
     restart: always
     ports:
       - "127.0.0.1:8050:8050"
+    networks:
+      - scrapy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8050/_ping"]
       interval: 30s
@@ -16,20 +21,30 @@ services:
   headless_chrome:
     image: browserless/chrome
     restart: always
+    environment:
+      - "DEFAULT_LAUNCH_ARGS:[\"--disable-dev-shm-usage\"]"
     ports:
       - "127.0.0.1:3000:3000"
+    networks:
+      - scrapy
   scrapy:
     # extra_hosts is only required if your need to access an edu-sharing instance on the host that runs docker
     # host.docker.internal points to the ip address of the host docker network interface 
     extra_hosts:
       host.docker.internal: host-gateway
     image: openeduhub/oeh-search-etl:develop
+    build:
+      context: .
+      network: host
+    networks:
+      - scrapy
     environment:
+      - "PYPPETEER_WS_ENDPOINT=ws://headless_chrome:3000"
+      - "PLAYWRIGHT_WS_ENDPOINT=ws://headless_chrome:3000"
       - "SPLASH_URL=http://splash:8050"
-      - "CRAWLER=wirlernenonline_spider"
+      - "CRAWLER=${CRAWLER}"
       - "DRY_RUN=False"
-      - "EDU_SHARING_BASE_URL=http://host.docker.internal/edu-sharing/"
-      - "EDU_SHARING_USERNAME=admin"
-      - "EDU_SHARING_PASSWORD=admin"
-
-      
+      - "LOG_LEVEL=${LOG_LEVEL:-INFO}"
+      - "EDU_SHARING_BASE_URL=${EDU_SHARING_BASE_URL}"
+      - "EDU_SHARING_USERNAME=${EDU_SHARING_USERNAME}"
+      - "EDU_SHARING_PASSWORD=${EDU_SHARING_PASSWORD}"

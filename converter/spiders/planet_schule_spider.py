@@ -19,7 +19,7 @@ class PlanetSchuleSpider(RSSBase):
     start_urls = [
         "https://www.planet-schule.de/data/planet-schule-vodcast-komplett.rss"
     ]
-    version = "0.1.2"
+    version = "0.1.3"   # last update: 2022-02-16
     # Planet Schule allows us to crawl their site, therefore ignore the robots.txt directions, but don't hammer the
     # site while debugging
     custom_settings = {
@@ -99,11 +99,17 @@ class PlanetSchuleSpider(RSSBase):
             '//div[@class="sen_info_v2"]//p[contains(text(),"Fächer")]/parent::*/parent::*/div[last()]/p/a//text()'
         ).getall()
         valuespaces.add_value("discipline", discipline)
-        lrt = ValuespaceHelper.mimetypeToLearningResourceType(
-            response.meta["item"].xpath("enclosure/@type").get()
-        )
-        if lrt:
-            valuespaces.add_value("learningResourceType", lrt)
+
+        # # ToDo: remove old learningResourceType after crawler version 0.1.4
+        # # since the old learningResourceType is getting phased out -> it is replaced by new_lrt
+        # lrt = ValuespaceHelper.mimetypeToLearningResourceType(
+        #     response.meta["item"].xpath("enclosure/@type").get()
+        # )
+        # if lrt:
+        #     valuespaces.add_value("learningResourceType", lrt)
+
+        valuespaces.add_value('new_lrt', "3616febb-8cf8-4503-8f80-ebc552d85506")
+        # "TV-Sendung und Video-Podcast"
         return valuespaces
 
     @staticmethod
