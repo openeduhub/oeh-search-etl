@@ -54,8 +54,14 @@ def main():
                 files = {
                     'file': (f'{filename}', open(f'h5p_files/{filename}', 'rb'), 'application/zip', {'Expires': '0'})
                 }
-                upload_url = f'{base_url}rest/node/v1/nodes/-home-/{file_nodeId}/content?versionComment=MAIN_FILE_UPLOAD&mimetype='
-                upload_response = session.request('POST', upload_url, files=files, stream=True)
+                url_upload = f'{base_url}rest/node/v1/nodes/-home-/{file_nodeId}/content?versionComment=MAIN_FILE_UPLOAD&mimetype='
+                response_upload = session.request('POST', url_upload, files=files, stream=True)
+
+                # set "cm:edu_metadataset" to "default", because otherwise edusharing crashes with 'can't read metadataset' error
+                # ToDo: Is this the right way? First, it prevents for crashing edusharing, but perhaps we need to set it to 'mds_oeh' for adding more Metadata
+                url_change_value = f'{base_url}rest/node/v1/nodes/-home-/{file_nodeId}/metadata?versionComment=update_metadata'
+                payload_change_value = {"cm:edu_metadataset": ["default"]} # here you can add additional prop/values like keywords
+                response_change_value = session.request('POST', url_change_value, headers=headers, json=payload_change_value)
 
                 print(f'Upload complete for: ' + filename)
 
