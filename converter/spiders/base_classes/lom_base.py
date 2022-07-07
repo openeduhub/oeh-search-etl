@@ -74,7 +74,7 @@ class LomBase:
         changed = db == None or db[1] != self.getHash(response)
         if not changed:
             logging.info(
-                "Item " + self.getId(response) +
+                "Item " + str(self.getId(response)) +
                 "(uuid: " + db[0] + ") has not changed"
              )
         return changed
