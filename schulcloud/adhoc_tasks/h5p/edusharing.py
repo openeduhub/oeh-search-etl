@@ -52,10 +52,10 @@ class EdusharingAPI:
         self.session.auth = requests.auth.HTTPBasicAuth(self.username, self.password)
 
     def make_request(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str,
-                     params: Optional[Dict[str, str]] = None, json_data: Optional[Dict] = None):
+                     params: Optional[Dict[str, str]] = None, json_data: Optional[Dict] = None, files: Optional[Dict] = None, stream: bool = False):
         url = f'{self.base_url}{url}'
         headers = {'Accept': 'application/json'}
-        return self.session.request(method, url, params=params, headers=headers, json=json_data)
+        return self.session.request(method, url, params=params, headers=headers, json=json_data, files=files, stream=stream)
 
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024**2):
         url = f'/iam/v1/people/-home-/{username}?password={password}'
