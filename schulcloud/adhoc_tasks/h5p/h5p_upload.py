@@ -1,3 +1,5 @@
+from typing import List
+
 import edusharing
 import requests.auth
 import requests
@@ -17,14 +19,18 @@ def main():
     session = requests.Session()
     session.auth = requests.auth.HTTPBasicAuth(username, password)
 
+    # groups with permission
+    groups = ["Brandenburg-public", "Thuringia-public"]
+
     # get SYNC_OBJ Folder ID
-    url_sync_obj = f'{base_url}rest/search/v1/custom/-home-?contentType=FOLDERS&combineMode=AND&property=name&value=SYNC_OBJ&maxItems=100&skipCount=0'
+    url_sync_obj = f'{base_url}rest/search/v1/custom/-home-?contentType=FOLDERS&combineMode=AND&property=name&value=H5PMain7&maxItems=100&skipCount=0'
     response_sync_obj = session.request('GET', url_sync_obj, headers=headers)
     sync_obj_nodeId = response_sync_obj.json()['nodes'][0]['ref']['id']
 
     # create new h5p folder in SYNC_OBJ, if not exist. Otherwise get the nodeId of the folder.
     url_new_folder = f'{base_url}rest/node/v1/nodes/-home-/{sync_obj_nodeId}/children?type=cm%3Afolder&renameIfExists=false'
-    payload_new_folder = {"cm:name": ["h5p-elements"], "cm:edu_metadataset": ["mds"], "cm:edu_forcemetadataset": ["true"]}
+    payload_new_folder = {"cm:name": ["h5p-elements"], "cm:edu_metadataset": ["mds"],
+                          "cm:edu_forcemetadataset": ["true"]}
     response_new_folder = session.request('POST', url_new_folder, headers=headers, json=payload_new_folder)
     if not response_new_folder.status_code == 200:
         url_h5p = f'{base_url}rest/search/v1/custom/-home-?contentType=FOLDERS&combineMode=AND&property=name&value=h5p-elements&maxItems=100&skipCount=0'
@@ -60,10 +66,50 @@ def main():
                 # set "cm:edu_metadataset" to "default", because otherwise edusharing crashes with 'can't read metadataset' error
                 # ToDo: Is this the right way? First, it prevents for crashing edusharing, but perhaps we need to set it to 'mds_oeh' for adding more Metadata
                 url_change_value = f'{base_url}rest/node/v1/nodes/-home-/{file_nodeId}/metadata?versionComment=update_metadata'
-                payload_change_value = {"cm:edu_metadataset": ["default"]} # here you can add additional prop/values like keywords
-                response_change_value = session.request('POST', url_change_value, headers=headers, json=payload_change_value)
+                payload_change_value = {
+                    "cm:edu_metadataset": ["default"]}  # here you can add additional prop/values like keywords
+                response_change_value = session.request('POST', url_change_value, headers=headers,
+                                                        json=payload_change_value)
 
                 print(f'Upload complete for: ' + filename)
+
+    # permissions
+    modify_permissions(folder_nodeID, groups, base_url, session, headers)
+
+
+def modify_permissions(node_id, groups: List[str], base_url, session, headers):
+    set_permissions(node_id, groups, base_url,  session, headers)
+    print("Set permissions for: " + str(groups))
+
+
+def set_permissions(node_id, groups: List[str], base_url,  session, headers):
+    # data = json.loads(data)
+    url = f'{base_url}/rest/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
+    data_json = craft_permission_body(groups)
+    session.request('POST', url, json=data_json, headers=headers)
+
+
+def craft_permission_body(groups: List[str]):
+    permissions = []
+    for group in groups:
+        permission = {
+            'editable': True,
+            'authority': {
+                'authorityName': f'GROUP_{group}',
+                'authorityType': 'GROUP'
+            },
+            'group': {
+                'displayName': group
+            },
+            'permissions': ['Consumer']
+        }
+
+        permissions.append(permission)
+
+    return {
+        'inherited': 'false',
+        'permissions': permissions
+    }
 
 
 if __name__ == '__main__':
