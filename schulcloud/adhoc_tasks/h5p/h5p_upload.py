@@ -1,67 +1,83 @@
 import edusharing
-import requests.auth
-import requests
+import util
 import os
-import converter.env as env
+from datetime import datetime
 
 ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
 
 
 def main():
-    # ToDO: Authentification with edusharing.py
-    # Authentification
-    username = env.get('EDU_SHARING_USERNAME')
-    password = env.get('EDU_SHARING_PASSWORD')
-    base_url = env.get('EDU_SHARING_BASE_URL')
-    headers = {'Accept': 'application/json'}
-    session = requests.Session()
-    session.auth = requests.auth.HTTPBasicAuth(username, password)
+    environment = util.Environment(ENV_VARS, ask_for_missing=True)
+
+    api = edusharing.EdusharingAPI(
+        environment['EDU_SHARING_BASE_URL'],
+        environment['EDU_SHARING_USERNAME'],
+        environment['EDU_SHARING_PASSWORD'])
 
     # get SYNC_OBJ Folder ID
-    url_sync_obj = f'{base_url}rest/search/v1/custom/-home-?contentType=FOLDERS&combineMode=AND&property=name&value=SYNC_OBJ&maxItems=100&skipCount=0'
-    response_sync_obj = session.request('GET', url_sync_obj, headers=headers)
-    sync_obj_nodeId = response_sync_obj.json()['nodes'][0]['ref']['id']
+    url_sync_obj = f'/search/v1/custom/-home-?contentType=FOLDERS&combineMode=AND&' \
+                   f'property=name&value=SYNC_OBJ&maxItems=100&skipCount=0'
+    response_sync_obj = api.make_request('GET', url_sync_obj)
+    sync_obj_node_id = response_sync_obj.json()['nodes'][0]['ref']['id']
 
-    # create new h5p folder in SYNC_OBJ, if not exist. Otherwise get the nodeId of the folder.
-    url_new_folder = f'{base_url}rest/node/v1/nodes/-home-/{sync_obj_nodeId}/children?type=cm%3Afolder&renameIfExists=false'
-    payload_new_folder = {"cm:name": ["h5p-elements"], "cm:edu_metadataset": ["mds"], "cm:edu_forcemetadataset": ["true"]}
-    response_new_folder = session.request('POST', url_new_folder, headers=headers, json=payload_new_folder)
+    # create new h5p folder in SYNC_OBJ, if not exist. Otherwise, get the nodeId of the folder.
+    url_new_folder = f'/node/v1/nodes/-home-/{sync_obj_node_id}/children?type=cm%3Afolder&renameIfExists=false'
+    payload_new_folder = {
+        "cm:name": ["h5p-elements"],
+        "cm:edu_metadataset": ["mds"],
+        "cm:edu_forcemetadataset": ["true"]
+    }
+    response_new_folder = api.make_request('POST', url_new_folder, json_data=payload_new_folder)
+
     if not response_new_folder.status_code == 200:
-        url_h5p = f'{base_url}rest/search/v1/custom/-home-?contentType=FOLDERS&combineMode=AND&property=name&value=h5p-elements&maxItems=100&skipCount=0'
-        response_h5p = session.request('GET', url_h5p, headers=headers)
-        folder_nodeID = response_h5p.json()['nodes'][0]['ref']['id']
+        url_h5p = f'/search/v1/custom/-home-?contentType=FOLDERS&combineMode=' \
+                  f'AND&property=name&value=h5p-elements&maxItems=10&skipCount=0'
+        response_h5p = api.make_request('GET', url_h5p)
+        folder_node_id = response_h5p.json()['nodes'][0]['ref']['id']
     else:
-        folder_nodeID = response_new_folder.json()['node']['ref']['id']
+        folder_node_id = response_new_folder.json()['node']['ref']['id']
 
     # extract all h5p files from directory and upload to folder 'h5p-elements'. Upload only, if the file doesn't exist.
     for root, dirs, files in os.walk(r'h5p_files'):
         for filename in files:
-            # check, if the file exists already
-            url_search_file = f'http://localhost/edu-sharing/rest/search/v1/custom/-home-?contentType=FILES&combineMode=AND&property=name&value={filename}&maxItems=10&skipCount=0'
-            response_search_file = session.request('GET', url_search_file, headers=headers)
+            # check, if the file already exists
+            url_search_file = f'/search/v1/custom/-home-?contentType=FILES&combineMode=AND' \
+                              f'&property=name&value={filename}&maxItems=10&skipCount=0'
+            response_search_file = api.make_request('GET', url_search_file)
+
             if response_search_file.json()['pagination']['count'] > 0:
                 print(f'File {filename} already exists.')
             else:
                 # create basic file
-                url_base_file = f'{base_url}rest/node/v1/nodes/-home-/{folder_nodeID}/children/?type=ccm%3Aio&renameIfExists=true&assocType=&versionComment=&'
+                url_base_file = f'/node/v1/nodes/-home-/{folder_node_id}/children/?type=ccm%3Aio&renameIfExists=true' \
+                                f'&assocType=&versionComment=&'
                 payload_base_file = {"cm:name": [filename]}
-                response_base_file = session.request('POST', url_base_file, headers=headers, json=payload_base_file)
+                response_base_file = api.make_request('POST', url_base_file, json_data=payload_base_file)
 
                 # get nodeId of the new created file
-                file_nodeId = response_base_file.json()['node']['ref']['id']
+                file_node_id = response_base_file.json()['node']['ref']['id']
 
                 # upload the file content
                 files = {
                     'file': (f'{filename}', open(f'h5p_files/{filename}', 'rb'), 'application/zip', {'Expires': '0'})
                 }
-                url_upload = f'{base_url}rest/node/v1/nodes/-home-/{file_nodeId}/content?versionComment=MAIN_FILE_UPLOAD&mimetype='
-                response_upload = session.request('POST', url_upload, files=files, stream=True)
+                url_upload = f'/node/v1/nodes/-home-/{file_node_id}/content?versionComment=MAIN_FILE_UPLOAD&mimetype='
+                api.make_request('POST', url_upload, files=files, stream=True)
 
-                # set "cm:edu_metadataset" to "default", because otherwise edusharing crashes with 'can't read metadataset' error
-                # ToDo: Is this the right way? First, it prevents for crashing edusharing, but perhaps we need to set it to 'mds_oeh' for adding more Metadata
-                url_change_value = f'{base_url}rest/node/v1/nodes/-home-/{file_nodeId}/metadata?versionComment=update_metadata'
-                payload_change_value = {"cm:edu_metadataset": ["default"]} # here you can add additional prop/values like keywords
-                response_change_value = session.request('POST', url_change_value, headers=headers, json=payload_change_value)
+                # set "cm:edu_metadataset" to "default", because otherwise edusharing crashes
+                # with 'can't read metadataset' error
+                # ToDo: First, it prevents for crashing edusharing,
+                #  but perhaps we need to set it to 'mds_oeh' for adding more Metadata
+                index = filename.rfind(".")
+                name = filename[:index]
+                date = str(datetime.now())
+
+                url_change_value = f'/node/v1/nodes/-home-/{file_node_id}/metadata?versionComment=update_metadata'
+                payload_change_value = {"cm:edu_metadataset": ["default"],
+                                        "ccm:replicationsourcehash": [date],
+                                        "cclom:general_keyword": ["h5p", name]
+                                        }
+                api.make_request('POST', url_change_value, json_data=payload_change_value)
 
                 print(f'Upload complete for: ' + filename)
 
