@@ -1,3 +1,5 @@
+from typing import List
+
 import edusharing
 import util
 import os
@@ -85,19 +87,19 @@ def main():
                 print(f'Upload complete for: ' + filename)
 
     # permissions
-    modify_permissions(folder_nodeID, groups, base_url, session, headers)
+    modify_permissions(folder_node_id, groups, api)
 
 
-def modify_permissions(node_id, groups: List[str], base_url, session, headers):
-    set_permissions(node_id, groups, base_url,  session, headers)
+def modify_permissions(node_id, groups: List[str], api):
+    set_permissions(node_id, groups,api)
     print("Set permissions for: " + str(groups))
 
 
-def set_permissions(node_id, groups: List[str], base_url,  session, headers):
+def set_permissions(node_id, groups: List[str], api):
     # data = json.loads(data)
-    url = f'{base_url}/rest/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
+    url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
     data_json = craft_permission_body(groups)
-    session.request('POST', url, json=data_json, headers=headers)
+    api.make_request('POST', url, json_data=data_json)
 
 
 def craft_permission_body(groups: List[str]):
