@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import requests
 import scrapy
@@ -15,7 +16,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.1.7"
+    version = "0.1.8"  # last update: 2022-07-11
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -233,7 +234,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         return LomBase.parse(self, response)
 
     # thumbnail is always the same, do not use the one from rss
-    def getBase(self, response):
+    def getBase(self, response) -> BaseItemLoader:
         base = LomBase.getBase(self, response)
         base.replace_value(
             "thumbnail", self.get("media.thumbPreview", json=response.meta["item"])
@@ -249,7 +250,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
 
         return lifecycle
 
-    def getLOMGeneral(self, response):
+    def getLOMGeneral(self, response) -> LomGeneralItemloader:
         general = LomBase.getLOMGeneral(self, response)
         general.replace_value(
             "title",
@@ -257,19 +258,25 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         )
         if "keywords" in response.meta["item"]:
             keywords: list = self.get("keywords", json=response.meta["item"])
+            keywords_cleaned_up: list = list()
             if keywords:
                 # making sure that we're not receiving an empty list
                 for individual_keyword in keywords:
                     if individual_keyword.strip():
                         # we're only adding valid keywords, none of the empty (whitespace) strings
+                        keywords_cleaned_up.append(individual_keyword)
                         general.add_value('keyword', individual_keyword)
+            subjects = self.get_subjects(response)
+            if subjects:
+                keywords_cleaned_up.extend(subjects)
+                general.replace_value('keyword', keywords_cleaned_up)
         general.add_value(
             "description",
             self.get("description", json=response.meta["item"])
         )
         return general
 
-    def getLOMTechnical(self, response):
+    def getLOMTechnical(self, response) -> LomTechnicalItemLoader:
         technical = LomBase.getLOMTechnical(self, response)
         technical.replace_value("format", self.get("media.dataType", json=response.meta["item"]))
         technical.replace_value(
@@ -289,7 +296,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         )
         return technical
 
-    def getLicense(self, response):
+    def getLicense(self, response) -> LicenseItemLoader:
         license_loader = LomBase.getLicense(self, response)
 
         author: str = self.get('author', json=response.meta['item'])
@@ -376,20 +383,30 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             educational.add_value("typicalAgeRange", tar.load_item())
         return educational
 
-    def getValuespaces(self, response):
-        valuespaces = LomBase.getValuespaces(self, response)
+    def get_subjects(self, response) -> list[Any] | None:
+        # there are (currently) 837 unique subjects across all 50.697 Items, which are suitable to be used as additional
+        # keyword values.
+        subject_set = set()
         if "subject" in response.meta['item'] is not None:
             # the "subject"-field does not exist in every item returned by the sodix API
             subjects = self.get('subject', json=response.meta['item'])
             if subjects:
-                # the "subject"-key might exist in the API, but still be 'none'
+                # the "subject"-key might exist in the API, but still be of 'None'-value
                 for subject in subjects:
-                    # ToDo: there are (currently) 837 unique subjects across all 50.697 Items
-                    #  - these values would be suitable as additional keywords
                     subject_name = subject['name']
                     # self.DEBUG_SUBJECTS.add(subject_name)
                     # print(f"Amount of Subjects: {len(self.DEBUG_SUBJECTS)} // SUBJECT SET: \n {self.DEBUG_SUBJECTS}")
-                    valuespaces.add_value('discipline', subject_name)
+                    subject_set.add(subject_name)
+                return list(subject_set)
+            else:
+                return None
+
+    def getValuespaces(self, response) -> ValuespaceItemLoader:
+        valuespaces = LomBase.getValuespaces(self, response)
+        subjects = self.get_subjects(response)
+        if subjects:
+            for subject in subjects:
+                valuespaces.add_value('discipline', subject)
 
         educational_context_list = self.get('educationalLevels', json=response.meta['item'])
         if educational_context_list:
@@ -414,6 +431,5 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                     potential_lrt = self.MAPPING_LRT.get(potential_lrt)
                     valuespaces.add_value('learningResourceType', potential_lrt)
                 else:
-                    # ToDo: lrt values that can't get mapped should be put into "keywords" to avoid losing them
                     pass
         return valuespaces
