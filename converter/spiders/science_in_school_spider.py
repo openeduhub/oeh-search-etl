@@ -17,7 +17,7 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
     start_urls = [
         "https://www.scienceinschool.org/issue/"
     ]
-    version = "0.0.2"  # last update: 2022-07-01
+    version = "0.0.3"  # last update: 2022-07-11
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True
@@ -37,9 +37,9 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
         "Sustainability": "Sustainability"
     }
     LICENSE_MAPPING = {
-        "CC-BY": "https://creativecommons.org/licenses/by-sa/4.0",
-        "CC-BY-NC-SA": "https://creativecommons.org/licenses/by-nc-sa/4.0",
-        "CC-BY-NC-ND": "https://creativecommons.org/licenses/by-nc-nd/4.0"
+        "CC-BY": Constants.LICENSE_CC_BY_40,
+        "CC-BY-NC-SA": Constants.LICENSE_CC_BY_NC_SA_40,
+        "CC-BY-NC-ND": Constants.LICENSE_CC_BY_NC_ND_40
     }
     KEYWORD_EXCLUSION_LIST = [
         "Not applicable", "not applicable"
@@ -230,10 +230,6 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
                 pass
 
         base = BaseItemLoader()
-
-        # TODO: fill "base"-keys with values for
-        #  - binary             optional    (only needed if you're working with binary files (e.g. .pdf-files),
-        #                                   if you want to see an example, check out "niedersachsen_abi_spider.py")
         base.add_value('sourceId', response.url)
         hash_temp: str = f"{date_published}v{self.version}"
         base.add_value('hash', hash_temp)
