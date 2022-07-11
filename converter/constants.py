@@ -4,7 +4,9 @@ class Constants:
     LICENSE_CC_BY_SA_40 = "https://creativecommons.org/licenses/by-sa/4.0/"
     LICENSE_CC_BY_30 = "https://creativecommons.org/licenses/by/3.0/"
     LICENSE_CC_BY_40 = "https://creativecommons.org/licenses/by/4.0/"
+    LICENSE_CC_BY_NC_30 = "https://creativecommons.org/licenses/by-nc/3.0/"
     LICENSE_CC_BY_NC_40 = "https://creativecommons.org/licenses/by-nc/4.0/"
+    LICENSE_CC_BY_ND_30 = "https://creativecommons.org/licenses/by-nd/3.0/"
     LICENSE_CC_BY_ND_40 = "https://creativecommons.org/licenses/by-nd/4.0/"
     LICENSE_CC_BY_NC_SA_30 = "https://creativecommons.org/licenses/by-nc-sa/3.0/"
     LICENSE_CC_BY_NC_SA_40 = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
@@ -18,6 +20,12 @@ class Constants:
         LICENSE_CC_BY_SA_40,
         LICENSE_CC_BY_30,
         LICENSE_CC_BY_40,
+        LICENSE_CC_BY_NC_30,
+        LICENSE_CC_BY_NC_40,
+        LICENSE_CC_BY_ND_30,
+        LICENSE_CC_BY_ND_40,
+        LICENSE_CC_BY_NC_SA_30,
+        LICENSE_CC_BY_NC_SA_40,
         LICENSE_CC_BY_NC_ND_30,
         LICENSE_CC_BY_NC_ND_40,
         LICENSE_PDM,
