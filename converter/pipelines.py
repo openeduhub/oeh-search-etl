@@ -324,7 +324,8 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 response = requests.post(
                     settings.get("SPLASH_URL") + "/render.png",
                     json={
-                        "url": item["lom"]["technical"]["location"],
+                        "url": item["lom"]["technical"]["location"][0],
+                        # since there can be multiple "technical.location"-values, the first URL is used for thumbnails
                         "wait": settings.get("SPLASH_WAIT"),
                         "html5_media": 1,
                         "headers": settings.get("SPLASH_HEADERS"),
