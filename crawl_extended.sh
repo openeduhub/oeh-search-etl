@@ -17,6 +17,7 @@ spiders=(
         "mediothek_pixiothek_spider"
         "merlin_spider"
         "oeh_spider"
+        "sodix_spider"
 )
 
 # dev, prod | WARNING: It assumes the existence of .env.dev and .env.prod in the converter/ directory. Please refer to
