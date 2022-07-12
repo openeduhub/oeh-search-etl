@@ -7,7 +7,6 @@
 # STEP 1: Declaring variables.
 
 working_dir=$(pwd)
-venv_bin_dir="${working_dir}/.venv/bin"
 
 # Causes the execution to run in the background and, thus, multiple spiders will run.
 parallel_execution=false
@@ -42,6 +41,8 @@ echo "working_dir=$working_dir";
 echo "environment=$environment";
 echo "spiders=${spiders[@]}";
 echo "mailx_recipients=$mailx_recipients";
+
+venv_bin_dir="${working_dir}/.venv/bin"
 
 ##############################
 # STEP 3: Prepare environment.
