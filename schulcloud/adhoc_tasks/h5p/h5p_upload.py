@@ -29,7 +29,7 @@ def main():
     url_new_folder = f'/node/v1/nodes/-home-/{sync_obj_node_id}/children?type=cm%3Afolder&renameIfExists=false'
     payload_new_folder = {
         "cm:name": ["h5p-elements"],
-        "cm:edu_metadataset": ["mds"],
+        "cm:edu_metadataset": ["mds_oeh"],
         "cm:edu_forcemetadataset": ["true"]
     }
     response_new_folder = api.make_request('POST', url_new_folder, json_data=payload_new_folder)
@@ -78,7 +78,8 @@ def main():
                 date = str(datetime.now())
 
                 url_change_value = f'/node/v1/nodes/-home-/{file_node_id}/metadata?versionComment=update_metadata'
-                payload_change_value = {"cm:edu_metadataset": ["default"],
+                payload_change_value = {"cm:edu_metadataset": ["mds_oeh"],
+                                        "cm:edu_forcemetadataset": ["true"],
                                         "ccm:replicationsourcehash": [date],
                                         "cclom:general_keyword": ["h5p", name]
                                         }
