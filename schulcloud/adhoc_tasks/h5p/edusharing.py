@@ -57,6 +57,9 @@ class EdusharingAPI:
         headers = {'Accept': 'application/json'}
         return self.session.request(method, url, params=params, headers=headers, json=json_data, files=files, stream=stream)
 
+    def raise_request_failed(self, response: requests.Response):
+        raise RuntimeError(f'Request failed: {response.status_code}: {response.text}')
+
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024**2):
         url = f'/iam/v1/people/-home-/{username}?password={password}'
         body = {
@@ -83,16 +86,50 @@ class EdusharingAPI:
             except KeyError:
                 raise RuntimeError(f'Could not parse response: {response.text}')
         else:
-            raise RuntimeError(f'Unexpected response: {response.status_code}: {response.text}')
+            self.raise_request_failed(response)
 
     def delete_node(self, node_id: str):
         url = f'/node/v1/nodes/-home-/{node_id}'
         response = self.make_request('DELETE', url)
         if not response.status_code == 200:
-            raise RuntimeError(f'Request failed: {response.status_code}: {response.text}')
+            self.raise_request_failed(response)
 
     def set_permissions(self, node_id: str, groups: List[str], inheritance: bool):
         url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
         response = self.make_request('POST', url, json_data=self._craft_permission_body(groups, inheritance))
         if not response.status_code == 200:
-            raise RuntimeError(f'Request failed: {response.status_code}: {response.text}')
+            self.raise_request_failed(response)
+
+    def get_sync_obj_folder(self):
+        return self.search_custom('name', 'SYNC_OBJ', 1, 'FOLDERS')[0]
+
+    def file_exists(self, name: str):
+        return len(self.search_custom('name', name, 2, 'FILES')) > 0
+
+    def search_custom(self, property: str, value: str, max_items: int, content_type: Literal['FOLDERS', 'FILES']):
+        url = f'/search/v1/custom/-home-?contentType={content_type}&combineMode=AND&property={property}&value={value}&maxItems={max_items}&skipCount=0'
+        response = self.make_request('GET', url)
+        if not response.status_code == 200:
+            self.raise_request_failed(response)
+        json_obj = response.json()
+        return [Node(node) for node in json_obj['nodes']]
+
+    def create_or_get_folder(self, parent_id: str, name: str, metadataset: str = 'mds_oeh', payload: Optional[Dict] = None):
+        url = f'/node/v1/nodes/-home-/{parent_id}/children?type=cm%3Afolder&renameIfExists=false'
+        if payload is None:
+            payload = {}
+        payload['cm:name'] = [name]
+        payload['cm:edu_metadataset'] = [metadataset]
+        payload['cm:edu_forcemetadataset'] = [True]
+        response = self.make_request('POST', url, json_data=payload)
+        if not response.status_code == 200:
+            self.raise_request_failed(response)
+        return Node(response.json()['node'])
+
+    def create_node(self, parent_id: str, name: str):
+        url = f'/node/v1/nodes/-home-/{parent_id}/children/?type=ccm%3Aio&renameIfExists=true&assocType=&versionComment=&'
+        data = {"cm:name": [name]}
+        response = self.make_request('POST', url, json_data=data)
+        if not response.status_code == 200:
+            self.raise_request_failed(response)
+        return Node(response.json()['node'])
