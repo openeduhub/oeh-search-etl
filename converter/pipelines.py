@@ -317,6 +317,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
             )
         elif (
                 "location" in item["lom"]["technical"]
+                and len(item["lom"]["technical"]["location"]) > 0
                 and "format" in item["lom"]["technical"]
                 and item["lom"]["technical"]["format"] == "text/html"
         ):
