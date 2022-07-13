@@ -58,7 +58,7 @@ class EdusharingAPI:
         return self.session.request(method, url, params=params, headers=headers, json=json_data, files=files, stream=stream)
 
     def raise_request_failed(self, response: requests.Response):
-        raise RuntimeError(f'Request failed: {response.status_code}: {response.text}')
+        raise RequestFailedException(f'Request failed: {response.status_code} {response.reason}: {response.text}')
 
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024**2):
         url = f'/iam/v1/people/-home-/{username}?password={password}'
@@ -88,6 +88,13 @@ class EdusharingAPI:
         else:
             self.raise_request_failed(response)
 
+    def find_node_by_name(self, parent_id: str, child_name: str) -> Node:
+        nodes = self.get_children(parent_id)
+        for node in nodes:
+            if node.name == child_name:
+                return node
+        raise RuntimeError(f'Could not find node {child_name}')
+
     def delete_node(self, node_id: str):
         url = f'/node/v1/nodes/-home-/{node_id}'
         response = self.make_request('DELETE', url)
@@ -101,9 +108,15 @@ class EdusharingAPI:
             self.raise_request_failed(response)
 
     def get_sync_obj_folder(self):
-        return self.search_custom('name', 'SYNC_OBJ', 1, 'FOLDERS')[0]
+        nodes = self.get_children('-userhome-')
+        for node in nodes:
+            if node.name == 'SYNC_OBJ':
+                return node
+        else:
+            raise RuntimeError('Could not find folder SYNC_OBJ')
 
-    def file_exists(self, name: str):
+    def file_exists(self, parent_id: str, name: str):
+        # TODO: should only search within specific parent node, not global search
         return len(self.search_custom('name', name, 2, 'FILES')) > 0
 
     def search_custom(self, property: str, value: str, max_items: int, content_type: Literal['FOLDERS', 'FILES']):
@@ -114,7 +127,7 @@ class EdusharingAPI:
         json_obj = response.json()
         return [Node(node) for node in json_obj['nodes']]
 
-    def create_or_get_folder(self, parent_id: str, name: str, metadataset: str = 'mds_oeh', payload: Optional[Dict] = None):
+    def create_folder(self, parent_id: str, name: str, metadataset: str = 'mds_oeh', payload: Optional[Dict] = None):
         url = f'/node/v1/nodes/-home-/{parent_id}/children?type=cm%3Afolder&renameIfExists=false'
         if payload is None:
             payload = {}
@@ -126,6 +139,13 @@ class EdusharingAPI:
             self.raise_request_failed(response)
         return Node(response.json()['node'])
 
+    def get_or_create_folder(self, parent_id: str, name: str, metadataset: str = 'mds_oeh', payload: Optional[Dict] = None):
+        try:
+            folder = self.find_node_by_name(parent_id, name)
+        except RuntimeError:
+            folder = self.create_folder(parent_id, name, metadataset, payload)
+        return folder
+
     def create_node(self, parent_id: str, name: str):
         url = f'/node/v1/nodes/-home-/{parent_id}/children/?type=ccm%3Aio&renameIfExists=true&assocType=&versionComment=&'
         data = {"cm:name": [name]}
@@ -133,3 +153,7 @@ class EdusharingAPI:
         if not response.status_code == 200:
             self.raise_request_failed(response)
         return Node(response.json()['node'])
+
+
+class RequestFailedException(Exception):
+    pass

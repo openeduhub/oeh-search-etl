@@ -19,21 +19,21 @@ def main():
     permitted_groups = ["Brandenburg-public", "Thuringia-public"]
 
     sync_obj = api.get_sync_obj_folder()
-    new_folder = api.create_or_get_folder(sync_obj.id, 'h5p-elements')
+    h5p_folder = api.get_or_create_folder(sync_obj.id, 'h5p-elements')
 
     # extract all h5p files from directory and upload to folder 'h5p-elements'. Upload only, if the file doesn't exist.
     for root, dirs, files in os.walk(h5p_path):
         for filename in files:
-            if api.file_exists(filename):
+            if api.file_exists(h5p_folder.id, filename):
                 print(f'File {filename} already exists.')
             else:
-                new_node = api.create_node(new_folder.id, filename)
+                node = api.create_node(h5p_folder.id, filename)
                 file = open(os.path.join(root, filename), 'rb')
 
                 files = {
                     'file': (filename, file, 'application/zip', {'Expires': '0'})
                 }
-                url_upload = f'/node/v1/nodes/-home-/{new_node.id}/content?versionComment=MAIN_FILE_UPLOAD&mimetype='
+                url_upload = f'/node/v1/nodes/-home-/{node.id}/content?versionComment=MAIN_FILE_UPLOAD&mimetype='
                 api.make_request('POST', url_upload, files=files, stream=True)
 
                 file.close()
@@ -46,7 +46,7 @@ def main():
                 name = filename[:index]
                 date = str(datetime.now())
 
-                url_change_value = f'/node/v1/nodes/-home-/{new_node.id}/metadata?versionComment=update_metadata'
+                url_change_value = f'/node/v1/nodes/-home-/{node.id}/metadata?versionComment=update_metadata'
                 payload_change_value = {"cm:edu_metadataset": ["mds_oeh"],
                                         "cm:edu_forcemetadataset": ["true"],
                                         "ccm:replicationsourcehash": [date],
@@ -56,7 +56,8 @@ def main():
 
                 print(f'Upload complete for: ' + filename)
 
-    api.set_permissions(new_folder.id, permitted_groups, False)
+    print(h5p_folder)
+    api.set_permissions(h5p_folder.id, permitted_groups, False)
     print("Set permissions for: " + str(permitted_groups))
 
 
