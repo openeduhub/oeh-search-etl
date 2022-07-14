@@ -24,8 +24,8 @@ fi
 echo Pulling repository...
 git pull
 
-set +a
-source $env_file
 set -a
+source $env_file
+set +a
 
 source ../../../.venv/bin/activate
