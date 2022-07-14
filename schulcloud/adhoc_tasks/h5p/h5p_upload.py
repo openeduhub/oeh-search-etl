@@ -32,6 +32,7 @@ def main():
         for filename in files:
             name = os.path.splitext(filename)[0]
             date = str(datetime.now())
+            # ToDo: Add the value of "ccm:wwwurl". For example the url of the iframe-rendering-page.
             properties = {
                 "access": [
                     "Read",
@@ -63,6 +64,7 @@ def main():
                 "cclom:general_language": ["de"],
                 "cclom:general_keyword": ["h5p", name],
                 "ccm:lom_annotation": ["{'description': 'searchable==1', 'entity': 'crawler'}"],
+                "ccm:wwwurl": [""]
             }
             node = api.sync_node(REPLICATION_SOURCE, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
 
