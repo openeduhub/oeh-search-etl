@@ -10,6 +10,7 @@ class Node:
         try:
             self.id: str = obj['ref']['id']
             self.name: str = obj['name']
+            self.size: Optional[int] = int(obj['size']) if obj['size'] else None
             self.is_directory: bool = obj['isDirectory']
         except KeyError:
             raise RuntimeError(f'Could not parse node object: {obj}')
@@ -142,6 +143,17 @@ class EdusharingAPI:
         url = f'/node/v1/nodes/-home-/{parent_id}/children/?type=ccm%3Aio&renameIfExists=true&assocType=&versionComment=&'
         data = {"cm:name": [name]}
         response = self.make_request('POST', url, json_data=data)
+        if not response.status_code == 200:
+            raise RequestFailedException(response)
+        return Node(response.json()['node'])
+
+    def sync_node(self, group: str, properties: Dict, match: List[str], type: str = 'ccm:io', group_by: Optional[str] = None):
+        url = f'/bulk/v1/sync/{group}?type={type}&resetVersion=false'
+        if group_by is not None:
+            url += f'&groupBy={group_by}'
+        for m in match:
+            url += f'&match={m}'
+        response = self.make_request('PUT', url, json_data=properties)
         if not response.status_code == 200:
             raise RequestFailedException(response)
         return Node(response.json()['node'])
