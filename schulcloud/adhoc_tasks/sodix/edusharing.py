@@ -1,3 +1,4 @@
+import time
 from typing import Dict, List, Literal, Optional
 
 import requests
@@ -92,7 +93,16 @@ class EdusharingAPI:
             raise RuntimeError(f'Request failed: {response.status_code}: {response.text}')
 
     def set_permissions(self, node_id: str, groups: List[str], inheritance: bool):
-        url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
-        response = self.make_request('POST', url, json_data=self._craft_permission_body(groups, inheritance))
+        retry = 0
+        url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false&createHandle=false'
+        while True:
+            response = self.make_request('POST', url, json_data=self._craft_permission_body(groups, inheritance))
+            if response.status_code == 500 and retry < 10:
+                json_response = response.json()
+                if 'error' in json_response and json_response['error'] == '':
+                    time.sleep(3.0)
+                retry += 1
+                continue
+            break
         if not response.status_code == 200:
             raise RuntimeError(f'Request failed: {response.status_code}: {response.text}')
