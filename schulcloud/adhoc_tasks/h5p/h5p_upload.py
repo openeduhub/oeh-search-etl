@@ -33,6 +33,7 @@ def main():
             name = os.path.splitext(filename)[0]
             date = str(datetime.now())
             # ToDo: Add the value of "ccm:wwwurl". For example the url of the iframe-rendering-page.
+            #  It refers to the button "Zum Lerninhalt" in the lern-store frontend view.
             properties = {
                 "access": [
                     "Read",
@@ -55,16 +56,18 @@ def main():
                 "ccm:replicationsourceid": [hashlib.sha1(name.encode()).hexdigest()],
                 "ccm:replicationsourcehash": [date],
                 "ccm:replicationsourceuuid": [str(uuid.uuid4())],
-                "ccm:commonlicense_key": ["CUSTOM"],
+                "ccm:commonlicense_key": [""],  # ToDo: add copyright_license
                 "ccm:hpi_searchable": ["1"],
                 "ccm:hpi_lom_general_aggregationlevel": ["1"],
                 "ccm:hpi_lom_relation": ["{}"],
-                "cclom:title": [name],
+                "cclom:title": [name],  # ToDo: add title
                 "cclom:aggregationlevel": ["1"],
                 "cclom:general_language": ["de"],
                 "cclom:general_keyword": ["h5p", name],
                 "ccm:lom_annotation": ["{'description': 'searchable==1', 'entity': 'crawler'}"],
-                "ccm:wwwurl": [""]
+                "ccm:wwwurl": [""],  # ToDo: see above
+                "ccm:lifecyclecontributer_publisherFN": [""],  # ToDo: add author
+                "cclom:location": [""]  # ToDo: add external_source
             }
             node = api.sync_node(REPLICATION_SOURCE, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
 
