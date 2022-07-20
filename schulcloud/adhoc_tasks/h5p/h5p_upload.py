@@ -3,8 +3,9 @@ import os
 import uuid
 from datetime import datetime
 import hashlib
-
+import json
 import edusharing
+import h5p_extract_metadata
 import util
 
 
@@ -34,6 +35,11 @@ def main():
             date = str(datetime.now())
             # ToDo: Add the value of "ccm:wwwurl". For example the url of the iframe-rendering-page.
             #  It refers to the button "Zum Lerninhalt" in the lern-store frontend view.
+            h5p_extract_metadata.UnzipLocalFile.create_local_folder(folder_name='unzipped')
+            h5p_extract_metadata.UnzipLocalFile.unzip_local_file(file_path=f"h5p_files/{filename}", unzipped_dir="unzipped")
+            metadata = json.loads(h5p_extract_metadata.UnzipLocalFile.read_file(file_path="unzipped/h5p.json"))
+            metadata_h5p = h5p_extract_metadata.UnzipLocalFile.extract_metadata_from_json(metadata=metadata)
+
             properties = {
                 "access": [
                     "Read",
@@ -56,18 +62,16 @@ def main():
                 "ccm:replicationsourceid": [hashlib.sha1(name.encode()).hexdigest()],
                 "ccm:replicationsourcehash": [date],
                 "ccm:replicationsourceuuid": [str(uuid.uuid4())],
-                "ccm:commonlicense_key": [""],  # ToDo: add copyright_license
+                "ccm:commonlicense_key": [metadata_h5p["copyright_license"]],
                 "ccm:hpi_searchable": ["1"],
                 "ccm:hpi_lom_general_aggregationlevel": ["1"],
                 "ccm:hpi_lom_relation": ["{}"],
-                "cclom:title": [name],  # ToDo: add title
+                "cclom:title": [metadata_h5p["title"]],
                 "cclom:aggregationlevel": ["1"],
                 "cclom:general_language": ["de"],
                 "cclom:general_keyword": ["h5p", name],
                 "ccm:lom_annotation": ["{'description': 'searchable==1', 'entity': 'crawler'}"],
                 "ccm:wwwurl": [""],  # ToDo: see above
-                "ccm:lifecyclecontributer_publisherFN": [""],  # ToDo: add author
-                "cclom:location": [""]  # ToDo: add external_source
             }
             node = api.sync_node(REPLICATION_SOURCE, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
 
@@ -83,6 +87,7 @@ def main():
             url_upload = f'/node/v1/nodes/-home-/{node.id}/content?versionComment=MAIN_FILE_UPLOAD&mimetype={mimetype}'
             api.make_request('POST', url_upload, files=files, stream=True)
             file.close()
+            h5p_extract_metadata.UnzipLocalFile.delete_local_folder(folder_name="unzipped")
             print(f'Upload complete for: {filename}')
 
     api.set_permissions(destination_folder.id, permitted_groups, False)
