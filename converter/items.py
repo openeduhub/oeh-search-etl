@@ -4,6 +4,7 @@
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/items.html
+from typing import Optional, Union
 
 from scrapy.item import Item, Field
 from scrapy.loader import ItemLoader
@@ -19,7 +20,7 @@ def replace_processor(value):
 
 
 class JoinMultivalues(object):
-    def __init__(self, separator=u" "):
+    def __init__(self, separator=" "):
         self.separator = separator
 
     def __call__(self, values):
@@ -32,17 +33,34 @@ class MutlilangItem(Item):
 
 
 class LomGeneralItem(Item):
+    """
+    General requirements:
+     - at least one of description or keywords must be provided
+    """
+    # sys:node-uuid or ccm:general_identifier?, may be completely irrelevant, seems to read nowhere
     identifier = Field()
-    title = Field()
-    language = Field()
-    keyword = Field(output_processor=JoinMultivalues())
+    # cclom:title
+    title: str = Field()
+    # cclom:general_language, defaults to de_DE, not required,
+    # has an allowed value set (the str would actually be an enum)
+    language: Union[None, str, list[str]] = Field()
+    # cclom:general_keyword
+    keyword: Union[None, str, list[str]] = Field(output_processor=JoinMultivalues())
+    # potentially obsolete
     coverage = Field()
+    # potentially obsolete
     structure = Field()
+    # cclom:aggregationlevel, optional, potentially obsolete
     aggregationLevel = Field()
-    description = Field()
+    # cclom:general_description, "Beschreibung"
+    description: Optional[str] = Field()
 
 
 class LomLifecycleItem(Item):
+    # depending on the role value (publisher, author, editor), the values will be mapped either to
+    # - ccm:lifecyclecontributer_publisher
+    # - ccm:lifecyclecontributer_author
+    # - ccm:lifecyclecontributer_editor
     role = Field()
     firstName = Field()
     lastName = Field()
@@ -53,16 +71,18 @@ class LomLifecycleItem(Item):
     date = Field()
     "the date of contribution. Will be automatically transformed/parsed"
 
+
 class LomTechnicalItem(Item):
     format = Field()
     size = Field()
+    # "URI/location of the element, multiple values are supported, the first entry is the primary location, while all others are secondary locations"
+    # cclom:location
     location = Field(output_processor=JoinMultivalues())
-    "URI/location of the element, multiple values are supported, the first entry is the primary location, while all others are secondary locations"
     requirement = Field()
     installationRemarks = Field()
     otherPlatformRequirements = Field()
+    # "Duration of the element (e.g. for video or audio). Supported formats for automatic transforming include seconds, HH:MM:SS and ISO 8601 duration (PT0H0M0S)"
     duration = Field()
-    "Duration of the element (e.g. for video or audio). Supported formats for automatic transforming include seconds, HH:MM:SS and ISO 8601 duration (PT0H0M0S)"
 
 
 class LomAgeRangeItem(Item):
@@ -114,9 +134,13 @@ class LomBaseItem(Item):
 
 
 class ResponseItem(Item):
+    """Only used in pipelines, not used in es_connector -> "no" equivalent metadata fields"""
     status = Field()
+    # will be used to generate a uuid that will be written into
+    # ccm:replicationsourceuuid. if missing, the uuid will be generated from baseitem.hash.
     url = Field()
     html = Field()
+    # will be used as fulltext if baseitem.fulltext is not populated.
     text = Field()
     headers = Field()
     cookies = Field()
@@ -124,20 +148,33 @@ class ResponseItem(Item):
 
 
 class ValuespaceItem(Item):
+    # ccm:educationalintendedenduserrole
     intendedEndUserRole = Field(output_processor=JoinMultivalues())
+    # ccm:taxonid
     discipline = Field(output_processor=JoinMultivalues())
+    # ccm:educationalcontext
     educationalContext = Field(output_processor=JoinMultivalues())
+    # ccm:educationallearningresourcetype
     learningResourceType = Field(output_processor=JoinMultivalues())
+    # ccm:oeh_lrt
     new_lrt = Field(output_processor=JoinMultivalues())
+    # ccm:sourceContentType
     sourceContentType = Field(output_processor=JoinMultivalues())
+    # ccm:toolCategory
     toolCategory = Field(output_processor=JoinMultivalues())
-
+    # ccm:conditionsOfAccess
     conditionsOfAccess = Field(output_processor=JoinMultivalues())
+    # ccm:containsAdvertisement
     containsAdvertisement = Field(output_processor=JoinMultivalues())
+    # ccm:price
     price = Field(output_processor=JoinMultivalues())
+    # ccm:accessibilitySummary
     accessibilitySummary = Field(output_processor=JoinMultivalues())
+    # ccm:dataProtectionConformity
     dataProtectionConformity = Field(output_processor=JoinMultivalues())
+    # ccm:fskRating
     fskRating = Field(output_processor=JoinMultivalues())
+    # ccm:license_oer
     oer = Field(output_processor=JoinMultivalues())
 
 
@@ -170,30 +207,45 @@ class PermissionItem(Item):
 
 
 class BaseItem(Item):
+    # ccm:replicationsourceid
     sourceId = Field()
+    # ccm:replicationsourceuuid, not used anyhwere, seems to always default to None, should probably always be None
+    # explicit uuid of the target element, please only set this if you actually know the uuid of the internal document
     uuid = Field()
-    "explicit uuid of the target element, please only set this if you actually know the uuid of the internal document"
+    # ccm:replicationsourcehash, gets populated by various crawlers
     hash = Field()
+    # probably not used, currently always defaults to None
+    # id of collections this entry should be placed into
     collection = Field(output_processor=JoinMultivalues())
-    "id of collections this entry should be placed into"
+    # in case it was fetched from a referatorium, the real origin name may be included here
+    # EduSharingBase sets this to ccm:replicationsource, es_connector maps it back to ccm:replicationsourceorigin,
+    # es_connector assigns spider name to ccm:replicationsource => can probably be removed...
     origin = Field()
-    "in case it was fetched from a referatorium, the real origin name may be included here"
     response = Field(serializer=ResponseItem)
+    # seems to be unused, seems to be mostly hardcoded to 1
     ranking = Field()
+    # populated in a pipeline with response.text if not explicitly initialized from before.
+    # will be posted to edusharing service with an extra post call and is not part of the metadata profile
     fulltext = Field()
+    # thumbnail is either a string pointing to the uri from where to load a thumbnail.
+    # the pipeline then processes it to a dictionary of {mimetype, small, optional(large)} via requesting
+    # either the url to the thumbnail or telling splash to render the page (if no thumbnail url is available and the
+    # url points to a html document), the small/large entries in the dict are the thumbnail data in base64.
+    # this data is then posted with an individual request to edusharing service -> no corresponding metadata entry.
     thumbnail = Field()
-    "thumbnail data in base64"
+    # seems to be ignored (some crawlers populate it but it doesn't get read anywhere)
     lastModified = Field()
     lom = Field(serializer=LomBaseItem)
     valuespaces = Field(serializer=ValuespaceItem)
+    # "permissions (access rights) for this entry"
     permissions = Field(serializer=PermissionItem)
-    "permissions (access rights) for this entry"
     license = Field(serializer=LicenseItem)
+    # ?
     publisher = Field()
+    # "editorial notes"
     notes = Field()
-    "editorial notes"
+    # "binary data which should be uploaded (raw data)"
     binary = Field()
-    "binary data which should be uploaded (raw data)"
 
 
 class BaseItemLoader(ItemLoader):
