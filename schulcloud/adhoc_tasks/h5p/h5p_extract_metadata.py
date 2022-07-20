@@ -29,21 +29,12 @@ class UnzipLocalFile:
     def extract_metadata_from_json(metadata: [Dict]):
         metadata_h5p = {
             "title": "",
-            "download_url": "",
-            "copyright_license": "",
-            "author": "",
-            "ext_source": ""
+            "copyright_license": ""
         }
 
-        # ToDO: Check if this schema is the same for all h5p-files (content.json).
-        #  If not, create JSON-attribute-search-method.
-
         try:
-            metadata_h5p["title"] = metadata["interactiveVideo"]["video"]["files"][0]["copyright"]["title"]
-            metadata_h5p["download_url"] = metadata["interactiveVideo"]["video"]["files"][0]["path"]
-            metadata_h5p["copyright_license"] = metadata["interactiveVideo"]["video"]["files"][0]["copyright"]["license"]
-            metadata_h5p["author"] = metadata["interactiveVideo"]["video"]["files"][0]["copyright"]["author"]
-            metadata_h5p["ext_source"] = metadata["interactiveVideo"]["video"]["files"][0]["copyright"]["source"]
+            metadata_h5p["title"] = metadata["title"]
+            metadata_h5p["copyright_license"] = metadata["license"]
         except KeyError:
             print(f'KeyError: The JSON schema of the file doesn\'t match with the method schema.')
 
@@ -60,15 +51,12 @@ def main():
     UnzipLocalFile.unzip_local_file(file_path=f"h5p_files/{h5p_file}", unzipped_dir="unzipped")
 
     # read out the lines, e.g. title
-    metadata = json.loads(UnzipLocalFile.read_file(file_path="unzipped/content/content.json"))
+    metadata = json.loads(UnzipLocalFile.read_file(file_path="unzipped/h5p.json"))
     metadata_h5p = UnzipLocalFile.extract_metadata_from_json(metadata=metadata)
 
     print(metadata)
     print(f'title: {metadata_h5p["title"]}')
-    print(f'download_url: {metadata_h5p["download_url"]}')
     print(f'copyright_license: {metadata_h5p["copyright_license"]}')
-    print(f'author: {metadata_h5p["author"]}')
-    print(f'external_source: {metadata_h5p["ext_source"]}')
 
     # delete the 'unzipped'-folder including all files
     UnzipLocalFile.delete_local_folder(folder_name="unzipped")
