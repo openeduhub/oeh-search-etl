@@ -33,13 +33,19 @@ def main():
         for filename in files:
             name = os.path.splitext(filename)[0]
             date = str(datetime.now())
-            # ToDo: Add the value of "ccm:wwwurl". For example the url of the iframe-rendering-page.
-            #  It refers to the button "Zum Lerninhalt" in the lern-store frontend view.
-            h5p_extract_metadata.UnzipLocalFile.create_local_folder(folder_name='unzipped')
+
+            if os.path.exists('unzipped'):
+                h5p_extract_metadata.UnzipLocalFile.delete_local_folder(folder_name="unzipped")
+                h5p_extract_metadata.UnzipLocalFile.create_local_folder(folder_name='unzipped')
+            else:
+                h5p_extract_metadata.UnzipLocalFile.create_local_folder(folder_name='unzipped')
+
             h5p_extract_metadata.UnzipLocalFile.unzip_local_file(file_path=f"h5p_files/{filename}", unzipped_dir="unzipped")
             metadata = json.loads(h5p_extract_metadata.UnzipLocalFile.read_file(file_path="unzipped/h5p.json"))
             metadata_h5p = h5p_extract_metadata.UnzipLocalFile.extract_metadata_from_json(metadata=metadata)
 
+            # ToDo: Add the value of "ccm:wwwurl". For example the url of the iframe-rendering-page.
+            #  It refers to the button "Zum Lerninhalt" in the lern-store frontend view.
             properties = {
                 "access": [
                     "Read",
