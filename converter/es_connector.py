@@ -15,10 +15,10 @@ from converter import env
 from converter.constants import Constants
 from edu_sharing_client.api_client import ApiClient
 from edu_sharing_client.configuration import Configuration
-from edu_sharing_client.api.bulk_v1_api import BULKV1Api
-from edu_sharing_client.api.iam_v1_api import IAMV1Api
-from edu_sharing_client.api.node_v1_api import NODEV1Api
-from edu_sharing_client.api.mediacenter_v1_api import MEDIACENTERV1Api
+from edu_sharing_client.api.bulkv1_api import BULKV1Api
+from edu_sharing_client.api.iamv1_api import IAMV1Api
+from edu_sharing_client.api.nodev1_api import NODEV1Api
+from edu_sharing_client.api.mediacenterv1_api import MEDIACENTERV1Api
 from edu_sharing_client.rest import ApiException
 from edu_sharing_client.models import GroupEntry
 from typing import List
@@ -72,7 +72,7 @@ class ESApiClient(ApiClient):
 
     def __getattribute__(self, name):
         attr = object.__getattribute__(self, name)
-        if hasattr(attr, '__call__'):
+        if hasattr(attr, '__call__') and False:
             def newfunc(*args, **kwargs):
                 if time.time() - ESApiClient.lastRequestTime > ESApiClient.COOKIE_REBUILD_THRESHOLD:
                     EduSharing.initCookie()
@@ -571,7 +571,9 @@ class EduSharing:
                     map(
                         lambda x: x["authorityName"],
                         EduSharing.iamApi.search_groups(
-                            EduSharingConstants.HOME, "", max_items=1000000
+                            repository=EduSharingConstants.HOME,
+                            pattern="",
+                            maxItems=1000000
                         )["groups"],
                     )
                 )

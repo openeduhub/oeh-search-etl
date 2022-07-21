@@ -47,3 +47,14 @@ docker compose up
 
 ## Still have questions? Check out our GitHub-Wiki!
 If you need help getting started or setting up your work environment, please don't hesitate to visit our GitHub Wiki at https://github.com/openeduhub/oeh-search-etl/wiki
+
+
+## Regenerating OpenAPI Files
+
+Install the generator
+
+`npm install @openapitools/openapi-generator-cli -g`
+
+Run `nnpx @openapitools/openapi-generator-cli generate -i https://redaktion.openeduhub.net/edu-sharing/rest/openapi.json -g python -c openapitools.json -o .` to generate
+
+https://openapi-generator.tech/docs/generators/python 
