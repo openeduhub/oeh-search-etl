@@ -31,7 +31,8 @@ class UnzipLocalFile:
             "order": "",
             "title": "",
             "keywords": "",
-            "publisher": ""
+            "publisher": "",
+            "rating": ""
         }
 
         wb = openpyxl.load_workbook(filename=excel_file_path, data_only=True)
@@ -43,6 +44,7 @@ class UnzipLocalFile:
             if file_name_sheet.value == file_name:
                 metadata_h5p["collection"] = o_sheet.cell(row=i, column=1).value
                 metadata_h5p["order"] = o_sheet.cell(row=i, column=2).value
+                metadata_h5p["rating"] = o_sheet.cell(row=i, column=3).value
                 metadata_h5p["title"] = o_sheet.cell(row=i, column=4).value
                 metadata_h5p["keywords"] = o_sheet.cell(row=i, column=6).value
                 metadata_h5p["publisher"] = o_sheet.cell(row=i, column=7).value
