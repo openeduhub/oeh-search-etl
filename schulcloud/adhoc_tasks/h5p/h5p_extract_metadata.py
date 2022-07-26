@@ -1,53 +1,44 @@
+
 import os
+import re
 import zipfile
-import shutil
+from typing import List, Union, IO
+
 import openpyxl
 
 
-class UnzipLocalFile:
+class Metadata:
+    def __init__(self, title: str, publisher: str, keywords: List[str], order: str, rating: str, collection: str):
+        self.title = title
+        self.publisher = publisher
+        self.keywords = keywords
+        self.order = order
+        self.rating = rating
+        self.collection = collection
 
-    def __init__(self):
-        pass
 
-    def create_local_folder(folder_name: str):
-        os.mkdir(f'{folder_name}')
+class MetadataFile:
+    def __init__(self, file: Union[str, IO]):
+        self.workbook = openpyxl.load_workbook(filename=file, data_only=True)
+        self.o_sheet = self.workbook["Tabelle1"]
 
-    def delete_local_folder(folder_name: str):
-        shutil.rmtree(f'{folder_name}')
+    def get_metadata(self, h5p_file: str):
+        for i in range(1, self.o_sheet.max_row + 1):
+            file_name_sheet = self.o_sheet.cell(row=i, column=5)
 
-    def unzip_local_file(file_path: str, unzipped_dir: str):
-        with zipfile.ZipFile(f'{file_path}', 'r') as zip_ref:
-            zip_ref.extractall(f'{unzipped_dir}')
+            if file_name_sheet.value == h5p_file:
+                collection = self.o_sheet.cell(row=i, column=1).value
+                order = self.o_sheet.cell(row=i, column=2).value
+                rating = self.o_sheet.cell(row=i, column=3).value
+                title = self.o_sheet.cell(row=i, column=4).value
+                keywords = self.o_sheet.cell(row=i, column=6).value
+                publisher = self.o_sheet.cell(row=i, column=7).value
 
-    def read_file(file_path: str):
-        file = open(f'{file_path}')
-        data = file.read()
-        file.close()
-        return data
+                # TODO: validate all data coming from excel file
 
-    def extract_metadata_from_excel(excel_file_path: str, file_name: str):
-        metadata_h5p = {
-            "collection": "",
-            "order": "",
-            "title": "",
-            "keywords": "",
-            "publisher": "",
-            "rating": ""
-        }
+                keywords = re.findall(r'[^,; ]+', keywords)
+                break
+        else:
+            raise RuntimeError(f'No metadata found for {h5p_file}')
 
-        wb = openpyxl.load_workbook(filename=excel_file_path, data_only=True)
-        o_sheet = wb["Tabelle1"]
-
-        for i in range(1, o_sheet.max_row + 1, 1):
-            file_name_sheet = o_sheet.cell(row=i, column=5)
-
-            if file_name_sheet.value == file_name:
-                metadata_h5p["collection"] = o_sheet.cell(row=i, column=1).value
-                metadata_h5p["order"] = o_sheet.cell(row=i, column=2).value
-                metadata_h5p["rating"] = o_sheet.cell(row=i, column=3).value
-                metadata_h5p["title"] = o_sheet.cell(row=i, column=4).value
-                metadata_h5p["keywords"] = o_sheet.cell(row=i, column=6).value
-                metadata_h5p["publisher"] = o_sheet.cell(row=i, column=7).value
-
-        return metadata_h5p
-
+        return Metadata(title, publisher, keywords, order, rating, collection)
