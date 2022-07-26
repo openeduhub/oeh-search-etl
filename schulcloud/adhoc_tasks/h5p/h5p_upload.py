@@ -17,10 +17,8 @@ def main():
 
     # ToDo:
     #  1. Check the metadata especially name, title and keywords (for the search query in the frontend)
-    #  > Actual the sorting after searching is bad.
-    #  2. Create node "collection" (not a Edusharing collection!, but rather with the metadata: "ccm:lom_relation")
-    #  3. Add h5p-files to "collection" (not a Edusharing collection!, more with the metadata: "ccm:lom_relation")
-    #  > Therefor the mediothek_pixiothek_spider does the same. Check and adapt that!
+    #  > Actual the sorting seems to sort to the value "score" of the property "collection". Check that!
+    #  2. Test the script against edusharing.staging and check the Lern-Store frontend view for the collection.
 
     environment = util.Environment(ENV_VARS, ask_for_missing=True)
 
@@ -46,21 +44,23 @@ def main():
 
             # unzip the package
             h5p_extract_metadata.UnzipLocalFile\
-                .unzip_local_file(file_path=f'{H5P_LOCAL_PATH}{filename}', unzipped_dir="unzipped")
+                .unzip_local_file(file_path=f'{H5P_LOCAL_PATH}/{filename}', unzipped_dir="unzipped")
 
-            # get excel_sheet
+            # get excel_sheet data
             excel_sheet = ""
             for filename in os.listdir("unzipped"):
                 if filename.endswith(".xlsx"):
                     excel_sheet = filename
 
-            # save the replicationsourceuuid of each h5p-file corresponding to this package
+            # save the replicationsourceuuid, nodeId and the collection of each h5p-file corresponding to this package
             package_h5p_files = []
+            package_h5p_files_nodeId = []
+            collection_h5p_files = ""
 
             # loop through the unzipped h5p-files
             for root, dirs, files in os.walk("unzipped"):
                 for filename in files:
-                    # get h5p file, add metadata, upload and add permissions
+                    # get h5p file, add metadata, upload and after all add permissions
                     if filename.endswith(".h5p"):
                         name = os.path.splitext(filename)[0]
                         date = str(datetime.now())
@@ -79,7 +79,7 @@ def main():
                                 "Delete",
                                 "CCPublish"
                             ],
-                            "cm:name": [metadata_excel["order"]],
+                            "cm:name": [metadata_excel["title"]],
                             "cm:edu_metadataset": ["mds_oeh"],
                             "cm:edu_forcemetadataset": ["true"],
                             "ccm:ph_invited": ["GROUP_public"],
@@ -92,13 +92,15 @@ def main():
                             "ccm:commonlicense_key": [metadata_excel["publisher"]],
                             "ccm:hpi_searchable": ["1"],
                             "ccm:hpi_lom_general_aggregationlevel": ["1"],
-                            "cclom:title": [metadata_excel["title"]],
+                            "cclom:title": [metadata_excel["order"]],
                             "cclom:aggregationlevel": ["1"],
                             "cclom:general_language": ["de"],
-                            "cclom:general_keyword": ["h5p", name, metadata_excel["keywords"], metadata_excel["order"],
-                                                      metadata_excel["collection"]],
+                            "cclom:general_keyword": ["h5p", metadata_excel["keywords"], metadata_excel["order"],
+                                                      metadata_excel["collection"], metadata_excel["title"]],
                             "ccm:lom_annotation": ["{'description': 'searchable==1', 'entity': 'crawler'}"],
-                            "ccm:wwwurl": [""]  # ToDo: Add the url of the frontend rendering page.
+                            "ccm:wwwurl": [""],  # ToDo: Add the url of the frontend rendering page.
+                            "ccm:hpi_lom_relation": ["{'kind': 'ispartof', 'resource': {'identifier': []}}"],
+                            "ccm:lom_relation": ["{'kind': 'ispartof', 'resource': {'identifier': []}}"],
                         }
                         node = api.sync_node(REPLICATION_SOURCE, properties,
                                              ['ccm:replicationsource', 'ccm:replicationsourceid'])
@@ -117,71 +119,75 @@ def main():
                         api.make_request('POST', url_upload, files=files, stream=True)
                         file.close()
 
-                        # add uuid of the file to the package array
+                        # add uuid, nodeId and collection name of the file to the package array
                         package_h5p_files.append(properties["ccm:replicationsourceuuid"])
+                        package_h5p_files_nodeId.append(node.id)
+                        collection_h5p_files = metadata_excel["collection"]
 
                         print(f'Upload complete for: {filename}')
 
-            # delete the unzipped folder including the files
+            # delete the unzipped folder including all files
             h5p_extract_metadata.UnzipLocalFile.delete_local_folder(folder_name="unzipped")
             print(package_h5p_files)
 
-            # set permissions
+            # set permissions for the package
             api.set_permissions(destination_folder.id, permitted_groups, False)
             print("Set permissions for: " + str(permitted_groups))
 
-            # set package with relations (all relations with the "ccm:replicationsourceuuid")
-            # collection_name = metadata_excel["collection"]
-            # print(f"Created package with corresponding h5p-elements: {package_h5p_files}")
-            # properties = {
-            #     "access": [
-            #         "Read",
-            #         "ReadAll",
-            #         "Comment",
-            #         "Feedback",
-            #         "AddChildren",
-            #         "ChangePermissions",
-            #         "Write",
-            #         "Delete",
-            #         "CCPublish"
-            #     ],
-            #     "cm:name": [name],
-            #     "cm:edu_metadataset": ["mds_oeh"],
-            #     "cm:edu_forcemetadataset": ["true"],
-            #     "ccm:ph_invited": ["GROUP_public"],
-            #     "ccm:ph_action": ["PERMISSION_ADD"],
-            #     "ccm:objecttype": ["MATERIAL"],
-            #     "ccm:replicationsource": [REPLICATION_SOURCE],
-            #     "ccm:replicationsourceid": [hashlib.sha1(name.encode()).hexdigest()],
-            #     "ccm:replicationsourcehash": [date],
-            #     "ccm:replicationsourceuuid": [str(uuid.uuid4())],
-            #     "ccm:commonlicense_key": [metadata_excel["publisher"]],
-            #     "ccm:hpi_searchable": ["1"],
-            #     "ccm:hpi_lom_general_aggregationlevel": ["2"],
-            #     "cclom:title": [collection_name],
-            #     "cclom:aggregationlevel": ["2"],
-            #     "cclom:general_language": ["de"],
-            #     "cclom:general_keyword": ["h5p", name],
-            #     "ccm:lom_annotation": ["{'description': 'searchable==1', 'entity': 'crawler'}"],
-            #     "ccm:wwwurl": [""],  # ToDo: see above
-            #     "ccm:lom_relation": [
-            #         "{'kind': 'haspart', 'resource': {'identifier': ['dba622f1-ccee-5c3b-b446-94968c117f52',
-            #         'e1956eb8-cbc3-5098-953d-f96e813bb819', '453f1156-b84d-53c2-bb1c-210da37b0f4c',
-            #         'c920eba4-f4d8-53cb-bb89-37aa7908fb27', '41cd8508-3f8a-5c87-b846-12192dab3b3d',
-            #         '0258b36e-2ec7-52db-96fd-ad1fc1b9da5f', 'ad6d9c78-636d-522c-8302-9d488a79dcac',
-            #         '14be28c3-a49b-5872-b275-9d25794d4b52']}}"
-            #     ],
-            #     "ccm:hpi_lom_relation": [
-            #         "{'kind': 'haspart', 'resource': {'identifier': ['dba622f1-ccee-5c3b-b446-94968c117f52',
-            #         'e1956eb8-cbc3-5098-953d-f96e813bb819', '453f1156-b84d-53c2-bb1c-210da37b0f4c',
-            #         'c920eba4-f4d8-53cb-bb89-37aa7908fb27', '41cd8508-3f8a-5c87-b846-12192dab3b3d',
-            #         '0258b36e-2ec7-52db-96fd-ad1fc1b9da5f', 'ad6d9c78-636d-522c-8302-9d488a79dcac',
-            #         '14be28c3-a49b-5872-b275-9d25794d4b52']}}"
-            #     ],
-            #     "cclom:format": ["text/html"],
-            # }
-            #
-            # api.sync_node(REPLICATION_SOURCE, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
+            # now update metadata from the new node (add children) and the h5p-files (add parent)
+            name = collection_h5p_files
+            # name = os.path.splitext(filename)[0]
+            date = str(datetime.now())
+            relation = "{'kind': 'hasparts', 'resource': {'identifier': " + str(package_h5p_files) + "}}"
+
+            properties = {
+                "access": [
+                    "Read",
+                    "ReadAll",
+                    "Comment",
+                    "Feedback",
+                    "AddChildren",
+                    "ChangePermissions",
+                    "Write",
+                    "Delete",
+                    "CCPublish"
+                ],
+                "cm:name": [name],
+                "cm:edu_metadataset": ["mds_oeh"],
+                "cm:edu_forcemetadataset": ["true"],
+                "ccm:ph_invited": ["GROUP_public"],
+                "ccm:ph_action": ["PERMISSION_ADD"],
+                "ccm:objecttype": ["MATERIAL"],
+                "ccm:replicationsource": [REPLICATION_SOURCE],
+                "ccm:replicationsourceid": [hashlib.sha1(name.encode()).hexdigest()],
+                "ccm:replicationsourcehash": [date],
+                "ccm:replicationsourceuuid": [str(uuid.uuid4())],
+                "ccm:commonlicense_key": ["MedienLB"],
+                "ccm:hpi_searchable": ["1"],
+                "ccm:hpi_lom_general_aggregationlevel": ["2"],
+                "cclom:title": [name],
+                "cclom:aggregationlevel": ["2"],
+                "cclom:general_language": ["de"],
+                "cclom:general_keyword": ["h5p", name, "Arbeitspaket"],
+                "ccm:lom_annotation": ["{'description': 'searchable==1', 'entity': 'crawler'}"],
+                "ccm:wwwurl": [""],
+                "ccm:hpi_lom_relation": [relation],
+                "ccm:lom_relation": [relation],
+                "cclom:format": ["text/html"]
+            }
+
+            api.sync_node(REPLICATION_SOURCE, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
+            print(f'Created Collection {name}.')
+
+            # update the h5p-files with parent-nodeId
+            parent_uuid = properties["ccm:replicationsourceuuid"]
+
+            for node in package_h5p_files_nodeId:
+                url_update_lom = f'/node/v1/nodes/-home-/{node}/property?property=ccm%3Alom_relation&value=%7B\'kind\'%3A%20\'ispartof\'%2C%20\'resource\'%3A%20%7B\'identifier\'%3A%20{parent_uuid}%7D'
+                url_update_lom_hpi = f'/node/v1/nodes/-home-/{node}/property?property=ccm%3Ahpi_lom_relation&value=%7B\'kind\'%3A%20\'ispartof\'%2C%20\'resource\'%3A%20%7B\'identifier\'%3A%20{parent_uuid}%7D'
+                response_update = api.make_request('POST', url_update_lom)
+                api.make_request('POST', url_update_lom_hpi)
+                print(f'Response status {response_update.status_code} for node: {node}')
 
 
 if __name__ == '__main__':
