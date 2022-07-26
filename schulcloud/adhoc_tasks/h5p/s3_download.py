@@ -31,8 +31,7 @@ def main():
     progress_bar = tqdm.tqdm(total=total_size, unit='B', unit_scale=True, unit_divisor=1024)
     for obj in objects:
         progress_bar.set_description(obj['Key'])
-        client.download_file(Bucket=bucket_name, Key=obj['Key'], Filename=obj['Key'])
-        progress_bar.update(obj['Size'])
+        client.download_file(Bucket=bucket_name, Key=obj['Key'], Filename=obj['Key'], Callback=lambda n: progress_bar.update(n))
     progress_bar.close()
 
 
