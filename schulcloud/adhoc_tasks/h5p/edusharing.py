@@ -158,10 +158,17 @@ class EdusharingAPI:
             raise RequestFailedException(response)
         return Node(response.json()['node'])
 
-    def set_property(self, node_id: str, property: str, value: Dict):
-        url = f'/node/v1/nodes/-home-/{node_id}/property'
-        params = {'property': property, 'value': value}
-        response = self.make_request('POST', url, params=params)
+    # def set_property(self, node_id: str, property: str, value: Dict):
+    #     url = f'/node/v1/nodes/-home-/{node_id}/property'
+    #     params = {'property': property, 'value': value}
+    #     response = self.make_request('POST', url, params=params)
+    #     if not response.status_code == 200:
+    #         raise RequestFailedException(response, node_id)
+
+    def set_property_relation(self, node_id: str, property: str, value: List):
+        property = property.replace(":", "%3A")
+        url = f'/node/v1/nodes/-home-/{node_id}/property?property={property}&value=%7B\'kind\'%3A%20\'ispartof\'%2C%20\'resource\'%3A%20%7B\'identifier\'%3A%20{value}%7D'
+        response = self.make_request('POST', url)
         if not response.status_code == 200:
             raise RequestFailedException(response, node_id)
 
