@@ -127,13 +127,13 @@ class Uploader:
         return node.id, properties["ccm:replicationsourceuuid"]
 
     def upload_h5p_general(self, edusharing_folder_name: str, permitted_groups: Optional[List[str]] = None):
-        destination_folder = self.setup_destination_folder(edusharing_folder_name, permitted_groups)
+        self.setup_destination_folder(edusharing_folder_name, permitted_groups)
         # TODO
         pass
 
     def upload_h5p_thuringia(self, edusharing_folder_name: str):
         permitted_groups = ['Thuringia-public']
-        destination_folder = self.setup_destination_folder(edusharing_folder_name, permitted_groups)
+        self.setup_destination_folder(edusharing_folder_name, permitted_groups)
 
         # ToDo:
         #  1. Check the metadata especially name, title and keywords (for the search query in the frontend)
