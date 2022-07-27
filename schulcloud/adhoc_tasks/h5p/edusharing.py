@@ -158,10 +158,19 @@ class EdusharingAPI:
             raise RequestFailedException(response)
         return Node(response.json()['node'])
 
+    def set_property(self, node_id: str, property: str, value: Dict):
+        url = f'/node/v1/nodes/-home-/{node_id}/property'
+        params = {'property': property, 'value': value}
+        response = self.make_request('POST', url, params=params)
+        if not response.status_code == 200:
+            raise RequestFailedException(response, node_id)
+
 
 class RequestFailedException(Exception):
-    def __init__(self, response: requests.Response):
-        super(RequestFailedException, self).__init__(f'Request failed: {response.status_code} {response.reason}: {response.text}')
+    def __init__(self, response: requests.Response, context_hint: str = ''):
+        if context_hint:
+            context_hint += ' -> '
+        super(RequestFailedException, self).__init__(f'Request failed: {context_hint}{response.status_code} {response.reason}: {response.text}')
 
 
 class NotFoundException(Exception):
