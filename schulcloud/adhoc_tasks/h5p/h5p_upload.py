@@ -27,7 +27,8 @@ def generate_node_properties(
         url: str = '',
         relation: Optional[str] = None,
         format: Optional[str] = None,
-        aggregation_level: int = 1):
+        aggregation_level: int = 1,
+        aggregation_level_hpi: int = 1):
     if not replication_source_id:
         replication_source_id = name
     if not replication_source_uuid:
@@ -59,7 +60,7 @@ def generate_node_properties(
         "ccm:replicationsourceuuid": [replication_source_uuid],
         "ccm:commonlicense_key": [publisher],
         "ccm:hpi_searchable": ["1"],
-        "ccm:hpi_lom_general_aggregationlevel": ["1"],
+        "ccm:hpi_lom_general_aggregationlevel": [str(aggregation_level_hpi)],
         "cclom:title": [title],
         "cclom:aggregationlevel": [str(aggregation_level)],
         "cclom:general_language": ["de"],
@@ -68,6 +69,7 @@ def generate_node_properties(
         "ccm:wwwurl": [url],
         "ccm:hpi_lom_relation": [relation],
         "ccm:lom_relation": [relation],
+        "ccm:create_version": ["false"],
     }
     if format:
         properties["cclom:format"] = ["text/html"]
@@ -164,7 +166,7 @@ class Uploader:
             keywords = ["h5p", collection_name, "Arbeitspaket"]
             properties = generate_node_properties(
                 collection_name, collection_name, "MedienLB", keywords, edusharing_folder_name,
-                format="text/html", aggregation_level=2
+                format="text/html", aggregation_level=2, aggregation_level_hpi=2
             )
             collection_rep_source_uuid = properties['ccm:replicationsourceuuid']
             collection_node = self.api.sync_node(edusharing_folder_name, properties,
@@ -188,7 +190,8 @@ class Uploader:
 
                     node_id, rep_source_uuid = self.upload_h5p_file(edusharing_folder_name, filename, metadata,
                                                                     file=file, relation=relation)
-                    package_h5p_files_rep_source_uuids.append(rep_source_uuid)
+                    rep_source_uuid_clean = str(rep_source_uuid).replace('[', '').replace(']', '').replace("'", "")
+                    package_h5p_files_rep_source_uuids.append(rep_source_uuid_clean)
 
             excel_file.close()
             zip.close()
@@ -199,7 +202,7 @@ class Uploader:
             #         'identifier': package_h5p_files_rep_source_uuids
             #     }
             # }
-
+            print(package_h5p_files_rep_source_uuids)
             self.api.set_property_relation(collection_node.id, 'ccm:lom_relation',
                                            package_h5p_files_rep_source_uuids)
             self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation',
