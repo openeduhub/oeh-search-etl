@@ -1,6 +1,4 @@
-import os
 
-import tqdm
 import boto3
 
 import util
@@ -16,7 +14,6 @@ def main():
         aws_secret_access_key=env['S3_SECRET_KEY'],
     )
     bucket_name = env['S3_BUCKET_NAME']
-    directory = env['S3_DOWNLOAD_DIRECTORY']
 
     response = client.list_buckets()
     for bucket in response['Buckets']:
@@ -28,18 +25,10 @@ def main():
     response = client.list_objects_v2(Bucket=bucket_name)
     objects = response['Contents']
 
-    print(f'Download all objects from bucket {bucket_name}')
-    total_size = sum([obj['Size'] for obj in objects])
-    progress_bar = tqdm.tqdm(total=total_size, unit='B', unit_scale=True, unit_divisor=1024)
+    print(f'Objects in bucket {bucket_name}:')
+    print(f'{"Name":>40}{"Size":>16}{"Last Modified":>32}')
     for obj in objects:
-        progress_bar.set_description(obj['Key'])
-        client.download_file(
-            Bucket=bucket_name,
-            Key=obj['Key'],
-            Filename=os.path.join(directory, obj['Key']),
-            Callback=lambda n: progress_bar.update(n)
-        )
-    progress_bar.close()
+        print(f'{obj["Key"]:>40}{obj["Size"]:>16}{obj["LastModified"].ctime():>32}')
 
 
 if __name__ == '__main__':
