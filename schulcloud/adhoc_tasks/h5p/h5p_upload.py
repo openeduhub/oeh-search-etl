@@ -3,7 +3,7 @@ import uuid
 import zipfile
 from datetime import datetime
 import hashlib
-from typing import Optional, List, Dict, IO
+from typing import Optional, List, IO
 
 import edusharing
 import h5p_extract_metadata
@@ -27,7 +27,8 @@ def generate_node_properties(
         url: str = '',
         relation: Optional[str] = None,
         format: Optional[str] = None,
-        aggregation_level: int = 1):
+        aggregation_level: int = 1,
+        aggregation_level_hpi: int = 1):
     if not replication_source_id:
         replication_source_id = name
     if not replication_source_uuid:
@@ -59,7 +60,7 @@ def generate_node_properties(
         "ccm:replicationsourceuuid": [replication_source_uuid],
         "ccm:commonlicense_key": [publisher],
         "ccm:hpi_searchable": ["1"],
-        "ccm:hpi_lom_general_aggregationlevel": ["1"],
+        "ccm:hpi_lom_general_aggregationlevel": [str(aggregation_level_hpi)],
         "cclom:title": [title],
         "cclom:aggregationlevel": [str(aggregation_level)],
         "cclom:general_language": ["de"],
@@ -68,6 +69,7 @@ def generate_node_properties(
         "ccm:wwwurl": [url],
         "ccm:hpi_lom_relation": [relation],
         "ccm:lom_relation": [relation],
+        "ccm:create_version": ["false"],
     }
     if format:
         properties["cclom:format"] = ["text/html"]
@@ -88,23 +90,23 @@ class Uploader:
             permitted_groups = ["Brandenburg-public", "Thuringia-public", "LowerSaxony-public"]
 
         sync_obj = self.api.get_sync_obj_folder()
-        destination_folder = self.api.find_node_by_name(sync_obj.id, folder_name)
-        if not destination_folder:
-            destination_folder = self.api.get_or_create_folder(sync_obj.id, folder_name)
+        destination_folder = self.api.get_or_create_folder(sync_obj.id, folder_name)
 
-            # set permissions for the package
-            self.api.set_permissions(destination_folder.id, permitted_groups, False)
-            print(f"Created folder {folder_name} with permissions for: {permitted_groups}")
+        # set permissions for the permitted_groups
+        self.api.set_permissions(destination_folder.id, permitted_groups, False)
+        print(f"Created folder {folder_name} with permissions for: {permitted_groups}")
 
         return destination_folder
 
-    def upload_h5p_file(self, folder_name: str, filename: str, metadata: h5p_extract_metadata.Metadata, file: Optional[IO[bytes]] = None, relation: Optional[Dict] = None):
+    def upload_h5p_file(self, folder_name: str, filename: str, metadata: h5p_extract_metadata.Metadata,
+                        file: Optional[IO[bytes]] = None, relation: str = ""):
         # get h5p file, add metadata, upload and after all add permissions
         name = os.path.splitext(os.path.basename(filename))[0]
-        keywords = ['h5p', metadata.title, metadata.collection, metadata.order] + metadata.keywords
+        keywords = ['h5p', metadata.title, metadata.collection, metadata.order, metadata.keywords]
 
         # ToDo: Add the url of the frontend rendering page
-        properties = generate_node_properties(metadata.order, metadata.title, metadata.publisher, keywords, folder_name, replication_source_id=name, relation=relation)
+        properties = generate_node_properties(metadata.order, metadata.title, metadata.publisher, keywords,
+                                              folder_name, replication_source_id=name, relation=relation)
 
         node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
 
@@ -143,11 +145,10 @@ class Uploader:
 
         # unzip data
         for obj in os.listdir(H5P_LOCAL_PATH):
-            if not os.path.isfile(obj) or not obj.endswith('.zip'):
-                continue
+            # if not os.path.isfile(obj) or not obj.endswith('.zip'):
+            #     continue
 
-            zip = zipfile.ZipFile(obj)
-
+            zip = zipfile.ZipFile(H5P_LOCAL_PATH + "/" + obj)
             # get excel_sheet data
             for excel_filename in zip.namelist():
                 if excel_filename.endswith(".xlsx"):
@@ -164,10 +165,12 @@ class Uploader:
             # now update metadata from the new node (add children) and the h5p-files (add parent)
             keywords = ["h5p", collection_name, "Arbeitspaket"]
             properties = generate_node_properties(
-                collection_name, collection_name, "MedienLB", keywords, edusharing_folder_name, format="text/html", aggregation_level=2
+                collection_name, collection_name, "MedienLB", keywords, edusharing_folder_name,
+                format="text/html", aggregation_level=2, aggregation_level_hpi=2
             )
             collection_rep_source_uuid = properties['ccm:replicationsourceuuid']
-            collection_node = self.api.sync_node(edusharing_folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
+            collection_node = self.api.sync_node(edusharing_folder_name, properties,
+                                                 ['ccm:replicationsource', 'ccm:replicationsourceid'])
             print(f'Created Collection {collection_name}.')
 
             # loop through the unzipped h5p-files
@@ -176,27 +179,34 @@ class Uploader:
                     metadata = metadata_file.get_metadata(filename)
                     file = zip.open(filename)
 
-                    relation = {
-                        'kind': 'ispartof',
-                        'resource': {
-                            'identifier': [collection_rep_source_uuid]
-                        }
-                    }
+                    # relation = {
+                    #     'kind': 'ispartof',
+                    #     'resource': {
+                    #         'identifier': [collection_rep_source_uuid]
+                    #     }
+                    # }
+                    relation = "{'kind': 'ispartof', 'resource': {'identifier': " +\
+                               str(collection_rep_source_uuid) + "}}"
 
-                    node_id, rep_source_uuid = self.upload_h5p_file(edusharing_folder_name, filename, metadata, file=file, relation=relation)
-                    package_h5p_files_rep_source_uuids.append(rep_source_uuid)
+                    node_id, rep_source_uuid = self.upload_h5p_file(edusharing_folder_name, filename, metadata,
+                                                                    file=file, relation=relation)
+                    rep_source_uuid_clean = str(rep_source_uuid).replace('[', '').replace(']', '').replace("'", "")
+                    package_h5p_files_rep_source_uuids.append(rep_source_uuid_clean)
 
             excel_file.close()
             zip.close()
 
-            relation = {
-                'kind': 'hasparts',
-                'resource': {
-                    'identifier': package_h5p_files_rep_source_uuids
-                }
-            }
-            self.api.set_property(collection_node.id, 'ccm:lom_relation', relation)
-            self.api.set_property(collection_node.id, 'ccm:hpi_lom_relation', relation)
+            # relation = {
+            #     'kind': 'hasparts',
+            #     'resource': {
+            #         'identifier': package_h5p_files_rep_source_uuids
+            #     }
+            # }
+            print(package_h5p_files_rep_source_uuids)
+            self.api.set_property_relation(collection_node.id, 'ccm:lom_relation',
+                                           package_h5p_files_rep_source_uuids)
+            self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation',
+                                           package_h5p_files_rep_source_uuids)
 
 
 if __name__ == '__main__':

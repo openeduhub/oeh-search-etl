@@ -1,8 +1,5 @@
 
-import os
-import re
 import sys
-import zipfile
 from typing import List, Union, IO
 
 import openpyxl
@@ -78,7 +75,7 @@ class MetadataFile:
                 keywords = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
                 publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
 
-                keywords = re.findall(r'[^,; ]+', keywords)
+                # keywords = re.findall(r'[^,; ]+', keywords)
                 break
         else:
             raise RuntimeError(f'No metadata found for {h5p_file}')
