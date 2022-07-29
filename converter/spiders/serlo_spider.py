@@ -7,7 +7,7 @@ from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
 from converter.spiders.base_classes import LomBase
-from converter.web_tools import WebEngine
+from converter.web_tools import WebEngine, WebTools
 
 
 class SerloSpider(scrapy.Spider, LomBase):
@@ -16,7 +16,7 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.2.1"  # last update: 2022-07-29
+    version = "0.2.2"  # last update: 2022-07-29
     WEB_TOOLS = WebEngine.Playwright
 
     graphql_items = list()
@@ -112,11 +112,16 @@ class SerloSpider(scrapy.Spider, LomBase):
         json_ld = response.xpath('//*[@type="application/ld+json"]/text()').get()
         json_ld = json.loads(json_ld)
 
+        playwright_dict = WebTools.getUrlData(response.url, WebEngine.Playwright)
+        html_body = playwright_dict.get("html")
+        screenshot_bytes = playwright_dict.get("screenshot_bytes")
+        html_text = playwright_dict.get("text")
+
         base = BaseItemLoader()
         # # ALL possible keys for the different Item and ItemLoader-classes can be found inside converter/items.py
         # # TODO: fill "base"-keys with values for
         # #  - thumbnail          recommended
-
+        base.add_value('screenshot_bytes', screenshot_bytes)
         # The actual URL of a learning material is dynamic and can change at any given time
         # (e.g. when the title gets changed by a serlo editor), therefore we use the "id"-field
         # or the identifier number as a stable ID
@@ -325,6 +330,8 @@ class SerloSpider(scrapy.Spider, LomBase):
         base.add_value('permissions', permissions.load_item())
 
         response_loader = super().mapResponse(response)
+        response_loader.replace_value('html', html_body)
+        response_loader.replace_value('text', html_text)
         base.add_value('response', response_loader.load_item())
 
         yield base.load_item()
