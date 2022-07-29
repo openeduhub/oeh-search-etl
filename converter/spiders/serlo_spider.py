@@ -2,21 +2,22 @@ import json
 
 import requests
 import scrapy
-from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
 from converter.spiders.base_classes import LomBase
+from converter.web_tools import WebEngine
 
 
-class SerloSpider(CrawlSpider, LomBase):
+class SerloSpider(scrapy.Spider, LomBase):
     name = "serlo_spider"
     friendlyName = "serlo_spider"
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.2"  # last update: 2022-03-14
+    version = "0.2.1"  # last update: 2022-07-29
+    WEB_TOOLS = WebEngine.Playwright
 
     graphql_items = list()
     # Mapping from EducationalAudienceRole (LRMI) to IntendedEndUserRole(LOM), see:

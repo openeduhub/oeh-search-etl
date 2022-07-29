@@ -40,8 +40,14 @@ class WebTools:
 
     @staticmethod
     def __getUrlDataPlaywright(url: str):
-        html = asyncio.run(WebTools.fetchDataPlaywright(url))
-        return {"html": html, "text": WebTools.html2Text(html), "cookies": None, "har": None}
+        playwright_dict = asyncio.run(WebTools.fetchDataPlaywright(url))
+        html = playwright_dict.get("content")
+        screenshot_bytes = playwright_dict.get("screenshot_bytes")
+        return {"html": html,
+                "text": WebTools.html2Text(html),
+                "cookies": None,
+                "har": None,
+                "screenshot_bytes": screenshot_bytes}
 
     @staticmethod
     def __getUrlDataSplash(url: str):
@@ -99,8 +105,15 @@ class WebTools:
             # waits for page to fully load (= no network traffic for 500ms),
             # maximum timeout: 90s
             content = await page.content()
+            screenshot_bytes = await page.screenshot()
+            # ToDo: HAR / text / cookies
+            #  if we are able to replicate the Splash response with all its fields, we could save traffic/Requests
+            #  that are currently still being handled by Splash
             # await page.close()
-            return content
+            return {
+                "content": content,
+                "screenshot_bytes": screenshot_bytes
+            }
 
     @staticmethod
     def html2Text(html: str):

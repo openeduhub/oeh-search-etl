@@ -1,33 +1,35 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import annotations
+
 import base64
 # Define your item pipelines here
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 import csv
-import dateparser
-import io
-import isodate
 import logging
 import time
+from abc import ABCMeta
 from io import BytesIO
 from typing import BinaryIO, TextIO, Optional
-from abc import ABCMeta
+
+import dateparser
 import dateutil.parser
+import isodate
 import requests
-from PIL import Image
 import scrapy
 import scrapy.crawler
+from PIL import Image
+from itemadapter import ItemAdapter
 from scrapy.exceptions import DropItem
 from scrapy.exporters import JsonItemExporter
 from scrapy.utils.project import get_project_settings
-from itemadapter import ItemAdapter
 
 from converter import env
 from converter.constants import *
 from converter.es_connector import EduSharing
+from converter.web_tools import WebTools, WebEngine
 from valuespace_converter.app.valuespaces import Valuespaces
 
 log = logging.getLogger(__name__)
@@ -94,6 +96,7 @@ class LOMFillupPipeline(BasicPipeline):
     """
     fillup missing props by "guessing" or loading them if possible
     """
+
     def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
         if "fulltext" not in item and "text" in item["response"]:
@@ -150,6 +153,7 @@ class FilterSparsePipeline(BasicPipeline):
         except KeyError:
             raise DropItem(f'Item {item} was dropped for not providing enough metadata')
 
+
 class NormLicensePipeline(BasicPipeline):
     def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
@@ -197,6 +201,7 @@ class ConvertTimePipeline(BasicPipeline):
     convert typicalLearningTime into an integer representing seconds
     + convert duration into an integer
     """
+
     def process_item(self, raw_item, spider):
         # map lastModified
         item = ItemAdapter(raw_item)
@@ -238,7 +243,7 @@ class ConvertTimePipeline(BasicPipeline):
                 if duration:
                     if len(duration.split(":")) == 3:
                         duration = isodate.parse_time(duration)
-                        duration = duration.hour*60*60 + duration.minute*60 + duration.second
+                        duration = duration.hour * 60 * 60 + duration.minute * 60 + duration.second
                     elif duration.startswith("PT"):
                         duration = int(isodate.parse_duration(duration).total_seconds())
                     else:
@@ -255,6 +260,7 @@ class ProcessValuespacePipeline(BasicPipeline):
     """
     generate de_DE / i18n strings for valuespace fields
     """
+
     def __init__(self):
         self.valuespaces = Valuespaces()
 
@@ -305,10 +311,26 @@ class ProcessThumbnailPipeline(BasicPipeline):
         return img.resize((int(w), int(h)), Image.ANTIALIAS).convert("RGB")
 
     def process_item(self, raw_item, spider):
+        """
+        By default the thumbnail-pipeline handles several cases:
+        - if there is a URL-string inside the "BaseItem.thumbnail"-field:
+        -- download image from URL; rescale it into different sizes (small/large);
+        --- save the thumbnails as base64 within
+        ---- "BaseItem.thumbnail.small", "BaseItem.thumbnail.large"
+        --- (afterwards delete the URL from "BaseItem.thumbnail")
+
+        - if there is NO "BaseItem.thumbnail"-field:
+        -- default: take a screenshot of the URL from "technical.location" with Splash, rescale and save (as above)
+        -- alternatively, on-demand: use Playwright to take a screenshot, rescale and save (as above)
+        """
         item = ItemAdapter(raw_item)
         response = None
         url = None
         settings = get_project_settings()
+        # checking if the (optional) attribute WEB_TOOLS exists within the specific spider class:
+        web_tools_spider_attribute = getattr(spider, "WEB_TOOLS", WebEngine.Splash)
+        # if the attribute "WEB_TOOLS" doesn't exist as an attribute within a specific spider,
+        # it will default back to "splash"
         if "thumbnail" in item:
             url = item["thumbnail"]
             response = requests.get(url)
@@ -321,7 +343,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 and "format" in item["lom"]["technical"]
                 and item["lom"]["technical"]["format"] == "text/html"
         ):
-            if settings.get("SPLASH_URL"):
+            if settings.get("SPLASH_URL") and web_tools_spider_attribute == WebEngine.Splash:
                 response = requests.post(
                     settings.get("SPLASH_URL") + "/render.png",
                     json={
@@ -332,6 +354,23 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         "headers": settings.get("SPLASH_HEADERS"),
                     },
                 )
+            if env.get("PLAYWRIGHT_WS_ENDPOINT") and web_tools_spider_attribute == WebEngine.Playwright:
+                if "screenshot_bytes" in item:
+                    # in case we are already using playwright in a spider, we can skip one additional HTTP Request by
+                    # accessing the (temporary available) "screenshot_bytes"-field
+                    img = Image.open(BytesIO(item["screenshot_bytes"]))
+                    self.create_thumbnails_from_image_bytes(img, item, settings)
+                    del item["screenshot_bytes"]
+                    # the final BaseItem data model doesn't use screenshot_bytes,
+                    # therefore we delete it after we're done processing it
+                else:
+                    # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
+                    # but don't use playwright within the spider itself (e.g. serlo_spider)
+                    playwright_dict = WebTools.getUrlData(url=item["lom"]["technical"]["location"][0],
+                                                          engine=WebEngine.Playwright)
+                    screenshot_bytes = playwright_dict.get("screenshot_bytes")
+                    img = Image.open(BytesIO(screenshot_bytes))
+                    self.create_thumbnails_from_image_bytes(img, item, settings)
             else:
                 if settings.get("DISABLE_SPLASH") is False:
                     log.warning(
@@ -360,28 +399,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     ).decode()
                 else:
                     img = Image.open(BytesIO(response.content))
-                    small = BytesIO()
-                    self.scale_image(img, settings.get("THUMBNAIL_SMALL_SIZE")).save(
-                        small,
-                        "JPEG",
-                        mode="RGB",
-                        quality=settings.get("THUMBNAIL_SMALL_QUALITY"),
-                    )
-                    large = BytesIO()
-                    self.scale_image(img, settings.get("THUMBNAIL_LARGE_SIZE")).save(
-                        large,
-                        "JPEG",
-                        mode="RGB",
-                        quality=settings.get("THUMBNAIL_LARGE_QUALITY"),
-                    )
-                    item["thumbnail"] = {}
-                    item["thumbnail"]["mimetype"] = "image/jpeg"
-                    item["thumbnail"]["small"] = base64.b64encode(
-                        small.getvalue()
-                    ).decode()
-                    item["thumbnail"]["large"] = base64.b64encode(
-                        large.getvalue()
-                    ).decode()
+                    self.create_thumbnails_from_image_bytes(img, item, settings)
             except Exception as e:
                 if url is not None:
                     log.warning(
@@ -400,6 +418,30 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         "No thumbnail provided or ressource was unavailable for fetching"
                     )
         return raw_item
+
+    def create_thumbnails_from_image_bytes(self, image, item, settings):
+        small = BytesIO()
+        self.scale_image(image, settings.get("THUMBNAIL_SMALL_SIZE")).save(
+            small,
+            "JPEG",
+            mode="RGB",
+            quality=settings.get("THUMBNAIL_SMALL_QUALITY"),
+        )
+        large = BytesIO()
+        self.scale_image(image, settings.get("THUMBNAIL_LARGE_SIZE")).save(
+            large,
+            "JPEG",
+            mode="RGB",
+            quality=settings.get("THUMBNAIL_LARGE_QUALITY"),
+        )
+        item["thumbnail"] = {}
+        item["thumbnail"]["mimetype"] = "image/jpeg"
+        item["thumbnail"]["small"] = base64.b64encode(
+            small.getvalue()
+        ).decode()
+        item["thumbnail"]["large"] = base64.b64encode(
+            large.getvalue()
+        ).decode()
 
 
 class EduSharingCheckPipeline(EduSharing, BasicPipeline):
