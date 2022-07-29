@@ -6,18 +6,23 @@ from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloa
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader, \
     PermissionItemLoader, LomClassificationItemLoader
 from converter.spiders.base_classes import LomBase
+from converter.web_tools import WebEngine, WebTools
 
 
 # This is an alternative approach to our previous "sample_spider.py" that might be easier to read and understand
 # for web crawling beginners. Use whichever approach is more convenient for you.
 # LAST UPDATE: 2021-08-20
 # please also consult converter/items.py for all currently available keys/values in our crawler data model
+
+
 class SampleSpiderAlternative(CrawlSpider, LomBase):
     name = "sample_spider_alternative"
     friendlyName = "Sample Source (alternative Method)"  # how your crawler should appear in the "Supplier"-list
     start_urls = ["https://edu-sharing.com"]  # starting point of your crawler, e.g. a sitemap, index, rss-feed etc.
     version = "0.0.1"  # this is used for timestamping your crawler results (if a source changes its layout/data,
     # make sure to increment this value to force a clear distinction between old and new crawler results)
+    WEB_TOOLS = WebEngine.Playwright  # OPTIONAL: this attribute controls which tool is used for taking Screenshots
+    # you can skip this attribute altogether if you want to use the default Settings (Splash)
 
     def getId(self, response=None) -> str:
         # You have two choices here:
@@ -37,6 +42,12 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
             yield scrapy.Request(url=start_url, callback=self.parse)
 
     def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
+        # OPTIONAL: If you need to use playwright to crawl a website, this is how you can access the data provided
+        # by Playwright's headless browser
+        playwright_dict: dict = WebTools.getUrlData(response.url, WebEngine.Playwright)
+        html_body = playwright_dict.get("html")
+        screenshot_bytes = playwright_dict.get("screenshot_bytes")  # to be used in base.screenshot_bytes
+
         base = BaseItemLoader()
         # ALL possible keys for the different Item and ItemLoader-classes can be found inside converter/items.py
 
@@ -66,7 +77,9 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         # to access or premium_only). in this example, items that have the "premium_only"-value will be sent to the
         # "SYNC_OBJ/<crawler_name>/premium_only/"-folder.
         # (This field is used in two different use-cases, both in "youtube_spider" and "lehreronline_spider")
-        base.add_value('thumbnail', thumbnail_url)
+        base.add_value('thumbnail', thumbnail_url)  # the thumbnail field expects an URL (as a String)
+        base.add_value('screenshot_bytes', screenshot_bytes)  # this is an OPTIONAL field that will be CONSUMED within
+        # the thumbnail pipeline to create a small/large thumbnail of the website itself
 
         lom = LomBaseItemloader()
         # TODO: afterwards fill up the LomBaseItem with
@@ -108,7 +121,7 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         # or replaced with:
         # technical.replace_value('key', 'value')
         technical.add_value('format', 'text/html')  # e.g. if the learning object is a web-page
-        technical.add_value('location', response.url)   # if the the learning object has a unique URL that's being
+        technical.add_value('location', response.url)  # if the the learning object has a unique URL that's being
         # navigated by the crawler
         lom.add_value('technical', technical.load_item())
 
@@ -122,7 +135,7 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - organization                   optional
         #  - email                          optional
         #  - uuid                           optional
-        lifecycle.add_value('role', 'author')   # supported roles: "author" / "editor" / "publisher"
+        lifecycle.add_value('role', 'author')  # supported roles: "author" / "editor" / "publisher"
         # for available roles mapping, please take a look at converter/es_connector.py
         lom.add_value('lifecycle', lifecycle.load_item())
 
