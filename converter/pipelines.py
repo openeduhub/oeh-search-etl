@@ -22,6 +22,7 @@ import scrapy
 import scrapy.crawler
 from PIL import Image
 from itemadapter import ItemAdapter
+from scrapy import settings
 from scrapy.exceptions import DropItem
 from scrapy.exporters import JsonItemExporter
 from scrapy.utils.project import get_project_settings
@@ -455,6 +456,8 @@ class ProcessThumbnailPipeline(BasicPipeline):
 def get_settings_for_crawler(spider):
     all_settings = get_project_settings()
     crawler_settings = getattr(spider, "custom_settings", {})
+    if type(crawler_settings) == dict:
+        crawler_settings = settings.BaseSettings(crawler_settings, 'spider')
     for key in crawler_settings.keys():
         if (
                 all_settings.get(key) and crawler_settings.getpriority(key) > all_settings.getpriority(key)
