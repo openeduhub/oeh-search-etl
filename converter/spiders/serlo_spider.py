@@ -2,6 +2,7 @@ import json
 
 import requests
 import scrapy
+import scrapy.settings
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
@@ -17,7 +18,10 @@ class SerloSpider(scrapy.Spider, LomBase):
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
     version = "0.2.2"  # last update: 2022-07-29
-    WEB_TOOLS = WebEngine.Playwright
+    custom_settings: scrapy.settings.Settings = {
+        # playwright cause of issues with thumbnails+text for serlo
+        "WEB_TOOLS": scrapy.settings.SettingsAttribute(WebEngine.Playwright, scrapy.settings.SETTINGS_PRIORITIES["spider"])
+    }
 
     graphql_items = list()
     # Mapping from EducationalAudienceRole (LRMI) to IntendedEndUserRole(LOM), see:

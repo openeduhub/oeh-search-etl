@@ -326,24 +326,35 @@ class ProcessThumbnailPipeline(BasicPipeline):
         item = ItemAdapter(raw_item)
         response = None
         url = None
-        settings = get_project_settings()
-        # checking if the (optional) attribute WEB_TOOLS exists within the specific spider class:
-        web_tools_spider_attribute = getattr(spider, "WEB_TOOLS", WebEngine.Splash)
-        # if the attribute "WEB_TOOLS" doesn't exist as an attribute within a specific spider,
-        # it will default back to "splash"
-        if "thumbnail" in item:
+        settings = self.get_settings_for_crawler(spider)
+        # checking if the (optional) attribute WEB_TOOLS exists:
+        web_tools = settings.get("WEB_TOOLS", WebEngine.Splash)
+        # if screenshot_bytes is provided (the crawler has already a binary representation of the image
+        # the pipeline will convert/scale the given image
+        if "screenshot_bytes" in item:
+            # in case we are already using playwright in a spider, we can skip one additional HTTP Request by
+            # accessing the (temporary available) "screenshot_bytes"-field
+            img = Image.open(BytesIO(item["screenshot_bytes"]))
+            self.create_thumbnails_from_image_bytes(img, item, settings)
+            # the final BaseItem data model doesn't use screenshot_bytes,
+            # therefore we delete it after we're done processing it
+            del item["screenshot_bytes"]
+
+            # a thumbnail (url) is given - we will try to fetch it from the url
+        elif "thumbnail" in item:
             url = item["thumbnail"]
             response = requests.get(url)
             log.debug(
                 "Loading thumbnail took " + str(response.elapsed.total_seconds()) + "s"
             )
+            # nothing was given, we try to screenshot the page either via Splash or Playwright
         elif (
                 "location" in item["lom"]["technical"]
                 and len(item["lom"]["technical"]["location"]) > 0
                 and "format" in item["lom"]["technical"]
                 and item["lom"]["technical"]["format"] == "text/html"
         ):
-            if settings.get("SPLASH_URL") and web_tools_spider_attribute == WebEngine.Splash:
+            if settings.get("SPLASH_URL") and web_tools == WebEngine.Splash:
                 response = requests.post(
                     settings.get("SPLASH_URL") + "/render.png",
                     json={
@@ -354,23 +365,17 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         "headers": settings.get("SPLASH_HEADERS"),
                     },
                 )
-            if env.get("PLAYWRIGHT_WS_ENDPOINT") and web_tools_spider_attribute == WebEngine.Playwright:
-                if "screenshot_bytes" in item:
-                    # in case we are already using playwright in a spider, we can skip one additional HTTP Request by
-                    # accessing the (temporary available) "screenshot_bytes"-field
-                    img = Image.open(BytesIO(item["screenshot_bytes"]))
-                    self.create_thumbnails_from_image_bytes(img, item, settings)
-                    del item["screenshot_bytes"]
-                    # the final BaseItem data model doesn't use screenshot_bytes,
-                    # therefore we delete it after we're done processing it
-                else:
-                    # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
-                    # but don't use playwright within the spider itself (e.g. serlo_spider)
-                    playwright_dict = WebTools.getUrlData(url=item["lom"]["technical"]["location"][0],
-                                                          engine=WebEngine.Playwright)
-                    screenshot_bytes = playwright_dict.get("screenshot_bytes")
-                    img = Image.open(BytesIO(screenshot_bytes))
-                    self.create_thumbnails_from_image_bytes(img, item, settings)
+            if env.get("PLAYWRIGHT_WS_ENDPOINT") and web_tools == WebEngine.Playwright:
+                # if the attribute "WEB_TOOLS" doesn't exist as an attribute within a specific spider,
+                # it will default back to "splash"
+
+                # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
+                # but don't use playwright within the spider itself (e.g. serlo_spider)
+                playwright_dict = WebTools.getUrlData(url=item["lom"]["technical"]["location"][0],
+                                                      engine=WebEngine.Playwright)
+                screenshot_bytes = playwright_dict.get("screenshot_bytes")
+                img = Image.open(BytesIO(screenshot_bytes))
+                self.create_thumbnails_from_image_bytes(img, item, settings)
             else:
                 if settings.get("DISABLE_SPLASH") is False:
                     log.warning(
@@ -418,6 +423,19 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         "No thumbnail provided or ressource was unavailable for fetching"
                     )
         return raw_item
+
+    # override the project settings with the given ones from the current spider
+    # see PR 56 for details
+    def get_settings_for_crawler(self, spider):
+        all_settings = get_project_settings()
+        crawler_settings = getattr(spider, "custom_settings", {})
+        for key in crawler_settings.keys():
+            if (
+                    all_settings.get(key) and crawler_settings.get(key).priority > all_settings.get(key).priority
+                    or not all_settings.get(key)
+            ):
+                all_settings.set(key, crawler_settings.get(key))
+        return all_settings
 
     def create_thumbnails_from_image_bytes(self, image, item, settings):
         small = BytesIO()
