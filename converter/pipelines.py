@@ -326,7 +326,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
         item = ItemAdapter(raw_item)
         response = None
         url = None
-        settings = self.get_settings_for_crawler(spider)
+        settings = get_settings_for_crawler(spider)
         # checking if the (optional) attribute WEB_TOOLS exists:
         web_tools = settings.get("WEB_TOOLS", WebEngine.Splash)
         # if screenshot_bytes is provided (the crawler has already a binary representation of the image
@@ -426,16 +426,6 @@ class ProcessThumbnailPipeline(BasicPipeline):
 
     # override the project settings with the given ones from the current spider
     # see PR 56 for details
-    def get_settings_for_crawler(self, spider):
-        all_settings = get_project_settings()
-        crawler_settings = getattr(spider, "custom_settings", {})
-        for key in crawler_settings.keys():
-            if (
-                    all_settings.get(key) and crawler_settings.get(key).priority > all_settings.get(key).priority
-                    or not all_settings.get(key)
-            ):
-                all_settings.set(key, crawler_settings.get(key))
-        return all_settings
 
     def create_thumbnails_from_image_bytes(self, image, item, settings):
         small = BytesIO()
@@ -460,6 +450,18 @@ class ProcessThumbnailPipeline(BasicPipeline):
         item["thumbnail"]["large"] = base64.b64encode(
             large.getvalue()
         ).decode()
+
+
+def get_settings_for_crawler(spider):
+    all_settings = get_project_settings()
+    crawler_settings = getattr(spider, "custom_settings", {})
+    for key in crawler_settings.keys():
+        if (
+                all_settings.get(key) and crawler_settings.getpriority(key) > all_settings.getpriority(key)
+                or not all_settings.get(key)
+        ):
+            all_settings.set(key, crawler_settings.get(key), crawler_settings.getpriority(key))
+    return all_settings
 
 
 class EduSharingCheckPipeline(EduSharing, BasicPipeline):

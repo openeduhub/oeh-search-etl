@@ -1,7 +1,7 @@
 import html2text
 import logging
 
-import scrapy.settings
+from scrapy import settings
 from scrapy.utils.project import get_project_settings
 
 from converter.constants import Constants
@@ -23,10 +23,10 @@ class LomBase:
     forceUpdate = False
 
     # you can specify custom settings which will later influence the behaviour of the pipelines for your crawler
-    custom_settings: scrapy.settings.Settings = {
+    custom_settings = settings.BaseSettings({
         # web tools to use, relevant for screenshots/thumbnails
-        "WEB_TOOLS": scrapy.settings.SettingsAttribute(WebEngine.Splash, scrapy.settings.SETTINGS_PRIORITIES["spider"])
-    }
+        "WEB_TOOLS": WebEngine.Splash,
+    }, 'spider')
 
     def __init__(self, **kwargs):
         if self.name is None:
