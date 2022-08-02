@@ -1,4 +1,3 @@
-import urllib.parse
 from datetime import datetime
 
 import scrapy.selector.unified
@@ -20,7 +19,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         # the limit parameter controls the amount of results PER CATEGORY (NOT the total amount of results)
         # API response with a "limit"-value set to 10.000 might take more than 90s (17.7 MB, 5912 URLs to crawl)
     ]
-    version = "0.0.3"  # last update: 2022-07-11
+    version = "0.0.4"  # last update: 2022-08-02
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -114,7 +113,6 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         'Arbeitsschutz und Arbeitssicherheit': 'Arbeitssicherheit',
         'Berufs- und Arbeitswelt': 'Arbeitslehre',
         'Berufsvorbereitung, Berufsalltag, Arbeitsrecht': 'Arbeitslehre',
-        'DaF / DaZ': 'Deutsch als Zweitsprache',
         'Ernährung und Gesundheit': ['Ernährung und Hauswirtschaft', 'Gesundheit'],
         'Fächerübergreifender Unterricht': 'Allgemein',
         'Geschichte, Politik und Gesellschaftswissenschaften': ['Geschichte', 'Politik', 'Gesellschaftskunde'],
@@ -123,11 +121,10 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         'Klima, Umwelt, Nachhaltigkeit': 'Nachhaltigkeit',
         'MINT: Mathematik, Informatik, Naturwissenschaften und Technik': 'MINT',
         'Natur und Umwelt': 'Environmental education',
-        'Politik / SoWi': ['Politik', 'Social education'],
-        'Religion / Ethik': ['Religion', 'Ethik'],
         'Religion und Ethik': ['Religion', 'Ethik'],
         'Sport und Bewegung': 'Sport',
-        'WiSo / Politik': ['Economics', 'Social education', 'Politik'],
+        'SoWi': ['Social education', 'Economics'],
+        'WiSo': ['Economics', 'Social education'],
         'Wirtschaftslehre': 'Economics'
     }
 
@@ -274,11 +271,24 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         #     metadata_dict.update({'expiration_date': expiration_date})
 
         # <fach> can either be completely empty or there can be several <fach>-elements within a <datensatz>
-        disciplines_or_additional_keywords_raw: list = selector.xpath('fach/text()').getall()
+        disciplines_or_additional_keywords: list = selector.xpath('fach/text()').getall()
+        individual_disciplines_or_keywords = set()
+        for potential_discipline_or_keyword in disciplines_or_additional_keywords:
+            # to make mapping more precise, we're separating strings like "Politik / WiSo / SoWi / Wirtschaft" into its
+            # individual parts
+            if " / " in potential_discipline_or_keyword:
+                disciplines_or_keywords_separated = potential_discipline_or_keyword.split(" / ")
+                for each_string in disciplines_or_keywords_separated:
+                    each_string_stripped = each_string.strip()
+                    individual_disciplines_or_keywords.add(each_string_stripped)
+            else:
+                individual_disciplines_or_keywords.add(potential_discipline_or_keyword)
+        disciplines_or_additional_keywords = list(individual_disciplines_or_keywords)
+
         disciplines_mapped = set()
         additional_keywords_from_disciplines = set()
-        if disciplines_or_additional_keywords_raw:
-            for potential_discipline_item in disciplines_or_additional_keywords_raw:
+        if disciplines_or_additional_keywords:
+            for potential_discipline_item in disciplines_or_additional_keywords:
                 if potential_discipline_item in self.MAPPING_FACH_TO_DISCIPLINES:
                     # since not every "fach"-value is the same as our discipline-vocabs, mapping is necessary
                     discipline = self.MAPPING_FACH_TO_DISCIPLINES.get(potential_discipline_item)
@@ -296,7 +306,9 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             if disciplines_mapped:
                 metadata_dict.update({'discipline': list(disciplines_mapped)})
             if additional_keywords_from_disciplines:
-                keyword_list.extend(additional_keywords_from_disciplines)
+                keyword_set = set(keyword_list)
+                keyword_set.update(additional_keywords_from_disciplines)
+                keyword_list = list(keyword_set)
                 metadata_dict.update({'keywords': keyword_list})
 
         educational_context_raw: str = selector.xpath('bildungsebene/text()').get()
@@ -318,7 +330,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         if educational_context_cleaned_up:
             educational_context_cleaned_up = list(educational_context_cleaned_up)
             educational_context = list()
-            # we need to map some values to our educatonalContext vocabulary
+            # we need to map some values to our educationalContext vocabulary
             for edu_context_item in educational_context_cleaned_up:
                 if edu_context_item in self.MAPPING_EDU_CONTEXT.keys():
                     edu_context_temp = self.MAPPING_EDU_CONTEXT.get(edu_context_item)
@@ -359,7 +371,9 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 else:
                     additional_keywords_from_lo_lrt.add(lrt_possible_value)
             metadata_dict.update({'new_lrt': list(new_lrts)})
-            keyword_list.extend(additional_keywords_from_lo_lrt)
+            keyword_set = set(keyword_list)
+            keyword_set.update(additional_keywords_from_lo_lrt)
+            keyword_list = list(keyword_set)
             metadata_dict.update({'keywords': keyword_list})
 
         intended_end_user_role: str = selector.xpath('zielgruppe/text()').get()
