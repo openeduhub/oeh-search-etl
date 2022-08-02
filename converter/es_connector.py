@@ -1,28 +1,26 @@
+import base64
+import json
+import logging
 import time
 import uuid
-import requests
-import json
-import base64
-import vobject
-from scrapy.utils.project import get_project_settings
-from requests.auth import HTTPBasicAuth
-from io import BytesIO
-import logging
+from enum import Enum
+from typing import List
 
+import requests
+import vobject
+from requests.auth import HTTPBasicAuth
+from scrapy.utils.project import get_project_settings
 from vobject.vcard import VCardBehavior
 
 from converter import env
 from converter.constants import Constants
-from edu_sharing_client.api_client import ApiClient
-from edu_sharing_client.configuration import Configuration
 from edu_sharing_client.api.bulk_v1_api import BULKV1Api
 from edu_sharing_client.api.iam_v1_api import IAMV1Api
-from edu_sharing_client.api.node_v1_api import NODEV1Api
 from edu_sharing_client.api.mediacenter_v1_api import MEDIACENTERV1Api
+from edu_sharing_client.api.node_v1_api import NODEV1Api
+from edu_sharing_client.api_client import ApiClient
+from edu_sharing_client.configuration import Configuration
 from edu_sharing_client.rest import ApiException
-from edu_sharing_client.models import GroupEntry
-from typing import List
-from enum import Enum
 
 
 class EduSharingConstants:
@@ -76,17 +74,15 @@ class ESApiClient(ApiClient):
             def newfunc(*args, **kwargs):
                 if time.time() - ESApiClient.lastRequestTime > ESApiClient.COOKIE_REBUILD_THRESHOLD:
                     EduSharing.initCookie()
-                    self.cookie =  EduSharing.cookie
+                    self.cookie = EduSharing.cookie
 
                 # store last request time
                 ESApiClient.lastRequestTime = time.time()
                 return attr(*args, **kwargs)
 
-
             return newfunc
         else:
             return attr
-
 
 
 class EduSharing:
@@ -132,7 +128,8 @@ class EduSharing:
         except ApiException as e:
             jsonError = json.loads(e.body)
             if jsonError["error"] == "java.lang.IllegalStateException":
-                logging.warning("Node '" + properties['cm:name'][0] + "' probably blocked for sync: " + jsonError["message"])
+                logging.warning(
+                    "Node '" + properties['cm:name'][0] + "' probably blocked for sync: " + jsonError["message"])
                 return None
             raise e
         return response["node"]
@@ -168,13 +165,14 @@ class EduSharing:
             return True
         except ApiException as e:
             return False
+
     def setNodeBinaryData(self, uuid, item) -> bool:
         if "binary" in item:
             logging.info(get_project_settings().get("EDU_SHARING_BASE_URL")
-                + "rest/node/v1/nodes/-home-/"
-                + uuid
-                + "/content?mimetype="
-                + item["lom"]["technical"]["format"]
+                         + "rest/node/v1/nodes/-home-/"
+                         + uuid
+                         + "/content?mimetype="
+                         + item["lom"]["technical"]["format"]
                          )
             files = {"file": item["binary"]}
             response = requests.post(
@@ -216,26 +214,41 @@ class EduSharing:
 
     def mapLicense(self, spaces, license):
         if "url" in license:
-            if license["url"] == Constants.LICENSE_CC_BY_40:
-                spaces["ccm:commonlicense_key"] = "CC_BY"
-                spaces["ccm:commonlicense_cc_version"] = "4.0"
             if license["url"] == Constants.LICENSE_CC_BY_30:
                 spaces["ccm:commonlicense_key"] = "CC_BY"
                 spaces["ccm:commonlicense_cc_version"] = "3.0"
-            if license["url"] == Constants.LICENSE_CC_BY_SA_30:
-                spaces["ccm:commonlicense_key"] = "CC_BY_SA"
+            if license["url"] == Constants.LICENSE_CC_BY_40:
+                spaces["ccm:commonlicense_key"] = "CC_BY"
+                spaces["ccm:commonlicense_cc_version"] = "4.0"
+            if license["url"] == Constants.LICENSE_CC_BY_NC_30:
+                spaces["ccm:commonlicense_key"] = "CC_BY_NC"
                 spaces["ccm:commonlicense_cc_version"] = "3.0"
-            if license["url"] == Constants.LICENSE_CC_BY_NC_SA_30:
-                spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
-                spaces["ccm:commonlicense_cc_version"] = "3.0"
-            if license["url"] == Constants.LICENSE_CC_BY_SA_40:
-                spaces["ccm:commonlicense_key"] = "CC_BY_SA"
+            if license["url"] == Constants.LICENSE_CC_BY_NC_40:
+                spaces["ccm:commonlicense_key"] = "CC_BY_NC"
                 spaces["ccm:commonlicense_cc_version"] = "4.0"
             if license["url"] == Constants.LICENSE_CC_BY_NC_ND_30:
                 spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
                 spaces["ccm:commonlicense_cc_version"] = "3.0"
             if license["url"] == Constants.LICENSE_CC_BY_NC_ND_40:
                 spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                spaces["ccm:commonlicense_cc_version"] = "4.0"
+            if license["url"] == Constants.LICENSE_CC_BY_NC_SA_30:
+                spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
+                spaces["ccm:commonlicense_cc_version"] = "3.0"
+            if license["url"] == Constants.LICENSE_CC_BY_NC_SA_40:
+                spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
+                spaces["ccm:commonlicense_cc_version"] = "4.0"
+            if license["url"] == Constants.LICENSE_CC_BY_ND_30:
+                spaces["ccm:commonlicense_key"] = "CC_BY_ND"
+                spaces["ccm:commonlicense_cc_version"] = "3.0"
+            if license["url"] == Constants.LICENSE_CC_BY_ND_40:
+                spaces["ccm:commonlicense_key"] = "CC_BY_ND"
+                spaces["ccm:commonlicense_cc_version"] = "4.0"
+            if license["url"] == Constants.LICENSE_CC_BY_SA_30:
+                spaces["ccm:commonlicense_key"] = "CC_BY_SA"
+                spaces["ccm:commonlicense_cc_version"] = "3.0"
+            if license["url"] == Constants.LICENSE_CC_BY_SA_40:
+                spaces["ccm:commonlicense_key"] = "CC_BY_SA"
                 spaces["ccm:commonlicense_cc_version"] = "4.0"
             if license["url"] == Constants.LICENSE_CC_ZERO_10:
                 spaces["ccm:commonlicense_key"] = "CC_0"
@@ -304,8 +317,8 @@ class EduSharing:
                 if not "role" in person:
                     continue
                 if (
-                    not person["role"].lower()
-                    in EduSharingConstants.LIFECYCLE_ROLES_MAPPING
+                        not person["role"].lower()
+                            in EduSharingConstants.LIFECYCLE_ROLES_MAPPING
                 ):
                     logging.warning(
                         "The lifecycle role "
@@ -391,9 +404,9 @@ class EduSharing:
         for group in groups:
             if type == EduSharing.CreateGroupType.MediaCenter:
                 uuid = (
-                    EduSharingConstants.GROUP_PREFIX
-                    + EduSharingConstants.MEDIACENTER_PREFIX
-                    + group
+                        EduSharingConstants.GROUP_PREFIX
+                        + EduSharingConstants.MEDIACENTER_PREFIX
+                        + group
                 )
             else:
                 uuid = EduSharingConstants.GROUP_PREFIX + group
@@ -440,8 +453,8 @@ class EduSharing:
             public = item["permissions"]["public"]
             if public == True:
                 if (
-                    "groups" in item["permissions"]
-                    or "mediacenters" in item["permissions"]
+                        "groups" in item["permissions"]
+                        or "mediacenters" in item["permissions"]
                 ):
                     logging.error(
                         "Invalid state detected: Permissions public is set to true but groups or mediacenters are also set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!"
@@ -467,8 +480,8 @@ class EduSharing:
                 mergedGroups = []
                 if "groups" in item["permissions"]:
                     if (
-                        "autoCreateGroups" in item["permissions"]
-                        and item["permissions"]["autoCreateGroups"] == True
+                            "autoCreateGroups" in item["permissions"]
+                            and item["permissions"]["autoCreateGroups"] == True
                     ):
                         self.createGroupsIfNotExists(
                             item["permissions"]["groups"],
@@ -482,8 +495,8 @@ class EduSharing:
                     )
                 if "mediacenters" in item["permissions"]:
                     if (
-                        "autoCreateMediacenters" in item["permissions"]
-                        and item["permissions"]["autoCreateMediacenters"] == True
+                            "autoCreateMediacenters" in item["permissions"]
+                            and item["permissions"]["autoCreateMediacenters"] == True
                     ):
                         self.createGroupsIfNotExists(
                             item["permissions"]["mediacenters"],
@@ -492,8 +505,8 @@ class EduSharing:
                     mergedGroups = mergedGroups + list(
                         map(
                             lambda x: EduSharingConstants.GROUP_PREFIX
-                            + EduSharingConstants.MEDIACENTER_PROXY_PREFIX
-                            + x,
+                                      + EduSharingConstants.MEDIACENTER_PROXY_PREFIX
+                                      + x,
                             item["permissions"]["mediacenters"],
                         )
                     )
@@ -525,6 +538,7 @@ class EduSharing:
 
     def updateItem(self, spider, uuid, item):
         self.insertItem(spider, uuid, item)
+
     @staticmethod
     def initCookie():
         settings = get_project_settings()
@@ -541,6 +555,7 @@ class EduSharing:
         if isAdmin:
             EduSharing.cookie = auth.headers["SET-COOKIE"].split(";")[0]
         return auth
+
     def initApiClient(self):
         if EduSharing.cookie == None:
             settings = get_project_settings()
@@ -601,8 +616,8 @@ class EduSharing:
             response = EduSharing.bulkApi.find(properties)
             properties = response["node"]["properties"]
             if (
-                "ccm:replicationsourcehash" in properties
-                and "ccm:replicationsourceuuid" in properties
+                    "ccm:replicationsourcehash" in properties
+                    and "ccm:replicationsourceuuid" in properties
             ):
                 return [
                     properties["ccm:replicationsourceuuid"][0],
