@@ -1,33 +1,33 @@
 class Constants:
-    LICENSE_CC_ZERO_10 = "https://creativecommons.org/publicdomain/zero/1.0/"
-    LICENSE_CC_BY_SA_30 = "https://creativecommons.org/licenses/by-sa/3.0/"
-    LICENSE_CC_BY_SA_40 = "https://creativecommons.org/licenses/by-sa/4.0/"
     LICENSE_CC_BY_30 = "https://creativecommons.org/licenses/by/3.0/"
     LICENSE_CC_BY_40 = "https://creativecommons.org/licenses/by/4.0/"
     LICENSE_CC_BY_NC_30 = "https://creativecommons.org/licenses/by-nc/3.0/"
     LICENSE_CC_BY_NC_40 = "https://creativecommons.org/licenses/by-nc/4.0/"
-    LICENSE_CC_BY_ND_30 = "https://creativecommons.org/licenses/by-nd/3.0/"
-    LICENSE_CC_BY_ND_40 = "https://creativecommons.org/licenses/by-nd/4.0/"
-    LICENSE_CC_BY_NC_SA_30 = "https://creativecommons.org/licenses/by-nc-sa/3.0/"
-    LICENSE_CC_BY_NC_SA_40 = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
     LICENSE_CC_BY_NC_ND_30 = "https://creativecommons.org/licenses/by-nc-nd/3.0/"
     LICENSE_CC_BY_NC_ND_40 = "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+    LICENSE_CC_BY_NC_SA_30 = "https://creativecommons.org/licenses/by-nc-sa/3.0/"
+    LICENSE_CC_BY_NC_SA_40 = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    LICENSE_CC_BY_ND_30 = "https://creativecommons.org/licenses/by-nd/3.0/"
+    LICENSE_CC_BY_ND_40 = "https://creativecommons.org/licenses/by-nd/4.0/"
+    LICENSE_CC_BY_SA_30 = "https://creativecommons.org/licenses/by-sa/3.0/"
+    LICENSE_CC_BY_SA_40 = "https://creativecommons.org/licenses/by-sa/4.0/"
+    LICENSE_CC_ZERO_10 = "https://creativecommons.org/publicdomain/zero/1.0/"
     LICENSE_PDM = "https://creativecommons.org/publicdomain/mark/1.0/"
 
     VALID_LICENSE_URLS = [
-        LICENSE_CC_ZERO_10,
-        LICENSE_CC_BY_SA_30,
-        LICENSE_CC_BY_SA_40,
         LICENSE_CC_BY_30,
         LICENSE_CC_BY_40,
         LICENSE_CC_BY_NC_30,
         LICENSE_CC_BY_NC_40,
-        LICENSE_CC_BY_ND_30,
-        LICENSE_CC_BY_ND_40,
-        LICENSE_CC_BY_NC_SA_30,
-        LICENSE_CC_BY_NC_SA_40,
         LICENSE_CC_BY_NC_ND_30,
         LICENSE_CC_BY_NC_ND_40,
+        LICENSE_CC_BY_NC_SA_30,
+        LICENSE_CC_BY_NC_SA_40,
+        LICENSE_CC_BY_ND_30,
+        LICENSE_CC_BY_ND_40,
+        LICENSE_CC_BY_SA_30,
+        LICENSE_CC_BY_SA_40,
+        LICENSE_CC_ZERO_10,
         LICENSE_PDM,
     ]
     LICENSE_MAPPINGS = {
