@@ -214,54 +214,64 @@ class EduSharing:
 
     def mapLicense(self, spaces, license):
         if "url" in license:
-            if license["url"] == Constants.LICENSE_CC_BY_30:
-                spaces["ccm:commonlicense_key"] = "CC_BY"
-                spaces["ccm:commonlicense_cc_version"] = "3.0"
-            if license["url"] == Constants.LICENSE_CC_BY_40:
-                spaces["ccm:commonlicense_key"] = "CC_BY"
-                spaces["ccm:commonlicense_cc_version"] = "4.0"
-            if license["url"] == Constants.LICENSE_CC_BY_NC_30:
-                spaces["ccm:commonlicense_key"] = "CC_BY_NC"
-                spaces["ccm:commonlicense_cc_version"] = "3.0"
-            if license["url"] == Constants.LICENSE_CC_BY_NC_40:
-                spaces["ccm:commonlicense_key"] = "CC_BY_NC"
-                spaces["ccm:commonlicense_cc_version"] = "4.0"
-            if license["url"] == Constants.LICENSE_CC_BY_NC_ND_30:
-                spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
-                spaces["ccm:commonlicense_cc_version"] = "3.0"
-            if license["url"] == Constants.LICENSE_CC_BY_NC_ND_40:
-                spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
-                spaces["ccm:commonlicense_cc_version"] = "4.0"
-            if license["url"] == Constants.LICENSE_CC_BY_NC_SA_30:
-                spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
-                spaces["ccm:commonlicense_cc_version"] = "3.0"
-            if license["url"] == Constants.LICENSE_CC_BY_NC_SA_40:
-                spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
-                spaces["ccm:commonlicense_cc_version"] = "4.0"
-            if license["url"] == Constants.LICENSE_CC_BY_ND_30:
-                spaces["ccm:commonlicense_key"] = "CC_BY_ND"
-                spaces["ccm:commonlicense_cc_version"] = "3.0"
-            if license["url"] == Constants.LICENSE_CC_BY_ND_40:
-                spaces["ccm:commonlicense_key"] = "CC_BY_ND"
-                spaces["ccm:commonlicense_cc_version"] = "4.0"
-            if license["url"] == Constants.LICENSE_CC_BY_SA_30:
-                spaces["ccm:commonlicense_key"] = "CC_BY_SA"
-                spaces["ccm:commonlicense_cc_version"] = "3.0"
-            if license["url"] == Constants.LICENSE_CC_BY_SA_40:
-                spaces["ccm:commonlicense_key"] = "CC_BY_SA"
-                spaces["ccm:commonlicense_cc_version"] = "4.0"
-            if license["url"] == Constants.LICENSE_CC_ZERO_10:
-                spaces["ccm:commonlicense_key"] = "CC_0"
-                spaces["ccm:commonlicense_cc_version"] = "1.0"
-            if license["url"] == Constants.LICENSE_PDM:
-                spaces["ccm:commonlicense_key"] = "PDM"
+            match license["url"]:
+                case Constants.LICENSE_CC_BY_30:
+                    spaces["ccm:commonlicense_key"] = "CC_BY"
+                    spaces["ccm:commonlicense_cc_version"] = "3.0"
+                case Constants.LICENSE_CC_BY_40:
+                    spaces["ccm:commonlicense_key"] = "CC_BY"
+                    spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_NC_30:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC"
+                    spaces["ccm:commonlicense_cc_version"] = "3.0"
+                case Constants.LICENSE_CC_BY_NC_40:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC"
+                    spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_NC_ND_30:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "3.0"
+                case Constants.LICENSE_CC_BY_NC_ND_40:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_NC_SA_30:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "3.0"
+                case Constants.LICENSE_CC_BY_NC_SA_40:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_ND_30:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "3.0"
+                case Constants.LICENSE_CC_BY_ND_40:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_SA_30:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "3.0"
+                case Constants.LICENSE_CC_BY_SA_40:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_ZERO_10:
+                    spaces["ccm:commonlicense_key"] = "CC_0"
+                    spaces["ccm:commonlicense_cc_version"] = "1.0"
+                case Constants.LICENSE_PDM:
+                    spaces["ccm:commonlicense_key"] = "PDM"
+                case _:
+                    logging.warning(f"License.url {license['url']} could not be mapped to a license from Constants.\n"
+                                    f"If you are sure that you provided a correct URL to a license, "
+                                    f"please check if the license-mapping within es_connector.py is up-to-date.")
         if "internal" in license:
-            if license["internal"] == Constants.LICENSE_COPYRIGHT_LAW:
-                spaces["ccm:commonlicense_key"] = "COPYRIGHT_FREE"
-            if license["internal"] == Constants.LICENSE_CUSTOM:
-                spaces["ccm:commonlicense_key"] = "CUSTOM"
-                if "description" in license:
-                    spaces["cclom:rights_description"] = license["description"]
+            match license["internal"]:
+                case Constants.LICENSE_COPYRIGHT_LAW:
+                    spaces["ccm:commonlicense_key"] = "COPYRIGHT_FREE"
+                case Constants.LICENSE_CUSTOM:
+                    spaces["ccm:commonlicense_key"] = "CUSTOM"
+                    if "description" in license:
+                        spaces["cclom:rights_description"] = license["description"]
+                case _:
+                    logging.warning(f"Received a value for license['internal'] that is not recognized by es_connector."
+                                    f"Please double-check if the provided value {license['internal']} is correctly "
+                                    f"mapped within Constants AND es_connector.")
 
         if "author" in license:
             spaces["ccm:author_freetext"] = license["author"]
