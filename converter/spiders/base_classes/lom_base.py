@@ -37,14 +37,13 @@ class LomBase:
             self.remoteId = kwargs["remoteId"]
         if "cleanrun" in kwargs and kwargs["cleanrun"] == "true":
             logging.info(
-                "cleanrun requested, will force update for crawler " + self.name
+                f"cleanrun requested, will force update for crawler {self.name}"
             )
             # EduSharing().deleteAll(self)
             self.forceUpdate = True
         if "resetVersion" in kwargs and kwargs["resetVersion"] == "true":
             logging.info(
-                "resetVersion requested, will force update + reset versions for crawler "
-                + self.name
+                f"resetVersion requested, will force update + reset versions for crawler {self.name}"
             )
             # EduSharing().deleteAll(self)
             EduSharing.resetVersion = True
@@ -70,21 +69,18 @@ class LomBase:
             return True
         if self.uuid:
             if self.getUUID(response) == self.uuid:
-                logging.info("matching requested id: " + self.uuid)
+                logging.info(f"matching requested id: {self.uuid}")
                 return True
             return False
         if self.remoteId:
             if str(self.getId(response)) == self.remoteId:
-                logging.info("matching requested id: " + self.remoteId)
+                logging.info(f"matching requested id: {self.remoteId}")
                 return True
             return False
         db = EduSharing().findItem(self.getId(response), self)
-        changed = db == None or db[1] != self.getHash(response)
+        changed = db is None or db[1] != self.getHash(response)
         if not changed:
-            logging.info(
-                "Item " + self.getId(response) +
-                "(uuid: " + db[0] + ") has not changed"
-             )
+            logging.info(f"Item {self.getId(response)} (uuid: {db[0]}) has not changed")
         return changed
 
     # you might override this method if you don't want to import specific entries
@@ -118,6 +114,7 @@ class LomBase:
     # directly use WebTools instead
     def getUrlData(self, url):
         return WebTools.getUrlData(url)
+
     def mapResponse(self, response, fetchData=True):
         r = ResponseItemLoader(response=response)
         r.add_value("status", response.status)
@@ -164,11 +161,11 @@ class LomBase:
     def getLOMGeneral(self, response=None) -> LomGeneralItemloader:
         return LomGeneralItemloader(response=response)
 
-    """
-    return one or more lifecycle element
-    If you want to return more than one, use yield and generate multiple LomLifecycleItemloader
-    """
     def getLOMLifecycle(self, response=None) -> LomLifecycleItemloader:
+        """
+        return one or more lifecycle element
+        If you want to return more than one, use yield and generate multiple LomLifecycleItemloader
+        """
         return LomLifecycleItemloader(response=response)
 
     def getLOMTechnical(self, response=None) -> LomTechnicalItemLoader:
