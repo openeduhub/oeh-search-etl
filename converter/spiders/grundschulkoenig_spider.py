@@ -19,7 +19,7 @@ class GrundSchulKoenigSpider(CrawlSpider, LomBase):
 
     start_urls = ['https://www.grundschulkoenig.de/sitemap.xml?sitemap=pages&cHash=b8e1a6633393d69093d0ebe93a3d2616']
     name = 'grundschulkoenig_spider'
-    version = "0.0.5"  # last update: 2022-06-27
+    version = "0.0.6"  # last update: 2022-08-03
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         # while there is no robots.txt, there is a 404-forward-page that gets misinterpreted by Scrapy
@@ -47,10 +47,11 @@ class GrundSchulKoenigSpider(CrawlSpider, LomBase):
         "https://www.grundschulkoenig.de/mathe/",
         "https://www.grundschulkoenig.de/musikkunst/kunst/",
         "https://www.grundschulkoenig.de/musikkunst/musik/",
+        "https://www.grundschulkoenig.de/newsletter-abonnieren/",
         "https://www.grundschulkoenig.de/religion/",
-        "https://www.grundschulkoenig.de/weitere-faecher/",
-        "https://www.grundschulkoenig.de/vorschule/",
         "https://www.grundschulkoenig.de/suchergebnisse/",
+        "https://www.grundschulkoenig.de/vorschule/",
+        "https://www.grundschulkoenig.de/weitere-faecher/",
     ]
 
     def start_requests(self):
@@ -117,10 +118,11 @@ class GrundSchulKoenigSpider(CrawlSpider, LomBase):
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
         general.add_value('title', title)
-        description: str = response.xpath('//meta[@name="description"]/@content').get()
+        description = response.xpath('//div[@class="content-item module-headline-paragraph"]/p/text()').get()
+        # due to the generic descriptions of grundschulkoenig used in the headers, we're using the first paragraph
+        # as our description instead. Only if this XPath is somehow unavailable, we're falling back to the actual header
         if description is None:
-            # this is a workaround for (currently: 4) sub-pages that have no description in the header meta-fields
-            description = response.xpath('//div[@class="content-item module-headline-paragraph"]/p/text()').get()
+            description: str = response.xpath('//meta[@name="description"]/@content').get()
         general.add_value('description', description)
         # ToDo: check if "keywords" are available at the source when the next crawler update becomes necessary
         lom.add_value("general", general.load_item())
@@ -182,8 +184,10 @@ class GrundSchulKoenigSpider(CrawlSpider, LomBase):
         if "/vorschule/" in response.url:
             vs.add_value('educationalContext', "Elementarbereich")
             vs.add_value('new_lrt', "65330f23-2802-4789-86ee-c21f9afe74b1")  # "Frühkindliches Bildungsangebot und KITA"
-        vs.add_value('new_lrt', ["5098cf0b-1c12-4a1b-a6d3-b3f29621e11d", "d8c3ef03-b3ab-4a5e-bcc9-5a546fefa2e9"])
-        # "Unterrichtsbaustein", "Webseite und Portal (stabil)
+        vs.add_value('new_lrt', ["5098cf0b-1c12-4a1b-a6d3-b3f29621e11d",
+                                 "d8c3ef03-b3ab-4a5e-bcc9-5a546fefa2e9",
+                                 "36e68792-6159-481d-a97b-2c00901f4f78"])
+        # "Unterrichtsbaustein", "Webseite und Portal (stabil), "Arbeitsblatt"
         base.add_value("valuespaces", vs.load_item())
 
         lic = LicenseItemLoader()
