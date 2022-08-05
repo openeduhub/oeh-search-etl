@@ -71,7 +71,7 @@ class MetadataFile:
                 collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
                 order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
                 rating = self.o_sheet.cell(row=row, column=self.COLUMN.RATING).value
-                title = str(rating) + "_" + self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
+                title = str(rating) + " " + self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
                 keywords = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
                 publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
 
