@@ -1,9 +1,9 @@
-
 import sys
 from typing import List, Union, IO
 
 import openpyxl
 from openpyxl.utils import get_column_letter
+
 
 class Metadata:
     def __init__(self, title: str, publisher: str, keywords: List[str], order: str, rating: str, collection: str):
@@ -71,7 +71,29 @@ class MetadataFile:
                 collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
                 order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
                 rating = self.o_sheet.cell(row=row, column=self.COLUMN.RATING).value
-                title = str(rating) + " " + self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
+                #ToDo: refactoring
+                if self.o_sheet.max_row + 1 < 10:
+                    title = str(rating) + " " + self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
+                elif 9 < self.o_sheet.max_row + 1 < 100:
+                    r = str(rating)
+                    if rating < 10:
+                        r = '0' + r
+                    title = r + " " + self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
+                elif 99 < self.o_sheet.max_row + 1 < 1000:
+                    r = str(rating)
+                    if rating < 10:
+                        r = '00' + r
+                    elif 9 < rating < 100:
+                        r = '0' + r
+                elif 999 < self.o_sheet.max_row + 1 < 10000:
+                    r = str(rating)
+                    if rating < 10:
+                        r = '000' + r
+                    elif 9 < rating < 100:
+                        r = '00' + r
+                    elif 99 < rating < 1000:
+                        r = '0' + r
+                    title = r + " " + self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
                 keywords = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
                 publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
 
