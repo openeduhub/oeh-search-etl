@@ -1,9 +1,3 @@
-import html2text
-import logging
-
-from scrapy import settings
-from scrapy.utils.project import get_project_settings
-
 from converter.constants import Constants
 from converter.es_connector import EduSharing
 from converter.items import *
@@ -21,12 +15,6 @@ class LomBase:
     uuid = None
     remoteId = None
     forceUpdate = False
-
-    # you can specify custom settings which will later influence the behaviour of the pipelines for your crawler
-    custom_settings = settings.BaseSettings({
-        # web tools to use, relevant for screenshots/thumbnails
-        "WEB_TOOLS": WebEngine.Splash,
-    }, 'spider')
 
     def __init__(self, **kwargs):
         if self.name is None:

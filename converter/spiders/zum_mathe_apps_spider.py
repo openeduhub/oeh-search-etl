@@ -84,9 +84,9 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
         @returns items 1
         """
         # fetching publication date and lastModified from dynamically loaded <p class="Ende">-element:
-        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
-        splash_html_string = url_data_splash_dict.get('html')
-        page_end_element = Selector(text=splash_html_string).xpath('//p[@class="Ende"]').get()
+        url_data = WebTools.getUrlData(response.url)
+        html_string = url_data.get('html')
+        page_end_element = Selector(text=html_string).xpath('//p[@class="Ende"]').get()
         line_regex = re.compile(r'<br>')
         page_end_string = line_regex.split(page_end_element)
         published_date = None
@@ -160,7 +160,7 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
         # if scrapy could render the <p class="Ende">-element, the license url could be found with the following XPath:
         # license_url = response.xpath('//p[@class="Ende"]/a[@rel="license"]/@href')
         # but since scrapy can't "see" this container, we're extracting the information with scrapy-splash
-        license_url: str = Selector(text=splash_html_string).xpath('//p[@class="Ende"]/a[@rel="license"]/@href').get()
+        license_url: str = Selector(text=html_string).xpath('//p[@class="Ende"]/a[@rel="license"]/@href').get()
         if license_url is not None:
             if license_url.startswith("http://"):
                 license_url = license_url.replace("http://", "https://")

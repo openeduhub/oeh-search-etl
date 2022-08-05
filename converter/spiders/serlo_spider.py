@@ -116,10 +116,10 @@ class SerloSpider(scrapy.Spider, LomBase):
         json_ld = response.xpath('//*[@type="application/ld+json"]/text()').get()
         json_ld = json.loads(json_ld)
 
-        playwright_dict = WebTools.getUrlData(response.url, WebEngine.Playwright)
-        html_body = playwright_dict.get("html")
-        screenshot_bytes = playwright_dict.get("screenshot_bytes")
-        html_text = playwright_dict.get("text")
+        url_data = WebTools.getUrlData(response.url)
+        html_body = url_data.get("html")
+        screenshot_bytes = url_data.get("screenshot_bytes")
+        html_text = url_data.get("text")
 
         base = BaseItemLoader()
         # # ALL possible keys for the different Item and ItemLoader-classes can be found inside converter/items.py

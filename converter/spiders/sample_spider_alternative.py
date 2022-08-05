@@ -44,9 +44,9 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
     def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
         # OPTIONAL: If you need to use playwright to crawl a website, this is how you can access the data provided
         # by Playwright's headless browser
-        playwright_dict: dict = WebTools.getUrlData(response.url, WebEngine.Playwright)
-        html_body = playwright_dict.get("html")
-        screenshot_bytes = playwright_dict.get("screenshot_bytes")  # to be used in base.screenshot_bytes
+        url_data = WebTools.getUrlData(response.url)
+        html_body = url_data.get("html")
+        screenshot_bytes = url_data.get("screenshot_bytes")  # to be used in base.screenshot_bytes
 
         base = BaseItemLoader()
         # ALL possible keys for the different Item and ItemLoader-classes can be found inside converter/items.py

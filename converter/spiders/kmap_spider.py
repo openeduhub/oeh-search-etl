@@ -63,8 +63,8 @@ class KMapSpider(CrawlSpider, LomBase):
         @returns item 1
         """
         last_modified = kwargs.get("lastModified")
-        url_data_web_tools_dict = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
-        splash_html_string = url_data_web_tools_dict.get('html')
+        url_data = WebTools.getUrlData(response.url)
+        splash_html_string = url_data.get('html')
         json_ld_string: str = Selector(text=splash_html_string).xpath('//*[@id="ld"]/text()').get()
         json_ld: dict = json.loads(json_ld_string)
         # TODO: skip item method - (skips item if it's an empty knowledge map)

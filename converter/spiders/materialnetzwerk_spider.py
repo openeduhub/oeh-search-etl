@@ -95,8 +95,8 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         bundle_dict = dict()
         bundle_dict["bundle_url"] = response.url
         # render the web page to execute js and copy to the response
-        body = WebTools.getUrlData(response.url, WebEngine.Playwright)
-        response = response.replace(body=body['html'])
+        url_data = WebTools.getUrlData(response.url)
+        response = response.replace(body=url_data['html'])
 
         # a typical bundle_overview looks like this: https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78
         # there's minimal metadata to be found, but we can grab the descriptions of each worksheet and use the

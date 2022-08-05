@@ -9,6 +9,7 @@ from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloa
     LomLifecycleItemloader, LomEducationalItemLoader, LomClassificationItemLoader, ValuespaceItemLoader, \
     LicenseItemLoader
 from converter.spiders.base_classes import LomBase
+from converter.web_tools import WebEngine
 
 
 class EdulabsSpider(scrapy.Spider, LomBase):
@@ -17,6 +18,9 @@ class EdulabsSpider(scrapy.Spider, LomBase):
     friendlyName = "edulabs"
     version = "0.0.1"
     allowed_domains = ["edulabs.de"]
+    # custom_settings = {
+    #     "WEB_TOOLS": WebEngine.Playwright
+    # }
 
     MAPPING_DISCIPLINES = {
         "Erdkunde/Geografie": "Erdkunde",
