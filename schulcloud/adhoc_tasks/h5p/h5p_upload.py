@@ -194,7 +194,7 @@ class Uploader:
         #  3. Combine down and upload in one script
 
         for obj in os.listdir(H5P_LOCAL_PATH):
-            path = os.path.join(H5P_LOCAL_PATH, obj)
+            path = os.path.join(H5P_LOCAL_PATH + "/" + obj)
             if os.path.isfile(path):
                 if obj.endswith('.h5p'):
                     #self.upload_h5p_single(path, FOLDER_NAME_GENERAL)
