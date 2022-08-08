@@ -105,7 +105,7 @@ class Uploader:
         keywords = ['h5p', metadata.title, metadata.collection, metadata.order, metadata.keywords]
 
         # ToDo: Add the url of the frontend rendering page
-        properties = generate_node_properties(metadata.order, metadata.title, metadata.publisher, keywords,
+        properties = generate_node_properties(metadata.title, metadata.order, metadata.publisher, keywords,
                                               folder_name, replication_source_id=name, relation=relation)
 
         node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
