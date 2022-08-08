@@ -1,4 +1,3 @@
-
 import sys
 from typing import List, Union, IO, Optional
 
@@ -89,13 +88,34 @@ class MetadataFile:
         collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
         order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
         rating = self.o_sheet.cell(row=row, column=self.COLUMN.RATING).value
-        title = self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
+        title = self.get_title_with_rating(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value, rating)
         keywords = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
         publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
 
         # keywords = re.findall(r'[^,; ]+', keywords)
 
         return Metadata(title, publisher, keywords, order, rating, collection)
+
+    def get_title_with_rating(self, title_table, rating):
+        rating_title = str(rating) + " "
+
+        if 9 < self.o_sheet.max_row + 1 < 100:
+            if rating < 10:
+                rating_title = '0' + rating_title
+        elif 99 < self.o_sheet.max_row + 1 < 1000:
+            if rating < 10:
+                rating_title = '00' + rating_title
+            elif 9 < rating < 100:
+                rating_title = '0' + rating_title
+        elif 999 < self.o_sheet.max_row + 1 < 10000:
+            if rating < 10:
+                rating_title = '000' + rating_title
+            elif 9 < rating < 100:
+                rating_title = '00' + rating_title
+            elif 99 < rating < 1000:
+                rating_title = '0' + rating_title
+
+        return rating_title + title_table
 
 
 class ParsingError(Exception):
