@@ -1,12 +1,13 @@
 
 import sys
-from typing import List, Union, IO
+from typing import List, Union, IO, Optional
 
 import openpyxl
 from openpyxl.utils import get_column_letter
 
+
 class Metadata:
-    def __init__(self, title: str, publisher: str, keywords: List[str], order: str, rating: str, collection: str):
+    def __init__(self, title: str, publisher: str, keywords: List[str], order: str, rating: str, collection: Optional[str] = None):
         self.title = title
         self.publisher = publisher
         self.keywords = keywords
@@ -63,22 +64,36 @@ class MetadataFile:
     def get_collection(self):
         return self.o_sheet.cell(row=1, column=self.COLUMN.COLLECTION).value
 
-    def get_metadata(self, h5p_file: str):
+    def find_metadata_by_file_name(self, h5p_file: str):
+        result = []
+        # looking for exact match
         for row in range(1, self.o_sheet.max_row + 1):
-            file_name_sheet = self.o_sheet.cell(row=row, column=self.COLUMN.FILENAME)
+            if self.o_sheet.cell(row=row, column=self.COLUMN.FILENAME).value == h5p_file:
+                result.append(row)
+        if not result:
+            # looking for rough match (like relative paths etc.)
+            for row in range(1, self.o_sheet.max_row + 1):
+                if h5p_file in self.o_sheet.cell(row=row, column=self.COLUMN.FILENAME).value:
+                    result.append(row)
+            if not result:
+                raise RuntimeError(f'No metadata found for {h5p_file}')
 
-            if file_name_sheet.value == h5p_file:
-                collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
-                order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
-                rating = self.o_sheet.cell(row=row, column=self.COLUMN.RATING).value
-                title = self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
-                keywords = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
-                publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
+        if len(result) == 1:
+            return result[0]
+        elif len(result) > 1:
+            raise RuntimeError(f'Multiple metadata matches for {h5p_file}')
 
-                # keywords = re.findall(r'[^,; ]+', keywords)
-                break
-        else:
-            raise RuntimeError(f'No metadata found for {h5p_file}')
+    def get_metadata(self, h5p_file: str):
+        row = self.find_metadata_by_file_name(h5p_file)
+
+        collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
+        order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
+        rating = self.o_sheet.cell(row=row, column=self.COLUMN.RATING).value
+        title = self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
+        keywords = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
+        publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
+
+        # keywords = re.findall(r'[^,; ]+', keywords)
 
         return Metadata(title, publisher, keywords, order, rating, collection)
 

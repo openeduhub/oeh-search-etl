@@ -99,7 +99,7 @@ class Uploader:
         return destination_folder
 
     def upload_h5p_file(self, folder_name: str, filename: str, metadata: h5p_extract_metadata.Metadata,
-                        file: Optional[IO[bytes]] = None, relation: str = ""):
+                        file: Optional[IO[bytes]] = None, relation: str = "", overwrite_contents: bool = False):
         # get h5p file, add metadata, upload and after all add permissions
         name = os.path.splitext(os.path.basename(filename))[0]
         keywords = ['h5p', metadata.title, metadata.collection, metadata.order, metadata.keywords]
@@ -110,7 +110,7 @@ class Uploader:
 
         node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
 
-        if node.size is not None:
+        if node.size is not None and not overwrite_contents:
             print(f'Already exists: {filename}')
             return
 
@@ -128,14 +128,64 @@ class Uploader:
         print(f'Upload complete for: {filename}')
         return node.id, properties["ccm:replicationsourceuuid"]
 
-    def upload_h5p_general(self, edusharing_folder_name: str, permitted_groups: Optional[List[str]] = None):
-        self.setup_destination_folder(edusharing_folder_name, permitted_groups)
-        # TODO
-        pass
+    def upload_h5p_single(self, h5p_path: str, edusharing_folder_name: str):
+        # TODO: read metadata from file
+        metadata = h5p_extract_metadata.Metadata('title', 'publisher', [], '', '')
+        self.upload_h5p_file(edusharing_folder_name, h5p_path, metadata)
 
-    def upload_h5p_thuringia(self, edusharing_folder_name: str):
-        permitted_groups = ['Thuringia-public']
-        self.setup_destination_folder(edusharing_folder_name, permitted_groups)
+    def upload_h5p_thr_collection(self, zip_path: str, edusharing_folder_name: str):
+        """
+            Upload multiple H5P files within a zip archive, as a collection
+        """
+        zip = zipfile.ZipFile(zip_path)
+        # get excel_sheet data
+        for excel_filename in zip.namelist():
+            if excel_filename.endswith(".xlsx"):
+                excel_file = zip.open(excel_filename)
+                metadata_file = h5p_extract_metadata.MetadataFile(excel_file)
+                break
+        else:
+            raise RuntimeError('Could not find excel file with metadata')
+
+        # save the replicationsourceuuid, nodeId and the collection of each h5p-file corresponding to this package
+        package_h5p_files_rep_source_uuids = []
+        collection_name = metadata_file.get_collection()
+
+        # now update metadata from the new node (add children) and the h5p-files (add parent)
+        # TODO: add keywords of elements to collection
+        keywords = ["h5p", collection_name, "Arbeitspaket"]
+        properties = generate_node_properties(
+            collection_name, collection_name, "MedienLB", keywords, edusharing_folder_name,
+            format="text/html", aggregation_level=2, aggregation_level_hpi=2
+        )
+        collection_rep_source_uuid = properties['ccm:replicationsourceuuid']
+        collection_node = self.api.sync_node(edusharing_folder_name, properties,
+                                             ['ccm:replicationsource', 'ccm:replicationsourceid'])
+        print(f'Created Collection {collection_name}.')
+
+        # loop through the unzipped h5p-files
+        for filename in zip.namelist():
+            if filename.endswith(".h5p"):
+                metadata = metadata_file.get_metadata(filename)
+                file = zip.open(filename)
+
+                relation = f"{{'kind': 'ispartof', 'resource': {{'identifier': {collection_rep_source_uuid}}}}}"
+
+                node_id, rep_source_uuid = self.upload_h5p_file(edusharing_folder_name, filename, metadata,
+                                                                file=file, relation=relation)
+                rep_source_uuid_clean = str(rep_source_uuid).replace('[', '').replace(']', '').replace("'", "")
+                package_h5p_files_rep_source_uuids.append(rep_source_uuid_clean)
+
+        excel_file.close()
+        zip.close()
+
+        print(package_h5p_files_rep_source_uuids)
+        self.api.set_property_relation(collection_node.id, 'ccm:lom_relation', package_h5p_files_rep_source_uuids)
+        self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation', package_h5p_files_rep_source_uuids)
+
+    def upload_from_folder(self):
+        self.setup_destination_folder(FOLDER_NAME_GENERAL, ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public'])
+        self.setup_destination_folder(FOLDER_NAME_THURINGIA, ['Thuringia-public'])
 
         # ToDo:
         #  1. Check the metadata especially name, title and keywords (for the search query in the frontend)
@@ -143,71 +193,15 @@ class Uploader:
         #  2. Test the script against edusharing.staging and check the Lern-Store frontend view for the collection.
         #  3. Combine down and upload in one script
 
-        # unzip data
         for obj in os.listdir(H5P_LOCAL_PATH):
-            # if not os.path.isfile(obj) or not obj.endswith('.zip'):
-            #     continue
-
-            zip = zipfile.ZipFile(H5P_LOCAL_PATH + "/" + obj)
-            # get excel_sheet data
-            for excel_filename in zip.namelist():
-                if excel_filename.endswith(".xlsx"):
-                    excel_file = zip.open(excel_filename)
-                    metadata_file = h5p_extract_metadata.MetadataFile(excel_file)
-                    break
-            else:
-                raise RuntimeError('Could not find excel file with metadata')
-
-            # save the replicationsourceuuid, nodeId and the collection of each h5p-file corresponding to this package
-            package_h5p_files_rep_source_uuids = []
-            collection_name = metadata_file.get_collection()
-
-            # now update metadata from the new node (add children) and the h5p-files (add parent)
-            keywords = ["h5p", collection_name, "Arbeitspaket"]
-            properties = generate_node_properties(
-                collection_name, collection_name, "MedienLB", keywords, edusharing_folder_name,
-                format="text/html", aggregation_level=2, aggregation_level_hpi=2
-            )
-            collection_rep_source_uuid = properties['ccm:replicationsourceuuid']
-            collection_node = self.api.sync_node(edusharing_folder_name, properties,
-                                                 ['ccm:replicationsource', 'ccm:replicationsourceid'])
-            print(f'Created Collection {collection_name}.')
-
-            # loop through the unzipped h5p-files
-            for filename in zip.namelist():
-                if filename.endswith(".h5p"):
-                    metadata = metadata_file.get_metadata(filename)
-                    file = zip.open(filename)
-
-                    # relation = {
-                    #     'kind': 'ispartof',
-                    #     'resource': {
-                    #         'identifier': [collection_rep_source_uuid]
-                    #     }
-                    # }
-                    relation = "{'kind': 'ispartof', 'resource': {'identifier': " +\
-                               str(collection_rep_source_uuid) + "}}"
-
-                    node_id, rep_source_uuid = self.upload_h5p_file(edusharing_folder_name, filename, metadata,
-                                                                    file=file, relation=relation)
-                    rep_source_uuid_clean = str(rep_source_uuid).replace('[', '').replace(']', '').replace("'", "")
-                    package_h5p_files_rep_source_uuids.append(rep_source_uuid_clean)
-
-            excel_file.close()
-            zip.close()
-
-            # relation = {
-            #     'kind': 'hasparts',
-            #     'resource': {
-            #         'identifier': package_h5p_files_rep_source_uuids
-            #     }
-            # }
-            print(package_h5p_files_rep_source_uuids)
-            self.api.set_property_relation(collection_node.id, 'ccm:lom_relation',
-                                           package_h5p_files_rep_source_uuids)
-            self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation',
-                                           package_h5p_files_rep_source_uuids)
+            path = os.path.join(H5P_LOCAL_PATH, obj)
+            if os.path.isfile(path):
+                if obj.endswith('.h5p'):
+                    #self.upload_h5p_single(path, FOLDER_NAME_GENERAL)
+                    pass
+                elif obj.endswith('.zip'):
+                    self.upload_h5p_thr_collection(path, FOLDER_NAME_THURINGIA)
 
 
 if __name__ == '__main__':
-    Uploader().upload_h5p_thuringia(FOLDER_NAME_THURINGIA)
+    Uploader().upload_from_folder()

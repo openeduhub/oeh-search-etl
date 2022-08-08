@@ -166,6 +166,13 @@ class EdusharingAPI:
     #         raise RequestFailedException(response, node_id)
 
     def set_property_relation(self, node_id: str, property: str, value: List):
+        # TODO: make relation readable
+        # relation = {
+        #     'kind': 'hasparts',
+        #     'resource': {
+        #         'identifier': package_h5p_files_rep_source_uuids
+        #     }
+        # }
         property_replacement = property.replace(":", "%3A")
         url = f'/node/v1/nodes/-home-/{node_id}/property?property={property_replacement}&value=%7B\'kind\'%3A%20\'haspart\'%2C%20\'resource\'%3A%20%7B\'identifier\'%3A%20{value}%7D%7D'
         response = self.make_request('POST', url)
