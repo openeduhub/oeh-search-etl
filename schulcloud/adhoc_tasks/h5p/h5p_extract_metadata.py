@@ -71,29 +71,7 @@ class MetadataFile:
                 collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
                 order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
                 rating = self.o_sheet.cell(row=row, column=self.COLUMN.RATING).value
-                #ToDo: refactoring
-                if self.o_sheet.max_row + 1 < 10:
-                    title = str(rating) + " " + self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
-                elif 9 < self.o_sheet.max_row + 1 < 100:
-                    r = str(rating)
-                    if rating < 10:
-                        r = '0' + r
-                    title = r + " " + self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
-                elif 99 < self.o_sheet.max_row + 1 < 1000:
-                    r = str(rating)
-                    if rating < 10:
-                        r = '00' + r
-                    elif 9 < rating < 100:
-                        r = '0' + r
-                elif 999 < self.o_sheet.max_row + 1 < 10000:
-                    r = str(rating)
-                    if rating < 10:
-                        r = '000' + r
-                    elif 9 < rating < 100:
-                        r = '00' + r
-                    elif 99 < rating < 1000:
-                        r = '0' + r
-                    title = r + " " + self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value
+                title = self.get_title_with_rating(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value, rating)
                 keywords = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
                 publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
 
@@ -103,6 +81,27 @@ class MetadataFile:
             raise RuntimeError(f'No metadata found for {h5p_file}')
 
         return Metadata(title, publisher, keywords, order, rating, collection)
+
+    def get_title_with_rating(self, title_table, rating):
+        rating_title = str(rating) + " "
+
+        if 9 < self.o_sheet.max_row + 1 < 100:
+            if rating < 10:
+                rating_title = '0' + rating_title
+        elif 99 < self.o_sheet.max_row + 1 < 1000:
+            if rating < 10:
+                rating_title = '00' + rating_title
+            elif 9 < rating < 100:
+                rating_title = '0' + rating_title
+        elif 999 < self.o_sheet.max_row + 1 < 10000:
+            if rating < 10:
+                rating_title = '000' + rating_title
+            elif 9 < rating < 100:
+                rating_title = '00' + rating_title
+            elif 99 < rating < 1000:
+                rating_title = '0' + rating_title
+
+        return rating_title + title_table
 
 
 class ParsingError(Exception):
