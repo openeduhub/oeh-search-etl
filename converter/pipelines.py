@@ -455,7 +455,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
 
 def get_settings_for_crawler(spider):
     all_settings = get_project_settings()
-    crawler_settings = getattr(spider, "custom_settings", {})
+    crawler_settings = settings.BaseSettings(getattr(spider, "custom_settings") or {}, 'spider')
     if type(crawler_settings) == dict:
         crawler_settings = settings.BaseSettings(crawler_settings, 'spider')
     for key in crawler_settings.keys():
