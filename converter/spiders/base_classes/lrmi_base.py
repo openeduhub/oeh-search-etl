@@ -1,3 +1,5 @@
+import re
+
 from .lom_base import LomBase
 from .json_base import JSONBase
 import json
@@ -7,6 +9,10 @@ import logging
 
 # base spider mapping data via LRMI inside the html pages
 # Please override the lrmi_path if necessary and add your sitemap_urls
+from ...constants import Constants
+from ...items import LicenseItemLoader
+
+
 class LrmiBase(LomBase, JSONBase):
     friendlyName = "LRMI-Header Based spider"
     lrmi_path = '//script[@type="application/ld+json"]//text()'
@@ -84,9 +90,19 @@ class LrmiBase(LomBase, JSONBase):
         return valuespaces
 
     def getLicense(self, response):
-        license = LomBase.getLicense(self, response)
-        license.add_value("url", self.getLRMI("license", response=response))
-        return license
+        license_loader: LicenseItemLoader = LomBase.getLicense(self, response)
+        license_raw = self.getLRMI("license", response=response)
+        if license_raw:
+            if license_raw.startswith("http"):
+                # the "license" field holds a valid URL -> use it directly as is
+                license_loader.add_value("url", license_raw)
+            else:
+                logging.warning(f"Could not map the received 'license'-value {license_raw} within LrmiBase. "
+                                f"Please check Constants.py and LrmiBase for missing mappings/values.")
+        else:
+            logging.warning("LrmiBase: The 'license'-field returned within the JSON_LD doesn't seem to be a URL.\n"
+                            "Please check if additional license-mapping is necessary within the spider itself.")
+        return license_loader
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
