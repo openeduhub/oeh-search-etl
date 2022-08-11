@@ -103,7 +103,8 @@ class Uploader:
         )
 
     def setup(self):
-        self.setup_destination_folder(ES_FOLDER_NAME_GENERAL, ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public'])
+        self.setup_destination_folder(ES_FOLDER_NAME_GENERAL, ['Thuringia-public', 'Brandenburg-public',
+                                                               'LowerSaxony-public'])
         self.setup_destination_folder(ES_FOLDER_NAME_THURINGIA, ['Thuringia-public'])
 
     def setup_destination_folder(self, folder_name: str, permitted_groups: Optional[List[str]]):
@@ -152,7 +153,7 @@ class Uploader:
 
     def upload_h5p_single(self, h5p_path: str, edusharing_folder_name: str):
         # TODO: read metadata from file
-        metadata = h5p_extract_metadata.Metadata('title', 'publisher', [], '', '')
+        metadata = h5p_extract_metadata.Metadata('title', 'publisher', [], '', '', [])
         self.upload_h5p_file(edusharing_folder_name, h5p_path, metadata)
 
     def upload_h5p_thr_collection(self, zip_path: str, edusharing_folder_name: str):
@@ -174,8 +175,10 @@ class Uploader:
         collection_name = metadata_file.get_collection()
 
         # now update metadata from the new node (add children) and the h5p-files (add parent)
-        # TODO: add keywords of elements to collection
+        keywords_excel = metadata_file.get_keywords()
         keywords = ["h5p", collection_name, "Arbeitspaket"]
+        keywords.extend(keywords_excel)
+
         properties = generate_node_properties(
             collection_name, collection_name, "MedienLB", keywords, edusharing_folder_name,
             format="text/html", aggregation_level=2, aggregation_level_hpi=2
@@ -184,6 +187,13 @@ class Uploader:
         collection_node = self.api.sync_node(edusharing_folder_name, properties,
                                              ['ccm:replicationsource', 'ccm:replicationsourceid'])
         print(f'Created Collection {collection_name}.')
+
+        # check, if all required h5p-files are inside the zip
+        filenames = []
+        for filename in zip.namelist():
+            if filename.endswith(".h5p"):
+                filenames.append(filename)
+        metadata_file.check_for_files(filenames=filenames)
 
         # loop through the unzipped h5p-files
         for filename in zip.namelist():
@@ -201,23 +211,17 @@ class Uploader:
         excel_file.close()
         zip.close()
 
-        print(package_h5p_files_rep_source_uuids)
         self.api.set_property_relation(collection_node.id, 'ccm:lom_relation', package_h5p_files_rep_source_uuids)
         self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation', package_h5p_files_rep_source_uuids)
 
     def upload_from_folder(self):
         self.setup()
 
-        # ToDo:
-        #  1. Check the metadata especially name, title and keywords (for the search query in the frontend)
-        #  > Actual the sorting seems to sort to the value "score" of the property "collection". Check that!
-        #  2. Test the script against edusharing.staging and check the Lern-Store frontend view for the collection.
-
         for obj in os.listdir(H5P_LOCAL_PATH):
             path = os.path.join(H5P_LOCAL_PATH, obj)
             if os.path.isfile(path):
                 if obj.endswith('.h5p'):
-                    #self.upload_h5p_single(path, FOLDER_NAME_GENERAL)
+                    # self.upload_h5p_single(path, FOLDER_NAME_GENERAL)
                     pass
                 elif obj.endswith('.zip'):
                     self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA)
@@ -235,7 +239,7 @@ class Uploader:
             if not os.path.exists(path):
                 raise RuntimeError(f'Download of object {obj["Key"]} somehow failed')
             if path.endswith('.h5p'):
-                #self.upload_h5p_single(path, ES_FOLDER_NAME_GENERAL)
+                # self.upload_h5p_single(path, ES_FOLDER_NAME_GENERAL)
                 pass
             elif path.endswith('.zip'):
                 self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA)
