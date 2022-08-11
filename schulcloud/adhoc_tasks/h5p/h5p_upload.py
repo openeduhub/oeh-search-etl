@@ -102,7 +102,8 @@ class Uploader:
                         file: Optional[IO[bytes]] = None, relation: str = "", overwrite_contents: bool = False):
         # get h5p file, add metadata, upload and after all add permissions
         name = os.path.splitext(os.path.basename(filename))[0]
-        keywords = ['h5p', metadata.title, metadata.collection, metadata.order, metadata.keywords]
+        keywords = ['h5p', metadata.title, metadata.collection, metadata.order]
+        keywords.extend(metadata.keywords)
 
         # ToDo: Add the url of the frontend rendering page
         properties = generate_node_properties(metadata.order, metadata.title, metadata.publisher, keywords,
@@ -194,7 +195,7 @@ class Uploader:
         #  3. Combine down and upload in one script
 
         for obj in os.listdir(H5P_LOCAL_PATH):
-            path = os.path.join(H5P_LOCAL_PATH + "/" + obj)
+            path = os.path.join(H5P_LOCAL_PATH, obj)
             if os.path.isfile(path):
                 if obj.endswith('.h5p'):
                     #self.upload_h5p_single(path, FOLDER_NAME_GENERAL)
