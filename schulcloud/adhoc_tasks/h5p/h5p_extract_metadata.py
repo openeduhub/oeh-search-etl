@@ -1,18 +1,21 @@
 import sys
 from typing import List, Union, IO, Optional
-
+import re
 import openpyxl
 from openpyxl.utils import get_column_letter
 
 
 class Metadata:
-    def __init__(self, title: str, publisher: str, keywords: List[str], order: str, rating: str, collection: Optional[str] = None):
+    def __init__(self, title: str, publisher: str, keywords: List[str], order: str, rating: str, permission: List[str],
+                 collection: Optional[str] = None, licence: Optional[str] = None):
         self.title = title
         self.publisher = publisher
         self.keywords = keywords
         self.order = order
         self.rating = rating
         self.collection = collection
+        self.license = licence
+        self.permission = permission
 
 
 class MetadataFile:
@@ -24,27 +27,38 @@ class MetadataFile:
         FILENAME = 5
         KEYWORDS = 6
         PUBLISHER = 7
-        COUNT = 7
+        LICENSE = 8
+        PERMISSION = 9
+        COUNT = 9
 
     def __init__(self, file: Union[str, IO]):
         self.workbook = openpyxl.load_workbook(filename=file, data_only=True)
         self.o_sheet = self.workbook["Tabelle1"]
-        self.validate_sheet()
+        self.validate_sheet(file=file)
 
-    def validate_sheet(self):
-        collection = self.get_collection()
+    def validate_sheet(self, file: Union[str, IO]):
+        # Check required fields
+        required_fields = [self.COLUMN.TITLE, self.COLUMN.FILENAME]
         for row in range(1, self.o_sheet.max_row + 1):
             for column in range(1, self.COLUMN.COUNT + 1):
-                if column == self.COLUMN.KEYWORDS:
-                    continue
-                if not self.o_sheet.cell(row=row, column=column).value:
-                    raise ParsingError(f'Empty cell: {get_column_letter(column)}{row}')
-        if not collection:
-            raise ParsingError('No collection')
-        for row in range(1, self.o_sheet.max_row + 1):
-            other_collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
-            if not other_collection == collection:
-                raise ParsingError('Multiple collection in one excel file')
+                if column in required_fields:
+                    if not self.o_sheet.cell(row=row, column=column).value:
+                        raise ParsingError(f'Empty required cell: {get_column_letter(column)}{row} at {file.name}')
+
+        # Check for collection
+        if self.o_sheet.cell(row=1, column=self.COLUMN.COLLECTION).value:
+            collection = self.o_sheet.cell(row=1, column=self.COLUMN.COLLECTION).value
+            for row in range(1, self.o_sheet.max_row + 1):
+                other_collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
+                if not other_collection == collection:
+                    raise ParsingError(f'Multiple collection or spelling mistake in row {row} at {file.name}.')
+
+        # Check permission
+        permissions_raw = self.o_sheet.cell(row=1, column=self.COLUMN.PERMISSION).value
+        permissions = re.findall(r'\w+', permissions_raw)
+        for i in permissions:
+            if i != "NDS" and i != "BRB" and i != "THR" and i != "ALL" and i != "":
+                raise ParsingError(f'Spelling mistake or unknown permission: {i} at {file.name}')
 
     def check_for_files(self, filenames: List[str]):
         existing_filenames = []
@@ -89,12 +103,13 @@ class MetadataFile:
         order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
         rating = self.o_sheet.cell(row=row, column=self.COLUMN.RATING).value
         title = self.fill_zeros(str(rating)) + ' ' + str(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value)
-        keywords = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
+        keywords_raw = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
+        keywords = re.findall(r'\w+', keywords_raw)
         publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
+        licence = self.o_sheet.cell(row=row, column=self.COLUMN.LICENSE).value
+        permission = self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value
 
-        # keywords = re.findall(r'[^,; ]+', keywords)
-
-        return Metadata(title, publisher, keywords, order, rating, collection)
+        return Metadata(title, publisher, keywords, order, rating, collection, licence, permission)
 
     def fill_zeros(self, rating: str):
         max_length = len(str(self.o_sheet.max_row))
