@@ -31,6 +31,7 @@ def generate_node_properties(
         title: str,
         name: str,
         publisher: str,
+        license: str,
         keywords: List[str],
         folder_name: str,
         replication_source_id: Optional[str] = None,
@@ -46,6 +47,8 @@ def generate_node_properties(
         replication_source_uuid = str(uuid.uuid4())
     if not relation:
         relation = "{'kind': 'ispartof', 'resource': {'identifier': []}}"
+    if license == "":
+        license = "CUSTOM"
     date = str(datetime.now())
     properties = {
         "access": [
@@ -69,7 +72,7 @@ def generate_node_properties(
         "ccm:replicationsourceid": [hashlib.sha1(replication_source_id.encode()).hexdigest()],
         "ccm:replicationsourcehash": [date],
         "ccm:replicationsourceuuid": [replication_source_uuid],
-        "ccm:commonlicense_key": [publisher],
+        "ccm:commonlicense_key": [license],
         "ccm:hpi_searchable": ["1"],
         "ccm:hpi_lom_general_aggregationlevel": [str(aggregation_level_hpi)],
         "cclom:title": [title],
@@ -81,6 +84,7 @@ def generate_node_properties(
         "ccm:hpi_lom_relation": [relation],
         "ccm:lom_relation": [relation],
         "ccm:create_version": ["false"],
+        "ccm:lifecyclecontributer_publisherVCARD_ORG": [publisher]
     }
     if format:
         properties["cclom:format"] = ["text/html"]
@@ -115,6 +119,8 @@ class Uploader:
         destination_folder = self.api.get_or_create_folder(sync_obj.id, folder_name)
 
         # set permissions for the permitted_groups
+        # ToDo: Add permissions from excel-sheet.
+        #  Split collections into single folders with corresponding permissions.
         self.api.set_permissions(destination_folder.id, permitted_groups, False)
         print(f"Created folder {folder_name} with permissions for: {permitted_groups}")
 
@@ -128,8 +134,9 @@ class Uploader:
         keywords.extend(metadata.keywords)
 
         # ToDo: Add the url of the frontend rendering page
-        properties = generate_node_properties(metadata.title, metadata.order, metadata.publisher, keywords,
-                                              folder_name, replication_source_id=name, relation=relation)
+        properties = generate_node_properties(metadata.title, metadata.order, metadata.publisher,
+                                              metadata.license, keywords, folder_name, replication_source_id=name,
+                                              relation=relation)
 
         node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
 
@@ -179,8 +186,11 @@ class Uploader:
         keywords = ["h5p", collection_name, "Arbeitspaket"]
         keywords.extend(keywords_excel)
 
+        # ToDo: add publisher from excel-sheet and replace "MedienLB".
+        #  Add License from excel-sheet.
+
         properties = generate_node_properties(
-            collection_name, collection_name, "MedienLB", keywords, edusharing_folder_name,
+            collection_name, collection_name, "MedienLB", "", keywords, edusharing_folder_name,
             format="text/html", aggregation_level=2, aggregation_level_hpi=2
         )
         collection_rep_source_uuid = properties['ccm:replicationsourceuuid']
