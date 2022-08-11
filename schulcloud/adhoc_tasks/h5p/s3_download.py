@@ -18,6 +18,9 @@ def main():
     bucket_name = env['S3_BUCKET_NAME']
     directory = env['S3_DOWNLOAD_DIRECTORY']
 
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
     response = client.list_buckets()
     for bucket in response['Buckets']:
         if bucket['Name'] == bucket_name:
@@ -33,10 +36,11 @@ def main():
     progress_bar = tqdm.tqdm(total=total_size, unit='B', unit_scale=True, unit_divisor=1024)
     for obj in objects:
         progress_bar.set_description(obj['Key'])
+        filename = os.path.join(directory, obj['Key'])
         client.download_file(
             Bucket=bucket_name,
             Key=obj['Key'],
-            Filename=os.path.join(directory, obj['Key']),
+            Filename=filename,
             Callback=lambda n: progress_bar.update(n)
         )
     progress_bar.close()
