@@ -3,17 +3,28 @@ import uuid
 import zipfile
 from datetime import datetime
 import hashlib
-from typing import Optional, List, IO
+from typing import Optional, List, IO, Callable, Dict
+
+import boto3
 
 import edusharing
 import h5p_extract_metadata
 import util
 
 
-ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
-H5P_LOCAL_PATH = 'h5p_files'
-FOLDER_NAME_GENERAL = 'h5p'
-FOLDER_NAME_THURINGIA = 'h5p-thuringia'
+EXPECTED_ENV_VARS = [
+    'EDU_SHARING_BASE_URL',
+    'EDU_SHARING_USERNAME',
+    'EDU_SHARING_PASSWORD',
+    'S3_ENDPOINT_URL',
+    'S3_ACCESS_KEY',
+    'S3_SECRET_KEY',
+    'S3_BUCKET_NAME'
+]
+H5P_TEMP_FOLDER = 'h5p_temp'
+H5P_LOCAL_PATH = 'h5p_files'  # TODO: remove, was only for testing
+ES_FOLDER_NAME_GENERAL = 'h5p'
+ES_FOLDER_NAME_THURINGIA = 'h5p-thuringia'
 
 
 def generate_node_properties(
@@ -78,12 +89,22 @@ def generate_node_properties(
 
 class Uploader:
     def __init__(self):
-        self.env = util.Environment(ENV_VARS, ask_for_missing=True)
+        self.env = util.Environment(EXPECTED_ENV_VARS, ask_for_missing=False)
 
         self.api = edusharing.EdusharingAPI(
             self.env['EDU_SHARING_BASE_URL'],
             self.env['EDU_SHARING_USERNAME'],
             self.env['EDU_SHARING_PASSWORD'])
+        self.downloader = S3Downloader(
+            self.env['S3_ENDPOINT_URL'],
+            self.env['S3_ACCESS_KEY'],
+            self.env['S3_SECRET_KEY'],
+            self.env['S3_BUCKET_NAME']
+        )
+
+    def setup(self):
+        self.setup_destination_folder(ES_FOLDER_NAME_GENERAL, ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public'])
+        self.setup_destination_folder(ES_FOLDER_NAME_THURINGIA, ['Thuringia-public'])
 
     def setup_destination_folder(self, folder_name: str, permitted_groups: Optional[List[str]]):
         if not permitted_groups:
@@ -106,7 +127,7 @@ class Uploader:
         keywords.extend(metadata.keywords)
 
         # ToDo: Add the url of the frontend rendering page
-        properties = generate_node_properties(metadata.order, metadata.title, metadata.publisher, keywords,
+        properties = generate_node_properties(metadata.title, metadata.order, metadata.publisher, keywords,
                                               folder_name, replication_source_id=name, relation=relation)
 
         node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
@@ -185,14 +206,12 @@ class Uploader:
         self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation', package_h5p_files_rep_source_uuids)
 
     def upload_from_folder(self):
-        self.setup_destination_folder(FOLDER_NAME_GENERAL, ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public'])
-        self.setup_destination_folder(FOLDER_NAME_THURINGIA, ['Thuringia-public'])
+        self.setup()
 
         # ToDo:
         #  1. Check the metadata especially name, title and keywords (for the search query in the frontend)
         #  > Actual the sorting seems to sort to the value "score" of the property "collection". Check that!
         #  2. Test the script against edusharing.staging and check the Lern-Store frontend view for the collection.
-        #  3. Combine down and upload in one script
 
         for obj in os.listdir(H5P_LOCAL_PATH):
             path = os.path.join(H5P_LOCAL_PATH, obj)
@@ -201,7 +220,60 @@ class Uploader:
                     #self.upload_h5p_single(path, FOLDER_NAME_GENERAL)
                     pass
                 elif obj.endswith('.zip'):
-                    self.upload_h5p_thr_collection(path, FOLDER_NAME_THURINGIA)
+                    self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA)
+
+    def upload_from_s3(self):
+        self.setup()
+        objects = self.downloader.get_object_list()
+        total_size = 0
+        for obj in objects:
+            total_size += obj['Size']
+
+        for obj in objects:
+            path = os.path.join(H5P_TEMP_FOLDER, obj['Key'])
+            self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
+            if not os.path.exists(path):
+                raise RuntimeError(f'Download of object {obj["Key"]} somehow failed')
+            if path.endswith('.h5p'):
+                #self.upload_h5p_single(path, ES_FOLDER_NAME_GENERAL)
+                pass
+            elif path.endswith('.zip'):
+                self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA)
+
+
+class S3Downloader:
+    def __init__(self, url: str, key: str, secret: str, bucket_name: str):
+        self.env = util.Environment(EXPECTED_ENV_VARS, ask_for_missing=False)
+        self.client = boto3.client(
+            's3',
+            endpoint_url=url,
+            aws_access_key_id=key,
+            aws_secret_access_key=secret,
+        )
+        self.bucket_name = bucket_name
+
+    def check_bucket_exists(self) -> None:
+        response = self.client.list_buckets()
+        for bucket in response['Buckets']:
+            if bucket['Name'] == self.bucket_name:
+                break
+        else:
+            raise RuntimeError(f'Bucket {self.bucket_name} does not exist')
+
+    def get_object_list(self) -> List[Dict]:
+        self.check_bucket_exists()
+        response = self.client.list_objects_v2(Bucket=self.bucket_name)
+        return response['Contents']
+
+    def download_object(self, object_key: str, dir_path: str, callback: Optional[Callable] = None):
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        self.client.download_file(
+            Bucket=self.bucket_name,
+            Key=object_key,
+            Filename=os.path.join(dir_path, object_key),
+            Callback=callback
+        )
 
 
 if __name__ == '__main__':
