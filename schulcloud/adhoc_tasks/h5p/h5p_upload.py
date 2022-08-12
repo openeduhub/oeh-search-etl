@@ -134,7 +134,7 @@ class Uploader:
         keywords.extend(metadata.keywords)
 
         # ToDo: Add the url of the frontend rendering page
-        properties = generate_node_properties(metadata.title, metadata.order, metadata.publisher,
+        properties = generate_node_properties(metadata.title, metadata.title, metadata.publisher,
                                               metadata.license, keywords, folder_name, replication_source_id=name,
                                               relation=relation)
 
