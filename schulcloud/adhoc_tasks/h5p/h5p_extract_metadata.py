@@ -6,13 +6,13 @@ from openpyxl.utils import get_column_letter
 
 
 class Metadata:
-    def __init__(self, title: str, publisher: str, keywords: List[str], order: str, rating: str, permission: List[str],
+    def __init__(self, title: str, publisher: str, keywords: List[str], title_and_order: str, order: str, permission: List[str],
                  collection: Optional[str] = None, licence: Optional[str] = None):
         self.title = title
         self.publisher = publisher
         self.keywords = keywords
+        self.title_and_order = title_and_order
         self.order = order
-        self.rating = rating
         self.collection = collection
         self.license = licence
         self.permission = permission
@@ -21,8 +21,8 @@ class Metadata:
 class MetadataFile:
     class COLUMN:
         COLLECTION = 1
-        ORDER = 2
-        RATING = 3
+        TITLE_AND_ORDER = 2
+        ORDER = 3
         TITLE = 4
         FILENAME = 5
         KEYWORDS = 6
@@ -105,9 +105,9 @@ class MetadataFile:
         row = self.find_metadata_by_file_name(h5p_file)
 
         collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
+        title_and_order = self.o_sheet.cell(row=row, column=self.COLUMN.TITLE_AND_ORDER).value
         order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
-        rating = self.o_sheet.cell(row=row, column=self.COLUMN.RATING).value
-        prefix = self.fill_zeros(str(rating)) + ' ' if rating else ""
+        prefix = self.fill_zeros(str(order)) + ' ' if order else ""
         title = prefix + str(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value)
         keywords_raw = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
         keywords = re.findall(r'\w+', keywords_raw)
@@ -115,12 +115,12 @@ class MetadataFile:
         licence = self.o_sheet.cell(row=row, column=self.COLUMN.LICENSE).value
         permission = self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value
 
-        return Metadata(title, publisher, keywords, order, rating, collection, licence, permission)
+        return Metadata(title, publisher, keywords, title_and_order, order, collection, licence, permission)
 
-    def fill_zeros(self, rating: str):
+    def fill_zeros(self, order: str):
         max_length = len(str(self.o_sheet.max_row))
-        zero = (max_length - len(rating)) * '0'
-        return zero + rating
+        zero = (max_length - len(order)) * '0'
+        return zero + order
 
 
 class ParsingError(Exception):
