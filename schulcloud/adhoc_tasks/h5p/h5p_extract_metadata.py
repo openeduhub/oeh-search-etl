@@ -57,7 +57,7 @@ class MetadataFile:
         permissions_raw = self.o_sheet.cell(row=1, column=self.COLUMN.PERMISSION).value
         permissions = re.findall(r'\w+', permissions_raw)
         for i in permissions:
-            if i != "NDS" and i != "BRB" and i != "THR" and i != "ALL" and i != "":
+            if i != "NDS" and i != "BRB" and i != "THR" and i != "ALLE" and i != "":
                 raise ParsingError(f'Spelling mistake or unknown permission: {i} at {file.name}')
 
     def check_for_files(self, filenames: List[str]):
