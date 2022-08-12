@@ -107,7 +107,8 @@ class MetadataFile:
         collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
         order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
         rating = self.o_sheet.cell(row=row, column=self.COLUMN.RATING).value
-        title = self.fill_zeros(str(rating)) + ' ' + str(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value)
+        prefix = self.fill_zeros(str(rating)) + ' ' if rating else ""
+        title = prefix + str(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value)
         keywords_raw = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
         keywords = re.findall(r'\w+', keywords_raw)
         publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
