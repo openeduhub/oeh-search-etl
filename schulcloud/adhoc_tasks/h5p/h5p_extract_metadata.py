@@ -6,12 +6,11 @@ from openpyxl.utils import get_column_letter
 
 
 class Metadata:
-    def __init__(self, title: str, publisher: str, keywords: List[str], title_and_order: str, order: str, permission: List[str],
+    def __init__(self, title: str, publisher: str, keywords: List[str], order: str, permission: List[str],
                  collection: Optional[str] = None, licence: Optional[str] = None):
         self.title = title
         self.publisher = publisher
         self.keywords = keywords
-        self.title_and_order = title_and_order
         self.order = order
         self.collection = collection
         self.license = licence
@@ -115,7 +114,7 @@ class MetadataFile:
         licence = self.o_sheet.cell(row=row, column=self.COLUMN.LICENSE).value
         permission = self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value
 
-        return Metadata(title, publisher, keywords, title_and_order, order, collection, licence, permission)
+        return Metadata(title, publisher, keywords, order, collection, licence, permission)
 
     def fill_zeros(self, order: str):
         max_length = len(str(self.o_sheet.max_row))
