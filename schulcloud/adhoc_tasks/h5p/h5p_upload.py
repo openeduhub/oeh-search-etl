@@ -11,7 +11,6 @@ import edusharing
 import h5p_extract_metadata
 import util
 
-
 EXPECTED_ENV_VARS = [
     'EDU_SHARING_BASE_URL',
     'EDU_SHARING_USERNAME',
@@ -127,6 +126,7 @@ class Uploader:
         return destination_folder
 
     def upload_h5p_file(self, folder_name: str, filename: str, metadata: h5p_extract_metadata.Metadata,
+                        s3_last_modified: Optional[datetime] = None,
                         file: Optional[IO[bytes]] = None, relation: str = "", overwrite_contents: bool = True):
         # get h5p file, add metadata, upload and after all add permissions
         name = os.path.splitext(os.path.basename(filename))[0]
@@ -140,15 +140,16 @@ class Uploader:
 
         node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
 
-        if node.size is not None and not overwrite_contents:
+        if node.size is not None and s3_last_modified is not None:
             # timestamp of the node
             res = self.api.get_metadata_of_node(node.id)
             res_createdAt = str(res["node"]["createdAt"])
             res_clean = res_createdAt.replace("Z", "")
             timestamp_edusharing = datetime.fromisoformat(res_clean)
-
-            print(f'Already exists: {filename}')
-            return
+            s3_last_modified = s3_last_modified.replace(tzinfo=None)
+            s3_last_modified = s3_last_modified
+            if timestamp_edusharing > s3_last_modified:
+                return
 
         if file is None:
             file = open(filename, 'rb')
@@ -169,7 +170,8 @@ class Uploader:
         metadata = h5p_extract_metadata.Metadata('title', 'publisher', [], '', '', [])
         self.upload_h5p_file(edusharing_folder_name, h5p_path, metadata)
 
-    def upload_h5p_thr_collection(self, zip_path: str, edusharing_folder_name: str):
+    def upload_h5p_thr_collection(self, zip_path: str, edusharing_folder_name: str,
+                                  s3_last_modified: Optional[datetime] = None):
         """
             Upload multiple H5P files within a zip archive, as a collection
         """
@@ -219,8 +221,11 @@ class Uploader:
 
                 relation = f"{{'kind': 'ispartof', 'resource': {{'identifier': {collection_rep_source_uuid}}}}}"
 
-                node_id, rep_source_uuid = self.upload_h5p_file(edusharing_folder_name, filename, metadata,
-                                                                file=file, relation=relation)
+                result = self.upload_h5p_file(edusharing_folder_name, filename, metadata,
+                                              s3_last_modified, file=file, relation=relation)
+                if result is None:
+                    break
+                node_id, rep_source_uuid = result
                 rep_source_uuid_clean = str(rep_source_uuid).replace('[', '').replace(']', '').replace("'", "")
                 package_h5p_files_rep_source_uuids.append(rep_source_uuid_clean)
 
@@ -258,7 +263,7 @@ class Uploader:
                 # self.upload_h5p_single(path, ES_FOLDER_NAME_GENERAL)
                 pass
             elif path.endswith('.zip'):
-                self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA)
+                self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA, obj['LastModified'])
 
 
 class S3Downloader:
@@ -297,4 +302,4 @@ class S3Downloader:
 
 
 if __name__ == '__main__':
-    Uploader().upload_from_folder()
+    Uploader().upload_from_s3()

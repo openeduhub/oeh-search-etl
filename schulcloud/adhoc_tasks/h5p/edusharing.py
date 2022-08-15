@@ -121,7 +121,7 @@ class EdusharingAPI:
         return [Node(node) for node in json_obj['nodes']]
 
     def get_metadata_of_node(self, nodeId: str):
-        url = f'/node/v1/nodes/-home-/c9e21d9e-fff3-44d4-b87f-2f8878e5f1f6/metadata'
+        url = f'/node/v1/nodes/-home-/{nodeId}/metadata'
         response = self.make_request('GET', url)
         if not response.status_code == 200:
             raise RequestFailedException(response)
