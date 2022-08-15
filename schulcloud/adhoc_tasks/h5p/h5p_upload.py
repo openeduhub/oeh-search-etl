@@ -141,6 +141,10 @@ class Uploader:
         node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
 
         if node.size is not None and not overwrite_contents:
+            # timestamp of the node
+            res = self.api.get_metadata_of_node(node.id)
+            timestamp_edusharing = res["node"]["createdAt"]
+
             print(f'Already exists: {filename}')
             return
 
