@@ -120,6 +120,14 @@ class EdusharingAPI:
         json_obj = response.json()
         return [Node(node) for node in json_obj['nodes']]
 
+    def get_metadata_of_node(self, nodeId: str):
+        url = f'/node/v1/nodes/-home-/c9e21d9e-fff3-44d4-b87f-2f8878e5f1f6/metadata'
+        response = self.make_request('GET', url)
+        if not response.status_code == 200:
+            raise RequestFailedException(response)
+        json_obj = response.json()
+        return json_obj
+
     def create_folder(self, parent_id: str, name: str, metadataset: str = 'mds_oeh', payload: Optional[Dict] = None):
         url = f'/node/v1/nodes/-home-/{parent_id}/children?type=cm%3Afolder&renameIfExists=false'
         if payload is None:
