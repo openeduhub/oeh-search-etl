@@ -14,11 +14,6 @@ from converter.util.sitemap import SitemapEntry, from_xml_response
 
 jslde = JsonLdExtractor()
 
-about_maps = {
-    "Lernfeld Gesundheit (LF16)": "Gesundheit",
-    "Handlungsfeld Gesellschaft": "Gesellschaftskunde"
-}
-
 
 class FobizzSpider(scrapy.Spider, LomBase):
     """
@@ -28,7 +23,7 @@ class FobizzSpider(scrapy.Spider, LomBase):
 
     start_urls = ['https://plattform.fobizz.com/sitemap']
     name = 'fobizz_spider'
-    version = '0.0.2'  # last update: 2022-05-23
+    version = '0.0.3'  # last update: 2022-08-15
 
     overview_pages_without_a_json_ld = [
         "https://plattform.fobizz.com/unterrichtsmaterialien/faecher/Religion",
@@ -63,6 +58,22 @@ class FobizzSpider(scrapy.Spider, LomBase):
         "https://plattform.fobizz.com/unterrichtsmaterialien/klassenstufen/Special%20School",
         "https://plattform.fobizz.com/unterrichtsmaterialien/klassenstufen/Vocational%20School"
     ]
+
+    MAPPING_ABOUT_TO_DISCIPLINE = {
+        "Handlungsfeld Gesellschaft": "Gesellschaftskunde",
+        "Lernfeld Gesundheit (LF16)": "Gesundheit",
+        "Media": "media education",
+        "Unspecified": "",
+    }
+
+    MAPPING_EDUCATIONALCONTEXT = {
+        "Elementary School": "elementary school",  # Grundschule
+        "Lower Grade": "Secondary I",  # Unterstufe? Kl. 5-7 (untere Hälfte der Sekundarstufe I)
+        "Middle Level": "Secondary I",  # Mittelstufe? Kl. 7-9 (obere Hälfte der Sekundarstufe I)
+        "Upper School": "Secondary II",  # Oberstufe?
+        "Vocational School": "vocational school",
+        "Special School": "special education",
+    }
 
     def getId(self, response: scrapy.http.Response = None) -> str:
         return parse.urlparse(response.meta["sitemap_entry"].loc).path
@@ -100,6 +111,7 @@ class FobizzSpider(scrapy.Spider, LomBase):
         data = jslde.extract(response.text)[0]
         response.meta['sitemap_entry'] = sitemap_entry
         base = super().getBase(response=response)
+        base.replace_value('sourceId', response.url)
         base.add_value("response", super().mapResponse(response).load_item())
         # we assume that content is imported. Please use replace_value if you import something different
         base.add_value('thumbnail', data.get("thumbnailUrl", None))
@@ -110,16 +122,16 @@ class FobizzSpider(scrapy.Spider, LomBase):
 
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
+        additional_keywords = set()
         general.add_value('title', data.get("name", None))
         general.add_value('description', data.get("description", None))
         general.add_value("identifier", data.get("identifier", None))
         for language in data.get("language", []):
             general.add_value("language", language)
-        lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
         technical.add_value('format', 'text/html')
-        technical.add_value('location', sitemap_entry.loc)
+        technical.add_value('location', response.url)
         lom.add_value("technical", technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
@@ -128,7 +140,6 @@ class FobizzSpider(scrapy.Spider, LomBase):
         lom.add_value("educational", edu.load_item())
         # classification = LomClassificationItemLoader()
         # lom.add_value("classification", classification.load_item())
-        base.add_value("lom", lom.load_item())
 
         vs = ValuespaceItemLoader()
         vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
@@ -136,12 +147,43 @@ class FobizzSpider(scrapy.Spider, LomBase):
             vs.add_value("intendedEndUserRole", audience)
 
         for discipline in (d.strip() for d in data.get("about", []).split(",")):
-            if discipline in about_maps.keys():
-                discipline = about_maps[discipline]
+            if "Other: " in discipline:
+                # edge-case handling for https://plattform.fobizz.com/unterrichtsmaterialien/faecher/Other
+                # the discipline field may also hold a (freetext) String beginning with "Other: "
+                # since these values can't be mapped to disciplines, their information is a suitable keyword candidate
+                discipline_other: str = discipline.replace("Other: ", "")
+                if discipline_other:
+                    # making sure that we're not adding empty '' strings
+                    vs.add_value('discipline', discipline_other)  # this will work for values like "Other: Spanisch",
+                    # but Strings like "Digitales Gestalten/Gestaltungstechnik" would be lost, since they can't be
+                    # mapped within the pipeline, therefore saving this value as an additional_keyword
+                    additional_keywords.add(discipline_other)
+            if discipline in self.MAPPING_ABOUT_TO_DISCIPLINE.keys():
+                discipline = self.MAPPING_ABOUT_TO_DISCIPLINE[discipline]
             vs.add_value('discipline', discipline)
 
         for lrt in data.get("type", []):
             vs.add_value('new_lrt', lrt)
+        vs.add_value('conditionsOfAccess', 'login required')  # a login is always required to download the learning
+        # materials as .pdf files
+
+        for educational_context in (edu_context_candidate.strip() for
+                                    edu_context_candidate in data.get("oeh:educationalContext", []).split(",")):
+            if "Other: " in educational_context:
+                # edge-case handling for https://plattform.fobizz.com/unterrichtsmaterialien/klassenstufen/Other
+                # a typical edge-case: "oeh:educationalContext": "Lower Grade, Middle Level, Other: Schach "
+                educational_context_other: str = educational_context.replace("Other: ", "")
+                if educational_context_other:
+                    additional_keywords.add(educational_context_other)
+            elif educational_context in self.MAPPING_EDUCATIONALCONTEXT.keys():
+                educational_context = self.MAPPING_EDUCATIONALCONTEXT[educational_context]
+                vs.add_value('educationalContext', educational_context)
+            elif educational_context not in self.MAPPING_EDUCATIONALCONTEXT.keys():
+                # some educational_context values can't be mapped, but are suitable for keywords, e.g.:
+                # "Technology", "Personal Education", "Foreign Languages"
+                additional_keywords.add(educational_context)
+                vs.add_value('educationalContext', educational_context)
+
         base.add_value("valuespaces", vs.load_item())
 
         lic = LicenseItemLoader()
@@ -152,6 +194,11 @@ class FobizzSpider(scrapy.Spider, LomBase):
         base.add_value("license", lic.load_item())
 
         permissions = super().getPermissions(response)
+
+        if additional_keywords:
+            general.add_value("keyword", list(additional_keywords))
+        lom.add_value("general", general.load_item())
+        base.add_value("lom", lom.load_item())
 
         base.add_value("permissions", permissions.load_item())
         response_loader = ResponseItemLoader()
