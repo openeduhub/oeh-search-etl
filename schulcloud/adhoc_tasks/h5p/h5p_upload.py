@@ -143,7 +143,9 @@ class Uploader:
         if node.size is not None and not overwrite_contents:
             # timestamp of the node
             res = self.api.get_metadata_of_node(node.id)
-            timestamp_edusharing = res["node"]["createdAt"]
+            res_createdAt = str(res["node"]["createdAt"])
+            res_clean = res_createdAt.replace("Z", "")
+            timestamp_edusharing = datetime.fromisoformat(res_clean)
 
             print(f'Already exists: {filename}')
             return
