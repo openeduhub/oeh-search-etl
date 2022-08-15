@@ -127,7 +127,7 @@ class Uploader:
         return destination_folder
 
     def upload_h5p_file(self, folder_name: str, filename: str, metadata: h5p_extract_metadata.Metadata,
-                        file: Optional[IO[bytes]] = None, relation: str = "", overwrite_contents: bool = False):
+                        file: Optional[IO[bytes]] = None, relation: str = "", overwrite_contents: bool = True):
         # get h5p file, add metadata, upload and after all add permissions
         name = os.path.splitext(os.path.basename(filename))[0]
         keywords = ['h5p', metadata.title, metadata.collection, metadata.order]
