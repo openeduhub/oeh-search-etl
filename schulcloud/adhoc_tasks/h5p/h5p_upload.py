@@ -165,11 +165,6 @@ class Uploader:
         print(f'Upload complete for: {filename}')
         return node.id, properties["ccm:replicationsourceuuid"]
 
-    def upload_h5p_single(self, h5p_path: str, edusharing_folder_name: str):
-        # TODO: read metadata from file
-        metadata = h5p_extract_metadata.Metadata('title', 'publisher', [], '', '', [])
-        self.upload_h5p_file(edusharing_folder_name, h5p_path, metadata)
-
     def upload_h5p_thr_collection(self, zip_path: str, edusharing_folder_name: str,
                                   s3_last_modified: Optional[datetime] = None):
         """
@@ -259,11 +254,10 @@ class Uploader:
             self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
             if not os.path.exists(path):
                 raise RuntimeError(f'Download of object {obj["Key"]} somehow failed')
-            if path.endswith('.h5p'):
-                # self.upload_h5p_single(path, ES_FOLDER_NAME_GENERAL)
-                pass
-            elif path.endswith('.zip'):
+            if path.endswith('.zip'):
                 self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA, obj['LastModified'])
+            else:
+                print("Only zip-files are allowed!")
 
 
 class S3Downloader:
