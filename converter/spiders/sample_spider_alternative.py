@@ -103,9 +103,6 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         # e.g.: the unique identifier might be the URL to a material
         general.add_value('identifier', response.url)
         # TODO: don't forget to add key-value-pairs for 'title', 'keyword' and 'description'!
-        # once we've added all available values to the necessary keys in our LomGeneralItemLoader,
-        # we call the load_item()-method to return a (now filled) LomGeneralItem to the LomBaseItemLoader
-        lom.add_value('general', general.load_item())
 
         technical = LomTechnicalItemLoader()
         # TODO: fill "technical"-keys with values for
@@ -121,9 +118,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         # or replaced with:
         # technical.replace_value('key', 'value')
         technical.add_value('format', 'text/html')  # e.g. if the learning object is a web-page
-        technical.add_value('location', response.url)  # if the the learning object has a unique URL that's being
+        technical.add_value('location', response.url)  # if the learning object has a unique URL that's being
         # navigated by the crawler
-        lom.add_value('technical', technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
         # TODO: fill "lifecycle"-keys with values for
@@ -137,7 +133,6 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - uuid                           optional
         lifecycle.add_value('role', 'author')  # supported roles: "author" / "editor" / "publisher"
         # for available roles mapping, please take a look at converter/es_connector.py
-        lom.add_value('lifecycle', lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
         # TODO: fill "educational"-keys with values for
@@ -149,7 +144,6 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - typicalAgeRange                optional
         #  - difficulty                     optional
         #  - typicalLearningTime            optional
-        lom.add_value('educational', educational.load_item())
 
         classification = LomClassificationItemLoader()
         # TODO: fill "classification"-keys with values for
@@ -158,11 +152,9 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - taxonPath                      optional
         #  - description                    optional
         #  - keyword                        optional
-        lom.add_value('classification', classification.load_item())
 
         # once you've filled "general", "technical", "lifecycle" and "educational" with values,
         # the LomBaseItem is loaded into the "base"-BaseItemLoader
-        base.add_value('lom', lom.load_item())
 
         vs = ValuespaceItemLoader()
         # for possible values, either consult https://vocabs.openeduhub.de
@@ -197,7 +189,6 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - oer                            optional
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/oer.ttl)
         vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
-        base.add_value('valuespaces', vs.load_item())
 
         lic = LicenseItemLoader()
         # TODO: fill "license"-keys with values for
@@ -209,7 +200,6 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - internal                       optional
         #  - description                    optional
         #  - expirationDate                 optional (for content that expires, e.g. ÖR-Mediatheken)
-        base.add_value('license', lic.load_item())
 
         # Either fill the PermissionItemLoader manually (not necessary most of the times)
         permissions = PermissionItemLoader()
@@ -222,7 +212,6 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - mediacenters                   optional
         #  - autoCreateGroups               optional
         #  - autoCreateMediacenters         optional
-        base.add_value('permissions', permissions.load_item())
 
         # Either fill the ResponseItemLoader manually (not necessary most of the time)
         response_loader = ResponseItemLoader()
@@ -237,7 +226,20 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - headers                        optional
         #  - cookies                        optional
         #  - har                            optional
-        base.add_value('response', response_loader.load_item())
 
-        # once all scrapy.Item are loaded into our "base", we yield the BaseItem by calling the .load_item() method
+        # once we've added all available values to the necessary keys in our LomGeneralItemLoader,
+        # we call the load_item()-method to return a (now filled) LomGeneralItem to the LomBaseItemLoader.
+        # We do the same for every other nested Item within LomBaseItem as well:
+        lom.add_value('general', general.load_item())
+        lom.add_value('technical', technical.load_item())
+        lom.add_value('lifecycle', lifecycle.load_item())
+        lom.add_value('educational', educational.load_item())
+        lom.add_value('classification', classification.load_item())
+        # after LomBaseItem is filled with metadata, we build and return it to our BaseItem
+        base.add_value('lom', lom.load_item())
+        base.add_value('license', lic.load_item())
+        base.add_value('valuespaces', vs.load_item())
+        base.add_value('permissions', permissions.load_item())
+        base.add_value('response', response_loader.load_item())
+        # once all scrapy.Items are loaded into our "base", we yield the BaseItem by calling the .load_item() method
         yield base.load_item()
