@@ -15,7 +15,7 @@ class Metadata:
         self.license = licence
         self.permission = permission
         self.collection = collection
-        if collection is not None and type(collection) == str:
+        if collection is not None and type(collection) != str:
             self.collection.add_child(self)
 
 
