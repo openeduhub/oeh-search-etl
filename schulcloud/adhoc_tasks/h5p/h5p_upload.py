@@ -1,4 +1,5 @@
 import os
+import sys
 import uuid
 import zipfile
 from datetime import datetime
@@ -10,6 +11,7 @@ import boto3
 import edusharing
 import h5p_extract_metadata
 import util
+
 
 EXPECTED_ENV_VARS = [
     'EDU_SHARING_BASE_URL',
@@ -235,12 +237,8 @@ class Uploader:
 
         for obj in os.listdir(H5P_LOCAL_PATH):
             path = os.path.join(H5P_LOCAL_PATH, obj)
-            if os.path.isfile(path):
-                if obj.endswith('.h5p'):
-                    # self.upload_h5p_single(path, FOLDER_NAME_GENERAL)
-                    pass
-                elif obj.endswith('.zip'):
-                    self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA)
+            if os.path.isfile(path) and obj.endswith('.zip'):
+                self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA)
 
     def upload_from_s3(self):
         self.setup()
@@ -251,13 +249,12 @@ class Uploader:
 
         for obj in objects:
             path = os.path.join(H5P_TEMP_FOLDER, obj['Key'])
-            self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
-            if not os.path.exists(path):
-                raise RuntimeError(f'Download of object {obj["Key"]} somehow failed')
             if path.endswith('.zip'):
+                self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
+                # TODO: add try-except
                 self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA, obj['LastModified'])
             else:
-                print("Only zip-files are allowed!")
+                print(f'Skipping {obj["Key"]}, not a zip.', file=sys.stderr)
 
 
 class S3Downloader:
