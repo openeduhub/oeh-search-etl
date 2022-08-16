@@ -1,20 +1,31 @@
 import sys
-from typing import List, Union, IO, Optional
+from typing import List, Union, IO, Optional, Literal, Dict
 import re
 import openpyxl
 from openpyxl.utils import get_column_letter
 
 
 class Metadata:
-    def __init__(self, title: str, publisher: str, keywords: List[str], order: str, permission: List[str],
-                 collection: Optional[str] = None, licence: Optional[str] = None):
+    def __init__(self, title: str, publisher: str, keywords: List[str], order: str, permission: List[Literal['ALLE', 'NDS', 'BRB', 'THR']],
+                 collection: Optional['Collection'] = None, licence: Optional[str] = None):
         self.title = title
         self.publisher = publisher
         self.keywords = keywords
         self.order = order
-        self.collection = collection
         self.license = licence
         self.permission = permission
+        self.collection = collection
+        if collection is not None:
+            self.collection.add_child(self)
+
+
+class Collection:
+    def __init__(self, name: str):
+        self.name = name
+        self.children: List[Metadata] = []
+
+    def add_child(self, child: Metadata):
+        self.children.append(child)
 
 
 class MetadataFile:
@@ -31,9 +42,12 @@ class MetadataFile:
         COUNT = 9
 
     def __init__(self, file: Union[str, IO]):
+        self.collections: List[Collection] = []
+        self.single_files: List[Metadata] = []
         self.workbook = openpyxl.load_workbook(filename=file, data_only=True)
         self.o_sheet = self.workbook["Tabelle1"]
         self.validate_sheet(file=file)
+        self.parse()
 
     def validate_sheet(self, file: Union[str, IO]):
         # Check required fields
@@ -56,8 +70,34 @@ class MetadataFile:
         permissions_raw = self.o_sheet.cell(row=1, column=self.COLUMN.PERMISSION).value
         permissions = re.findall(r'\w+', permissions_raw)
         for i in permissions:
-            if i != "NDS" and i != "BRB" and i != "THR" and i != "ALLE" and i != "":
+            if i is None:
+                i = 'ALLE'
+            elif i not in ('NDS', 'BRB', 'THR', 'ALLE'):
                 raise ParsingError(f'Spelling mistake or unknown permission: {i} at {file.name}')
+
+    def parse(self):
+        for row in range(1, self.o_sheet.max_row + 1):
+            order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
+            prefix = self.fill_zeros(str(order)) + ' ' if order else ""
+            title = prefix + str(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value)
+            keywords_raw = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
+            keywords = re.findall(r'\w+', keywords_raw)
+            publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
+            licence = self.o_sheet.cell(row=row, column=self.COLUMN.LICENSE).value
+            permissions = re.findall(r'\w+', self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value)
+
+            collection_name = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
+            if collection_name:
+                for c in self.collections:
+                    if c.name == collection_name:
+                        collection = c
+                        break
+                else:
+                    collection = Collection(collection_name)
+                    self.collections.append(collection)
+                Metadata(title, publisher, keywords, order, permissions, collection, licence)
+            else:
+                self.single_files.append(Metadata(title, publisher, keywords, order, permissions, licence=licence))
 
     def check_for_files(self, filenames: List[str]):
         existing_filenames = []
@@ -104,7 +144,6 @@ class MetadataFile:
         row = self.find_metadata_by_file_name(h5p_file)
 
         collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
-        title_and_order = self.o_sheet.cell(row=row, column=self.COLUMN.TITLE_AND_ORDER).value
         order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
         prefix = self.fill_zeros(str(order)) + ' ' if order else ""
         title = prefix + str(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value)
@@ -112,9 +151,9 @@ class MetadataFile:
         keywords = re.findall(r'\w+', keywords_raw)
         publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
         licence = self.o_sheet.cell(row=row, column=self.COLUMN.LICENSE).value
-        permission = self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value
+        permission = re.findall(r'\w+', self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value)
 
-        return Metadata(title, publisher, keywords, order, collection, licence, permission)
+        return Metadata(title, publisher, keywords, order, permission, collection, licence)
 
     def fill_zeros(self, order: str):
         max_length = len(str(self.o_sheet.max_row))
