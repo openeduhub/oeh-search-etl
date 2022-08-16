@@ -106,7 +106,7 @@ class Uploader:
 
     def setup(self):
         self.setup_destination_folder(ES_FOLDER_NAME_GENERAL, ['Thuringia-public', 'Brandenburg-public',
-                                                               'LowerSaxony-public'])        #self.setup_destination_folder(ES_FOLDER_NAME_THURINGIA, ['Thuringia-public'])
+                                                               'LowerSaxony-public'])
 
     def setup_destination_folder(self, folder_name: str, permitted_groups: Optional[List[str]]):
         if not permitted_groups:
@@ -125,7 +125,7 @@ class Uploader:
 
     def upload_h5p_file(self, folder_name: str, filename: str, metadata: h5p_extract_metadata.Metadata,
                         s3_last_modified: Optional[datetime] = None,
-                        file: Optional[IO[bytes]] = None, relation: str = "", overwrite_contents: bool = True):
+                        file: Optional[IO[bytes]] = None, relation: str = ""):
         # get h5p file, add metadata, upload and after all add permissions
         name = os.path.splitext(os.path.basename(filename))[0]
         keywords = ['h5p', metadata.title, metadata.collection, metadata.order]
@@ -163,8 +163,8 @@ class Uploader:
         print(f'Upload complete for: {filename}')
         return node.id, properties["ccm:replicationsourceuuid"]
 
-    def upload_h5p_thr_collection(self, zip_path: str, edusharing_folder_name: str,
-                                  s3_last_modified: Optional[datetime] = None):
+    def upload_h5p_collection(self, zip_path: str, edusharing_folder_name: str,
+                              s3_last_modified: Optional[datetime] = None):
         """
             Upload multiple H5P files within a zip archive, as a collection
         """
@@ -238,7 +238,7 @@ class Uploader:
                     # self.upload_h5p_single(path, FOLDER_NAME_GENERAL)
                     pass
                 elif obj.endswith('.zip'):
-                    self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_GENERAL)
+                    self.upload_h5p_collection(path, ES_FOLDER_NAME_GENERAL)
 
     def upload_from_s3(self):
         self.setup()
@@ -253,7 +253,7 @@ class Uploader:
             if not os.path.exists(path):
                 raise RuntimeError(f'Download of object {obj["Key"]} somehow failed')
             if path.endswith('.zip'):
-                self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_GENERAL, obj['LastModified'])
+                self.upload_h5p_collection(path, ES_FOLDER_NAME_GENERAL, obj['LastModified'])
             else:
                 print("Only zip-files are allowed! (" + obj['Key'] + ")")
 
