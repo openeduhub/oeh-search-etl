@@ -23,7 +23,6 @@ EXPECTED_ENV_VARS = [
 H5P_TEMP_FOLDER = 'h5p_temp'
 H5P_LOCAL_PATH = 'h5p_files'  # TODO: remove, was only for testing
 ES_FOLDER_NAME_GENERAL = 'h5p'
-ES_FOLDER_NAME_THURINGIA = 'h5p-thuringia'
 
 
 def generate_node_properties(
@@ -107,8 +106,7 @@ class Uploader:
 
     def setup(self):
         self.setup_destination_folder(ES_FOLDER_NAME_GENERAL, ['Thuringia-public', 'Brandenburg-public',
-                                                               'LowerSaxony-public'])
-        self.setup_destination_folder(ES_FOLDER_NAME_THURINGIA, ['Thuringia-public'])
+                                                               'LowerSaxony-public'])        #self.setup_destination_folder(ES_FOLDER_NAME_THURINGIA, ['Thuringia-public'])
 
     def setup_destination_folder(self, folder_name: str, permitted_groups: Optional[List[str]]):
         if not permitted_groups:
@@ -240,7 +238,7 @@ class Uploader:
                     # self.upload_h5p_single(path, FOLDER_NAME_GENERAL)
                     pass
                 elif obj.endswith('.zip'):
-                    self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA)
+                    self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_GENERAL)
 
     def upload_from_s3(self):
         self.setup()
@@ -255,7 +253,7 @@ class Uploader:
             if not os.path.exists(path):
                 raise RuntimeError(f'Download of object {obj["Key"]} somehow failed')
             if path.endswith('.zip'):
-                self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_THURINGIA, obj['LastModified'])
+                self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_GENERAL, obj['LastModified'])
             else:
                 print("Only zip-files are allowed!")
 
