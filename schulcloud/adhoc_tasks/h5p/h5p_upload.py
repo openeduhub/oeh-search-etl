@@ -236,7 +236,7 @@ class Uploader:
         for obj in os.listdir(H5P_LOCAL_PATH):
             path = os.path.join(H5P_LOCAL_PATH, obj)
             if os.path.isfile(path) and obj.endswith('.zip'):
-                    self.upload_h5p_collection(path, ES_FOLDER_NAME_GENERAL)
+                self.upload_h5p_collection(path, ES_FOLDER_NAME_GENERAL)
 
     def upload_from_s3(self):
         self.setup()
