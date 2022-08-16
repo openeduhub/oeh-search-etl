@@ -219,6 +219,33 @@ class Uploader:
         self.api.set_property_relation(collection_node.id, 'ccm:lom_relation', package_h5p_files_rep_source_uuids)
         self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation', package_h5p_files_rep_source_uuids)
 
+    def upload_h5p_non_collection(self, edusharing_folder_name: str, metadata_file, excel_file, zip,
+                              s3_last_modified: Optional[datetime] = None):
+        """
+            Upload multiple H5P files within a zip archive, without a collection
+        """
+
+        # check, if all required h5p-files are inside the zip
+        filenames = []
+        for filename in zip.namelist():
+            if filename.endswith(".h5p"):
+                filenames.append(filename)
+        metadata_file.check_for_files(filenames=filenames)
+
+        # loop through the unzipped h5p-files
+        for filename in zip.namelist():
+            if filename.endswith(".h5p"):
+                metadata = metadata_file.get_metadata(filename)
+                file = zip.open(filename)
+
+                result = self.upload_h5p_file(edusharing_folder_name, filename, metadata,
+                                              s3_last_modified, file=file,)
+                if result is None:
+                    break
+
+        excel_file.close()
+        zip.close()
+
     def get_medata_and_excel_file(self, zip_path: str):
         zip = zipfile.ZipFile(zip_path)
         # get excel_sheet data
@@ -252,7 +279,13 @@ class Uploader:
                 self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
                 # TODO: add try-except
                 files = self.get_medata_and_excel_file(path)
-                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip=zipfile.ZipFile(path), s3_last_modified=obj['LastModified'])
+                collection_name = files[0].get_collection()
+                if collection_name is None:
+                    self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip=zipfile.ZipFile(path),
+                                               s3_last_modified=obj['LastModified'])
+                else:
+                    self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip=zipfile.ZipFile(path),
+                                               s3_last_modified=obj['LastModified'])
             else:
                 print(f'Skipping {obj["Key"]}, not a zip.', file=sys.stderr)
 
