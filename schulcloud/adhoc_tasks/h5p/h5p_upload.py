@@ -255,7 +255,7 @@ class Uploader:
             if path.endswith('.zip'):
                 self.upload_h5p_thr_collection(path, ES_FOLDER_NAME_GENERAL, obj['LastModified'])
             else:
-                print("Only zip-files are allowed!")
+                print("Only zip-files are allowed! (" + obj['Key'] + ")")
 
 
 class S3Downloader:
