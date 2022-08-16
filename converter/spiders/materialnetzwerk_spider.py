@@ -15,7 +15,7 @@ from converter.web_tools import WebTools, WebEngine
 class MaterialNetzwerkSpider(CrawlSpider, LomBase):
     name = "materialnetzwerk_spider"
     friendlyName = "Materialnetzwerk.org"
-    version = "0.0.6"  # last update: 2022-04-24
+    version = "0.0.7"  # last update: 2022-08-16
     start_urls = [
         # 'https://editor.mnweg.org/?p=1&materialType=bundle',
         # this doesn't list any materials since they're loaded dynamically
@@ -41,6 +41,9 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         'AES': "Ernährung und Hauswirtschaft",  # Ernährung und Hauswirtschaft
         'Erdkunde, Gemeinschaftskunde, Geschichte': ['Erdkunde', 'Gesellschaftskunde', 'Sozialkunde', 'Geschichte'],
         # Gemeinschaftskunde can be either "Gesellschaftskunde" or "Sozialkunde" (depending on the county)
+        'Erdkunde': "Geography",  # mapping "Erdkunde" shouldn't be necessary, but the Vocab's altLabel for this entry
+        # needs a bugfix.
+        # ToDo: remove this workaround/hotfix in v0.0.8 and see if "Erdkunde" gets properly mapped by the pipeline
     }
 
     # debug_disciplines = set()
