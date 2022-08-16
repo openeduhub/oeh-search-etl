@@ -12,7 +12,6 @@ import edusharing
 import h5p_extract_metadata
 import util
 
-
 EXPECTED_ENV_VARS = [
     'EDU_SHARING_BASE_URL',
     'EDU_SHARING_USERNAME',
@@ -165,21 +164,11 @@ class Uploader:
         print(f'Upload complete for: {filename}')
         return node.id, properties["ccm:replicationsourceuuid"]
 
-    def upload_h5p_collection(self, zip_path: str, edusharing_folder_name: str,
+    def upload_h5p_collection(self, edusharing_folder_name: str, metadata_file, excel_file, zip,
                               s3_last_modified: Optional[datetime] = None):
         """
             Upload multiple H5P files within a zip archive, as a collection
         """
-        zip = zipfile.ZipFile(zip_path)
-        # get excel_sheet data
-        for excel_filename in zip.namelist():
-            if excel_filename.endswith(".xlsx"):
-                excel_file = zip.open(excel_filename)
-                metadata_file = h5p_extract_metadata.MetadataFile(excel_file)
-                break
-        else:
-            raise RuntimeError('Could not find excel file with metadata')
-
         # save the replicationsourceuuid, nodeId and the collection of each h5p-file corresponding to this package
         package_h5p_files_rep_source_uuids = []
         collection_name = metadata_file.get_collection()
@@ -230,6 +219,18 @@ class Uploader:
         self.api.set_property_relation(collection_node.id, 'ccm:lom_relation', package_h5p_files_rep_source_uuids)
         self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation', package_h5p_files_rep_source_uuids)
 
+    def get_medata_and_excel_file(self, zip_path: str):
+        zip = zipfile.ZipFile(zip_path)
+        # get excel_sheet data
+        for excel_filename in zip.namelist():
+            if excel_filename.endswith(".xlsx"):
+                excel_file = zip.open(excel_filename)
+                metadata_file = h5p_extract_metadata.MetadataFile(excel_file)
+                break
+        else:
+            raise RuntimeError('Could not find excel file with metadata')
+        return [metadata_file, excel_file]
+
     def upload_from_folder(self):
         self.setup()
 
@@ -250,7 +251,8 @@ class Uploader:
             if path.endswith('.zip'):
                 self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
                 # TODO: add try-except
-                self.upload_h5p_collection(path, ES_FOLDER_NAME_GENERAL, obj['LastModified'])
+                files = self.get_medata_and_excel_file(path)
+                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip=zipfile.ZipFile(path), s3_last_modified=obj['LastModified'])
             else:
                 print(f'Skipping {obj["Key"]}, not a zip.', file=sys.stderr)
 
