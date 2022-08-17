@@ -117,8 +117,6 @@ class Uploader:
         destination_folder = self.api.get_or_create_folder(sync_obj.id, folder_name)
 
         # set permissions for the permitted_groups
-        # ToDo: Add permissions from excel-sheet.
-        #  Split collections into single folders with corresponding permissions.
         self.api.set_permissions(destination_folder.id, permitted_groups, False)
         print(f"Created folder {folder_name} with permissions for: {permitted_groups}")
 
@@ -178,12 +176,9 @@ class Uploader:
         keywords = ["h5p", collection_name, "Arbeitspaket"]
         keywords.extend(keywords_excel)
 
-        # ToDo: add publisher from excel-sheet and replace "MedienLB".
-        #  Add License from excel-sheet.
-
         properties = generate_node_properties(
-            collection_name, collection_name, "MedienLB", "", keywords, edusharing_folder_name,
-            format="text/html", aggregation_level=2, aggregation_level_hpi=2
+            collection_name, collection_name, metadata_file.get_publisher(), metadata_file.get_license(), keywords,
+            edusharing_folder_name, format="text/html", aggregation_level=2, aggregation_level_hpi=2
         )
         collection_rep_source_uuid = properties['ccm:replicationsourceuuid']
         collection_node = self.api.sync_node(edusharing_folder_name, properties,
@@ -213,7 +208,6 @@ class Uploader:
                 rep_source_uuid_clean = str(rep_source_uuid).replace('[', '').replace(']', '').replace("'", "")
                 package_h5p_files_rep_source_uuids.append(rep_source_uuid_clean)
 
-        # ToDo: Verify, if the excel_file can be closed in the method "get_medata_and_excel_file".
         excel_file.close()
         zip.close()
 
@@ -247,7 +241,7 @@ class Uploader:
         excel_file.close()
         zip.close()
 
-    def get_medata_and_excel_file(self, zip_path: str):
+    def get_metadata_and_excel_file(self, zip_path: str):
         zip = zipfile.ZipFile(zip_path)
         # get excel_sheet data
         for excel_filename in zip.namelist():
@@ -279,7 +273,7 @@ class Uploader:
             if path.endswith('.zip'):
                 self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
                 # TODO: add try-except
-                files = self.get_medata_and_excel_file(path)
+                files = self.get_metadata_and_excel_file(path)
                 collection_name = files[0].get_collection()
                 if collection_name is None:
                     self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip=zipfile.ZipFile(path),
