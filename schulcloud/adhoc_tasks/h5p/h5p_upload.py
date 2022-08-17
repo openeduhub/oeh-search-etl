@@ -12,7 +12,6 @@ import edusharing
 import h5p_extract_metadata
 import util
 
-
 EXPECTED_ENV_VARS = [
     'EDU_SHARING_BASE_URL',
     'EDU_SHARING_USERNAME',
@@ -84,7 +83,7 @@ def generate_node_properties(
         "ccm:hpi_lom_relation": [relation],
         "ccm:lom_relation": [relation],
         "ccm:create_version": ["false"],
-        "ccm:lifecyclecontributer_publisherVCARD_ORG": [publisher]
+        "ccm:lifecyclecontributer_publisherFN": [publisher]
     }
     if format:
         properties["cclom:format"] = ["text/html"]
@@ -118,16 +117,14 @@ class Uploader:
         destination_folder = self.api.get_or_create_folder(sync_obj.id, folder_name)
 
         # set permissions for the permitted_groups
-        # ToDo: Add permissions from excel-sheet.
-        #  Split collections into single folders with corresponding permissions.
         self.api.set_permissions(destination_folder.id, permitted_groups, False)
         print(f"Created folder {folder_name} with permissions for: {permitted_groups}")
 
         return destination_folder
 
     def upload_h5p_file(self, folder_name: str, filename: str, metadata: h5p_extract_metadata.Metadata,
-                        s3_last_modified: Optional[datetime] = None,
-                        file: Optional[IO[bytes]] = None, relation: str = ""):
+                        file: Optional[IO[bytes]] = None, s3_last_modified: Optional[datetime] = None,
+                        relation: str = ""):
         # get h5p file, add metadata, upload and after all add permissions
         name = os.path.splitext(os.path.basename(filename))[0]
         keywords = ['h5p', metadata.title, metadata.collection, metadata.order]
@@ -138,18 +135,23 @@ class Uploader:
                                               metadata.license, keywords, folder_name, replication_source_id=name,
                                               relation=relation)
 
-        node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
+        rep_value = name
+        rep_value = hashlib.sha1(rep_value.encode()).hexdigest()
+        node_list = self.api.search_custom("ccm:replicationsourceid", rep_value, 10, 'FILES')
+        if len(node_list) > 0:
+            node_temp = node_list[0]
+            if s3_last_modified is not None:
+                # timestamp of the node
+                res = self.api.get_metadata_of_node(node_temp.id)
+                res_createdAt = str(res["node"]["createdAt"])
+                res_clean = res_createdAt.replace("Z", "")
+                timestamp_edusharing = datetime.fromisoformat(res_clean)
+                s3_last_modified = s3_last_modified.replace(tzinfo=None)
+                s3_last_modified = s3_last_modified
+                if timestamp_edusharing > s3_last_modified:
+                    return
 
-        if node.size is not None and s3_last_modified is not None:
-            # timestamp of the node
-            res = self.api.get_metadata_of_node(node.id)
-            res_createdAt = str(res["node"]["createdAt"])
-            res_clean = res_createdAt.replace("Z", "")
-            timestamp_edusharing = datetime.fromisoformat(res_clean)
-            s3_last_modified = s3_last_modified.replace(tzinfo=None)
-            s3_last_modified = s3_last_modified
-            if timestamp_edusharing > s3_last_modified:
-                return
+        node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
 
         if file is None:
             file = open(filename, 'rb')
@@ -165,21 +167,10 @@ class Uploader:
         print(f'Upload complete for: {filename}')
         return node.id, properties["ccm:replicationsourceuuid"]
 
-    def upload_h5p_collection(self, zip_path: str, edusharing_folder_name: str,
-                              s3_last_modified: Optional[datetime] = None):
+    def upload_h5p_collection(self, edusharing_folder_name: str, metadata_file, excel_file, zip):
         """
             Upload multiple H5P files within a zip archive, as a collection
         """
-        zip = zipfile.ZipFile(zip_path)
-        # get excel_sheet data
-        for excel_filename in zip.namelist():
-            if excel_filename.endswith(".xlsx"):
-                excel_file = zip.open(excel_filename)
-                metadata_file = h5p_extract_metadata.MetadataFile(excel_file)
-                break
-        else:
-            raise RuntimeError('Could not find excel file with metadata')
-
         # save the replicationsourceuuid, nodeId and the collection of each h5p-file corresponding to this package
         package_h5p_files_rep_source_uuids = []
         collection_name = metadata_file.get_collection()
@@ -189,12 +180,9 @@ class Uploader:
         keywords = ["h5p", collection_name, "Arbeitspaket"]
         keywords.extend(keywords_excel)
 
-        # ToDo: add publisher from excel-sheet and replace "MedienLB".
-        #  Add License from excel-sheet.
-
         properties = generate_node_properties(
-            collection_name, collection_name, "MedienLB", "", keywords, edusharing_folder_name,
-            format="text/html", aggregation_level=2, aggregation_level_hpi=2
+            collection_name, collection_name, metadata_file.get_publisher(), metadata_file.get_license(), keywords,
+            edusharing_folder_name, format="text/html", aggregation_level=2, aggregation_level_hpi=2
         )
         collection_rep_source_uuid = properties['ccm:replicationsourceuuid']
         collection_node = self.api.sync_node(edusharing_folder_name, properties,
@@ -216,8 +204,7 @@ class Uploader:
 
                 relation = f"{{'kind': 'ispartof', 'resource': {{'identifier': {collection_rep_source_uuid}}}}}"
 
-                result = self.upload_h5p_file(edusharing_folder_name, filename, metadata,
-                                              s3_last_modified, file=file, relation=relation)
+                result = self.upload_h5p_file(edusharing_folder_name, filename, metadata, file=file, relation=relation)
                 if result is None:
                     break
                 node_id, rep_source_uuid = result
@@ -229,6 +216,44 @@ class Uploader:
 
         self.api.set_property_relation(collection_node.id, 'ccm:lom_relation', package_h5p_files_rep_source_uuids)
         self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation', package_h5p_files_rep_source_uuids)
+
+    def upload_h5p_non_collection(self, edusharing_folder_name: str, metadata_file, excel_file, zip,
+                                  s3_last_modified: Optional[datetime] = None):
+        """
+            Upload multiple H5P files within a zip archive, without a collection
+        """
+
+        # check, if all required h5p-files are inside the zip
+        filenames = []
+        for filename in zip.namelist():
+            if filename.endswith(".h5p"):
+                filenames.append(filename)
+        metadata_file.check_for_files(filenames=filenames)
+
+        # loop through the unzipped h5p-files
+        for filename in zip.namelist():
+            if filename.endswith(".h5p"):
+                metadata = metadata_file.get_metadata(filename)
+                file = zip.open(filename)
+
+                result = self.upload_h5p_file(edusharing_folder_name, filename, metadata, file, s3_last_modified)
+                if result is None:
+                    break
+
+        excel_file.close()
+        zip.close()
+
+    def get_metadata_and_excel_file(self, zip_path: str):
+        zip = zipfile.ZipFile(zip_path)
+        # get excel_sheet data
+        for excel_filename in zip.namelist():
+            if excel_filename.endswith(".xlsx"):
+                excel_file = zip.open(excel_filename)
+                metadata_file = h5p_extract_metadata.MetadataFile(excel_file)
+                break
+        else:
+            raise RuntimeError('Could not find excel file with metadata')
+        return [metadata_file, excel_file]
 
     def upload_from_folder(self):
         self.setup()
@@ -250,7 +275,31 @@ class Uploader:
             if path.endswith('.zip'):
                 self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
                 # TODO: add try-except
-                self.upload_h5p_collection(path, ES_FOLDER_NAME_GENERAL, obj['LastModified'])
+                files = self.get_metadata_and_excel_file(path)
+                collection_name = files[0].get_collection()
+                s3_last_modified = obj['LastModified']
+                if collection_name is None:
+                    zip = zipfile.ZipFile(path)
+                    self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip, s3_last_modified)
+                else:
+                    rep_value = hashlib.sha1(collection_name.encode()).hexdigest()
+                    collection_node_list = self.api.search_custom("ccm:replicationsourceid", rep_value, 10, 'FILES')
+                    if len(collection_node_list) == 0:
+                        self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1],
+                                                   zip=zipfile.ZipFile(path))
+                    else:
+                        collection_node = collection_node_list[0]
+                        if s3_last_modified is not None:
+                            # timestamp of the node
+                            res = self.api.get_metadata_of_node(collection_node.id)
+                            res_createdAt = str(res["node"]["createdAt"])
+                            res_clean = res_createdAt.replace("Z", "")
+                            timestamp_edusharing = datetime.fromisoformat(res_clean)
+                            s3_last_modified = s3_last_modified.replace(tzinfo=None)
+                            s3_last_modified = s3_last_modified
+                            if timestamp_edusharing < s3_last_modified:
+                                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1],
+                                                           zip=zipfile.ZipFile(path))
             else:
                 print(f'Skipping {obj["Key"]}, not a zip.', file=sys.stderr)
 
