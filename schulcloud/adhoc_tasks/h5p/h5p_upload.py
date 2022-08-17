@@ -83,7 +83,7 @@ def generate_node_properties(
         "ccm:hpi_lom_relation": [relation],
         "ccm:lom_relation": [relation],
         "ccm:create_version": ["false"],
-        "ccm:lifecyclecontributer_publisherVCARD_ORG": [publisher]
+        "ccm:lifecyclecontributer_publisherFN": [publisher]
     }
     if format:
         properties["cclom:format"] = ["text/html"]
@@ -117,8 +117,6 @@ class Uploader:
         destination_folder = self.api.get_or_create_folder(sync_obj.id, folder_name)
 
         # set permissions for the permitted_groups
-        # ToDo: Add permissions from excel-sheet.
-        #  Split collections into single folders with corresponding permissions.
         self.api.set_permissions(destination_folder.id, permitted_groups, False)
         print(f"Created folder {folder_name} with permissions for: {permitted_groups}")
 
@@ -177,12 +175,9 @@ class Uploader:
         keywords = ["h5p", collection_name, "Arbeitspaket"]
         keywords.extend(keywords_excel)
 
-        # ToDo: add publisher from excel-sheet and replace "MedienLB".
-        #  Add License from excel-sheet.
-
         properties = generate_node_properties(
-            collection_name, collection_name, "MedienLB", "", keywords, edusharing_folder_name,
-            format="text/html", aggregation_level=2, aggregation_level_hpi=2
+            collection_name, collection_name, metadata_file.get_publisher(), metadata_file.get_license(), keywords,
+            edusharing_folder_name, format="text/html", aggregation_level=2, aggregation_level_hpi=2
         )
         collection_rep_source_uuid = properties['ccm:replicationsourceuuid']
         collection_node = self.api.sync_node(edusharing_folder_name, properties,
@@ -243,7 +238,7 @@ class Uploader:
         excel_file.close()
         zip.close()
 
-    def get_medata_and_excel_file(self, zip_path: str):
+    def get_metadata_and_excel_file(self, zip_path: str):
         zip = zipfile.ZipFile(zip_path)
         # get excel_sheet data
         for excel_filename in zip.namelist():
@@ -275,7 +270,7 @@ class Uploader:
             if path.endswith('.zip'):
                 self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
                 # TODO: add try-except
-                files = self.get_medata_and_excel_file(path)
+                files = self.get_metadata_and_excel_file(path)
                 collection_name = files[0].get_collection()
                 s3_last_modified = obj['LastModified']
                 if collection_name is None:

@@ -121,6 +121,12 @@ class MetadataFile:
         keywords = re.findall(r'\w+', keywords_raw)
         return keywords
 
+    def get_publisher(self):
+        return self.o_sheet.cell(row=1, column=self.COLUMN.PUBLISHER).value
+
+    def get_license(self):
+        return self.o_sheet.cell(row=1, column=self.COLUMN.LICENSE).value
+
     def find_metadata_by_file_name(self, h5p_file: str):
         result = []
         # looking for exact match
