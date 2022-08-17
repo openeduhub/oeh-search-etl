@@ -135,18 +135,23 @@ class Uploader:
                                               metadata.license, keywords, folder_name, replication_source_id=name,
                                               relation=relation)
 
-        node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
+        rep_value = name
+        rep_value = hashlib.sha1(rep_value.encode()).hexdigest()
+        node_list = self.api.search_custom("ccm:replicationsourceid", rep_value, 10, 'FILES')
+        if len(node_list) > 0:
+            node_temp = node_list[0]
+            if s3_last_modified is not None:
+                # timestamp of the node
+                res = self.api.get_metadata_of_node(node_temp.id)
+                res_createdAt = str(res["node"]["createdAt"])
+                res_clean = res_createdAt.replace("Z", "")
+                timestamp_edusharing = datetime.fromisoformat(res_clean)
+                s3_last_modified = s3_last_modified.replace(tzinfo=None)
+                s3_last_modified = s3_last_modified
+                if timestamp_edusharing > s3_last_modified:
+                    return
 
-        if node.size is not None and s3_last_modified is not None:
-            # timestamp of the node
-            res = self.api.get_metadata_of_node(node.id)
-            res_createdAt = str(res["node"]["createdAt"])
-            res_clean = res_createdAt.replace("Z", "")
-            timestamp_edusharing = datetime.fromisoformat(res_clean)
-            s3_last_modified = s3_last_modified.replace(tzinfo=None)
-            s3_last_modified = s3_last_modified
-            if timestamp_edusharing > s3_last_modified:
-                return
+        node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
 
         if file is None:
             file = open(filename, 'rb')
@@ -275,8 +280,7 @@ class Uploader:
                 s3_last_modified = obj['LastModified']
                 if collection_name is None:
                     zip = zipfile.ZipFile(path)
-                    self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1],
-                                                   zip, s3_last_modified)
+                    self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip, s3_last_modified)
                 else:
                     rep_value = hashlib.sha1(collection_name.encode()).hexdigest()
                     collection_node_list = self.api.search_custom("ccm:replicationsourceid", rep_value, 10, 'FILES')
