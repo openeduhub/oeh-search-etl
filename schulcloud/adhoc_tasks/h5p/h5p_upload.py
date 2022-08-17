@@ -125,8 +125,8 @@ class Uploader:
         return destination_folder
 
     def upload_h5p_file(self, folder_name: str, filename: str, metadata: h5p_extract_metadata.Metadata,
-                        s3_last_modified: Optional[datetime] = None,
-                        file: Optional[IO[bytes]] = None, relation: str = ""):
+                        file: Optional[IO[bytes]] = None, s3_last_modified: Optional[datetime] = None,
+                        relation: str = ""):
         # get h5p file, add metadata, upload and after all add permissions
         name = os.path.splitext(os.path.basename(filename))[0]
         keywords = ['h5p', metadata.title, metadata.collection, metadata.order]
@@ -164,8 +164,7 @@ class Uploader:
         print(f'Upload complete for: {filename}')
         return node.id, properties["ccm:replicationsourceuuid"]
 
-    def upload_h5p_collection(self, edusharing_folder_name: str, metadata_file, excel_file, zip,
-                              s3_last_modified: Optional[datetime] = None):
+    def upload_h5p_collection(self, edusharing_folder_name: str, metadata_file, excel_file, zip):
         """
             Upload multiple H5P files within a zip archive, as a collection
         """
@@ -205,8 +204,7 @@ class Uploader:
 
                 relation = f"{{'kind': 'ispartof', 'resource': {{'identifier': {collection_rep_source_uuid}}}}}"
 
-                result = self.upload_h5p_file(edusharing_folder_name, filename, metadata,
-                                              s3_last_modified, file=file, relation=relation)
+                result = self.upload_h5p_file(edusharing_folder_name, filename, metadata, file=file, relation=relation)
                 if result is None:
                     break
                 node_id, rep_source_uuid = result
@@ -220,7 +218,7 @@ class Uploader:
         self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation', package_h5p_files_rep_source_uuids)
 
     def upload_h5p_non_collection(self, edusharing_folder_name: str, metadata_file, excel_file, zip,
-                              s3_last_modified: Optional[datetime] = None):
+                                  s3_last_modified: Optional[datetime] = None):
         """
             Upload multiple H5P files within a zip archive, without a collection
         """
@@ -238,8 +236,7 @@ class Uploader:
                 metadata = metadata_file.get_metadata(filename)
                 file = zip.open(filename)
 
-                result = self.upload_h5p_file(edusharing_folder_name, filename, metadata,
-                                              s3_last_modified, file=file,)
+                result = self.upload_h5p_file(edusharing_folder_name, filename, metadata, file, s3_last_modified)
                 if result is None:
                     break
 
@@ -280,12 +277,26 @@ class Uploader:
                 # TODO: add try-except
                 files = self.get_medata_and_excel_file(path)
                 collection_name = files[0].get_collection()
+                s3_last_modified = obj['LastModified']
                 if collection_name is None:
-                    self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip=zipfile.ZipFile(path),
-                                               s3_last_modified=obj['LastModified'])
+                    zip = zipfile.ZipFile(path)
+                    self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1],
+                                                   zip, s3_last_modified)
                 else:
-                    self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip=zipfile.ZipFile(path),
-                                               s3_last_modified=obj['LastModified'])
+                    rep_value = hashlib.sha1(collection_name.encode()).hexdigest()
+                    collection_node_list = self.api.search_custom("ccm:replicationsourceid", rep_value, 10, 'FILES')
+                    if len(collection_node_list) > 0:
+                        collection_node = collection_node_list[0]
+                        if s3_last_modified is not None:
+                            # timestamp of the node
+                            res = self.api.get_metadata_of_node(collection_node.id)
+                            res_createdAt = str(res["node"]["createdAt"])
+                            res_clean = res_createdAt.replace("Z", "")
+                            timestamp_edusharing = datetime.fromisoformat(res_clean)
+                            s3_last_modified = s3_last_modified.replace(tzinfo=None)
+                            s3_last_modified = s3_last_modified
+                            if timestamp_edusharing < s3_last_modified:
+                                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip=zipfile.ZipFile(path))
             else:
                 print(f'Skipping {obj["Key"]}, not a zip.', file=sys.stderr)
 
