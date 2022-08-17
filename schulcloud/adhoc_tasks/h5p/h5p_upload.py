@@ -280,7 +280,10 @@ class Uploader:
                 else:
                     rep_value = hashlib.sha1(collection_name.encode()).hexdigest()
                     collection_node_list = self.api.search_custom("ccm:replicationsourceid", rep_value, 10, 'FILES')
-                    if len(collection_node_list) > 0:
+                    if len(collection_node_list) == 0:
+                        self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1],
+                                                   zip=zipfile.ZipFile(path))
+                    else:
                         collection_node = collection_node_list[0]
                         if s3_last_modified is not None:
                             # timestamp of the node
@@ -291,7 +294,8 @@ class Uploader:
                             s3_last_modified = s3_last_modified.replace(tzinfo=None)
                             s3_last_modified = s3_last_modified
                             if timestamp_edusharing < s3_last_modified:
-                                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip=zipfile.ZipFile(path))
+                                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1],
+                                                           zip=zipfile.ZipFile(path))
             else:
                 print(f'Skipping {obj["Key"]}, not a zip.', file=sys.stderr)
 
