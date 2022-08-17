@@ -106,18 +106,15 @@ class Uploader:
         )
 
     def setup(self):
-        self.setup_destination_folder(ES_FOLDER_NAME_GENERAL, ['Thuringia-public', 'Brandenburg-public',
-                                                               'LowerSaxony-public'])
+        self.setup_destination_folder(ES_FOLDER_NAME_GENERAL)
 
-    def setup_destination_folder(self, folder_name: str, permitted_groups: Optional[List[str]]):
-        if not permitted_groups:
-            permitted_groups = ["Brandenburg-public", "Thuringia-public", "LowerSaxony-public"]
+    def setup_destination_folder(self, folder_name: str, permitted_groups: Optional[List[str]] = []):
 
         sync_obj = self.api.get_sync_obj_folder()
         destination_folder = self.api.get_or_create_folder(sync_obj.id, folder_name)
 
         # set permissions for the permitted_groups
-        self.api.set_permissions(destination_folder.id, permitted_groups, False)
+        self.api.set_permissions(destination_folder.id, permitted_groups, True)
         print(f"Created folder {folder_name} with permissions for: {permitted_groups}")
 
         return destination_folder
@@ -162,6 +159,18 @@ class Uploader:
         url_upload = f'/node/v1/nodes/-home-/{node.id}' \
                      f'/content?versionComment=MAIN_FILE_UPLOAD&mimetype={mimetype}'
         self.api.make_request('POST', url_upload, files=files, stream=True)
+        # permissions
+        permitted_groups = []
+        for permission in metadata.permission:
+            if permission == "ALLE":
+                permitted_groups = ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public']
+            elif permission == "THR":
+                permitted_groups.append("Thuringia-public")
+            elif permission == "NDS":
+                permitted_groups.append("LowerSaxony-public")
+            elif permission == "BRB":
+                permitted_groups.append("Brandenburg-public")
+        self.api.set_permissions(node.id, permitted_groups, False)
         file.close()
 
         print(f'Upload complete for: {filename}')
