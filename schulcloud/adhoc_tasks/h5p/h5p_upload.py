@@ -83,7 +83,7 @@ def generate_node_properties(
         "ccm:hpi_lom_relation": [relation],
         "ccm:lom_relation": [relation],
         "ccm:create_version": ["false"],
-        "ccm:lifecyclecontributer_publisherVCARD_ORG": [publisher]
+        "ccm:lifecyclecontributer_publisherFN": [publisher]
     }
     if format:
         properties["cclom:format"] = ["text/html"]
@@ -213,6 +213,7 @@ class Uploader:
                 rep_source_uuid_clean = str(rep_source_uuid).replace('[', '').replace(']', '').replace("'", "")
                 package_h5p_files_rep_source_uuids.append(rep_source_uuid_clean)
 
+        # ToDo: Verify, if the excel_file can be closed in the method "get_medata_and_excel_file".
         excel_file.close()
         zip.close()
 
