@@ -105,9 +105,6 @@ class Uploader:
             self.env['S3_BUCKET_NAME']
         )
 
-    def setup(self):
-        self.setup_destination_folder(ES_FOLDER_NAME_GENERAL)
-
     def setup_destination_folder(self, folder_name: str, permitted_groups: Optional[List[str]] = []):
 
         sync_obj = self.api.get_sync_obj_folder()
@@ -269,7 +266,7 @@ class Uploader:
                 self.upload_h5p_collection(path, ES_FOLDER_NAME_GENERAL)
 
     def upload_from_s3(self):
-        self.setup()
+        self.setup_destination_folder(ES_FOLDER_NAME_GENERAL)
         objects = self.downloader.get_object_list()
         total_size = 0
         for obj in objects:
