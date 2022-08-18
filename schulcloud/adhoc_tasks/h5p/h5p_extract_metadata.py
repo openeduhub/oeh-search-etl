@@ -51,7 +51,7 @@ class MetadataFile:
 
     def validate_sheet(self, file: Union[str, IO]):
         # Check required fields
-        required_fields = [self.COLUMN.TITLE, self.COLUMN.FILENAME]
+        required_fields = [self.COLUMN.TITLE, self.COLUMN.FILENAME, self.COLUMN.PERMISSION]
         for row in range(1, self.o_sheet.max_row + 1):
             for column in range(1, self.COLUMN.COUNT + 1):
                 if column in required_fields:
