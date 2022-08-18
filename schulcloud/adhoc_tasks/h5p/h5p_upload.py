@@ -258,12 +258,14 @@ class Uploader:
         return [metadata_file, excel_file]
 
     def upload_from_folder(self):
-        self.setup()
+        self.setup_destination_folder(ES_FOLDER_NAME_GENERAL)
 
         for obj in os.listdir(H5P_LOCAL_PATH):
             path = os.path.join(H5P_LOCAL_PATH, obj)
             if os.path.isfile(path) and obj.endswith('.zip'):
-                self.upload_h5p_collection(path, ES_FOLDER_NAME_GENERAL)
+                files = self.get_metadata_and_excel_file(path)
+                zip = zipfile.ZipFile(path)
+                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip)
 
     def upload_from_s3(self):
         self.setup_destination_folder(ES_FOLDER_NAME_GENERAL)
@@ -349,4 +351,4 @@ class S3Downloader:
 
 
 if __name__ == '__main__':
-    Uploader().upload_from_s3()
+    Uploader().upload_from_folder()
