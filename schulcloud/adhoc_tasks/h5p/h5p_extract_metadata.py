@@ -125,7 +125,11 @@ class MetadataFile:
         return self.o_sheet.cell(row=1, column=self.COLUMN.PUBLISHER).value
 
     def get_license(self):
-        return self.o_sheet.cell(row=1, column=self.COLUMN.LICENSE).value
+        licence = self.o_sheet.cell(row=1, column=self.COLUMN.LICENSE).value
+        if licence is not None:
+            licence = licence.rsplit('(', 1)
+            licence = licence[0]
+        return licence
 
     def find_metadata_by_file_name(self, h5p_file: str):
         result = []
@@ -157,6 +161,9 @@ class MetadataFile:
         keywords = re.findall(r'\w+', keywords_raw)
         publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
         licence = self.o_sheet.cell(row=row, column=self.COLUMN.LICENSE).value
+        if licence is not None:
+            licence = licence.rsplit('(', 1)
+            licence = licence[0]
         permission = re.findall(r'\w+', self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value)
 
         return Metadata(title, publisher, keywords, order, permission, collection, licence)
