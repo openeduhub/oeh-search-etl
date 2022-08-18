@@ -46,7 +46,7 @@ def generate_node_properties(
         replication_source_uuid = str(uuid.uuid4())
     if not relation:
         relation = "{'kind': 'ispartof', 'resource': {'identifier': []}}"
-    if license == "":
+    if license is None or license == "":
         license = "CUSTOM"
     date = str(datetime.now())
     properties = {
@@ -124,7 +124,7 @@ class Uploader:
                         relation: str = ""):
         # get h5p file, add metadata, upload and after all add permissions
         name = os.path.splitext(os.path.basename(filename))[0]
-        keywords = ['h5p', metadata.title, metadata.collection, metadata.order]
+        keywords = ['h5p', metadata.title, metadata.collection, metadata.order, metadata.publisher]
         keywords.extend(metadata.keywords)
 
         # ToDo: Add the url of the frontend rendering page
@@ -182,7 +182,7 @@ class Uploader:
 
         # now update metadata from the new node (add children) and the h5p-files (add parent)
         keywords_excel = metadata_file.get_keywords()
-        keywords = ["h5p", collection_name, "Arbeitspaket"]
+        keywords = ["h5p", collection_name, "Arbeitspaket", metadata_file.get_publisher()]
         keywords.extend(keywords_excel)
 
         properties = generate_node_properties(
