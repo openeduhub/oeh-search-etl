@@ -138,13 +138,9 @@ class Uploader:
         if len(node_list) > 0:
             node_temp = node_list[0]
             if s3_last_modified is not None:
-                # timestamp of the node
-                res = self.api.get_metadata_of_node(node_temp.id)
-                res_createdAt = str(res["node"]["createdAt"])
-                res_clean = res_createdAt.replace("Z", "")
-                timestamp_edusharing = datetime.fromisoformat(res_clean)
-                s3_last_modified = s3_last_modified.replace(tzinfo=None)
-                s3_last_modified = s3_last_modified
+                timestamps = self.get_timestamp_edu_and_s3(s3_last_modified, node_temp)
+                s3_last_modified = timestamps[0]
+                timestamp_edusharing = timestamps[1]
                 if timestamp_edusharing > s3_last_modified:
                     return
 
@@ -299,18 +295,25 @@ class Uploader:
                     else:
                         collection_node = collection_node_list[0]
                         if s3_last_modified is not None:
-                            # timestamp of the node
-                            res = self.api.get_metadata_of_node(collection_node.id)
-                            res_createdAt = str(res["node"]["createdAt"])
-                            res_clean = res_createdAt.replace("Z", "")
-                            timestamp_edusharing = datetime.fromisoformat(res_clean)
-                            s3_last_modified = s3_last_modified.replace(tzinfo=None)
-                            s3_last_modified = s3_last_modified
+                            timestamps = self.get_timestamp_edu_and_s3(s3_last_modified, collection_node)
+                            timestamp_edusharing = timestamps[1]
+                            s3_last_modified = timestamps[0]
                             if timestamp_edusharing < s3_last_modified:
                                 self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1],
                                                            zip=zipfile.ZipFile(path))
             else:
                 print(f'Skipping {obj["Key"]}, not a zip.', file=sys.stderr)
+
+    def get_timestamp_edu_and_s3(self, s3_last_modified, node):
+        # timestamp of the node
+        res = self.api.get_metadata_of_node(node.id)
+        res_createdAt = str(res["node"]["createdAt"])
+        res_clean = res_createdAt.replace("Z", "")
+        timestamp_edusharing = datetime.fromisoformat(res_clean)
+        s3_last_modified = s3_last_modified.replace(tzinfo=None)
+        s3_last_modified = s3_last_modified
+        timestamps = [s3_last_modified, timestamp_edusharing]
+        return timestamps
 
 
 class S3Downloader:
