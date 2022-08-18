@@ -56,7 +56,7 @@ class MetadataFile:
             for column in range(1, self.COLUMN.COUNT + 1):
                 if column in required_fields:
                     if not self.o_sheet.cell(row=row, column=column).value:
-                        raise ParsingError(f'Empty required cell: {get_column_letter(column)}{row} at {file.name}')
+                        raise ParsingError(f'Empty required cell: column: {get_column_letter(column)} row: {row} at {file.name}')
 
         # Check for collection
         if self.o_sheet.cell(row=1, column=self.COLUMN.COLLECTION).value:
