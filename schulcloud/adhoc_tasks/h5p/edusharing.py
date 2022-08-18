@@ -53,10 +53,12 @@ class EdusharingAPI:
         self.session.auth = requests.auth.HTTPBasicAuth(self.username, self.password)
 
     def make_request(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str,
-                     params: Optional[Dict[str, str]] = None, json_data: Optional[Dict] = None, files: Optional[Dict] = None, stream: bool = False):
+                     params: Optional[Dict[str, str]] = None, json_data: Optional[Dict] = None,
+                     files: Optional[Dict] = None, stream: bool = False):
         url = f'{self.base_url}{url}'
         headers = {'Accept': 'application/json'}
-        return self.session.request(method, url, params=params, headers=headers, json=json_data, files=files, stream=stream)
+        return self.session.request(method, url, params=params, headers=headers,
+                                    json=json_data, files=files, stream=stream)
 
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024**2):
         url = f'/iam/v1/people/-home-/{username}?password={password}'
@@ -113,7 +115,8 @@ class EdusharingAPI:
         return len(self.search_custom('name', name, 2, 'FILES')) > 0
 
     def search_custom(self, property: str, value: str, max_items: int, content_type: Literal['FOLDERS', 'FILES']):
-        url = f'/search/v1/custom/-home-?contentType={content_type}&combineMode=AND&property={property}&value={value}&maxItems={max_items}&skipCount=0'
+        url = f'/search/v1/custom/-home-?contentType={content_type}&combineMode=AND&property={property}&value={value}' \
+              f'&maxItems={max_items}&skipCount=0'
         response = self.make_request('GET', url)
         if not response.status_code == 200:
             raise RequestFailedException(response)
@@ -140,7 +143,8 @@ class EdusharingAPI:
             raise RequestFailedException(response)
         return Node(response.json()['node'])
 
-    def get_or_create_folder(self, parent_id: str, name: str, metadataset: str = 'mds_oeh', payload: Optional[Dict] = None):
+    def get_or_create_folder(self, parent_id: str, name: str, metadataset: str = 'mds_oeh',
+                             payload: Optional[Dict] = None):
         try:
             folder = self.find_node_by_name(parent_id, name)
         except NotFoundException:
@@ -149,14 +153,16 @@ class EdusharingAPI:
         return folder
 
     def create_node(self, parent_id: str, name: str):
-        url = f'/node/v1/nodes/-home-/{parent_id}/children/?type=ccm%3Aio&renameIfExists=true&assocType=&versionComment=&'
+        url = f'/node/v1/nodes/-home-/{parent_id}/children/' \
+              f'?type=ccm%3Aio&renameIfExists=true&assocType=&versionComment=&'
         data = {"cm:name": [name]}
         response = self.make_request('POST', url, json_data=data)
         if not response.status_code == 200:
             raise RequestFailedException(response)
         return Node(response.json()['node'])
 
-    def sync_node(self, group: str, properties: Dict, match: List[str], type: str = 'ccm:io', group_by: Optional[str] = None):
+    def sync_node(self, group: str, properties: Dict, match: List[str], type: str = 'ccm:io',
+                  group_by: Optional[str] = None):
         url = f'/bulk/v1/sync/{group}?type={type}&resetVersion=false'
         if group_by is not None:
             url += f'&groupBy={group_by}'
@@ -167,23 +173,10 @@ class EdusharingAPI:
             raise RequestFailedException(response)
         return Node(response.json()['node'])
 
-    # def set_property(self, node_id: str, property: str, value: Dict):
-    #     url = f'/node/v1/nodes/-home-/{node_id}/property'
-    #     params = {'property': property, 'value': value}
-    #     response = self.make_request('POST', url, params=params)
-    #     if not response.status_code == 200:
-    #         raise RequestFailedException(response, node_id)
-
     def set_property_relation(self, node_id: str, property: str, value: List):
-        # TODO: make relation readable
-        # relation = {
-        #     'kind': 'hasparts',
-        #     'resource': {
-        #         'identifier': package_h5p_files_rep_source_uuids
-        #     }
-        # }
         property_replacement = property.replace(":", "%3A")
-        url = f'/node/v1/nodes/-home-/{node_id}/property?property={property_replacement}&value=%7B\'kind\'%3A%20\'haspart\'%2C%20\'resource\'%3A%20%7B\'identifier\'%3A%20{value}%7D%7D'
+        url = f'/node/v1/nodes/-home-/{node_id}/property?property={property_replacement}&value=%7B\'kind\'' \
+              f'%3A%20\'haspart\'%2C%20\'resource\'%3A%20%7B\'identifier\'%3A%20{value}%7D%7D'
         response = self.make_request('POST', url)
         if not response.status_code == 200:
             raise RequestFailedException(response, node_id)
@@ -193,7 +186,8 @@ class RequestFailedException(Exception):
     def __init__(self, response: requests.Response, context_hint: str = ''):
         if context_hint:
             context_hint += ' -> '
-        super(RequestFailedException, self).__init__(f'Request failed: {context_hint}{response.status_code} {response.reason}: {response.text}')
+        super(RequestFailedException, self).__init__(f'Request failed: {context_hint}{response.status_code}'
+                                                     f' {response.reason}: {response.text}')
 
 
 class NotFoundException(Exception):
