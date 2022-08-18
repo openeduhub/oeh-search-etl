@@ -105,15 +105,10 @@ class Uploader:
             self.env['S3_BUCKET_NAME']
         )
 
-    def setup_destination_folder(self, folder_name: str, permitted_groups: Optional[List[str]] = []):
+    def setup_destination_folder(self, folder_name: str):
 
         sync_obj = self.api.get_sync_obj_folder()
         destination_folder = self.api.get_or_create_folder(sync_obj.id, folder_name)
-
-        # set permissions for the permitted_groups
-        self.api.set_permissions(destination_folder.id, permitted_groups, True)
-        print(f"Created folder {folder_name} with permissions for: {permitted_groups}")
-
         return destination_folder
 
     def upload_h5p_file(self, folder_name: str, filename: str, metadata: h5p_extract_metadata.Metadata,

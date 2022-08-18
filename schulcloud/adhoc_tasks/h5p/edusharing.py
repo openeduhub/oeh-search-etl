@@ -145,6 +145,7 @@ class EdusharingAPI:
             folder = self.find_node_by_name(parent_id, name)
         except NotFoundException:
             folder = self.create_folder(parent_id, name, metadataset, payload)
+            print(f"Created folder {name}")
         return folder
 
     def create_node(self, parent_id: str, name: str):
