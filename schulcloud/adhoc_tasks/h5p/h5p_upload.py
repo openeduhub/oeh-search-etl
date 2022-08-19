@@ -186,17 +186,17 @@ class Uploader:
         collection_node = self.api.sync_node(edusharing_folder_name, properties,
                                              ['ccm:replicationsource', 'ccm:replicationsourceid'])
         # permissions
-        permitted_group = []
+        permitted_groups = []
         permission = metadata_file.get_collection_permission()
         if permission == "ALLE":
-            permitted_group = ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public']
+            permitted_groups = ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public']
         elif permission == "THR":
-            permitted_group = ["Thuringia-public"]
+            permitted_groups = ["Thuringia-public"]
         elif permission == "NDS":
-            permitted_group = ["LowerSaxony-public"]
+            permitted_groups = ["LowerSaxony-public"]
         elif permission == "BRB":
-            permitted_group = ["Brandenburg-public"]
-        self.api.set_permissions(collection_node.id, permitted_group, False)
+            permitted_groups = ["Brandenburg-public"]
+        self.api.set_permissions(collection_node.id, permitted_groups, False)
         print(f'Created Collection {collection_name}.')
 
         # check, if all required h5p-files are inside the zip
