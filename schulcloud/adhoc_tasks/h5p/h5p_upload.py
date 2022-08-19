@@ -187,15 +187,15 @@ class Uploader:
                                              ['ccm:replicationsource', 'ccm:replicationsourceid'])
         # permissions
         permitted_groups = []
-        permission = metadata_file.get_collection_permission()
-        if permission == "ALLE":
-            permitted_groups = ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public']
-        elif permission == "THR":
-            permitted_groups = ["Thuringia-public"]
-        elif permission == "NDS":
-            permitted_groups = ["LowerSaxony-public"]
-        elif permission == "BRB":
-            permitted_groups = ["Brandenburg-public"]
+        for permission in metadata_file.get_collection_permission():
+            if permission == "ALLE":
+                permitted_groups = ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public']
+            elif permission == "THR":
+                permitted_groups = ["Thuringia-public"]
+            elif permission == "NDS":
+                permitted_groups = ["LowerSaxony-public"]
+            elif permission == "BRB":
+                permitted_groups = ["Brandenburg-public"]
         self.api.set_permissions(collection_node.id, permitted_groups, False)
         print(f'Created Collection {collection_name}.')
 
