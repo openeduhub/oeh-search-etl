@@ -147,16 +147,7 @@ class Uploader:
                      f'/content?versionComment=MAIN_FILE_UPLOAD&mimetype={mimetype}'
         self.api.make_request('POST', url_upload, files=files, stream=True)
         # permissions
-        permitted_groups = []
-        for permission in metadata.permission:
-            if permission == "ALLE":
-                permitted_groups = ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public']
-            elif permission == "THR":
-                permitted_groups.append("Thuringia-public")
-            elif permission == "NDS":
-                permitted_groups.append("LowerSaxony-public")
-            elif permission == "BRB":
-                permitted_groups.append("Brandenburg-public")
+        permitted_groups = self.get_permitted_groups(permissions=metadata.permission)
         self.api.set_permissions(node.id, permitted_groups, False)
         file.close()
 
@@ -176,8 +167,6 @@ class Uploader:
         keywords = ["h5p", collection_name, "Arbeitspaket", metadata_file.get_publisher()]
         keywords.extend(keywords_excel)
 
-
-
         properties = generate_node_properties(
             collection_name, collection_name, metadata_file.get_publisher(), metadata_file.get_license(), keywords,
             edusharing_folder_name, format="text/html", aggregation_level=2, aggregation_level_hpi=2
@@ -186,16 +175,8 @@ class Uploader:
         collection_node = self.api.sync_node(edusharing_folder_name, properties,
                                              ['ccm:replicationsource', 'ccm:replicationsourceid'])
         # permissions
-        permitted_groups = []
-        for permission in metadata_file.get_collection_permission():
-            if permission == "ALLE":
-                permitted_groups = ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public']
-            elif permission == "THR":
-                permitted_groups = ["Thuringia-public"]
-            elif permission == "NDS":
-                permitted_groups = ["LowerSaxony-public"]
-            elif permission == "BRB":
-                permitted_groups = ["Brandenburg-public"]
+        permissions = [metadata_file.get_collection_permission()]
+        permitted_groups = self.get_permitted_groups(permissions)
         self.api.set_permissions(collection_node.id, permitted_groups, False)
         print(f'Created Collection {collection_name}.')
 
@@ -252,6 +233,19 @@ class Uploader:
 
         excel_file.close()
         zip.close()
+
+    def get_permitted_groups(self, permissions: List[str]):
+        permitted_groups = []
+        for permission in permissions:
+            if permission == "ALLE":
+                permitted_groups = ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public']
+            elif permission == "THR":
+                permitted_groups.append("Thuringia-public")
+            elif permission == "NDS":
+                permitted_groups.append("LowerSaxony-public")
+            elif permission == "BRB":
+                permitted_groups.append("Brandenburg-public")
+        return permitted_groups
 
     def get_metadata_and_excel_file(self, zip_path: str):
         zip = zipfile.ZipFile(zip_path)
