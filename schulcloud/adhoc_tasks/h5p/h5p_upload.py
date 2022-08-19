@@ -48,6 +48,10 @@ def generate_node_properties(
         relation = "{'kind': 'ispartof', 'resource': {'identifier': []}}"
     if license is None or license == "":
         license = "CUSTOM"
+    # ToDo: This has to be added, if we embbed the renderer instead of the thumbnail. Otherwise add the seperate
+    #  renderer page. Validate the snippet for files AND collections.
+    # if url is None or url == "":
+    #     url = f'/content/{replication_source_uuid}?isCollection=false&q=h5p'
     date = str(datetime.now())
     properties = {
         "access": [
