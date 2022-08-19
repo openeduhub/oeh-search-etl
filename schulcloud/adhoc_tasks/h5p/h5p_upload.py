@@ -106,7 +106,6 @@ class Uploader:
         )
 
     def setup_destination_folder(self, folder_name: str):
-
         sync_obj = self.api.get_sync_obj_folder()
         destination_folder = self.api.get_or_create_folder(sync_obj.id, folder_name)
         return destination_folder
@@ -252,14 +251,21 @@ class Uploader:
             raise RuntimeError('Could not find excel file with metadata')
         return [metadata_file, excel_file]
 
+    # ToDo: remove, only for testing
     def upload_from_folder(self):
         self.setup_destination_folder(ES_FOLDER_NAME_GENERAL)
+        objects = os.listdir(H5P_LOCAL_PATH)
 
-        for obj in os.listdir(H5P_LOCAL_PATH):
+        for obj in objects:
             path = os.path.join(H5P_LOCAL_PATH, obj)
-            if os.path.isfile(path) and obj.endswith('.zip'):
-                files = self.get_metadata_and_excel_file(path)
-                zip = zipfile.ZipFile(path)
+
+            # TODO: add try-except
+            files = self.get_metadata_and_excel_file(path)
+            collection_name = files[0].get_collection()
+            zip = zipfile.ZipFile(path)
+            if collection_name is None:
+                self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip)
+            else:
                 self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip)
 
     def upload_from_s3(self):
