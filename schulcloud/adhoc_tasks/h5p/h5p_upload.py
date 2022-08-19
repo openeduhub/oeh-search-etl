@@ -176,6 +176,8 @@ class Uploader:
         keywords = ["h5p", collection_name, "Arbeitspaket", metadata_file.get_publisher()]
         keywords.extend(keywords_excel)
 
+
+
         properties = generate_node_properties(
             collection_name, collection_name, metadata_file.get_publisher(), metadata_file.get_license(), keywords,
             edusharing_folder_name, format="text/html", aggregation_level=2, aggregation_level_hpi=2
@@ -183,6 +185,18 @@ class Uploader:
         collection_rep_source_uuid = properties['ccm:replicationsourceuuid']
         collection_node = self.api.sync_node(edusharing_folder_name, properties,
                                              ['ccm:replicationsource', 'ccm:replicationsourceid'])
+        # permissions
+        permitted_group = []
+        permission = metadata_file.get_collection_permission()
+        if permission == "ALLE":
+            permitted_group = ['Thuringia-public', 'Brandenburg-public', 'LowerSaxony-public']
+        elif permission == "THR":
+            permitted_group = ["Thuringia-public"]
+        elif permission == "NDS":
+            permitted_group = ["LowerSaxony-public"]
+        elif permission == "BRB":
+            permitted_group = ["Brandenburg-public"]
+        self.api.set_permissions(collection_node.id, permitted_group, False)
         print(f'Created Collection {collection_name}.')
 
         # check, if all required h5p-files are inside the zip
@@ -352,4 +366,4 @@ class S3Downloader:
 
 
 if __name__ == '__main__':
-    Uploader().upload_from_folder()
+    Uploader().upload_from_s3()

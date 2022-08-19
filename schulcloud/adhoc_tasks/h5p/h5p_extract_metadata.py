@@ -121,6 +121,9 @@ class MetadataFile:
     def get_collection(self):
         return self.o_sheet.cell(row=1, column=self.COLUMN.COLLECTION).value
 
+    def get_collection_permission(self):
+        return self.o_sheet.cell(row=1, column=self.COLUMN.PERMISSION).value
+
     def get_keywords(self):
         keywords_raw = self.o_sheet.cell(row=1, column=self.COLUMN.KEYWORDS).value
         keywords = re.findall(r'\w+', keywords_raw)
