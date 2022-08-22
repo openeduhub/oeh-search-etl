@@ -1,3 +1,4 @@
+import os
 from typing import Dict, List, Literal, Optional
 
 import requests
@@ -181,6 +182,13 @@ class EdusharingAPI:
         if not response.status_code == 200:
             raise RequestFailedException(response, node_id)
 
+    def set_preview_thumbnail(self, node_id: str, filename: str):
+        url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
+        files = {'image': (filename, open(filename, 'rb'))}
+        response = self.make_request('POST', url, files=files, stream=True)
+        if not response.status_code == 200:
+            raise RequestFailedException(response, node_id)
+        files['image'][1].close()
 
 class RequestFailedException(Exception):
     def __init__(self, response: requests.Response, context_hint: str = ''):
