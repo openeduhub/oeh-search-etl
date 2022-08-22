@@ -280,11 +280,13 @@ class Uploader:
             # TODO: add try-except
             zip = zipfile.ZipFile(path)
             files = self.get_metadata_and_excel_file(zip)
-            collection_name = files[0].get_collection()
+            metadata_file = files[0]
+            excel_file = files[1]
+            collection_name = metadata_file.get_collection()
             if collection_name is None:
-                self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip)
+                self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
             else:
-                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, files[0], files[1], zip)
+                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
 
     def upload_from_s3(self):
         self.setup_destination_folder(ES_FOLDER_NAME_GENERAL)
