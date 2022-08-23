@@ -166,6 +166,13 @@ class Uploader:
         package_h5p_files_rep_source_uuids = []
         collection_name = metadata_file.get_collection()
 
+        # check, if all required h5p-files are inside the zip
+        filenames = []
+        for filename in zip.namelist():
+            if filename.endswith(".h5p"):
+                filenames.append(filename)
+        metadata_file.check_for_files(filenames=filenames)
+
         # now update metadata from the new node (add children) and the h5p-files (add parent)
         keywords_excel = metadata_file.get_keywords()
         keywords = ["h5p", collection_name, "Arbeitspaket", metadata_file.get_publisher()]
@@ -183,13 +190,6 @@ class Uploader:
         permitted_groups = self.get_permitted_groups(permissions)
         self.api.set_permissions(collection_node.id, permitted_groups, False)
         print(f'Created Collection {collection_name}.')
-
-        # check, if all required h5p-files are inside the zip
-        filenames = []
-        for filename in zip.namelist():
-            if filename.endswith(".h5p"):
-                filenames.append(filename)
-        metadata_file.check_for_files(filenames=filenames)
 
         # loop through the unzipped h5p-files
         for filename in zip.namelist():
