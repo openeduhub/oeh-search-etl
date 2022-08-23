@@ -1,4 +1,3 @@
-import os
 from typing import Dict, List, Literal, Optional
 
 import requests
@@ -61,7 +60,7 @@ class EdusharingAPI:
         return self.session.request(method, url, params=params, headers=headers,
                                     json=json_data, files=files, stream=stream)
 
-    def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024**2):
+    def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024 ** 2):
         url = f'/iam/v1/people/-home-/{username}?password={password}'
         body = {
             'primaryAffiliation': type,
@@ -189,6 +188,7 @@ class EdusharingAPI:
         if not response.status_code == 200:
             raise RequestFailedException(response, node_id)
         files['image'][1].close()
+
 
 class RequestFailedException(Exception):
     def __init__(self, response: requests.Response, context_hint: str = ''):
