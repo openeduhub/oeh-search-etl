@@ -1,5 +1,4 @@
 import json
-from typing import Any
 
 import requests
 import scrapy
@@ -8,20 +7,34 @@ from converter.constants import *
 from converter.items import *
 from .base_classes import JSONBase
 from .base_classes import LomBase
-# Spider to fetch RSS from planet schule
 from .. import env
 
 
 class SodixSpider(scrapy.Spider, LomBase, JSONBase):
+    """
+    Crawler for learning materials from SODIX GraphQL API.
+    This crawler cannot run without login-data. Please make sure that you have the necessary settings saved
+    to your .env file:
+    SODIX_SPIDER_USERNAME="your_username"
+    SODIX_SPIDER_PASSWORD="your_password"
+    SODIX_SPIDER_OER_FILTER=True/False
+    """
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.1.8"  # last update: 2022-07-11
+    version = "0.1.9"  # last update: 2022-08-25
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
         "ROBOTSTXT_OBEY": False  # returns an 401-error anyway, we might as well skip this scrapy.Request
     }
+    OER_FILTER = False  # flag used for controlling the crawling process between two modes
+    # - by default (OER_FILTER=False), ALL entries from the GraphQL API are crawled.
+    # - If OER_FILTER=TRUE, only materials with OER-compatible licenses are crawled (everything else gets skipped)
+    # control the modes either
+    # - via spider arguments: "scrapy crawl sodix_spider -a oer_filter=true"
+    # - or by setting SODIX_SPIDER_OER_FILTER=True in your .env file
+    NOT_OER_THROWAWAY_COUNTER = 0  # counts the amount of skipped items, in case that the OER-Filter is enabled
 
     MAPPING_LRT = {
         "APP": "application",
@@ -89,7 +102,10 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
 
     # DEBUG_SUBJECTS = set()
 
-    def __init__(self, **kwargs):
+    def __init__(self, oer_filter=False, **kwargs):
+        if oer_filter == "True" or oer_filter == "true":
+            # scrapy arguments are handled as strings
+            self.OER_FILTER = True
         LomBase.__init__(self, **kwargs)
 
     def mapResponse(self, response):
@@ -224,6 +240,17 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 for item in metadata_items:
                     response_copy = response.copy()
                     response_copy.meta["item"] = item
+                    # ToDo: don't handle an entry if the license is not OER-compatible?
+                    # (DropItem exceptions can only be raised from the pipeline)
+                    if self.OER_FILTER is True or env.get_bool('SODIX_SPIDER_OER_FILTER', default=False):
+                        # controlling the OER-Filter via spider arguments is useful for debugging, but we also need
+                        # an easy way to control the spider via the .env file (while running as a Docker container)
+                        if self.license_is_oer(response_copy) is False:
+                            self.NOT_OER_THROWAWAY_COUNTER += 1
+                            self.logger.info(f"Item dropped due to OER-incompatibility. \n"
+                                             f"Total amount of items dropped so far: "
+                                             f"{self.NOT_OER_THROWAWAY_COUNTER}")
+                            continue
                     if self.hasChanged(response_copy):
                         yield self.handleEntry(response_copy)
                 # ToDo: links to binary files (.jpeg) cause errors while building the BaseItem, we might have to filter
@@ -243,6 +270,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             base.add_value(
                 "publisher", publisher['title']
             )
+        # ToDo: use 'source'-field from the GraphQL item for 'origin'?
         return base
 
     def getLOMLifecycle(self, response=None) -> LomLifecycleItemloader:
@@ -295,6 +323,24 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             "size", self.get("media.size", json=response.meta["item"])
         )
         return technical
+
+    def license_is_oer(self, response) -> bool:
+        """
+        Checks if the Item is licensed under an OER-compatible license.
+        Returns True if license is OER-compatible. (CC-BY/CC-BY-SA/CC0/PublicDomain)
+        Otherwise returns False.
+        """
+        license_name: str = self.get("license.name", json=response.meta["item"])
+        if license_name:
+            if license_name in self.MAPPING_LICENSE_NAMES:
+                license_internal_mapped = self.MAPPING_LICENSE_NAMES.get(license_name)
+                return license_internal_mapped in [
+                    Constants.LICENSE_CC_BY_30,
+                    Constants.LICENSE_CC_BY_40,
+                    Constants.LICENSE_CC_BY_SA_30,
+                    Constants.LICENSE_CC_BY_SA_40,
+                    Constants.LICENSE_CC_ZERO_10,
+                    Constants.LICENSE_PDM]
 
     def getLicense(self, response) -> LicenseItemLoader:
         license_loader = LomBase.getLicense(self, response)
