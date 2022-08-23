@@ -288,16 +288,24 @@ class Uploader:
         for obj in objects:
             path = os.path.join(H5P_LOCAL_PATH, obj)
 
-            # TODO: add try-except
-            zip = zipfile.ZipFile(path)
-            files = self.get_metadata_and_excel_file(zip)
-            metadata_file = files[0]
-            excel_file = files[1]
-            collection_name = metadata_file.get_collection()
-            if collection_name is None:
-                self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
-            else:
-                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
+            try:
+                zip = zipfile.ZipFile(path)
+                files = self.get_metadata_and_excel_file(zip)
+                metadata_file = files[0]
+                excel_file = files[1]
+                collection_name = metadata_file.get_collection()
+                if collection_name is None:
+                    self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
+                else:
+                    self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
+            except edusharing.RequestFailedException as exc:
+                print("Failed upload of " + obj + "\nRequestFailedException: " + str(exc), file=sys.stderr)
+            except edusharing.NotFoundException as exc:
+                print("Failed upload of " + obj + "\nNotFoundException: " + str(exc), file=sys.stderr)
+            except h5p_extract_metadata.ParsingError as err:
+                print("Failed upload of " + obj + "\nParsingError: " + str(err), file=sys.stderr)
+            except RuntimeError as err:
+                print("Failed upload of " + obj + "\nRuntimeError: " + str(err), file=sys.stderr)
 
     def upload_from_s3(self):
         self.setup_destination_folder(ES_FOLDER_NAME_GENERAL)
@@ -310,7 +318,6 @@ class Uploader:
             path = os.path.join(H5P_TEMP_FOLDER, obj['Key'])
             if path.endswith('.zip'):
                 self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
-                # TODO: add try-except
                 try:
                     zip = zipfile.ZipFile(path)
                     files = self.get_metadata_and_excel_file(zip)
