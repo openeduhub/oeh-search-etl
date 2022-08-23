@@ -76,7 +76,7 @@ class EdusharingAPI:
             'about': None
         }
         response = self.make_request('POST', url, json_data=body)
-        response.raise_for_status()
+        # response.raise_for_status()
 
     def get_children(self, node_id: str) -> List[Node]:
         url = f'/node/v1/nodes/-home-/{node_id}/children'
