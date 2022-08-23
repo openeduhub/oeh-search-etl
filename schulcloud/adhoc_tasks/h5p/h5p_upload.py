@@ -166,6 +166,13 @@ class Uploader:
         package_h5p_files_rep_source_uuids = []
         collection_name = metadata_file.get_collection()
 
+        # check, if all required h5p-files are inside the zip
+        filenames = []
+        for filename in zip.namelist():
+            if filename.endswith(".h5p"):
+                filenames.append(filename)
+        metadata_file.check_for_files(filenames=filenames)
+
         # now update metadata from the new node (add children) and the h5p-files (add parent)
         keywords_excel = metadata_file.get_keywords()
         keywords = ["h5p", collection_name, "Arbeitspaket", metadata_file.get_publisher()]
@@ -183,13 +190,6 @@ class Uploader:
         permitted_groups = self.get_permitted_groups(permissions)
         self.api.set_permissions(collection_node.id, permitted_groups, False)
         print(f'Created Collection {collection_name}.')
-
-        # check, if all required h5p-files are inside the zip
-        filenames = []
-        for filename in zip.namelist():
-            if filename.endswith(".h5p"):
-                filenames.append(filename)
-        metadata_file.check_for_files(filenames=filenames)
 
         # loop through the unzipped h5p-files
         for filename in zip.namelist():
@@ -288,16 +288,24 @@ class Uploader:
         for obj in objects:
             path = os.path.join(H5P_LOCAL_PATH, obj)
 
-            # TODO: add try-except
-            zip = zipfile.ZipFile(path)
-            files = self.get_metadata_and_excel_file(zip)
-            metadata_file = files[0]
-            excel_file = files[1]
-            collection_name = metadata_file.get_collection()
-            if collection_name is None:
-                self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
-            else:
-                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
+            try:
+                zip = zipfile.ZipFile(path)
+                files = self.get_metadata_and_excel_file(zip)
+                metadata_file = files[0]
+                excel_file = files[1]
+                collection_name = metadata_file.get_collection()
+                if collection_name is None:
+                    self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
+                else:
+                    self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
+            except edusharing.RequestFailedException as exc:
+                print("Failed upload of " + obj + "\nRequestFailedException: " + str(exc), file=sys.stderr)
+            except edusharing.NotFoundException as exc:
+                print("Failed upload of " + obj + "\nNotFoundException: " + str(exc), file=sys.stderr)
+            except h5p_extract_metadata.ParsingError as err:
+                print("Failed upload of " + obj + "\nParsingError: " + str(err), file=sys.stderr)
+            except RuntimeError as err:
+                print("Failed upload of " + obj + "\nRuntimeError: " + str(err), file=sys.stderr)
 
     def upload_from_s3(self):
         self.setup_destination_folder(ES_FOLDER_NAME_GENERAL)
@@ -310,34 +318,43 @@ class Uploader:
             path = os.path.join(H5P_TEMP_FOLDER, obj['Key'])
             if path.endswith('.zip'):
                 self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
-                # TODO: add try-except
-                zip = zipfile.ZipFile(path)
-                files = self.get_metadata_and_excel_file(zip)
-                metadata_file = files[0]
-                excel_file = files[1]
-                collection_name = metadata_file.get_collection()
-                s3_last_modified = obj['LastModified']
-                if collection_name is None:
-                    self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip, s3_last_modified)
-                    self.delete_temp_file(path, excel_file, zip)
-                else:
-                    rep_value = hashlib.sha1(collection_name.encode()).hexdigest()
-                    collection_node_list = self.api.search_custom("ccm:replicationsourceid", rep_value, 10, 'FILES')
-                    if len(collection_node_list) == 0:
-                        self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file,
-                                                   zip=zipfile.ZipFile(path))
+                try:
+                    zip = zipfile.ZipFile(path)
+                    files = self.get_metadata_and_excel_file(zip)
+                    metadata_file = files[0]
+                    excel_file = files[1]
+                    collection_name = metadata_file.get_collection()
+                    s3_last_modified = obj['LastModified']
+                    if collection_name is None:
+                        self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip,
+                                                       s3_last_modified)
                         self.delete_temp_file(path, excel_file, zip)
                     else:
-                        collection_node = collection_node_list[0]
-                        if s3_last_modified is not None:
-                            timestamps = self.get_timestamp_edu_and_s3(s3_last_modified, collection_node)
-                            timestamp_edusharing = timestamps[1]
-                            s3_last_modified = timestamps[0]
-                            if timestamp_edusharing < s3_last_modified:
-                                self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file,
-                                                           zip=zipfile.ZipFile(path))
-                                self.delete_temp_file(path, excel_file, zip)
-                        self.delete_temp_file(path, excel_file, zip)
+                        rep_value = hashlib.sha1(collection_name.encode()).hexdigest()
+                        collection_node_list = self.api.search_custom("ccm:replicationsourceid", rep_value, 10, 'FILES')
+                        if len(collection_node_list) == 0:
+                            self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file,
+                                                       zip=zipfile.ZipFile(path))
+                            self.delete_temp_file(path, excel_file, zip)
+                        else:
+                            collection_node = collection_node_list[0]
+                            if s3_last_modified is not None:
+                                timestamps = self.get_timestamp_edu_and_s3(s3_last_modified, collection_node)
+                                timestamp_edusharing = timestamps[1]
+                                s3_last_modified = timestamps[0]
+                                if timestamp_edusharing < s3_last_modified:
+                                    self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file,
+                                                               zip=zipfile.ZipFile(path))
+                                    self.delete_temp_file(path, excel_file, zip)
+                            self.delete_temp_file(path, excel_file, zip)
+                except edusharing.RequestFailedException as exc:
+                    print("Failed upload of " + obj['Key'] + "\nRequestFailedException: " + str(exc), file=sys.stderr)
+                except edusharing.NotFoundException as exc:
+                    print("Failed upload of " + obj['Key'] + "\nNotFoundException: " + str(exc), file=sys.stderr)
+                except h5p_extract_metadata.ParsingError as err:
+                    print("Failed upload of " + obj['Key'] + "\nParsingError: " + str(err), file=sys.stderr)
+                except RuntimeError as err:
+                    print("Failed upload of " + obj['Key'] + "\nRuntimeError: " + str(err), file=sys.stderr)
             else:
                 print(f'Skipping {obj["Key"]}, not a zip.', file=sys.stderr)
 
