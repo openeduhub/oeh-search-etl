@@ -4,6 +4,7 @@ import unittest
 from schulcloud.adhoc_tasks.h5p.edusharing import EdusharingAPI, NotFoundException
 from schulcloud.adhoc_tasks.h5p.h5p_upload import util
 from schulcloud.adhoc_tasks.h5p.h5p_upload import S3Downloader
+from schulcloud.adhoc_tasks.h5p.h5p_extract_metadata import MetadataFile, ParsingError
 
 EXPECTED_ENV_VARS = [
     'EDU_SHARING_BASE_URL',
@@ -198,6 +199,53 @@ class TestH5P(unittest.TestCase):
         except NotFoundException:
             not_found = True
         self.assertTrue(not_found)
+
+    def test_extract_metadata001_metadata(self):
+        path = '..\\h5p_test_files\\test_excel_file.xlsx'
+        metadata = MetadataFile(file=path)
+        self.assertEqual('test_collection', metadata.get_collection(), 'Wrong collection.')
+        self.assertEqual('THR', metadata.get_collection_permission(), 'Wrong permission.')
+        self.assertEqual(['test_keyword_01'], metadata.get_keywords(), 'Wrong collection.')
+        self.assertEqual('test_publisher', metadata.get_publisher(), 'Wrong publisher.')
+        self.assertEqual('CC BY-NC-SA 4.0', metadata.get_license(), 'Wrong licence.')
+
+    def test_extract_metadata002_metadata_from_file(self):
+        path_excel = '..\\h5p_test_files\\test_excel_file.xlsx'
+        metadata = MetadataFile(file=path_excel)
+        element_test = 'test.h5p'
+        metadata_file = metadata.get_metadata(element_test)
+
+        self.assertEqual('test_collection', metadata_file.collection, 'Wrong collection.')
+        self.assertEqual(['THR'], metadata_file.permission, 'Wrong permission.')
+        self.assertEqual(['test_keyword_01'], metadata_file.keywords, 'Wrong collection.')
+        self.assertEqual('test_publisher', metadata_file.publisher, 'Wrong publisher.')
+        self.assertEqual('CC BY-NC-SA 4.0', metadata_file.license, 'Wrong license.')
+        self.assertEqual('01 test_title_01', metadata_file.title, 'Wrong title.')
+        self.assertEqual(1, metadata_file.order, 'Wrong order.')
+
+    def test_extract_metadata003_metadata_by_file_name(self):
+        path_excel = '..\\h5p_test_files\\test_excel_file.xlsx'
+        metadata = MetadataFile(file=path_excel)
+        element_test = 'test.h5p'
+        metadata_file = metadata.find_metadata_by_file_name(element_test)
+        self.assertEqual(1, metadata_file, 'Multiple metadata matches.')
+
+    def test_extract_metadata004_check_for_files(self):
+        path_excel = '..\\h5p_test_files\\test_excel_file.xlsx'
+        metadata = MetadataFile(file=path_excel)
+        filenames = ['test.h5p', 'test02.h5p', 'test03.h5p', 'test_false.h5p']
+        file_exist = True
+        try:
+            metadata.check_for_files(filenames=filenames)
+        except ParsingError:
+            file_exist = False
+        self.assertFalse(file_exist)
+
+    def test_extract_metadata005_fill_zeros(self):
+        path_excel = '..\\h5p_test_files\\test_excel_file.xlsx'
+        metadata = MetadataFile(file=path_excel)
+        res = metadata.fill_zeros('4')
+        self.assertEqual('04', res, 'Wrong upfilling zeros.')
 
 
 if __name__ == '__main__':
