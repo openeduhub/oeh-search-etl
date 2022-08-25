@@ -112,7 +112,7 @@ class EdusharingAPI:
 
     def file_exists(self, parent_id: str, name: str):
         # TODO: should only search within specific parent node, not global search
-        return len(self.search_custom('name', name, 2, 'FILES')) > 0
+        return len(self.search_custom('cm:name', name, 2, 'FILES')) > 0
 
     def search_custom(self, property: str, value: str, max_items: int, content_type: Literal['FOLDERS', 'FILES']):
         url = f'/search/v1/custom/-home-?contentType={content_type}&combineMode=AND&property={property}&value={value}' \
@@ -152,14 +152,15 @@ class EdusharingAPI:
             print(f"Created folder {name}")
         return folder
 
-    def create_node(self, parent_id: str, name: str):
-        url = f'/node/v1/nodes/-home-/{parent_id}/children/' \
-              f'?type=ccm%3Aio&renameIfExists=true&assocType=&versionComment=&'
-        data = {"cm:name": [name]}
-        response = self.make_request('POST', url, json_data=data)
-        if not response.status_code == 200:
-            raise RequestFailedException(response)
-        return Node(response.json()['node'])
+    # ToDo: Do we actual need this method anywhere?
+    # def create_node(self, parent_id: str, name: str):
+    #     url = f'/node/v1/nodes/-home-/{parent_id}/children/' \
+    #           f'?type=ccm%3Aio&renameIfExists=true&assocType=&versionComment=&'
+    #     data = {"cm:name": [name]}
+    #     response = self.make_request('POST', url, json_data=data)
+    #     if not response.status_code == 200:
+    #         raise RequestFailedException(response)
+    #     return Node(response.json()['node'])
 
     def sync_node(self, group: str, properties: Dict, match: List[str], type: str = 'ccm:io',
                   group_by: Optional[str] = None):
