@@ -19,7 +19,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         # the limit parameter controls the amount of results PER CATEGORY (NOT the total amount of results)
         # API response with a "limit"-value set to 10.000 might take more than 90s (17.7 MB, 5912 URLs to crawl)
     ]
-    version = "0.0.4"  # last update: 2022-08-02
+    version = "0.0.5"  # last update: 2022-08-26
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -411,7 +411,22 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
 
         # quelle_id currently holds just the abbreviation "LO" for all elements, check again later
         # quelle_logo_url is different from bild_url, always holds (the same) URL to the Lehrer-Online logo
-        # quelle_homepage_url always holds a link to "https://www.lehrer-online.de"
+
+        source_homepage_url: str = selector.xpath('quelle_homepage_url/text()').get()
+        # Lehrer-Online offers several sub-portals to topic-specific materials. Distinction is possible by using the
+        # quelle_homepage_url field in the API. Possible values:
+        # "https://www.lehrer-online.de" (main website)
+        # "https://lo-recht.lehrer-online.de" (Schulrecht)
+        # "https://www.handwerk-macht-schule.de"
+        # "https://pubertaet.lehrer-online.de" (is a "cooperation" with "Always" (Procter & Gamble) for sex education,
+        # needs to be individually checked for advertorials or other product placement)
+        match source_homepage_url:
+            case "https://www.handwerk-macht-schule.de":
+                origin_prefixed = f"Themenportal_Handwerk_-_{metadata_dict.get('origin_folder_name')}"
+                metadata_dict.update({'origin_folder_name': origin_prefixed})
+            case "https://pubertaet.lehrer-online.de":
+                origin_prefixed = f"Themenportal_Pubertaet_-_{metadata_dict.get('origin_folder_name')}"
+                metadata_dict.update({'origin_folder_name': origin_prefixed})
 
         # self.logger.info(f"metadata_dict = {metadata_dict}")
         if material_url:
@@ -518,7 +533,6 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
         if "price" in metadata_dict.keys():
             vs.add_value('price', metadata_dict.get("price"))
-        vs.add_value('sourceContentType', '004')  # "Unterrichtsmaterial- und Aufgaben-Sammlung"
         base.add_value('valuespaces', vs.load_item())
 
         license_loader = LicenseItemLoader()
