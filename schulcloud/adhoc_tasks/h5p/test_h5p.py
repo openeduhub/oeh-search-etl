@@ -404,7 +404,7 @@ class TestH5P(unittest.TestCase):
                                'cclom:aggregationlevel': ['1'], 'cclom:general_language': ['de'],
                                'cclom:general_keyword': ['H5P', 'Test'],
                                'ccm:lom_annotation': ["{'description': 'searchable==1', 'entity': 'crawler'}"],
-                               'ccm:wwwurl': [''],
+                               'ccm:wwwurl': properties.get('ccm:wwwurl'),
                                'ccm:hpi_lom_relation': ["{'kind': 'ispartof', 'resource': {'identifier': []}}"],
                                'ccm:lom_relation': ["{'kind': 'ispartof', 'resource': {'identifier': []}}"],
                                'ccm:create_version': ['false'], 'ccm:lifecyclecontributer_publisherFN': ['Tester']}
