@@ -60,7 +60,7 @@ class EdusharingAPI:
         return self.session.request(method, url, params=params, headers=headers,
                                     json=json_data, files=files, stream=stream)
 
-    def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024**2):
+    def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024 ** 2):
         url = f'/iam/v1/people/-home-/{username}?password={password}'
         body = {
             'primaryAffiliation': type,
@@ -75,7 +75,7 @@ class EdusharingAPI:
             'about': None
         }
         response = self.make_request('POST', url, json_data=body)
-        response.raise_for_status()
+        # response.raise_for_status()
 
     def get_children(self, node_id: str) -> List[Node]:
         url = f'/node/v1/nodes/-home-/{node_id}/children'
@@ -112,7 +112,7 @@ class EdusharingAPI:
 
     def file_exists(self, parent_id: str, name: str):
         # TODO: should only search within specific parent node, not global search
-        return len(self.search_custom('name', name, 2, 'FILES')) > 0
+        return len(self.search_custom('cm:name', name, 2, 'FILES')) > 0
 
     def search_custom(self, property: str, value: str, max_items: int, content_type: Literal['FOLDERS', 'FILES']):
         url = f'/search/v1/custom/-home-?contentType={content_type}&combineMode=AND&property={property}&value={value}' \
@@ -152,14 +152,15 @@ class EdusharingAPI:
             print(f"Created folder {name}")
         return folder
 
-    def create_node(self, parent_id: str, name: str):
-        url = f'/node/v1/nodes/-home-/{parent_id}/children/' \
-              f'?type=ccm%3Aio&renameIfExists=true&assocType=&versionComment=&'
-        data = {"cm:name": [name]}
-        response = self.make_request('POST', url, json_data=data)
-        if not response.status_code == 200:
-            raise RequestFailedException(response)
-        return Node(response.json()['node'])
+    # ToDo: Do we actual need this method anywhere?
+    # def create_node(self, parent_id: str, name: str):
+    #     url = f'/node/v1/nodes/-home-/{parent_id}/children/' \
+    #           f'?type=ccm%3Aio&renameIfExists=true&assocType=&versionComment=&'
+    #     data = {"cm:name": [name]}
+    #     response = self.make_request('POST', url, json_data=data)
+    #     if not response.status_code == 200:
+    #         raise RequestFailedException(response)
+    #     return Node(response.json()['node'])
 
     def sync_node(self, group: str, properties: Dict, match: List[str], type: str = 'ccm:io',
                   group_by: Optional[str] = None):
@@ -180,6 +181,14 @@ class EdusharingAPI:
         response = self.make_request('POST', url)
         if not response.status_code == 200:
             raise RequestFailedException(response, node_id)
+
+    def set_preview_thumbnail(self, node_id: str, filename: str):
+        url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
+        files = {'image': (filename, open(filename, 'rb'))}
+        response = self.make_request('POST', url, files=files, stream=True)
+        if not response.status_code == 200:
+            raise RequestFailedException(response, node_id)
+        files['image'][1].close()
 
 
 class RequestFailedException(Exception):
