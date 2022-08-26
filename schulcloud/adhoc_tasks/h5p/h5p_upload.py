@@ -2,15 +2,14 @@ import os
 import sys
 import uuid
 import zipfile
-from datetime import datetime
-import hashlib
-from typing import Optional, List, IO, Callable, Dict
-
 import boto3
-
 import edusharing
 import h5p_extract_metadata
 import util
+import hashlib
+
+from typing import Optional, List, IO, Callable, Dict
+from datetime import datetime
 
 EXPECTED_ENV_VARS = [
     'EDU_SHARING_BASE_URL',
@@ -215,7 +214,8 @@ class Uploader:
         self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation', package_h5p_files_rep_source_uuids)
 
         # set preview thumbnail
-        self.api.set_preview_thumbnail(node_id=collection_node.id, filename='thumbnail/H5P-Inhalt_MitIcons_TafelInTSPblau.png')
+        self.api.set_preview_thumbnail(node_id=collection_node.id,
+                                       filename='thumbnail/H5P-Inhalt_MitIcons_TafelInTSPblau.png')
 
     def upload_h5p_non_collection(self, edusharing_folder_name: str, metadata_file, excel_file, zip,
                                   s3_last_modified: Optional[datetime] = None):
