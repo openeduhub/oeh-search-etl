@@ -113,7 +113,7 @@ class TestH5P(unittest.TestCase):
             permission_set.append(response_clean)
 
         for permission in permission_set:
-            self.assertTrue(permission in groups)
+            self.assertTrue(permission in groups, 'Permission not found.')
 
     def test_edusharing009_get_metadata_of_node(self):
         node_id = self.api.get_sync_obj_folder().id
@@ -162,7 +162,7 @@ class TestH5P(unittest.TestCase):
         # Don't stress Edusharing
         time.sleep(10)
         response = self.api.search_custom(metadata_property, name, 50, 'FOLDERS')
-        self.assertEqual(name, response[0].name, "Can\'t find file.")
+        self.assertEqual(name, response[0].name, "Can\'t find folder.")
 
     def test_edusharing013_set_property_relation(self):
         node_id = TestH5P.test_file_node_id
@@ -198,14 +198,14 @@ class TestH5P(unittest.TestCase):
             self.api.find_node_by_name(self.api.get_sync_obj_folder().id, 'test_folder')
         except NotFoundException:
             not_found = True
-        self.assertTrue(not_found)
+        self.assertTrue(not_found, 'Node is not deleted.')
 
     def test_extract_metadata001_metadata(self):
         path = '..\\h5p_test_files\\test_excel_file.xlsx'
         metadata = MetadataFile(file=path)
         self.assertEqual('test_collection', metadata.get_collection(), 'Wrong collection.')
         self.assertEqual('THR', metadata.get_collection_permission(), 'Wrong permission.')
-        self.assertEqual(['test_keyword_01'], metadata.get_keywords(), 'Wrong collection.')
+        self.assertEqual(['test_keyword_01'], metadata.get_keywords(), 'Wrong keywords.')
         self.assertEqual('test_publisher', metadata.get_publisher(), 'Wrong publisher.')
         self.assertEqual('CC BY-NC-SA 4.0', metadata.get_license(), 'Wrong licence.')
 
@@ -217,7 +217,7 @@ class TestH5P(unittest.TestCase):
 
         self.assertEqual('test_collection', metadata_file.collection, 'Wrong collection.')
         self.assertEqual(['THR'], metadata_file.permission, 'Wrong permission.')
-        self.assertEqual(['test_keyword_01'], metadata_file.keywords, 'Wrong collection.')
+        self.assertEqual(['test_keyword_01'], metadata_file.keywords, 'Wrong keywords.')
         self.assertEqual('test_publisher', metadata_file.publisher, 'Wrong publisher.')
         self.assertEqual('CC BY-NC-SA 4.0', metadata_file.license, 'Wrong license.')
         self.assertEqual('01 test_title_01', metadata_file.title, 'Wrong title.')
@@ -239,7 +239,7 @@ class TestH5P(unittest.TestCase):
             metadata.check_for_files(filenames=filenames)
         except ParsingError:
             file_exist = False
-        self.assertFalse(file_exist)
+        self.assertFalse(file_exist, "Files aren\'t present in the Excel-Sheet")
 
     def test_extract_metadata005_fill_zeros(self):
         path_excel = '..\\h5p_test_files\\test_excel_file.xlsx'
