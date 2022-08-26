@@ -17,7 +17,7 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
     start_urls = [
         "https://www.scienceinschool.org/issue/"
     ]
-    version = "0.0.3"  # last update: 2022-07-11
+    version = "0.0.4"  # last update: 2022-08-26
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True
@@ -311,7 +311,6 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
         vs = ValuespaceItemLoader()
         vs.add_value('discipline', disciplines)
         vs.add_value('intendedEndUserRole', 'teacher')
-        vs.add_value('sourceContentType', 'Lehrkräftefortbildung')
         vs.add_value('dataProtectionConformity', 'generalDataProtectionRegulation')
         # see: https://www.embl.de/aboutus/privacy_policy/
         vs.add_value('new_lrt', [Constants.NEW_LRT_MATERIAL,

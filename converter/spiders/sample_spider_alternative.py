@@ -176,8 +176,6 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/price.ttl)
         #  - educationalContext             optional
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/educationalContext.ttl)
-        #  - sourceContentType              optional
-        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/sourceContentType.ttl)
         #  - toolCategory                   optional
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/toolCategory.ttl)
         #  - accessibilitySummary           optional
