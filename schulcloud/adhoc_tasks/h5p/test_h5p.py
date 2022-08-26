@@ -194,7 +194,7 @@ class TestH5P(unittest.TestCase):
     def test_edusharing014_set_preview_thumbnail(self):
         node_id = TestH5P.test_file_node_id
         self.api.set_preview_thumbnail(node_id=node_id,
-                                       filename='..\\thumbnail\\H5P-Inhalt_MitIcons_TafelInTSPblau.png')
+                                       filename='.\\thumbnail\\H5P-Inhalt_MitIcons_TafelInTSPblau.png')
 
         url_check_prop = f'/node/v1/nodes/-home-/{node_id}/prepareUsage'
         response = self.api.make_request('POST', url_check_prop)
@@ -214,7 +214,7 @@ class TestH5P(unittest.TestCase):
         self.assertTrue(not_found, 'Node is not deleted.')
 
     def test_extract_metadata001_metadata(self):
-        path = '..\\h5p_test_files\\test_excel_file.xlsx'
+        path = '.\\h5p_test_files\\test_excel_file.xlsx'
         metadata = MetadataFile(file=path)
         self.assertEqual('test_collection', metadata.get_collection(), 'Wrong collection.')
         self.assertEqual('THR', metadata.get_collection_permission(), 'Wrong permission.')
@@ -223,7 +223,7 @@ class TestH5P(unittest.TestCase):
         self.assertEqual('CC BY-NC-SA 4.0', metadata.get_license(), 'Wrong licence.')
 
     def test_extract_metadata002_metadata_from_file(self):
-        path_excel = '..\\h5p_test_files\\test_excel_file.xlsx'
+        path_excel = '.\\h5p_test_files\\test_excel_file.xlsx'
         metadata = MetadataFile(file=path_excel)
         element_test = 'test.h5p'
         metadata_file = metadata.get_metadata(element_test)
@@ -237,14 +237,14 @@ class TestH5P(unittest.TestCase):
         self.assertEqual(1, metadata_file.order, 'Wrong order.')
 
     def test_extract_metadata003_metadata_by_file_name(self):
-        path_excel = '..\\h5p_test_files\\test_excel_file.xlsx'
+        path_excel = '.\\h5p_test_files\\test_excel_file.xlsx'
         metadata = MetadataFile(file=path_excel)
         element_test = 'test.h5p'
         metadata_file = metadata.find_metadata_by_file_name(element_test)
         self.assertEqual(1, metadata_file, 'Multiple metadata matches.')
 
     def test_extract_metadata004_check_for_files(self):
-        path_excel = '..\\h5p_test_files\\test_excel_file.xlsx'
+        path_excel = '.\\h5p_test_files\\test_excel_file.xlsx'
         metadata = MetadataFile(file=path_excel)
         filenames = ['test.h5p', 'test02.h5p', 'test03.h5p', 'test_false.h5p']
         file_exist = True
@@ -255,7 +255,7 @@ class TestH5P(unittest.TestCase):
         self.assertFalse(file_exist, "Files aren\'t present in the Excel-Sheet")
 
     def test_extract_metadata005_fill_zeros(self):
-        path_excel = '..\\h5p_test_files\\test_excel_file.xlsx'
+        path_excel = '.\\h5p_test_files\\test_excel_file.xlsx'
         metadata = MetadataFile(file=path_excel)
         res = metadata.fill_zeros('4')
         self.assertEqual('04', res, 'Wrong upfilling zeros.')
