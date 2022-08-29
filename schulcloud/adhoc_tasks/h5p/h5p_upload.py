@@ -2,15 +2,14 @@ import os
 import sys
 import uuid
 import zipfile
-from datetime import datetime
-import hashlib
-from typing import Optional, List, IO, Callable, Dict
-
 import boto3
-
 import edusharing
 import h5p_extract_metadata
 import util
+import hashlib
+
+from typing import Optional, List, IO, Callable, Dict
+from datetime import datetime
 
 EXPECTED_ENV_VARS = [
     'EDU_SHARING_BASE_URL',
