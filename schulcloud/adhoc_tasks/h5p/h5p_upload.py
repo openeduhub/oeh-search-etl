@@ -203,8 +203,8 @@ class Uploader:
                 node_id, rep_source_uuid = result
                 # metadata_of_node = self.api.get_metadata_of_node(nodeId=node_id)
                 # if metadata_of_node['node']['preview']['type'] == "TYPE_DEFAULT":
-                #     self.api.set_preview_thumbnail(node_id=node_id,
-                #                                    filename='/thumbnail/H5P-Inhalt_MitIcons_TafelInTSPblau.png')
+                self.api.set_preview_thumbnail(node_id=node_id,
+                                                   filename='thumbnail/H5P-Inhalt_MitIcons_TafelInTSPblau.png')
                 rep_source_uuid_clean = str(rep_source_uuid).replace('[', '').replace(']', '').replace("'", "")
                 package_h5p_files_rep_source_uuids.append(rep_source_uuid_clean)
 
@@ -215,7 +215,8 @@ class Uploader:
         self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation', package_h5p_files_rep_source_uuids)
 
         # set preview thumbnail
-        self.api.set_preview_thumbnail(node_id=collection_node.id, filename='thumbnail/H5P-Inhalt_MitIcons_TafelInTSPblau.png')
+        self.api.set_preview_thumbnail(node_id=collection_node.id,
+                                       filename='thumbnail/H5P-Inhalt_MitIcons_TafelInTSPblau.png')
 
     def upload_h5p_non_collection(self, edusharing_folder_name: str, metadata_file, excel_file, zip,
                                   s3_last_modified: Optional[datetime] = None):
@@ -239,10 +240,11 @@ class Uploader:
                 result = self.upload_h5p_file(edusharing_folder_name, filename, metadata, file, s3_last_modified)
                 if result is None:
                     break
-                # node_id, rep_source_uuid = result
+                node_id, rep_source_uuid = result
                 # metadata_of_node = self.api.get_metadata_of_node(nodeId=node_id)
                 # if metadata_of_node['node']['preview']['type'] == "TYPE_DEFAULT":
-                #     self.api.set_preview_thumbnail(node_id=node_id, filename='/thumbnail/H5P-Inhalt_MitIcons_TafelInTSPblau.png')
+                self.api.set_preview_thumbnail(node_id=node_id,
+                                                   filename='thumbnail/H5P-Inhalt_MitIcons_TafelInTSPblau.png')
 
         excel_file.close()
         zip.close()
