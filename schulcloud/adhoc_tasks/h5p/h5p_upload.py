@@ -203,7 +203,7 @@ class Uploader:
                 # metadata_of_node = self.api.get_metadata_of_node(nodeId=node_id)
                 # if metadata_of_node['node']['preview']['type'] == "TYPE_DEFAULT":
                 self.api.set_preview_thumbnail(node_id=node_id,
-                                                   filename='thumbnail/H5P-Inhalt_MitIcons_TafelInTSPblau.png')
+                                                   filename='thumbnail/H5Pthumbnail.png')
                 rep_source_uuid_clean = str(rep_source_uuid).replace('[', '').replace(']', '').replace("'", "")
                 package_h5p_files_rep_source_uuids.append(rep_source_uuid_clean)
 
@@ -215,7 +215,7 @@ class Uploader:
 
         # set preview thumbnail
         self.api.set_preview_thumbnail(node_id=collection_node.id,
-                                       filename='thumbnail/H5P-Inhalt_MitIcons_TafelInTSPblau.png')
+                                       filename='thumbnail/H5Pthumbnail.png')
 
     def upload_h5p_non_collection(self, edusharing_folder_name: str, metadata_file, excel_file, zip,
                                   s3_last_modified: Optional[datetime] = None):
@@ -243,7 +243,7 @@ class Uploader:
                 # metadata_of_node = self.api.get_metadata_of_node(nodeId=node_id)
                 # if metadata_of_node['node']['preview']['type'] == "TYPE_DEFAULT":
                 self.api.set_preview_thumbnail(node_id=node_id,
-                                                   filename='thumbnail/H5P-Inhalt_MitIcons_TafelInTSPblau.png')
+                                                   filename='thumbnail/H5Pthumbnail.png')
 
         excel_file.close()
         zip.close()

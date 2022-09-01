@@ -195,7 +195,7 @@ class TestH5P(unittest.TestCase):
     def test_edusharing014_set_preview_thumbnail(self):
         node_id = TestH5P.test_file_node_id
         self.api.set_preview_thumbnail(node_id=node_id,
-                                       filename='.\\thumbnail\\H5P-Inhalt_MitIcons_TafelInTSPblau.png')
+                                       filename='.\\thumbnail\\H5Pthumbnail.png')
 
         url_check_prop = f'/node/v1/nodes/-home-/{node_id}/prepareUsage'
         response = self.api.make_request('POST', url_check_prop)
