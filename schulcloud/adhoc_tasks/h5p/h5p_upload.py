@@ -348,12 +348,16 @@ class Uploader:
                             self.delete_temp_file(path, excel_file, zip)
                 except edusharing.RequestFailedException as exc:
                     print("Failed upload of " + obj['Key'] + "\nRequestFailedException: " + str(exc), file=sys.stderr)
+                    self.delete_temp_file(path, excel_file, zip)
                 except edusharing.NotFoundException as exc:
                     print("Failed upload of " + obj['Key'] + "\nNotFoundException: " + str(exc), file=sys.stderr)
+                    self.delete_temp_file(path, excel_file, zip)
                 except h5p_extract_metadata.ParsingError as err:
                     print("Failed upload of " + obj['Key'] + "\nParsingError: " + str(err), file=sys.stderr)
+                    self.delete_temp_file(path, excel_file, zip)
                 except RuntimeError as err:
                     print("Failed upload of " + obj['Key'] + "\nRuntimeError: " + str(err), file=sys.stderr)
+                    self.delete_temp_file(path, excel_file, zip)
             else:
                 print(f'Skipping {obj["Key"]}, not a zip.', file=sys.stderr)
 
