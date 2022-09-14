@@ -10,13 +10,13 @@ import util
 
 
 HELP = '''
-s3_cli list
-s3_cli upload <FILES...>
-s3_cli download <FILES...>
-s3_cli delete <FILES...>
-s3_cli bucket list
-s3_cli bucket create <NAME> 
-s3_cli bucket delete <NAME>
+s3_cli list [ARGS]
+s3_cli upload <FILES...> [ARGS]
+s3_cli download <FILES...> [ARGS]
+s3_cli delete <FILES...> [ARGS]
+s3_cli bucket list [ARGS]
+s3_cli bucket create <NAME> [ARGS] 
+s3_cli bucket delete <NAME> [ARGS]
 
 Optional args:
     -b bucket_name      Only needed if a different bucket than S3_BUCKET_NAME should be used
@@ -133,6 +133,9 @@ def main():
     cli = CLI(*vars)
 
     if sys.argv[1] == 'bucket':
+        if len(sys.argv) < 3:
+            print(HELP)
+            sys.exit(1)
         command = 'bucket_' + sys.argv[2]
         i = 3
     else:
@@ -176,6 +179,10 @@ def main():
             print(HELP)
             sys.exit(1)
         cli.delete_bucket(rest[0])
+    else:
+        print(f'Unknown command: "{command}"')
+        print(HELP)
+        sys.exit(1)
 
 
 if __name__ == '__main__':
