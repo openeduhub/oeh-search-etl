@@ -19,7 +19,8 @@ EXPECTED_ENV_VARS = [
     'S3_ENDPOINT_URL',
     'S3_ACCESS_KEY',
     'S3_SECRET_KEY',
-    'S3_BUCKET_NAME'
+    'S3_BUCKET_NAME',
+    'S3_BUCKET_NAME_TEST'
 ]
 
 
@@ -34,13 +35,13 @@ class TestH5P(unittest.TestCase):
         env['S3_ENDPOINT_URL'],
         env['S3_ACCESS_KEY'],
         env['S3_SECRET_KEY'],
-        env['S3_BUCKET_NAME']
+        env['S3_BUCKET_NAME_TEST']
     )
     downloaderFail = S3Downloader(
         env['S3_ENDPOINT_URL'],
         env['S3_ACCESS_KEY'],
         env['S3_SECRET_KEY'],
-        'h5p-conten-test-fail'
+        'h5p-content-test-fail'
     )
     uploader = Uploader()
     metadata = Metadata
@@ -194,7 +195,7 @@ class TestH5P(unittest.TestCase):
     def test_edusharing014_set_preview_thumbnail(self):
         node_id = TestH5P.test_file_node_id
         self.api.set_preview_thumbnail(node_id=node_id,
-                                       filename='.\\thumbnail\\H5P-Inhalt_MitIcons_TafelInTSPblau.png')
+                                       filename='.\\thumbnail\\H5Pthumbnail.png')
 
         url_check_prop = f'/node/v1/nodes/-home-/{node_id}/prepareUsage'
         response = self.api.make_request('POST', url_check_prop)

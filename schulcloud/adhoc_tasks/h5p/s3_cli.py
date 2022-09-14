@@ -1,13 +1,9 @@
-
 import sys
 import os
-from typing import List
-
 import boto3
 import tqdm
 
-import util
-
+from typing import List
 
 HELP = '''
 s3_cli list [ARGS]
@@ -147,7 +143,7 @@ def main():
     while i < len(sys.argv):
         arg = sys.argv[i]
         if arg == '-b':
-            bucket = sys.argv[i+1]
+            bucket = sys.argv[i + 1]
             i += 1
         else:
             rest.append(arg)
