@@ -16,4 +16,4 @@ COPY . .
 
 RUN cp converter/.env.docker converter/.env
 
-CMD [ "python3.9", "-m", "scrapy", "crawl", "sodix_spider" ]
+CMD [ "bash", "-c", "python3.9 -m scrapy crawl $CRAWLER -s TELNETCONSOLE_ENABLED=0" ]
