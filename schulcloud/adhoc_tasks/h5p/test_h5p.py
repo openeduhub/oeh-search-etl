@@ -155,6 +155,7 @@ class TestH5P(unittest.TestCase):
             "cm:edu_forcemetadataset": ["true"],
             "ccm:replicationsource": [folder_name],
             "ccm:replicationsourceid": [hashlib.sha1(name.encode()).hexdigest()],
+            "ccm:lom_relation": [""],
         }
         response = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
         sub_str = "file"
@@ -178,21 +179,7 @@ class TestH5P(unittest.TestCase):
         response = self.api.search_custom(metadata_property, name, 50, 'FOLDERS')
         self.assertEqual(name, response[0].name, "Can\'t find folder.")
 
-    def test_edusharing013_set_property_relation(self):
-        node_id = TestH5P.test_file_node_id
-        metadata_property = 'ccm:lom_relation'
-        value = ['value01', 'value02', 'value03']
-        self.api.set_property_relation(node_id, metadata_property, value)
-        url_check_prop = f'/node/v1/nodes/-home-/{node_id}/prepareUsage'
-        response = self.api.make_request('POST', url_check_prop)
-        response = response.json()
-        response = response['node']['properties']['ccm:lom_relation'][0]
-        compare_array = []
-        compare_array.append(response[49:56]), compare_array.append(response[60:67])
-        compare_array.append(response[71:78])
-        self.assertListEqual(value, compare_array, 'Relations were not set right.')
-
-    def test_edusharing014_set_preview_thumbnail(self):
+    def test_edusharing013_set_preview_thumbnail(self):
         node_id = TestH5P.test_file_node_id
         self.api.set_preview_thumbnail(node_id=node_id,
                                        filename='.\\thumbnail\\H5Pthumbnail.png')
@@ -203,7 +190,7 @@ class TestH5P(unittest.TestCase):
         response = response['node']['preview']['type']
         self.assertEqual("TYPE_USERDEFINED", response, 'The thumbnail were not set.')
 
-    def test_edusharing015_delete_node(self):
+    def test_edusharing014_delete_node(self):
         node_id = TestH5P.test_folder_node_id
         self.api.delete_node(node_id)
         not_found = False
