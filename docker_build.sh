@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker build --tag sodix-docker .
+docker build --tag oeh-search-etl .
