@@ -174,6 +174,14 @@ class EdusharingAPI:
             raise RequestFailedException(response)
         return Node(response.json()['node'])
 
+    def set_property_relation(self, node_id: str, property: str, value: List):
+        property_replacement = property.replace(":", "%3A")
+        url = f'/node/v1/nodes/-home-/{node_id}/property?property={property_replacement}&value=%7B\'kind\'' \
+              f'%3A%20\'haspart\'%2C%20\'resource\'%3A%20%7B\'identifier\'%3A%20{value}%7D%7D'
+        response = self.make_request('POST', url)
+        if not response.status_code == 200:
+            raise RequestFailedException(response, node_id)
+
     def set_preview_thumbnail(self, node_id: str, filename: str):
         url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
         files = {'image': (filename, open(filename, 'rb'))}
