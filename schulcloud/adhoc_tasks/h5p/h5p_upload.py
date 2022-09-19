@@ -270,16 +270,8 @@ class Uploader:
                 break
         else:
             raise RuntimeError('Could not find excel file with metadata')
-        return [metadata_file, excel_file]
+        return metadata_file, excel_file
 
-    def delete_temp_file(self, path, excel_file, zip: zipfile.ZipFile):
-        excel_file.close()
-        zip.close()
-        os.remove(path)
-        # ToDo: remove, just for testing
-        print("Deleted temp_file: " + path)
-
-    # ToDo: remove, only for testing
     def upload_from_folder(self):
         self.setup_destination_folder(ES_FOLDER_NAME_GENERAL)
         objects = os.listdir(H5P_LOCAL_PATH)
@@ -289,22 +281,17 @@ class Uploader:
 
             try:
                 zip = zipfile.ZipFile(path)
-                files = self.get_metadata_and_excel_file(zip)
-                metadata_file = files[0]
-                excel_file = files[1]
+                metadata_file, excel_file = self.get_metadata_and_excel_file(zip)
                 collection_name = metadata_file.get_collection()
                 if collection_name is None:
                     self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
                 else:
                     self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip)
-            except edusharing.RequestFailedException as exc:
-                print("Failed upload of " + obj + "\nRequestFailedException: " + str(exc), file=sys.stderr)
-            except edusharing.NotFoundException as exc:
-                print("Failed upload of " + obj + "\nNotFoundException: " + str(exc), file=sys.stderr)
-            except h5p_extract_metadata.ParsingError as err:
-                print("Failed upload of " + obj + "\nParsingError: " + str(err), file=sys.stderr)
-            except RuntimeError as err:
-                print("Failed upload of " + obj + "\nRuntimeError: " + str(err), file=sys.stderr)
+            finally:
+                try:
+                    zip.close()
+                except NameError:
+                    pass
 
     def upload_from_s3(self):
         self.setup_destination_folder(ES_FOLDER_NAME_GENERAL)
@@ -315,6 +302,10 @@ class Uploader:
 
         for obj in objects:
             path = os.path.join(H5P_TEMP_FOLDER, obj['Key'])
+            if '/' not in obj['Key']:
+                print(f'{obj["Key"]} is not within a folder will therefore be ignored', file=sys.stderr)
+                continue
+            s3_folder, _ = obj['Key'].split('/')
             if path.endswith('.zip'):
                 self.downloader.download_object(obj['Key'], H5P_TEMP_FOLDER)
                 try:
@@ -327,14 +318,12 @@ class Uploader:
                     if collection_name is None:
                         self.upload_h5p_non_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file, zip,
                                                        s3_last_modified)
-                        self.delete_temp_file(path, excel_file, zip)
                     else:
                         rep_value = hashlib.sha1(collection_name.encode()).hexdigest()
                         collection_node_list = self.api.search_custom("ccm:replicationsourceid", rep_value, 10, 'FILES')
                         if len(collection_node_list) == 0:
                             self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file,
                                                        zip=zipfile.ZipFile(path))
-                            self.delete_temp_file(path, excel_file, zip)
                         else:
                             collection_node = collection_node_list[0]
                             if s3_last_modified is not None:
@@ -344,20 +333,16 @@ class Uploader:
                                 if timestamp_edusharing < s3_last_modified:
                                     self.upload_h5p_collection(ES_FOLDER_NAME_GENERAL, metadata_file, excel_file,
                                                                zip=zipfile.ZipFile(path))
-                                    self.delete_temp_file(path, excel_file, zip)
-                            self.delete_temp_file(path, excel_file, zip)
-                except edusharing.RequestFailedException as exc:
-                    print("Failed upload of " + obj['Key'] + "\nRequestFailedException: " + str(exc), file=sys.stderr)
-                    self.delete_temp_file(path, excel_file, zip)
-                except edusharing.NotFoundException as exc:
-                    print("Failed upload of " + obj['Key'] + "\nNotFoundException: " + str(exc), file=sys.stderr)
-                    self.delete_temp_file(path, excel_file, zip)
-                except h5p_extract_metadata.ParsingError as err:
-                    print("Failed upload of " + obj['Key'] + "\nParsingError: " + str(err), file=sys.stderr)
-                    self.delete_temp_file(path, excel_file, zip)
-                except RuntimeError as err:
-                    print("Failed upload of " + obj['Key'] + "\nRuntimeError: " + str(err), file=sys.stderr)
-                    self.delete_temp_file(path, excel_file, zip)
+                finally:
+                    try:
+                        excel_file.close()
+                    except NameError:
+                        pass
+                    try:
+                        zip.close()
+                    except NameError:
+                        pass
+                    os.remove(path)
             else:
                 print(f'Skipping {obj["Key"]}, not a zip.', file=sys.stderr)
 
@@ -395,7 +380,14 @@ class S3Downloader:
     def get_object_list(self) -> List[Dict]:
         self.check_bucket_exists()
         response = self.client.list_objects_v2(Bucket=self.bucket_name)
-        return response['Contents']
+        objs = response['Contents']
+        while response['IsTruncated']:
+            response = self.client.list_objects_v2(
+                Bucket=self.bucket_name,
+                ContinuationToken=response['NextContinuationToken']
+            )
+            objs += response['Contents']
+        return objs
 
     def download_object(self, object_key: str, dir_path: str, callback: Optional[Callable] = None):
         if not os.path.exists(dir_path):
