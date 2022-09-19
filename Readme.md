@@ -1,30 +1,46 @@
 # Open Edu Hub Search ETL
 
-- make sure you have python3 installed (<https://docs.python-guide.org/starting/installation/>)
-- (Python 3.9.1 or newer is required)
-- go to project root
-- Run
+## Requirements
+Before doing *anything* in this repository, make sure you meet the following requirements.
+
+- Python 3.9
+- a python virtual environment
+- an .env file containing all the necessary credentials and settings
+
+Debian-based systems:
+```bash
+sudo apt install python3.9 python3-dev python3-pip python3-venv libpq-dev
+python3.9 -m venv .venv
+source .venv/bin/activate
+pip3 install -r requirements.txt
+cp .env.example .env
+# edit to your liking
 ```
-sudo apt install python3-dev python3-pip python3-venv libpq-dev -y
-python3 -m venv .venv
+
+For windows, go to python.org to download the proper python version.
+```commandline
+python3.9 -m venv .venv
+.venv\Scripts\activate.bat
+pip3 install -r requirements.txt
+copy .env.example .env
+REM edit to your liking
 ```
 
-`source .venv/bin/activate` (on Linux Unix)
+## Run a crawler
+```bash
+scrapy crawl oeh_spider 
+```
 
-`.venv\Scripts\activate.bat` (on Windows)
+If you have Docker installed, use `docker-compose up` to start up the multi-container for `Splash` and `Pyppeteer`-integration.
 
-`pip3 install -r requirements.txt`
+If a crawler has [Scrapy Spider Contracts](https://docs.scrapy.org/en/latest/topics/contracts.html#spiders-contracts) implemented, you can test those by running `scrapy check <spider-name>`
 
-If you have Docker installed, use `docker-compose up` to start up the multi-container for `Splash` and `Pyppeteer`-integration. 
+## Building a docker image
+```bash
+docker build --tag oeh-search-etl .
+```
 
-As a last step, set up your config variables by copying the `.env.example`-file and modifying it if necessary: 
-
-`cp converter/.env.example converter/.env`
-
-- A crawler can be run with `scrapy crawl <spider-name>`. It assumes that you have an edu-sharing 6.0 instance in your `.env` settings configured which can accept the data.
-- If a crawler has [Scrapy Spider Contracts](https://docs.scrapy.org/en/latest/topics/contracts.html#spiders-contracts) implemented, you can test those by running `scrapy check <spider-name>`
-
-## Building a Crawler
+## Building a crawler
 
 - We use Scrapy as a framework. Please check out the guides for Scrapy spider (https://docs.scrapy.org/en/latest/intro/tutorial.html)
 - To create a new spider, create a file inside `converter/spiders/<myname>_spider.py`
@@ -32,6 +48,13 @@ As a last step, set up your config variables by copying the `.env.example`-file 
 - You may also Inherit a Base Class for crawling data, if your site provides LRMI metadata, the `LrmiBase` is a good start. If your system provides an OAI interface, you may use the `OAIBase`
 - As a sample/template, please take a look at the `sample_spider.py`
 - To learn more about the LOM standard we're using, you'll find useful information at https://en.wikipedia.org/wiki/Learning_object_metadata
+
+## Using scripts in schulcloud/*
+```bash
+set -a
+source .env
+# cd into the script's directory and execute it
+```
 
 ## Still have questions? Check out our GitHub-Wiki!
 If you need help getting started or setting up your work environment, please don't hesitate to visit our GitHub Wiki at https://github.com/openeduhub/oeh-search-etl/wiki
