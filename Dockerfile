@@ -1,8 +1,4 @@
-FROM ubuntu:focal
-
-RUN apt-get update
-RUN apt-get install -y software-properties-common
-RUN apt-get install -y python3.9-minimal python3-dev python3-pip python3-venv libpq-dev
+FROM python:3.9-slim-buster
 
 WORKDIR /usr/src/app
 
