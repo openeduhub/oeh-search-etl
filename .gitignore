@@ -3,10 +3,10 @@ __pycache__/
 .venv/
 venv/
 converter/.env
-converter/.env.dev
-converter/.env.prod
+converter/.env.*
 *.csv
 .env
 .env.*
 nohups
 out
+docker_run.sh
