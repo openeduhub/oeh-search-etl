@@ -59,8 +59,6 @@ class CLI:
 
     def download_objects(self, dir_name: str, bucket_name: str, objects: List[str]):
         self.ensure_bucket(bucket_name)
-        if not os.path.exists(dir_name):
-            os.makedirs(dir_name)
         response = self.client.list_objects_v2(Bucket=bucket_name)
         remote_objects = []
         for obj in objects:
@@ -77,10 +75,13 @@ class CLI:
         for obj in remote_objects:
             progress_bar.set_description(obj['Key'])
             filename = os.path.join(dir_name, obj['Key'])
-            self.client.download_file(
+            if not os.path.exists(os.path.dirname(filename)):
+                os.makedirs(os.path.dirname(filename))
+            fileobj = open(filename, 'wb')
+            self.client.download_fileobj(
                 Bucket=bucket_name,
                 Key=obj['Key'],
-                Filename=filename,
+                Fileobj=fileobj,
                 Callback=lambda n: progress_bar.update(n)
             )
         progress_bar.close()
