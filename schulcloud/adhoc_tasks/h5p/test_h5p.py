@@ -278,16 +278,16 @@ class TestH5P(unittest.TestCase):
         path = os.path.join("h5p_test_files", "test_upload_collection.zip")
         zip = zipfile.ZipFile(path)
         try:
-            files = self.uploader.get_metadata_and_excel_file(zip)
+            metadata_file = self.uploader.get_metadata_file(zip)
         except RuntimeError:
             self.fail("Failed to get metadata file and excel file!")
-        self.assertTrue(files is not None, "Failed to get metadata file and excel file!")
+        self.assertTrue(metadata_file is not None, "Failed to get metadata file and excel file!")
 
     def test_h5p_upload_no_excel_get_metadata_and_excel_file(self):
         path = os.path.join("h5p_test_files", "test_get_metadata.zip")
         zip = zipfile.ZipFile(path)
         try:
-            files = self.uploader.get_metadata_and_excel_file(zip)
+            metadata_file = self.uploader.get_metadata_file(zip)
         except RuntimeError:
             pass
         else:
@@ -306,9 +306,7 @@ class TestH5P(unittest.TestCase):
         path = os.path.join("h5p_test_files", "test_upload_non_collection.zip")
         zip = zipfile.ZipFile(path)
 
-        files = self.uploader.get_metadata_and_excel_file(zip)
-        metadata_file = files[0]
-        excel_file = files[1]
+        metadata_file = self.uploader.get_metadata_file(zip)
 
         folder_name = "h5p_test_folder"
         sync_obj = self.api.get_sync_obj_folder()
@@ -316,7 +314,7 @@ class TestH5P(unittest.TestCase):
         folder_node = self.api.find_node_by_name(sync_obj.id, folder_name)
         self.uploader.setup_destination_folder(folder_name)
 
-        self.uploader.upload_h5p_non_collection(folder_name, metadata_file, excel_file, zip)
+        self.uploader.upload_h5p_non_collection(folder_name, metadata_file, zip)
         try:
             nodes_list = self.api.get_children(folder_node.id)
             self.assertEqual(3, len(nodes_list), "Failed: test upload of a non collection zip!")
@@ -327,10 +325,7 @@ class TestH5P(unittest.TestCase):
     def test_h5p_upload_upload_h5p_collection(self):
         path = os.path.join("h5p_test_files", "test_upload_collection.zip")
         zip = zipfile.ZipFile(path)
-
-        files = self.uploader.get_metadata_and_excel_file(zip)
-        metadata_file = files[0]
-        excel_file = files[1]
+        metadata_file = self.uploader.get_metadata_file(zip)
 
         folder_name = "h5p_test_folder"
         sync_obj = self.api.get_sync_obj_folder()
@@ -338,7 +333,7 @@ class TestH5P(unittest.TestCase):
         folder_node = self.api.find_node_by_name(sync_obj.id, folder_name)
         self.uploader.setup_destination_folder(folder_name)
 
-        self.uploader.upload_h5p_collection(folder_name, metadata_file, excel_file, zip)
+        self.uploader.upload_h5p_collection(folder_name, metadata_file, zip)
         try:
             nodes_list = self.api.get_children(folder_node.id)
             self.assertEqual(4, len(nodes_list), "Failed: test upload of a collection zip!")

@@ -43,14 +43,20 @@ class MetadataFile:
         COUNT = 9
 
     def __init__(self, file: Union[str, IO]):
+        self.file = file
         self.collections: List[Collection] = []
         self.single_files: List[Metadata] = []
         self.workbook = openpyxl.load_workbook(filename=file, data_only=True)
         self.o_sheet = self.workbook["Tabelle1"]
-        self.validate_sheet(file=file)
-        self.parse(file=file)
+        self.validate_sheet()
+        self.parse()
 
-    def validate_sheet(self, file: Union[str, IO]):
+    def close(self):
+        self.workbook.close()
+        if not isinstance(self.file, str):
+            self.file.close()
+
+    def validate_sheet(self):
         # Check required fields
         required_fields = [self.COLUMN.TITLE, self.COLUMN.FILENAME, self.COLUMN.PERMISSION]
         for row in range(1, self.o_sheet.max_row + 1):
@@ -58,7 +64,7 @@ class MetadataFile:
                 if column in required_fields:
                     if not self.o_sheet.cell(row=row, column=column).value:
                         raise ParsingError(f'Empty required cell: column: {get_column_letter(column)} row: {row} at '
-                                           f'{file.name}')
+                                           f'{self.file.name}')
 
         # Check for collection
         if self.o_sheet.cell(row=1, column=self.COLUMN.COLLECTION).value:
@@ -66,7 +72,7 @@ class MetadataFile:
             for row in range(1, self.o_sheet.max_row + 1):
                 other_collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
                 if not other_collection == collection:
-                    raise ParsingError(f'Multiple collection or spelling mistake in row {row} at {file.name}.')
+                    raise ParsingError(f'Multiple collection or spelling mistake in row {row} at {self.file.name}.')
         # Check permissions of collection
             permissions = []
             for row in range(1, self.o_sheet.max_row + 1):
@@ -75,12 +81,12 @@ class MetadataFile:
             first_permission = permissions[0]
             for permission in permissions:
                 if permission not in ('NDS', 'BRB', 'THR', 'ALLE'):
-                    raise ParsingError(f'Spelling mistake or unknown permission: {permission} at {file.name}')
+                    raise ParsingError(f'Spelling mistake or unknown permission: {permission} at {self.file.name}')
                 elif permission != first_permission:
-                    raise ParsingError(f'Permissions in the collection: "{collection}" of "{file.name}" '
+                    raise ParsingError(f'Permissions in the collection: "{collection}" of "{self.file.name}" '
                                        f'are not matching! ({first_permission} != {permission})')
 
-    def parse(self, file: Union[str, IO]):
+    def parse(self):
         for row in range(1, self.o_sheet.max_row + 1):
             order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
             prefix = self.fill_zeros(str(order)) + ' ' if order else ""
