@@ -563,7 +563,10 @@ class EduSharing:
         )
         isAdmin = json.loads(auth.text)["isAdmin"]
         if isAdmin:
-            EduSharing.cookie = auth.headers["SET-COOKIE"].split(";")[0]
+            cookies = []
+            for cookie in auth.headers["SET-COOKIE"].split(","):
+                cookies.append(cookie.split(";")[0])
+            EduSharing.cookie = ";".join(cookies)
         return auth
 
     def initApiClient(self):
