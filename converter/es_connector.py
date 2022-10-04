@@ -402,8 +402,10 @@ class EduSharing:
         # educationalContext = Field(output_processor=JoinMultivalues())
         # learningResourceType = Field(output_processor=JoinMultivalues())
         # sourceContentType = Field(output_processor=JoinMultivalues())
-        spaces["cm:edu_metadataset"] = "mds_oeh"
-        spaces["cm:edu_forcemetadataset"] = "true"
+        mdsId = env.get("EDU_SHARING_METADATASET", allow_null=True, default="mds_oeh")
+        if mdsId != "default":
+            spaces["cm:edu_metadataset"] = mdsId
+            spaces["cm:edu_forcemetadataset"] = "true"
         for key in spaces:
             if type(spaces[key]) is tuple:
                 spaces[key] = list([x for y in spaces[key] for x in y])
