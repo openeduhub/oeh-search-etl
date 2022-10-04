@@ -120,6 +120,12 @@ ITEM_PIPELINES = {
     ): 1000,
 }
 
+# add custom pipelines from the .env file, if any
+ADDITIONAL_PIPELINES = env.get("CUSTOM_PIPELINES", True)
+if ADDITIONAL_PIPELINES:
+    for pipe in map(lambda p: p.split(":"), ADDITIONAL_PIPELINES.split(",")):
+        ITEM_PIPELINES[pipe[0]] = int(pipe[1])
+
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
 AUTOTHROTTLE_ENABLED = False
