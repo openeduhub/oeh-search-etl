@@ -662,3 +662,11 @@ class DummyPipeline(BasicPipeline):
         log.info("DRY RUN scraped {}".format(item["response"]["url"]))
         # self.exporter.export_item(item)
         return item
+
+
+# example pipeline which simply outputs the item in the log
+class ExampleLoggingPipeline(BasicPipeline):
+    def process_item(self, item, spider):
+        log.info(item)
+        # self.exporter.export_item(item)
+        return item
