@@ -30,6 +30,7 @@ from scrapy.utils.project import get_project_settings
 from converter import env
 from converter.constants import *
 from converter.es_connector import EduSharing
+from converter.items import BaseItem
 from converter.web_tools import WebTools, WebEngine
 from valuespace_converter.app.valuespaces import Valuespaces
 
@@ -669,4 +670,193 @@ class ExampleLoggingPipeline(BasicPipeline):
     def process_item(self, item, spider):
         log.info(item)
         # self.exporter.export_item(item)
+        return item
+
+
+class LisumPipeline(BasicPipeline):
+    DISCIPLINE_TO_LISUM = {
+        "060": "C-KU",  # Bildende Kunst
+        "080": "C-BIO",  # Biologie
+        "100": "C-CH",  # Chemie
+        "120": "C-DE",  # Deutsch
+        "160": "C-Eth",  # Ethik
+        "200": "C-FS",  # Fremdsprachen
+        "220": "C-GEO",  # Geographie,
+        "240": "C-GE",  # Geschichte
+        "380": "C-MA",  # Mathematik
+        "420": "C-MU",  # Musik
+        "450": "C-Phil",  # Philosophie
+        "460": "C-Ph",  # Physik
+        "480": "C-PB",  # Politische Bildung
+        "510": "C-Psy",  # Psychologie
+        "520": "C-LER",  # Religion -> Lebensgestaltung-Ethik-Religionskunde
+        "700": "C-SOWI",  # Wirtschaftskunde -> "Sozialwissenschaft/Wirtschaftswissenschaft"
+        "12002": "C-Thea",  # Darstellendes Spiel, Schultheater -> Theater
+        "20001": "C-EN",  # Englisch
+        "20002": "C-FR",  # Französisch
+        "20003": "C-AGR",  # Griechisch -> Altgriechisch
+        "20004": "C-IT",  # Italienisch
+        "20005": "C-La",  # Latein
+        "20006": "C-RU",  # Russisch
+        "28010": "C-SU",  # Sachkunde -> Sachunterricht
+        "32002": "C-Inf",  # Informatik
+        "46014": "C-AS",  # Astronomie
+        "48005": "C-GEWIWI",  # Gesellschaftspolitische Gegenwartsfragen -> Gesellschaftswissenschaften
+    }
+
+    EDUCATIONALCONTEXT_TO_LISUM = {
+        "elementarbereich": "pre-school",
+        "grundschule": "primary school",
+        "sekundarstufe_1": "lower secondary school",
+        "sekundarstufe_2": "upper secondary school",
+        "berufliche_bildung": "vocational education",
+        # "fortbildung": "",  # does not exist in Lisum valuespace
+        "erwachsenenbildung": "continuing education",
+        "foerderschule": "special education",
+        # "fernunterricht": ""  # does not exist in Lisum valuespace
+    }
+
+    LRT_OEH_TO_LISUM = {
+        # ToDo: LRT-values that aren't listed here, can be mapped 1:1
+        "audiovisual_medium": ["audio", "video"],
+        # ToDo: BROSCHUERE?
+        "data": "",  # ToDo
+        "exploration": "",  # ToDo
+        "case_study": "",  # ToDo
+        "glossary": "reference_book",
+        "guide": "reference_book",
+        # ToDo: INTERAKTION
+        "model": "",  # ToDo
+        "open_activity": "",  # ToDo
+        "broadcast": "audio",
+        "enquiry_oriented_activity": "",  # ToDo
+        "other": "",  # ToDo
+        "text": "teaching_aids",  # teaching_aids = "Arbeitsmaterial" in Lisum mds
+        "teaching_module": "",  # ToDo
+        "demonstration": "image",  # "Veranschaulichung"
+        "web_page": "portal",
+    }
+
+    def process_item(self, item: BaseItem, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        """
+        Takes a BaseItem and transforms its metadata-values to Lisum-metadataset-compatible values.
+        Touches the following fields within the BaseItem:
+        - valuespaces.discipline
+        - valuespaces.educationalContext
+        - valuespaces.intendedEndUserRole
+        - valuespaces.learningResourceType
+        """
+        base_item_adapter = ItemAdapter(item)
+        # ToDo:
+        #   - map ValueSpaceItem.discipline from SKOS to ccm:taxonid keys
+        #       - e.g. "Astronomie" (eafCode: 46014) to "C-AS"
+        #       - after the "valuespaces"-mapping,
+        #       a discipline looks like 'http://w3id.org/openeduhub/vocabs/discipline/380' -> eafCode at the end
+        #       from 380 ("Mathematik") map to "C-MA"
+        #   - make sure that discipline.ttl has all possible values, otherwise information loss occurs
+        #   - keep raw list for debugging purposes?
+        if base_item_adapter.get("valuespaces"):
+            valuespaces = base_item_adapter.get("valuespaces")
+            if valuespaces.get("discipline"):
+                discipline_list = valuespaces.get("discipline")
+                # a singular entry will look like 'http://w3id.org/openeduhub/vocabs/discipline/380'
+                # the last part of the URL string equals to a corresponding eafCode
+                # (see: http://agmud.de/wp-content/uploads/2021/09/eafsys.txt)
+                discipline_lisum_keys = set()
+                if discipline_list:
+                    for discipline_w3id in discipline_list:
+                        discipline_eaf_code: str = discipline_w3id.split(sep='/')[-1]
+                        match discipline_eaf_code in self.DISCIPLINE_TO_LISUM:
+                            case True:
+                                discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM.get(discipline_eaf_code))
+                            case False:
+                                # ToDo: missing Sodix values for mapping to
+                                #  - Chinesisch (C-ZH)
+                                #  - Deutsche Gebärdensprache (C-DGS)
+                                #  - Hebräisch (C-HE)
+                                #  - Japanisch (C-JP)
+                                #  - Naturwissenschaften (5/6) (= C-NW56)
+                                #  - Naturwissenschaften (C-NW)
+                                #  - Neu Griechisch (C-EL)
+                                #  - Polnisch (C-PL)
+                                #  - Portugiesisch (C-PT)
+                                #  - Sorbisch/Wendisch (C-SW)
+                                #  - Türkisch (C-TR)
+                                #  - Wirtschaft-Arbeit-Technik (C-WAT)
+                                pass
+                            case _:
+                                # ToDo: fallback -> if eafCode can't be mapped, save to keywords?
+                                logging.warning(f"Lisum Pipeline failed to map from eafCode {discipline_eaf_code} "
+                                                f"to its corresponding ccm:taxonid short-handle")
+                discipline_lisum_keys = list(discipline_lisum_keys)
+                discipline_lisum_keys.sort()
+                logging.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
+                              f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
+                valuespaces["discipline"] = discipline_lisum_keys
+
+            if valuespaces.get("educationalContext"):
+                # mapping educationalContext values from OEH SKOS to lisum keys
+                educational_context_list = valuespaces.get("educationalContext")
+                educational_context_lisum_keys = set()
+                if educational_context_list:
+                    # making sure that we filter out empty lists []
+                    # up until this point, every educationalContext entry will be a w3id link, e.g.
+                    # 'http://w3id.org/openeduhub/vocabs/educationalContext/grundschule'
+                    for educational_context_w3id in educational_context_list:
+                        educational_context_w3id_key = educational_context_w3id.split(sep='/')[-1]
+                        match educational_context_w3id_key in self.EDUCATIONALCONTEXT_TO_LISUM:
+                            case True:
+                                educational_context_w3id_key = self.EDUCATIONALCONTEXT_TO_LISUM.get(
+                                    educational_context_w3id_key)
+                                educational_context_lisum_keys.add(educational_context_w3id_key)
+                            case _:
+                                logging.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key}"
+                                              f"not found in mapping table.")
+                educational_context_list = list(educational_context_lisum_keys)
+                educational_context_list.sort()
+                valuespaces["educationalContext"] = educational_context_list
+
+            if valuespaces.get("intendedEndUserRole"):
+                intended_end_user_role_list = valuespaces.get("intendedEndUserRole")
+                intended_end_user_roles = set()
+                if intended_end_user_role_list:
+                    for item_w3id in intended_end_user_role_list:
+                        item_w3id: str = item_w3id.split(sep='/')[-1]
+                        if item_w3id:
+                            intended_end_user_roles.add(item_w3id)
+                    intended_end_user_role_list = list(intended_end_user_roles)
+                    intended_end_user_role_list.sort()
+                valuespaces["intendedEndUserRole"] = intended_end_user_role_list
+
+            if valuespaces.get("learningResourceType"):
+                lrt_list: list = valuespaces.get("learningResourceType")
+                lrt_temporary_list = list()
+                if lrt_list:
+                    for lrt_item in lrt_list:
+                        if type(lrt_item) is list:
+                            # some values like "audiovisual" were already mapped to ["audio", "visual"] multivalues
+                            # during transformation from Sodix to OEH
+                            lrt_multivalue = list()
+                            for lrt_string in lrt_item:
+                                lrt_string = lrt_string.split(sep='/')[-1]
+                                if lrt_string in self.LRT_OEH_TO_LISUM:
+                                    lrt_string = self.LRT_OEH_TO_LISUM.get(lrt_string)
+                                if lrt_string:
+                                    # making sure to exclude ''-strings
+                                    lrt_multivalue.append(lrt_string)
+                            lrt_temporary_list.append(lrt_multivalue)
+                        if type(lrt_item) is str:
+                            lrt_w3id: str = lrt_item.split(sep='/')[-1]
+                            if lrt_w3id in self.LRT_OEH_TO_LISUM:
+                                lrt_w3id = self.LRT_OEH_TO_LISUM.get(lrt_w3id)
+                            if lrt_w3id:
+                                # ToDo: workaround
+                                # making sure to exclude '' strings from populating the list
+                                lrt_temporary_list.append(lrt_w3id)
+                    lrt_list = lrt_temporary_list
+                    lrt_list.sort()
+                    valuespaces["learningResourceType"] = lrt_list
+                pass
+            # ToDo: learningResourceType
+
         return item
