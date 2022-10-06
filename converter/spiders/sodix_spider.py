@@ -22,7 +22,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.1.9"  # last update: 2022-08-25
+    version = "0.2.0"  # last update: 2022-10-06
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -81,6 +81,18 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         "Fort- und Weiterbildung": "Fortbildung"
     }
 
+    MAPPING_SCHOOL_TYPES_TO_EDUCONTEXT = {
+        "Berufsschule": "Berufliche Bildung",
+        "Fachoberschule": "Sekundarstufe II",
+        # "Förderschule": "Förderschule",
+        "Gesamtschule": "Sekundarstufe I",
+        "Grundschule": "Primarstufe",
+        "Gymnasium": "Sekundarstufe II",
+        "Kindergarten": "Elementarbereich",
+        "Mittel- / Hauptschule": "Sekundarstufe I",
+        "Realschule": "Sekundarstufe I"
+    }
+
     MAPPING_INTENDED_END_USER_ROLE = {
         "pupils": "learner",
     }
@@ -99,8 +111,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         'freie Lizenz': Constants.LICENSE_CUSTOM,
         'keine Angaben (gesetzliche Regelung)': Constants.LICENSE_CUSTOM,
     }
-
-    # DEBUG_SUBJECTS = set()
 
     def __init__(self, oer_filter=False, **kwargs):
         if oer_filter == "True" or oer_filter == "true":
@@ -134,12 +144,19 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 "password": env.get("SODIX_SPIDER_PASSWORD"),
             }
         ).json()['access_token']
+        if self.OER_FILTER is True:
+            recordstatus_parameter = ", recordStatus: ACTIVATED"
+            # by using the recordStatus parameter during the GraphQL query, only a subset of available items is returned
+            # by the Sodix API: OER-only items carry the recordStatus: ACTIVATED
+        else:
+            recordstatus_parameter = ""
+            # if OER-Filter is off (default), the GraphQL query will return all items (including non-OER materials)
         return scrapy.Request(
             url=self.apiUrl,
             callback=self.parse_request,
             body=json.dumps({
                 "query": f"""{{
-                    findAllMetadata(page: {page}, pageSize: {self.page_size}) {{
+                    findAllMetadata(page: {page}, pageSize: {self.page_size}{recordstatus_parameter}) {{
                         id
                         identifier
                         title
@@ -263,9 +280,17 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     # thumbnail is always the same, do not use the one from rss
     def getBase(self, response) -> BaseItemLoader:
         base = LomBase.getBase(self, response)
-        base.replace_value(
-            "thumbnail", self.get("media.thumbPreview", json=response.meta["item"])
-        )
+        # thumbnail-priority from different fields:
+        # 1) media.thumbDetails (480x360) 2) media.thumbPreview (256x256) 3) source.imageUrl (480x360)
+        media_thumb_details = self.get("media.thumbDetails", json=response.meta["item"])
+        media_thumb_preview = self.get("media.thumbPreview", json=response.meta["item"])
+        source_image_url = self.get("source.imageUrl", json=response.meta["item"])
+        if media_thumb_details:
+            base.replace_value("thumbnail", media_thumb_details)
+        elif media_thumb_preview:
+            base.replace_value("thumbnail", media_thumb_preview)
+        elif source_image_url:
+            base.replace_value("thumbnail", source_image_url)
         for publisher in self.get("publishers", json=response.meta["item"]):
             base.add_value(
                 "publisher", publisher['title']
@@ -440,8 +465,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 # the "subject"-key might exist in the API, but still be of 'None'-value
                 for subject in subjects:
                     subject_name = subject['name']
-                    # self.DEBUG_SUBJECTS.add(subject_name)
-                    # print(f"Amount of Subjects: {len(self.DEBUG_SUBJECTS)} // SUBJECT SET: \n {self.DEBUG_SUBJECTS}")
                     subject_set.add(subject_name)
                 return list(subject_set)
             else:
@@ -453,13 +476,27 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         if subjects:
             for subject in subjects:
                 valuespaces.add_value('discipline', subject)
-
         educational_context_list = self.get('educationalLevels', json=response.meta['item'])
+        # ToDo: use 'schoolTypes'-field as a fallback for educationalLevels -> educationalContext
+        school_types_list = self.get('schoolTypes', json=response.meta['item'])
+        educational_context_set = set()
         if educational_context_list:
+            # the Sodix field 'educationalLevels' is directly mappable to our 'educationalContext'
             for potential_edu_context in educational_context_list:
                 if potential_edu_context in self.MAPPING_EDUCONTEXT:
                     potential_edu_context = self.MAPPING_EDUCONTEXT.get(potential_edu_context)
-                valuespaces.add_value('educationalContext', potential_edu_context)
+                educational_context_set.add(potential_edu_context)
+        elif school_types_list:
+            # if 'educationalLevels' doesn't exist, the fallback is to map the 'schoolTypes'-field
+            for school_type in school_types_list:
+                if school_type in self.MAPPING_SCHOOL_TYPES_TO_EDUCONTEXT:
+                    school_type = self.MAPPING_SCHOOL_TYPES_TO_EDUCONTEXT.get(school_type)
+                educational_context_set.add(school_type)
+        educational_context_list = list(educational_context_set)
+        educational_context_list.sort()
+        if educational_context_list:
+            valuespaces.add_value("educationalContext", educational_context_list)
+
         target_audience_list = self.get('targetAudience', json=response.meta['item'])
         if target_audience_list:
             for target_audience_item in target_audience_list:
