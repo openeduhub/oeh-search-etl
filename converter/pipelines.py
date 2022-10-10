@@ -723,24 +723,12 @@ class LisumPipeline(BasicPipeline):
     }
 
     LRT_OEH_TO_LISUM = {
-        # ToDo: LRT-values that aren't listed here, can be mapped 1:1
+        # LRT-values that aren't listed here, can be mapped 1:1
         "audiovisual_medium": ["audio", "video"],
-        # ToDo: BROSCHUERE?
-        "data": "",  # ToDo
-        "exploration": "",  # ToDo
-        "case_study": "",  # ToDo
-        "glossary": "reference_book",
-        "guide": "reference_book",
         # ToDo: INTERAKTION
-        "model": "",  # ToDo
-        "open_activity": "",  # ToDo
+        "open_activity": "",  # exists in 2 out of 60.000 items
         "broadcast": "audio",
-        "enquiry_oriented_activity": "",  # ToDo
-        "other": "",  # ToDo
-        "text": "teaching_aids",  # teaching_aids = "Arbeitsmaterial" in Lisum mds
-        "teaching_module": "",  # ToDo
         "demonstration": "image",  # "Veranschaulichung"
-        "web_page": "portal",
     }
 
     def process_item(self, item: BaseItem, spider: scrapy.Spider) -> Optional[scrapy.Item]:
