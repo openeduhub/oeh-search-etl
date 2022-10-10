@@ -675,6 +675,7 @@ class ExampleLoggingPipeline(BasicPipeline):
 
 class LisumPipeline(BasicPipeline):
     DISCIPLINE_TO_LISUM = {
+        "020": "C-WAT",  # Arbeitslehre -> Wirtschaft, Arbeit, Technik
         "060": "C-KU",  # Bildende Kunst
         "080": "C-BIO",  # Biologie
         "100": "C-CH",  # Chemie
@@ -698,10 +699,15 @@ class LisumPipeline(BasicPipeline):
         "20004": "C-IT",  # Italienisch
         "20005": "C-La",  # Latein
         "20006": "C-RU",  # Russisch
+        "20008": "C-TR",  # Türkisch
+        "20011": "C-PL",  # Polnisch
+        "20014": "C-PT",  # Portugiesisch
+        "20041": "C-ZH",  # Chinesisch
         "28010": "C-SU",  # Sachkunde -> Sachunterricht
         "32002": "C-Inf",  # Informatik
         "46014": "C-AS",  # Astronomie
         "48005": "C-GEWIWI",  # Gesellschaftspolitische Gegenwartsfragen -> Gesellschaftswissenschaften
+        "2800506": "C-PL",  # Polnisch
     }
 
     EDUCATIONALCONTEXT_TO_LISUM = {
@@ -747,14 +753,8 @@ class LisumPipeline(BasicPipeline):
         - valuespaces.learningResourceType
         """
         base_item_adapter = ItemAdapter(item)
-        # ToDo:
-        #   - map ValueSpaceItem.discipline from SKOS to ccm:taxonid keys
-        #       - e.g. "Astronomie" (eafCode: 46014) to "C-AS"
-        #       - after the "valuespaces"-mapping,
-        #       a discipline looks like 'http://w3id.org/openeduhub/vocabs/discipline/380' -> eafCode at the end
-        #       from 380 ("Mathematik") map to "C-MA"
-        #   - make sure that discipline.ttl has all possible values, otherwise information loss occurs
-        #   - keep raw list for debugging purposes?
+        # ToDo: - make sure that discipline.ttl has all possible values, otherwise information loss occurs
+        #       - keep raw list for debugging purposes?
         if base_item_adapter.get("valuespaces"):
             valuespaces = base_item_adapter.get("valuespaces")
             if valuespaces.get("discipline"):
@@ -762,6 +762,7 @@ class LisumPipeline(BasicPipeline):
                 # a singular entry will look like 'http://w3id.org/openeduhub/vocabs/discipline/380'
                 # the last part of the URL string equals to a corresponding eafCode
                 # (see: http://agmud.de/wp-content/uploads/2021/09/eafsys.txt)
+                # this eafCode (key) gets mapped to Lisum specific B-B shorthands like "C-MA"
                 discipline_lisum_keys = set()
                 if discipline_list:
                     for discipline_w3id in discipline_list:
@@ -769,21 +770,14 @@ class LisumPipeline(BasicPipeline):
                         match discipline_eaf_code in self.DISCIPLINE_TO_LISUM:
                             case True:
                                 discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM.get(discipline_eaf_code))
-                            case False:
-                                # ToDo: missing Sodix values for mapping to
-                                #  - Chinesisch (C-ZH)
+                                # ToDo: there are no Sodix eafCode-values for these Lisum keys:
                                 #  - Deutsche Gebärdensprache (C-DGS)
                                 #  - Hebräisch (C-HE)
                                 #  - Japanisch (C-JP)
                                 #  - Naturwissenschaften (5/6) (= C-NW56)
                                 #  - Naturwissenschaften (C-NW)
                                 #  - Neu Griechisch (C-EL)
-                                #  - Polnisch (C-PL)
-                                #  - Portugiesisch (C-PT)
                                 #  - Sorbisch/Wendisch (C-SW)
-                                #  - Türkisch (C-TR)
-                                #  - Wirtschaft-Arbeit-Technik (C-WAT)
-                                pass
                             case _:
                                 # ToDo: fallback -> if eafCode can't be mapped, save to keywords?
                                 logging.warning(f"Lisum Pipeline failed to map from eafCode {discipline_eaf_code} "
@@ -856,7 +850,6 @@ class LisumPipeline(BasicPipeline):
                     lrt_list = lrt_temporary_list
                     lrt_list.sort()
                     valuespaces["learningResourceType"] = lrt_list
-                pass
-            # ToDo: learningResourceType
+        # ToDo: which fields am I missing? what's next?
 
         return item
