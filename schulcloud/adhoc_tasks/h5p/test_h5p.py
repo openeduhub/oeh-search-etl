@@ -434,7 +434,7 @@ class TestH5P(unittest.TestCase):
     def test_h5p_upload_download_object(self):
         self.downloader.download_object("test_upload_collection.zip", "h5p_temp")
         obj_list = os.listdir("h5p_temp")
-        self.assertEqual(["test_upload_collection.zip"], obj_list, "Failed to download object!")
+        self.assertEqual(["FWURAW", "test_upload_collection.zip"], obj_list, "Failed to download object!")
         path = os.path.join("h5p_temp", "test_upload_collection.zip")
         os.remove(path)
 
