@@ -324,8 +324,9 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 if "id" in publisher:
                     publisher_sodix_uuid: str = publisher.get("id")
                     if publisher_sodix_uuid:
+                        # this uuid is used by Sodix to differentiate publishers
                         lifecycle.add_value('uuid', publisher_sodix_uuid)
-                if "officialWebsite" in publishers:
+                if "officialWebsite" in publisher:
                     publisher_url: str = publisher.get("officialWebsite")
                     if publisher_url:
                         lifecycle.add_value('url', publisher_url)
@@ -590,6 +591,13 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
 
         lom = LomBaseItemloader()
         general = self.getLOMGeneral(response)
+
+        # "UNTERRICHTSBAUSTEIN"-Materials need to handled as aggregationLevel = 2 (according to LOM-DE)
+        potential_lrts = self.get('learnResourceType', json=response.meta['item'])
+        if potential_lrts:
+            if "UNTERRICHTSBAUSTEIN" in potential_lrts:
+                general.add_value('aggregationLevel', 2)
+
         technical = self.getLOMTechnical(response)
         if self.get("author", json=response.meta["item"]):
             lifecycle_author = self.get_lom_lifecycle_author(response)
