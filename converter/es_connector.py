@@ -293,6 +293,7 @@ class EduSharing:
             "cclom:location": item["lom"]["technical"]["location"]
             if "location" in item["lom"]["technical"] else None,
             "cclom:format": item["lom"]["technical"]["format"] if "format" in item["lom"]["technical"] else None,
+            "cclom:aggregationlevel": item["lom"]["general"]["aggregationLevel"] if "aggregationLevel" in item["lom"]["general"] else None,
             "cclom:title": item["lom"]["general"]["title"],
         }
         if "notes" in item:
