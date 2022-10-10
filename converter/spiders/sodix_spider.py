@@ -1,4 +1,5 @@
 import json
+from typing import Iterator
 
 import requests
 import scrapy
@@ -42,13 +43,14 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         "AUDIO": "audio",
         "AUDIOVISUELLES": "audiovisual medium",
         "BILD": "image",
+        "BROSCHUERE": "text",
         "DATEN": "data",
         "ENTDECKENDES": "exploration",
         "EXPERIMENT": "experiment",
         "FALLSTUDIE": "case_study",
         "GLOSSAR": "glossary",
         "HANDBUCH": "guide",
-        # "INTERAKTION": "",
+        # "INTERAKTION": "",  # ToDo: find a fitting value or leave empty?
         "KARTE": "map",
         "KURS": "course",
         "LERNKONTROLLE": "assessment",
@@ -275,7 +277,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 yield self.startRequest(response.meta["page"] + 1)
 
     def handleEntry(self, response):
-        return LomBase.parse(self, response)
+        return self.parse(response=response)
 
     # thumbnail is always the same, do not use the one from rss
     def getBase(self, response) -> BaseItemLoader:
@@ -298,10 +300,52 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         # ToDo: use 'source'-field from the GraphQL item for 'origin'?
         return base
 
-    def getLOMLifecycle(self, response=None) -> LomLifecycleItemloader:
+    def get_lom_lifecycle_author(self, response=None) -> LomLifecycleItemloader:
         lifecycle = LomBase.getLOMLifecycle(response)
-
+        # the Sodix 'author'-field returns a wild mix of agencies, persons, usernames and project-names
+        # which would inevitably lead to bad metadata in this field. It is therefore only used in license.author
+        author_website = self.get("authorWebsite", json=response.meta["item"])
+        if author_website:
+            lifecycle.add_value('role', 'author')
+            lifecycle.add_value('url', author_website)
         return lifecycle
+
+    def get_lom_lifecycle_publisher(self, response=None) -> Iterator[LomLifecycleItemloader]:
+        lifecycle = LomBase.getLOMLifecycle(response)
+        publishers: list[dict] = self.get("publishers", json=response.meta["item"])
+        # Sodix 'publishers'-field is a list of Publishers, therefore we need to iterate through them
+        if publishers:
+            for publisher in publishers:
+                lifecycle.add_value('role', 'publisher')
+                if "title" in publisher:
+                    publisher_name = publisher.get("title")
+                    if publisher_name:
+                        lifecycle.add_value('organization', publisher_name)
+                if "id" in publisher:
+                    publisher_sodix_uuid: str = publisher.get("id")
+                    if publisher_sodix_uuid:
+                        lifecycle.add_value('uuid', publisher_sodix_uuid)
+                if "officialWebsite" in publishers:
+                    publisher_url: str = publisher.get("officialWebsite")
+                    if publisher_url:
+                        lifecycle.add_value('url', publisher_url)
+            published_time = self.get("publishedTime", json=response.meta["item"])
+            creation_date = self.get("creationDate", json=response.meta["item"])
+            source: dict = self.get("source", json=response.meta["item"])
+            if published_time:
+                # the 'publishedTime'-field is 95% null or empty, which is why several fallbacks are needed
+                lifecycle.add_value('date', published_time)
+            elif creation_date:
+                lifecycle.add_value('date', creation_date)
+            elif source:
+                if "created" in source:
+                    # Sodix field 'source.created' is of type LocalDateTime and available most of the time. Its usage
+                    # and meaning is undocumented, though, which is why we use this field only as the last fallback
+                    # in case the other fields aren't available
+                    created_date = source.get("created")
+                    if created_date:
+                        lifecycle.add_value('date', created_date)
+            yield lifecycle
 
     def getLOMGeneral(self, response) -> LomGeneralItemloader:
         general = LomBase.getLOMGeneral(self, response)
@@ -323,10 +367,17 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             if subjects:
                 keywords_cleaned_up.extend(subjects)
                 general.replace_value('keyword', keywords_cleaned_up)
-        general.add_value(
-            "description",
-            self.get("description", json=response.meta["item"])
-        )
+        if "language" in response.meta["item"]:
+            languages: list = self.get("language", json=response.meta["item"])
+            if languages and isinstance(languages, list):
+                # Sodix returns empty lists and 'null' occasionally
+                for language in languages:
+                    general.add_value('language', language)
+        if "description" in response.meta["item"]:
+            description: str = self.get("description", json=response.meta["item"])
+            if description:
+                # Sodix sometimes returns the 'description'-field as null
+                general.add_value("description", description)
         return general
 
     def getLOMTechnical(self, response) -> LomTechnicalItemLoader:
@@ -365,6 +416,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                     Constants.LICENSE_CC_BY_SA_30,
                     Constants.LICENSE_CC_BY_SA_40,
                     Constants.LICENSE_CC_ZERO_10,
+                    # ToDo: confirm if 'public domain' should be included in the OER-filter or not
                     Constants.LICENSE_PDM]
 
     def getLicense(self, response) -> LicenseItemLoader:
@@ -374,8 +426,13 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         if author:
             license_loader.add_value('author', author)
         license_description: str = self.get("license.text", json=response.meta["item"])
+        additional_license_information: str = self.get("additionalLicenseInformation")
+        # the Sodix field 'additionalLicenseInformation' is empty 95% of the time, but sometimes it might serve as a
+        # fallback for the license description
         if license_description:
             license_loader.add_value('description', license_description)
+        elif additional_license_information:
+            license_loader.add_value('description', additional_license_information)
         license_name: str = self.get("license.name", json=response.meta["item"])
         if license_name:
             if license_name in self.MAPPING_LICENSE_NAMES:
@@ -473,11 +530,12 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     def getValuespaces(self, response) -> ValuespaceItemLoader:
         valuespaces = LomBase.getValuespaces(self, response)
         subjects = self.get_subjects(response)
+        # ToDo: if subjects can't be mapped to SKOS, save them to the keywords field
+        #   - this needs to happen during ValuespacePipeline mapping
         if subjects:
             for subject in subjects:
                 valuespaces.add_value('discipline', subject)
         educational_context_list = self.get('educationalLevels', json=response.meta['item'])
-        # ToDo: use 'schoolTypes'-field as a fallback for educationalLevels -> educationalContext
         school_types_list = self.get('schoolTypes', json=response.meta['item'])
         educational_context_set = set()
         if educational_context_list:
@@ -487,7 +545,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                     potential_edu_context = self.MAPPING_EDUCONTEXT.get(potential_edu_context)
                 educational_context_set.add(potential_edu_context)
         elif school_types_list:
-            # if 'educationalLevels' doesn't exist, the fallback is to map the 'schoolTypes'-field
+            # if 'educationalLevels' isn't available, fallback to: map 'schoolTypes'-field to 'educationalContext'
             for school_type in school_types_list:
                 if school_type in self.MAPPING_SCHOOL_TYPES_TO_EDUCONTEXT:
                     school_type = self.MAPPING_SCHOOL_TYPES_TO_EDUCONTEXT.get(school_type)
@@ -515,4 +573,44 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                     valuespaces.add_value('learningResourceType', potential_lrt)
                 else:
                     pass
+        # ToDo: Lisum special use-case: use 'ccm:taxonentry' to store eafCodes
         return valuespaces
+
+    def parse(self, response, **kwargs):
+        if LomBase.shouldImport(response) is False:
+            self.logger.debug(
+                f"Skipping entry {str(self.getId(response))} because shouldImport() returned false"
+            )
+            return None
+        if self.getId(response) is not None and self.getHash(response) is not None:
+            if not self.hasChanged(response):
+                return None
+
+        base = self.getBase(response)
+
+        lom = LomBaseItemloader()
+        general = self.getLOMGeneral(response)
+        technical = self.getLOMTechnical(response)
+        if self.get("author", json=response.meta["item"]):
+            lifecycle_author = self.get_lom_lifecycle_author(response)
+            lom.add_value('lifecycle', lifecycle_author.load_item())
+        if self.get("publishers", json=response.meta["item"]):
+            # theoretically, there can be multiple publisher fields per item, but in reality this doesn't occur (yet).
+            lifecycle_iterator: Iterator[LomLifecycleItemloader] = self.get_lom_lifecycle_publisher(response)
+            for lifecycle_publisher in lifecycle_iterator:
+                lom.add_value('lifecycle', lifecycle_publisher.load_item())
+        educational = self.getLOMEducational(response)
+        classification = self.getLOMClassification(response)
+
+        lom.add_value('general', general.load_item())
+        lom.add_value('technical', technical.load_item())
+        lom.add_value('educational', educational.load_item())
+        lom.add_value('classification', classification.load_item())
+        base.add_value("lom", lom.load_item())
+
+        base.add_value("valuespaces", self.getValuespaces(response).load_item())
+        base.add_value("license", self.getLicense(response).load_item())
+        base.add_value("permissions", self.getPermissions(response).load_item())
+        base.add_value("response", self.mapResponse(response).load_item())
+
+        return base.load_item()
