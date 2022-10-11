@@ -263,7 +263,7 @@ class Uploader:
                 metadata_file = h5p_extract_metadata.MetadataFile(excel_file)
                 break
         else:
-            raise RuntimeError('Could not find excel file with metadata')
+            raise MetadataNotFoundError(zip)
         return metadata_file
 
     def upload_from_folder(self):
@@ -328,6 +328,8 @@ class Uploader:
                                 s3_last_modified = timestamps[0]
                                 if timestamp_edusharing < s3_last_modified:
                                     self.upload_h5p_collection(es_folder_name, metadata_file, zipfile.ZipFile(path))
+                except MetadataNotFoundError as exc:
+                    print(f'No metadata file found in {exc.zip.filename}. Skipping.', file=sys.stderr)
                 finally:
                     try:
                         metadata_file.close()
@@ -394,6 +396,12 @@ class S3Downloader:
             Filename=file_path,
             Callback=callback
         )
+
+
+class MetadataNotFoundError(Exception):
+    def __init__(self, zip: zipfile.ZipFile):
+        self.zip = zip
+        super(MetadataNotFoundError, self).__init__('Could not find excel file with metadata')
 
 
 if __name__ == '__main__':
