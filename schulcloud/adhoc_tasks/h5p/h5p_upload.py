@@ -132,9 +132,8 @@ class Uploader:
         if len(node_list) > 0:
             node_temp = node_list[0]
             if s3_last_modified is not None:
-                timestamps = self.get_timestamp_edu_and_s3(s3_last_modified, node_temp)
-                s3_last_modified = timestamps[0]
-                timestamp_edusharing = timestamps[1]
+                s3_last_modified = s3_last_modified.replace(tzinfo=None)
+                timestamp_edusharing = self.get_node_timestamp(node_temp)
                 if timestamp_edusharing > s3_last_modified:
                     return
 
@@ -321,13 +320,10 @@ class Uploader:
                         if len(collection_node_list) == 0:
                             self.upload_h5p_collection(es_folder_name, metadata_file, zipfile.ZipFile(path))
                         else:
-                            collection_node = collection_node_list[0]
-                            if s3_last_modified is not None:
-                                timestamps = self.get_timestamp_edu_and_s3(s3_last_modified, collection_node)
-                                timestamp_edusharing = timestamps[1]
-                                s3_last_modified = timestamps[0]
-                                if timestamp_edusharing < s3_last_modified:
-                                    self.upload_h5p_collection(es_folder_name, metadata_file, zipfile.ZipFile(path))
+                            edu_timestamp = self.get_node_timestamp(collection_node_list[0])
+                            s3_last_modified = s3_last_modified.replace(tzinfo=None)
+                            if edu_timestamp < s3_last_modified:
+                                self.upload_h5p_collection(es_folder_name, metadata_file, zipfile.ZipFile(path))
                 except MetadataNotFoundError as exc:
                     print(f'No metadata file found in {exc.zip.filename}. Skipping.', file=sys.stderr)
                 finally:
@@ -343,16 +339,10 @@ class Uploader:
             else:
                 print(f'Skipping {obj["Key"]}, not a zip.', file=sys.stderr)
 
-    def get_timestamp_edu_and_s3(self, s3_last_modified, node):
-        # timestamp of the node
-        res = self.api.get_metadata_of_node(node.id)
-        res_createdAt = str(res["node"]["createdAt"])
-        res_clean = res_createdAt.replace("Z", "")
-        timestamp_edusharing = datetime.fromisoformat(res_clean)
-        s3_last_modified = s3_last_modified.replace(tzinfo=None)
-        s3_last_modified = s3_last_modified
-        timestamps = [s3_last_modified, timestamp_edusharing]
-        return timestamps
+    def get_node_timestamp(self, node):
+        meta = self.api.get_metadata_of_node(node.id)
+        timestamp_str = str(meta["node"]["createdAt"]).replace("Z", "")
+        return datetime.fromisoformat(timestamp_str)
 
 
 class S3Downloader:
