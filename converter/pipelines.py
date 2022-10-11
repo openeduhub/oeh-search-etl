@@ -725,7 +725,6 @@ class LisumPipeline(BasicPipeline):
     LRT_OEH_TO_LISUM = {
         # LRT-values that aren't listed here, can be mapped 1:1
         "audiovisual_medium": ["audio", "video"],
-        # ToDo: INTERAKTION
         "open_activity": "",  # exists in 2 out of 60.000 items
         "broadcast": "audio",
         "demonstration": "image",  # "Veranschaulichung"
@@ -741,14 +740,23 @@ class LisumPipeline(BasicPipeline):
         - valuespaces.learningResourceType
         """
         base_item_adapter = ItemAdapter(item)
-        # ToDo: - make sure that discipline.ttl has all possible values, otherwise information loss occurs
-        #       - keep raw list for debugging purposes?
+        discipline_lisum_keys = set()
+        sodix_lisum_custom_lrts = set()
         if base_item_adapter.get("custom"):
             custom_field = base_item_adapter.get("custom")
-            # ToDo: handling or extending this field might or might not be necessary in the future
             if "ccm:taxonentry" in custom_field:
-                pass
-            pass
+                taxon_entries: list = custom_field.get("ccm:taxonentry")
+                # first round of mapping from (all) Sodix eafCodes to 'ccm:taxonid'
+                if taxon_entries:
+                    for taxon_entry in taxon_entries:
+                        if taxon_entry in self.DISCIPLINE_TO_LISUM:
+                            discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM.get(taxon_entry))
+            if "sodix_lisum_lrt" in custom_field:
+                # this is necessary for special edge-case values like "INTERAKTION" which have no equivalent in OEH LRT
+                sodix_lisum_lrt: list = custom_field.get("sodix_lisum_lrt")
+                for custom_lrt in sodix_lisum_lrt:
+                    sodix_lisum_custom_lrts.add(custom_lrt)
+                del item["custom"]["sodix_lisum_lrt"]
         if base_item_adapter.get("valuespaces"):
             valuespaces = base_item_adapter.get("valuespaces")
             if valuespaces.get("discipline"):
@@ -757,7 +765,6 @@ class LisumPipeline(BasicPipeline):
                 # the last part of the URL string equals to a corresponding eafCode
                 # (see: http://agmud.de/wp-content/uploads/2021/09/eafsys.txt)
                 # this eafCode (key) gets mapped to Lisum specific B-B shorthands like "C-MA"
-                discipline_lisum_keys = set()
                 if discipline_list:
                     for discipline_w3id in discipline_list:
                         discipline_eaf_code: str = discipline_w3id.split(sep='/')[-1]
@@ -773,14 +780,12 @@ class LisumPipeline(BasicPipeline):
                                 #  - Neu Griechisch (C-EL)
                                 #  - Sorbisch/Wendisch (C-SW)
                             case _:
-                                # ToDo: fallback -> if eafCode can't be mapped, save to keywords?
+                                # due to having the 'custom'-field as a (raw) list of all eafCodes, this mainly serves
+                                # the purpose of reminding us if a 'discipline'-value couldn't be mapped to Lisum
                                 logging.warning(f"Lisum Pipeline failed to map from eafCode {discipline_eaf_code} "
                                                 f"to its corresponding ccm:taxonid short-handle")
-                discipline_lisum_keys = list(discipline_lisum_keys)
-                discipline_lisum_keys.sort()
                 logging.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
                               f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
-                valuespaces["discipline"] = discipline_lisum_keys
 
             if valuespaces.get("educationalContext"):
                 # mapping educationalContext values from OEH SKOS to lisum keys
@@ -843,7 +848,14 @@ class LisumPipeline(BasicPipeline):
                                 lrt_temporary_list.append(lrt_w3id)
                     lrt_list = lrt_temporary_list
                     lrt_list.sort()
-                    valuespaces["learningResourceType"] = lrt_list
-        # ToDo: which fields am I missing? what's next?
+                if sodix_lisum_custom_lrts:
+                    # if there's any Sodix custom LRT values present (e.g. "INTERAKTION"), extend the lrt list
+                    lrt_temporary_list.extend(lrt_list)
+                # after everything is mapped and sorted, save the list:
+                valuespaces["learningResourceType"] = lrt_list
 
+            if discipline_lisum_keys:
+                discipline_lisum_keys = list(discipline_lisum_keys)
+                discipline_lisum_keys.sort()
+                valuespaces["discipline"] = discipline_lisum_keys
         return item

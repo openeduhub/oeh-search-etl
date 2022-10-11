@@ -35,7 +35,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.2.1"  # last update: 2022-10-11
+    version = "0.2.2"  # last update: 2022-10-11
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -653,6 +653,8 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         if potential_lrts:
             if "UNTERRICHTSBAUSTEIN" in potential_lrts:
                 general.add_value('aggregationLevel', 2)
+            if "INTERAKTION" in potential_lrts:
+                base.add_value('custom', {'sodix_lisum_lrt': ['interactive_material']})
 
         technical = self.getLOMTechnical(response)
         if self.get("author", json=response.meta["item"]):
