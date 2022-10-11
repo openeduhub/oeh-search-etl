@@ -743,6 +743,12 @@ class LisumPipeline(BasicPipeline):
         base_item_adapter = ItemAdapter(item)
         # ToDo: - make sure that discipline.ttl has all possible values, otherwise information loss occurs
         #       - keep raw list for debugging purposes?
+        if base_item_adapter.get("custom"):
+            custom_field = base_item_adapter.get("custom")
+            # ToDo: handling or extending this field might or might not be necessary in the future
+            if "ccm:taxonentry" in custom_field:
+                pass
+            pass
         if base_item_adapter.get("valuespaces"):
             valuespaces = base_item_adapter.get("valuespaces")
             if valuespaces.get("discipline"):
