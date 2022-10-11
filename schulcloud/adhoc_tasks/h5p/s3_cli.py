@@ -39,10 +39,13 @@ class CLI:
     def list_objects(self, bucket_name: str):
         self.ensure_bucket(bucket_name)
         response = self.client.list_objects_v2(Bucket=bucket_name)
-        print(f'Objects in bucket {bucket_name}:')
-        print(f'{"Name":>40}{"Size":>16}{"Last Modified":>32}')
-        for obj in response['Contents']:
-            print(f'{obj["Key"]:>40}{obj["Size"]:>16}{obj["LastModified"].ctime():>32}')
+        if 'Contents' not in response:
+            print('Bucket seems to be empty.')
+        else:
+            print(f'Objects in bucket {bucket_name}:')
+            print(f'{"Name":>40}{"Size":>16}{"Last Modified":>32}')
+            for obj in response['Contents']:
+                print(f'{obj["Key"]:>40}{obj["Size"]:>16}{obj["LastModified"].ctime():>32}')
 
     def upload_objects(self, bucket_name: str, objects: List[str]):
         self.ensure_bucket(bucket_name)
