@@ -8,7 +8,7 @@ import util
 
 
 HELP = '''
-s3_upload.py FOLDER_NAME FILES...
+s3_upload.py S3_FOLDER_NAME FILES...
 
 The folder name is used internally for s3 as well as edusharing.
 '''
