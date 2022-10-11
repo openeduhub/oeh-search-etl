@@ -11,6 +11,18 @@ from .base_classes import LomBase
 from .. import env
 
 
+def extract_eaf_codes_to_set(eaf_code_list: list[str]) -> set:
+    """
+    This helper method extracts (only valid) entries from a list of strings and returns a set.
+    """
+    temporary_set = set()
+    for eaf_code in eaf_code_list:
+        if eaf_code:
+            # while this might be (theoretically) unnecessary, we're make sure to never grab empty strings
+            temporary_set.add(eaf_code)
+    return temporary_set
+
+
 class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     """
     Crawler for learning materials from SODIX GraphQL API.
@@ -23,7 +35,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.2.0"  # last update: 2022-10-06
+    version = "0.2.1"  # last update: 2022-10-11
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -297,8 +309,55 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             base.add_value(
                 "publisher", publisher['title']
             )
-        # ToDo: use 'source'-field from the GraphQL item for 'origin'?
+        # ToDo: (optional feature) use 'source'-field from the GraphQL item for 'origin'?
+        self.extract_and_save_eaf_codes_to_custom_field(base, response)
         return base
+
+    def extract_and_save_eaf_codes_to_custom_field(self, base: BaseItemLoader, response):
+        """
+        Extracts eafCodes as a String from two Sodix API fields ('eafCode', 'competencies.id') and saves them to
+        'base.custom' as a dictionary.
+        (The dictionary-key 'ccm:taxonentry' is (later on) used by es_connector.py to transmit the collected values
+        into edu-sharing.)
+        """
+        eaf_code_subjects = set()
+        eaf_code_competencies = set()
+        eaf_code_subjects_list = self.get("eafCode", json=response.meta["item"])
+        # Extracting eafCodes from 'subject.id':
+        if eaf_code_subjects_list:
+            eaf_code_subjects: set = extract_eaf_codes_to_set(eaf_code_subjects_list)
+            # attention: eafCodes from Sodix field 'eafCode' and 'subject.id' carry the same information
+        eaf_code_competencies_list: list[dict] = self.get("competencies", json=response.meta["item"])
+        # eafCodes from Sodix field 'competencies.id' are not listed within the 'eafCode' field, therefore we're
+        # gathering them separately and merge them with the other collected eafCodes if necessary
+        if eaf_code_competencies_list:
+            for competency_item in eaf_code_competencies_list:
+                if "id" in competency_item:
+                    competency_eaf_code: str = competency_item.get("id")
+                    eaf_code_competencies.add(competency_eaf_code)
+        # after collecting eafCodes from both Sodix fields, we're merging the sets (if possible) and saving them:
+        if eaf_code_subjects and eaf_code_competencies:
+            # subjects and competencies can be independently available from each other. If both fields are available
+            # in Sodix, we merge the sets and save them to a list
+            eaf_code_subjects.update(eaf_code_competencies)
+            eaf_code_combined = list(eaf_code_subjects)
+            eaf_code_combined.sort()
+            base.add_value('custom', {
+                'ccm:taxonentry': eaf_code_combined
+            })
+        elif eaf_code_subjects or eaf_code_competencies:
+            if eaf_code_subjects:
+                eaf_code_subjects_list: list = list(eaf_code_subjects)
+                eaf_code_subjects_list.sort()
+                base.add_value('custom', {
+                    'ccm:taxonentry': eaf_code_subjects_list
+                })
+            if eaf_code_competencies:
+                eaf_code_competencies_list: list = list(eaf_code_competencies)
+                eaf_code_competencies_list.sort()
+                base.add_value('custom', {
+                    'ccm:taxonentry': eaf_code_competencies_list
+                })
 
     def get_lom_lifecycle_author(self, response=None) -> LomLifecycleItemloader:
         lifecycle = LomBase.getLOMLifecycle(response)
@@ -572,9 +631,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 if potential_lrt in self.MAPPING_LRT:
                     potential_lrt = self.MAPPING_LRT.get(potential_lrt)
                     valuespaces.add_value('learningResourceType', potential_lrt)
-                else:
-                    pass
-        # ToDo: Lisum special use-case: use 'ccm:taxonentry' to store eafCodes
         return valuespaces
 
     def parse(self, response, **kwargs):
