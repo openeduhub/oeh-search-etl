@@ -194,6 +194,8 @@ class BaseItem(Item):
     "editorial notes"
     binary = Field()
     "binary data which should be uploaded (raw data)"
+    custom = Field()
+    "custom data, it can be used by the target transformer to store data in the native format (i.e. ccm/cclom properties in edu-sharing)"
     screenshot_bytes = Field()
     # this is a (temporary) field that gets deleted after the thumbnail pipeline processed its byte-data
 

@@ -1,4 +1,5 @@
 import base64
+import collections
 import json
 import logging
 import time
@@ -398,6 +399,12 @@ class EduSharing:
                 spaces["ccm:educationaltypicalagerange_from"] = tar["fromRange"]
             if "toRange" in tar:
                 spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
+
+        # map custom fields directly into the edu-sharing properties
+        if "custom" in item:
+            for key in item["custom"]:
+                spaces[key] = item["custom"][key]
+
         # intendedEndUserRole = Field(output_processor=JoinMultivalues())
         # discipline = Field(output_processor=JoinMultivalues())
         # educationalContext = Field(output_processor=JoinMultivalues())
