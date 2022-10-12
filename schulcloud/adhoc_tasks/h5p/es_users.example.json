@@ -1,0 +1,6 @@
+{
+  "users": [
+    ["User1", "test123", "function", ["Test-public"]]
+  ],
+  "groups": ["public"]
+}
