@@ -22,7 +22,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
     friendlyName = "rpi-virtuell"
     start_urls = ['https://material.rpi-virtuell.de/wp-json/mymaterial/v1/material/']
 
-    version = "0.0.5"
+    version = "0.0.6"
 
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
@@ -72,6 +72,15 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         'Zur Wiederverwendung und Veränderung gekennzeichnet': Constants.LICENSE_CC_BY_SA_40,
         'Zur nicht kommerziellen Wiederverwendung gekennzeichnet': Constants.LICENSE_CC_BY_NC_ND_40,
         'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet': Constants.LICENSE_CC_BY_NC_SA_30,
+    }
+
+    mapping_copyright_url = {
+        '?fwp_lizenz=non-commercial-remixable': Constants.LICENSE_CC_BY_NC_SA_30,
+        '?fwp_lizenz=non-commercial-copyable': Constants.LICENSE_CC_BY_NC_ND_40,
+        '?fwp_lizenz=remixable': Constants.LICENSE_CC_BY_SA_40,
+        '?fwp_verfuegbarkeit=kostenpflichtig': Constants.LICENSE_COPYRIGHT_LAW
+        # unclear to map to anything
+        # '?fwp_lizenz=copyable': Constants.
     }
 
     mapping_media_types = {'Anforderungssituation': "",
@@ -265,6 +274,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # logging.debug("DEBUG inside get_metadata_from_review_url: response type = ", type(response),
         #               "url =", response.url)
 
+
         base = BaseItemLoader()
         base.add_value("sourceId", response.url)
         date_modified: str = response.xpath('//meta[@property="og:article:modified_time"]/@content').get()
@@ -372,36 +382,23 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         license_regex_free_after_signup = re.compile(r'kostenfrei nach Anmeldung')
         license_regex_with_costs = re.compile(r'kostenpflichtig')
 
-        license_description = response.xpath('//div[@class="material-detail-meta-access material-meta"]'
-                                             '/div[@class="material-meta-content-entry"]/text()').get()
+        for key in self.mapping_copyright_url:
+            if response.xpath('//a[contains(@href,"' + key + '")]').get():
+                lic.add_value("url", self.mapping_copyright_url[key])
+                break
 
-        if license_description is not None:
-            license_description = html.unescape(license_description.strip())
-            lic.add_value("description", license_description)
+        # by default, all materials should be CC_BY_SA - according to the rpi-virtuell ToS
+        # changed/decided on 2022-10-13: We can't assume that this license is correct and will not set any license
+        #lic.replace_value("url", Constants.LICENSE_CC_BY_SA_40)
 
-            cc_by_nc_nd = license_regex_nc_reuse.search(license_description)
-            cc_by_nc_sa = license_regex_nc_reuse_and_change.search(license_description)
-            # if the RegEx search finds something, it returns a match-object. otherwise, by default it returns None
-            if cc_by_nc_nd is not None:
-                lic.add_value("url", Constants.LICENSE_CC_BY_NC_ND_40)
-            if cc_by_nc_sa is not None:
-                lic.add_value("url", Constants.LICENSE_CC_BY_NC_SA_30)
-            # if a material is "frei zugänglich", set price to none, but don't override a previously set CC-license
-            if license_regex_free_access.search(license_description) is not None:
-                vs.add_value("price", "no")
-                # only if "frei zugänglich" is the only license-description this will trigger:
-                # see https://rpi-virtuell.de/nutzungsbedingungen/ (5.)
-                if license_regex_free_access.match(license_description) is not None:
-                    lic.add_value("url", Constants.LICENSE_CC_BY_SA_40)
-            if license_regex_with_costs.search(license_description):
-                lic.add_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
-                vs.add_value("price", "yes")
-            if license_regex_free_after_signup.search(license_description):
-                vs.add_value("price", "yes")
-                vs.add_value("conditionsOfAccess", "login")
+
+        if response.xpath('//a[contains(@href,"' + "?fwp_verfuegbarkeit=kostenpflichtig" + '")]').get():
+            vs.add_value("price", "yes")
         else:
-            # by default, all materials should be CC_BY_SA - according to the rpi-virtuell ToS
-            lic.replace_value("url", Constants.LICENSE_CC_BY_SA_40)
+            vs.add_value("price", "no")
+        if response.xpath('//a[contains(@href,"' + "?fwp_verfuegbarkeit=kostenfrei-nach-anmeldung" + '")]').get():
+            vs.add_value("conditionsOfAccess", "login")
+
         authors = list()
         # the author should end up in LOM lifecycle, but the returned metadata are too messily formatted to parse them
         # by easy patterns like (first name) + (last name)
@@ -419,6 +416,14 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         base.add_value("valuespaces", vs.load_item())
 
         base.add_value("license", lic.load_item())
+
+        contributor = LomLifecycleItemloader()
+        publisher = response.xpath('//div[@class="detail-herkunft-organisation"]//a[2]/text()').get()
+        if publisher:
+            contributor.add_value("role", "metadata_provider")
+            contributor.add_value("organization", publisher)
+            contributor.add_value("url", response.xpath('//div[@class="detail-herkunft-organisation"]/a/@href').get())
+            lom.add_value("lifecycle", contributor.load_item())
 
         permissions = super().getPermissions(response)
         base.add_value("permissions", permissions.load_item())
