@@ -37,6 +37,8 @@ class EduSharingConstants:
         "publisher": "ccm:lifecyclecontributer_publisher",
         "author": "ccm:lifecyclecontributer_author",
         "editor": "ccm:lifecyclecontributer_editor",
+        "metadata_creator": "ccm:metadatacontributer_creator",
+        "metadata_provider": "ccm:metadatacontributer_provider",
     }
 
 
