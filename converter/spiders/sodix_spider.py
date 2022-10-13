@@ -35,7 +35,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.2.2"  # last update: 2022-10-11
+    version = "0.2.3"  # last update: 2022-10-13
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -62,7 +62,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         "FALLSTUDIE": "case_study",
         "GLOSSAR": "glossary",
         "HANDBUCH": "guide",
-        # "INTERAKTION": "",  # ToDo: find a fitting value or leave empty?
         "KARTE": "map",
         "KURS": "course",
         "LERNKONTROLLE": "assessment",
@@ -271,11 +270,11 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 for item in metadata_items:
                     response_copy = response.copy()
                     response_copy.meta["item"] = item
-                    # ToDo: don't handle an entry if the license is not OER-compatible?
-                    # (DropItem exceptions can only be raised from the pipeline)
                     if self.OER_FILTER is True or env.get_bool('SODIX_SPIDER_OER_FILTER', default=False):
-                        # controlling the OER-Filter via spider arguments is useful for debugging, but we also need
-                        # an easy way to control the spider via the .env file (while running as a Docker container)
+                        # Since DropItem exceptions can only be raised from within the pipeline, the filtering of items
+                        # that aren't strictly OER-licenses needs to happen here.
+                        #  - controlling the OER-Filter via spider arguments is useful for debugging, but we also need
+                        #   an easy way to control the spider via the .env file (while running it as a Docker container)
                         if self.license_is_oer(response_copy) is False:
                             self.NOT_OER_THROWAWAY_COUNTER += 1
                             self.logger.info(f"Item dropped due to OER-incompatibility. \n"
@@ -291,7 +290,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     def handleEntry(self, response):
         return self.parse(response=response)
 
-    # thumbnail is always the same, do not use the one from rss
     def getBase(self, response) -> BaseItemLoader:
         base = LomBase.getBase(self, response)
         # thumbnail-priority from different fields:
@@ -438,6 +436,11 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             if description:
                 # Sodix sometimes returns the 'description'-field as null
                 general.add_value("description", description)
+        sodix_identifier = self.get("identifier", json=response.meta["item"])
+        # ToDo: save Sodix 'id'-field to an additional field?
+        #  - also: find out where 'base.identifier' ends up in (which metadata-field is it saved to? -> documentation)
+        if sodix_identifier:
+            general.add_value('identifier', sodix_identifier)
         return general
 
     def getLOMTechnical(self, response) -> LomTechnicalItemLoader:
@@ -476,7 +479,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                     Constants.LICENSE_CC_BY_SA_30,
                     Constants.LICENSE_CC_BY_SA_40,
                     Constants.LICENSE_CC_ZERO_10,
-                    # ToDo: confirm if 'public domain' should be included in the OER-filter or not
                     Constants.LICENSE_PDM]
 
     def getLicense(self, response) -> LicenseItemLoader:
@@ -590,8 +592,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     def getValuespaces(self, response) -> ValuespaceItemLoader:
         valuespaces = LomBase.getValuespaces(self, response)
         subjects = self.get_subjects(response)
-        # ToDo: if subjects can't be mapped to SKOS, save them to the keywords field
-        #   - this needs to happen during ValuespacePipeline mapping
         if subjects:
             for subject in subjects:
                 valuespaces.add_value('discipline', subject)
@@ -625,7 +625,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         if self.get('cost', json=response.meta['item']) == "FREE":
             valuespaces.add_value("price", "no")
         potential_lrts = self.get('learnResourceType', json=response.meta['item'])
-        # attention: sodix calls their LRT "learnResourceType"
+        # attention: sodix calls their LRT "learnResourceType", not "learningResourceType"
         if potential_lrts:
             for potential_lrt in potential_lrts:
                 if potential_lrt in self.MAPPING_LRT:
