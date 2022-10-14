@@ -35,7 +35,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.2.4"  # last update: 2022-10-14
+    version = "0.2.5"  # last update: 2022-10-20
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -307,6 +307,9 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             base.add_value(
                 "publisher", publisher['title']
             )
+        last_modified = self.get("updated", json=response.meta["item"])
+        if last_modified:
+            base.add_value('lastModified', last_modified)
         # ToDo: (optional feature) use 'source'-field from the GraphQL item for 'origin'?
         self.extract_and_save_eaf_codes_to_custom_field(base, response)
         return base
@@ -404,6 +407,29 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                     if created_date:
                         lifecycle.add_value('date', created_date)
             yield lifecycle
+
+    def get_lom_lifecycle_metadata_provider(self, response=None) -> LomLifecycleItemloader:
+        """
+        Collects metadata from Sodix 'source'-field with the purpose of saving it to edu-sharing's
+        'ccm:metadatacontributer_provider'-field.
+        """
+        lifecycle = LomBase.getLOMLifecycle(response)
+        source: dict = self.get('source', json=response.meta["item"])
+        if source:
+            lifecycle.add_value('role', 'metadata_provider')
+            # all 'source'-subfields are of Type: String
+            if source.get('id'):
+                lifecycle.add_value('uuid', source.get('id'))
+            if source.get('name'):
+                lifecycle.add_value('organization', source.get('name'))
+            if source.get('created'):
+                # LocalDateTime within the String, e.g.: "2022-10-17T11:42:49.198"
+                lifecycle.add_value('date', source.get('created'))
+            # ToDo: Sodix 'source.edited'-field also carries a LocalDateTime, but we currently can't make a distinction
+            #  between lifecycle metadata_provider dates (e.g. between a creationDate <-> lastModified)
+            if source.get('website'):
+                lifecycle.add_value('url', source.get('website'))
+        return lifecycle
 
     def getLOMGeneral(self, response) -> LomGeneralItemloader:
         general = LomBase.getLOMGeneral(self, response)
@@ -505,14 +531,15 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         license_name: str = self.get("license.name", json=response.meta["item"])
         if license_name:
             if license_name in self.MAPPING_LICENSE_NAMES:
-                license_internal_mapped = self.MAPPING_LICENSE_NAMES.get(license_name)
+                license_mapped_url = self.MAPPING_LICENSE_NAMES.get(license_name)
+                # if mapping was successful, license_mapped_url contains a license URL
                 if license_name.startswith("CC"):
-                    # ToDo: for CC-licenses the actual URL is more precise than our 'internal' license mapping
-                    # (you will see differences between the 'internal' value and the actual URL from the API,
+                    # for CC-licenses the actual URL is more precise than our 'internal' license mapping
+                    # (you would see differences between the 'internal' value and the actual URL from the API,
                     # e.g. a license pointing to v3.0 and v4.0 at the same time)
                     pass
                 else:
-                    license_loader.add_value('internal', license_internal_mapped)
+                    license_loader.add_value('url', license_mapped_url)
                     if not license_description:
                         # "name"-fields with the "Copyright, freier Zugang"-value don't have "text"-fields, therefore
                         # we're carrying over the custom description, just in case
@@ -632,7 +659,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         if self.get('cost', json=response.meta['item']) == "FREE":
             valuespaces.add_value("price", "no")
         potential_lrts = self.get('learnResourceType', json=response.meta['item'])
-        # attention: sodix calls their LRT "learnResourceType", not "learningResourceType"
+        # attention: Sodix calls their LRT "learnResourceType", not "learningResourceType"
         if potential_lrts:
             for potential_lrt in potential_lrts:
                 if potential_lrt in self.MAPPING_LRT:
@@ -672,6 +699,9 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             lifecycle_iterator: Iterator[LomLifecycleItemloader] = self.get_lom_lifecycle_publisher(response)
             for lifecycle_publisher in lifecycle_iterator:
                 lom.add_value('lifecycle', lifecycle_publisher.load_item())
+        if self.get("source", json=response.meta["item"]):
+            lifecycle_metadata_provider = self.get_lom_lifecycle_metadata_provider(response)
+            lom.add_value('lifecycle', lifecycle_metadata_provider.load_item())
         educational = self.getLOMEducational(response)
         classification = self.getLOMClassification(response)
 
