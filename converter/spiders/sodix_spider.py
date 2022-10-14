@@ -35,7 +35,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.2.3"  # last update: 2022-10-13
+    version = "0.2.4"  # last update: 2022-10-14
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -436,11 +436,18 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             if description:
                 # Sodix sometimes returns the 'description'-field as null
                 general.add_value("description", description)
-        sodix_identifier = self.get("identifier", json=response.meta["item"])
-        # ToDo: save Sodix 'id'-field to an additional field?
-        #  - also: find out where 'base.identifier' ends up in (which metadata-field is it saved to? -> documentation)
+
+        # Sodix has TWO distinct identifiers (uuids) for their objects:
+        # the Sodix field 'identifier' carries a prefix, e.g. "SODIX-<uuid>", "BY-<uuid>" etc.
+        # the Sodix field 'id' is an uuid without further explanation
+        # If both are available, they're saved as a [String] to 'cclom:general_identifier' (this might be necessary to
+        # identify duplicates later in edu-sharing)
+        sodix_identifier: str = self.get("identifier", json=response.meta["item"])
         if sodix_identifier:
             general.add_value('identifier', sodix_identifier)
+        sodix_id: str = self.get("id", json=response.meta["item"])
+        if sodix_id:
+            general.add_value('identifier', sodix_id)
         return general
 
     def getLOMTechnical(self, response) -> LomTechnicalItemLoader:

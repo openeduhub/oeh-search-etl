@@ -32,7 +32,7 @@ class MutlilangItem(Item):
 
 
 class LomGeneralItem(Item):
-    identifier = Field()
+    identifier = Field(output_processor=JoinMultivalues())
     title = Field()
     language = Field()
     keyword = Field(output_processor=JoinMultivalues())
