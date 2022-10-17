@@ -691,6 +691,7 @@ class LisumPipeline(BasicPipeline):
         "480": "C-PB",  # Politische Bildung
         "510": "C-Psy",  # Psychologie
         "520": "C-LER",  # Religion -> Lebensgestaltung-Ethik-Religionskunde
+        # ToDo: 560 -> "C-NW56-3-8" ? (Sexualerziehung)
         "700": "C-SOWI",  # Wirtschaftskunde -> "Sozialwissenschaft/Wirtschaftswissenschaft"
         "12002": "C-Thea",  # Darstellendes Spiel, Schultheater -> Theater
         "20001": "C-EN",  # Englisch
@@ -699,6 +700,7 @@ class LisumPipeline(BasicPipeline):
         "20004": "C-IT",  # Italienisch
         "20005": "C-La",  # Latein
         "20006": "C-RU",  # Russisch
+        "20007": "C-ES",  # Spanisch
         "20008": "C-TR",  # Türkisch
         "20011": "C-PL",  # Polnisch
         "20014": "C-PT",  # Portugiesisch
