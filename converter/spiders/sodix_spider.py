@@ -546,6 +546,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                         license_loader.replace_value('description', license_name)
 
         license_url: str = self.get("license.url", json=response.meta["item"])
+        # possible license URL values returned by the Sodix API:
         # license_urls_sorted = ['https://creativecommons.org/licenses/by-nc-nd/2.0/de/',
         #                        'https://creativecommons.org/licenses/by-nc-nd/3.0/de/',
         #                        'https://creativecommons.org/licenses/by-nc-nd/3.0/deed.de',
@@ -576,7 +577,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         #                        'https://creativecommons.org/licenses/by/4.0/',
         #                        'https://creativecommons.org/publicdomain/mark/1.0/deed.de',
         #                        'https://creativecommons.org/publicdomain/zero/1.0/deed.de']
-        # ToDo: our constants.py doesn't have entries for v2.0 or 2.5 values of CC licenses
         if license_url:
             # making sure to only handle valid license urls, since the API result can be NoneType or empty string ('')
             if license_url.endswith("deed.de"):
