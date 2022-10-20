@@ -400,6 +400,12 @@ class EduSharing:
         }
         for key in item["valuespaces"]:
             spaces[valuespaceMapping[key]] = item["valuespaces"][key]
+        # add raw values if the api supports it
+        if EduSharing.version["major"] >= 1 and EduSharing.version["minor"] >= 1:
+            for key in item["valuespaces_raw"]:
+                splitted = valuespaceMapping[key].split(":")
+                splitted[0] = "virtual"
+                spaces[":".join(splitted)] = item["valuespaces_raw"][key]
         if "typicalAgeRange" in item["lom"]["educational"]:
             tar = item["lom"]["educational"]["typicalAgeRange"]
             if "fromRange" in tar:

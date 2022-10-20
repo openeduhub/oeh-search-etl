@@ -269,6 +269,7 @@ class ProcessValuespacePipeline(BasicPipeline):
     def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
         json = item["valuespaces"]
+        item["valuespaces_raw"] = dict(json)
         delete = []
         for key in json:
             # remap to new i18n layout

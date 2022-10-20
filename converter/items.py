@@ -186,6 +186,9 @@ class BaseItem(Item):
     lastModified = Field()
     lom = Field(serializer=LomBaseItem)
     valuespaces = Field(serializer=ValuespaceItem)
+    "all items which are based on (skos) based valuespaces. The ProcessValuespacePipeline will automatically convert items inside here"
+    valuespaces_raw = Field(serializer=ValuespaceItem)
+    "this item is only used by the ProcessValuespacePipeline and holds the ""raw"" data which were given to the valuespaces. Please do not use it inside crawlers"
     permissions = Field(serializer=PermissionItem)
     "permissions (access rights) for this entry"
     license = Field(serializer=LicenseItem)
