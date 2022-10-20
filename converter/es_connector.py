@@ -471,6 +471,9 @@ class EduSharing:
                 EduSharing.groupCache.append(result["authorityName"])
 
     def setNodePermissions(self, uuid, item):
+        if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) == False:
+            logging.debug("Skipping permissions, EDU_SHARING_PERMISSION_CONTROL is set to false")
+            return
         if "permissions" in item:
             permissions = {
                 "inherited": True,  # let inherited = true to add additional permissions via edu-sharing
