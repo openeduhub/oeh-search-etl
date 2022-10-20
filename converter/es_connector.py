@@ -15,6 +15,7 @@ from vobject.vcard import VCardBehavior
 
 from converter import env
 from converter.constants import Constants
+from edu_sharing_client import ABOUTApi
 from edu_sharing_client.api.bulk_v1_api import BULKV1Api
 from edu_sharing_client.api.iam_v1_api import IAMV1Api
 from edu_sharing_client.api.mediacenter_v1_api import MEDIACENTERV1Api
@@ -95,7 +96,9 @@ class EduSharing:
 
     cookie: str = None
     resetVersion: bool = False
+    version: any
     apiClient: ESApiClient
+    aboutApi: ABOUTApi
     bulkApi: BULKV1Api
     iamApi: IAMV1Api
     mediacenterApi: MEDIACENTERV1Api
@@ -610,10 +613,20 @@ class EduSharing:
                     header_name="Accept",
                     header_value="application/json",
                 )
+                EduSharing.aboutApi = ABOUTApi(EduSharing.apiClient)
                 EduSharing.bulkApi = BULKV1Api(EduSharing.apiClient)
                 EduSharing.iamApi = IAMV1Api(EduSharing.apiClient)
                 EduSharing.mediacenterApi = MEDIACENTERV1Api(EduSharing.apiClient)
                 EduSharing.nodeApi = NODEV1Api(EduSharing.apiClient)
+                about = EduSharing.aboutApi.about()
+                EduSharing.version = list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0]["version"]
+                version_str = str(EduSharing.version["major"]) + "." + str(EduSharing.version["minor"])
+                if EduSharing.version["major"] != 1 or EduSharing.version["minor"] < 0 or EduSharing.version["minor"] > 1:
+                    raise Exception(
+                        f"Given repository api version is unsupported: " + version_str
+                    )
+                else:
+                    logging.info("Detected edu-sharing bulk api with version " + version_str)
                 EduSharing.groupCache = list(
                     map(
                         lambda x: x["authorityName"],
