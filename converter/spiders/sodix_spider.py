@@ -35,7 +35,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.2.5"  # last update: 2022-10-20
+    version = "0.2.6"  # last update: 2022-10-20
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -447,9 +447,11 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                         # we're only adding valid keywords, none of the empty (whitespace) strings
                         keywords_cleaned_up.append(individual_keyword)
                         general.add_value('keyword', individual_keyword)
-            subjects = self.get_subjects(response)
+            subjects = self.get_subject_dictionary(response)
             if subjects:
-                keywords_cleaned_up.extend(subjects)
+                subject_names = list(subjects.values())
+                subject_names.sort()
+                keywords_cleaned_up.extend(subject_names)
                 general.replace_value('keyword', keywords_cleaned_up)
         if "language" in response.meta["item"]:
             languages: list = self.get("language", json=response.meta["item"])
@@ -607,28 +609,34 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             educational.add_value("typicalAgeRange", tar.load_item())
         return educational
 
-    def get_subjects(self, response) -> list[Any] | None:
-        # there are (currently) 837 unique subjects across all 50.697 Items, which are suitable to be used as additional
-        # keyword values.
-        subject_set = set()
+    def get_subject_dictionary(self, response) -> dict[str, str] | None:
+        """
+        Parses the Sodix API field 'subject' and returns a dictionary consisting of:
+        Sodix 'subject.id' (= the eafCode of a "Schulfach") and its human-readable counterpart
+        Sodix 'subject.name' as its value.
+        """
+        subject_dictionary = dict()
         if "subject" in response.meta['item'] is not None:
             # the "subject"-field does not exist in every item returned by the sodix API
-            subjects = self.get('subject', json=response.meta['item'])
-            if subjects:
+            subjects_list: list = self.get('subject', json=response.meta['item'])
+            if subjects_list:
                 # the "subject"-key might exist in the API, but still be of 'None'-value
-                for subject in subjects:
-                    subject_name = subject['name']
-                    subject_set.add(subject_name)
-                return list(subject_set)
+                for subject in subjects_list:
+                    subject_name: str = subject['name']
+                    subject_id: str = subject['id']
+                    subject_dictionary.update({subject_id: subject_name})
+                return subject_dictionary
             else:
                 return None
 
     def getValuespaces(self, response) -> ValuespaceItemLoader:
         valuespaces = LomBase.getValuespaces(self, response)
-        subjects = self.get_subjects(response)
+        subjects = self.get_subject_dictionary(response)
         if subjects:
-            for subject in subjects:
-                valuespaces.add_value('discipline', subject)
+            subject_ids = list(subjects.keys())
+            if subject_ids:
+                subject_ids.sort()
+                valuespaces.add_value('discipline', subject_ids)
         educational_context_list = self.get('educationalLevels', json=response.meta['item'])
         school_types_list = self.get('schoolTypes', json=response.meta['item'])
         educational_context_set = set()
@@ -687,7 +695,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         if potential_lrts:
             if "UNTERRICHTSBAUSTEIN" in potential_lrts:
                 general.add_value('aggregationLevel', 2)
-            if "INTERAKTION" in potential_lrts:
+            if "INTERAKTION" in potential_lrts and "LisumPipeline" in env.get(key='CUSTOM_PIPELINES'):
                 base.add_value('custom', {'sodix_lisum_lrt': ['interactive_material']})
 
         technical = self.getLOMTechnical(response)
