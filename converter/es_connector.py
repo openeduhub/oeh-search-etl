@@ -644,6 +644,8 @@ class EduSharing:
                     )
                     logging.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
                     return
+                else:
+                    return
             logging.warning(auth.text)
             raise Exception(
                 "Could not authentify as admin at edu-sharing. Please check your settings for repository "
