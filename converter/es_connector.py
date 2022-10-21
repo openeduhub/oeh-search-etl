@@ -633,7 +633,7 @@ class EduSharing:
                     )
                 else:
                     logging.info("Detected edu-sharing bulk api with version " + version_str)
-                if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) == False:
+                if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) == True:
                     EduSharing.groupCache = list(
                         map(
                             lambda x: x["authorityName"],
