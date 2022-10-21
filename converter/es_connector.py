@@ -221,6 +221,13 @@ class EduSharing:
     def mapLicense(self, spaces, license):
         if "url" in license:
             match license["url"]:
+                # ToDo: refactor this ungodly method asap
+                case Constants.LICENSE_CC_BY_20:
+                    spaces["ccm:commonlicense_key"] = "CC_BY"
+                    spaces["ccm:commonlicense_cc_version"] = "2.0"
+                case Constants.LICENSE_CC_BY_25:
+                    spaces["ccm:commonlicense_key"] = "CC_BY"
+                    spaces["ccm:commonlicense_cc_version"] = "2.5"
                 case Constants.LICENSE_CC_BY_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
@@ -233,24 +240,42 @@ class EduSharing:
                 case Constants.LICENSE_CC_BY_NC_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_NC_ND_20:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "20"
                 case Constants.LICENSE_CC_BY_NC_ND_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
                 case Constants.LICENSE_CC_BY_NC_ND_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_NC_SA_20:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "2.0"
+                case Constants.LICENSE_CC_BY_NC_SA_25:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "2.5"
                 case Constants.LICENSE_CC_BY_NC_SA_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
                 case Constants.LICENSE_CC_BY_NC_SA_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_ND_20:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "2.0"
                 case Constants.LICENSE_CC_BY_ND_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_ND"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
                 case Constants.LICENSE_CC_BY_ND_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY_ND"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_SA_20:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "2.0"
+                case Constants.LICENSE_CC_BY_SA_25:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "2.5"
                 case Constants.LICENSE_CC_BY_SA_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_SA"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
