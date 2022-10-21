@@ -710,8 +710,9 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         if potential_lrts:
             if "UNTERRICHTSBAUSTEIN" in potential_lrts:
                 general.add_value('aggregationLevel', 2)
-            if "INTERAKTION" in potential_lrts and "LisumPipeline" in env.get(key='CUSTOM_PIPELINES'):
-                base.add_value('custom', {'sodix_lisum_lrt': ['interactive_material']})
+            if "INTERAKTION" in potential_lrts and env.get(key='CUSTOM_PIPELINES', allow_null=True) is not None:
+                if "LisumPipeline" in env.get(key='CUSTOM_PIPELINES', allow_null=True):
+                    base.add_value('custom', {'sodix_lisum_lrt': 'interactive_material'})
 
         technical = self.getLOMTechnical(response)
         if self.get("author", json=response.meta["item"]):
