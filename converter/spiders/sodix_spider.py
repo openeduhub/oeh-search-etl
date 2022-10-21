@@ -9,6 +9,7 @@ from converter.items import *
 from .base_classes import JSONBase
 from .base_classes import LomBase
 from .. import env
+from ..items import LomLifecycleItemloader
 
 
 def extract_eaf_codes_to_set(eaf_code_list: list[str]) -> set:
@@ -35,7 +36,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.2.6"  # last update: 2022-10-20
+    version = "0.2.7"  # last update: 2022-10-21
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -125,9 +126,10 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         'keine Angaben (gesetzliche Regelung)': Constants.LICENSE_CUSTOM,
     }
 
-    def __init__(self, oer_filter=False, **kwargs):
-        if oer_filter == "True" or oer_filter == "true":
-            # scrapy arguments are handled as strings
+    def __init__(self, oer_filter: str = "False", **kwargs):
+        if oer_filter.lower() == "true" or env.get_bool(key='SODIX_SPIDER_OER_FILTER') is True:
+            # Scrapy arguments are always handled as Strings, even if you try to set a boolean
+            # see: https://docs.scrapy.org/en/latest/topics/spiders.html#spider-arguments
             self.OER_FILTER = True
         LomBase.__init__(self, **kwargs)
 
@@ -303,14 +305,20 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             base.replace_value("thumbnail", media_thumb_preview)
         elif source_image_url:
             base.replace_value("thumbnail", source_image_url)
-        for publisher in self.get("publishers", json=response.meta["item"]):
-            base.add_value(
-                "publisher", publisher['title']
-            )
+        # for publisher in self.get("publishers", json=response.meta["item"]):
+        #     base.add_value(
+        #         "publisher", publisher['title']
+        #     )
+        # ToDo: the 'publisher'-field in BaseItem will be removed in the future
         last_modified = self.get("updated", json=response.meta["item"])
         if last_modified:
             base.add_value('lastModified', last_modified)
         # ToDo: (optional feature) use 'source'-field from the GraphQL item for 'origin'?
+        source_id: str = self.get("source.id", json=response.meta["item"])
+        # ToDo: the crawler can't write description text to subfolder names yet
+        #  'source.name' or 'source.description' could be used here to make the subfolders more human-readable
+        if source_id:
+            base.add_value('origin', source_id)
         self.extract_and_save_eaf_codes_to_custom_field(base, response)
         return base
 
@@ -360,15 +368,22 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                     'ccm:taxonentry': eaf_code_competencies_list
                 })
 
-    def get_lom_lifecycle_author(self, response=None) -> LomLifecycleItemloader:
+    def get_lom_lifecycle_author(self, response=None) -> LomLifecycleItemloader | None:
         lifecycle = LomBase.getLOMLifecycle(response)
         # the Sodix 'author'-field returns a wild mix of agencies, persons, usernames and project-names
-        # which would inevitably lead to bad metadata in this field. It is therefore only used in license.author
+        # therfore all author-strings from Sodix are treated as "organization"-values
+        author = self.get("author", json=response.meta["item"])
         author_website = self.get("authorWebsite", json=response.meta["item"])
-        if author_website:
+        if author and author_website:
+            # edge-case: Some Sodix Items can have a "authorWebsite", but no valid "author"-value (e.g. null).
+            # saving only the authorWebsite would lead to an empty author-symbol in the edu-sharing workspace view,
+            # which is why the current workaround is to only save this field if BOTH values are available and valid.
             lifecycle.add_value('role', 'author')
+            lifecycle.add_value('organization', author)
             lifecycle.add_value('url', author_website)
-        return lifecycle
+            return lifecycle
+        else:
+            return None
 
     def get_lom_lifecycle_publisher(self, response=None) -> Iterator[LomLifecycleItemloader]:
         lifecycle = LomBase.getLOMLifecycle(response)
@@ -701,7 +716,8 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         technical = self.getLOMTechnical(response)
         if self.get("author", json=response.meta["item"]):
             lifecycle_author = self.get_lom_lifecycle_author(response)
-            lom.add_value('lifecycle', lifecycle_author.load_item())
+            if lifecycle_author:
+                lom.add_value('lifecycle', lifecycle_author.load_item())
         if self.get("publishers", json=response.meta["item"]):
             # theoretically, there can be multiple publisher fields per item, but in reality this doesn't occur (yet).
             lifecycle_iterator: Iterator[LomLifecycleItemloader] = self.get_lom_lifecycle_publisher(response)
