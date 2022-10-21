@@ -328,6 +328,8 @@ class EduSharing:
         }
         if "notes" in item:
             spaces["ccm:notes"] = item["notes"]
+        if "status" in item:
+            spaces["ccm:editorial_state"] = item["status"]
         if "origin" in item:
             spaces["ccm:replicationsourceorigin"] = item[
                 "origin"

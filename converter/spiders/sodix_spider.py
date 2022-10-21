@@ -310,6 +310,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         #         "publisher", publisher['title']
         #     )
         # ToDo: the 'publisher'-field in BaseItem will be removed in the future
+        base.add_value("status", self.get("recordStatus", json=response.meta["item"]))
         last_modified = self.get("updated", json=response.meta["item"])
         if last_modified:
             base.add_value('lastModified', last_modified)

@@ -195,6 +195,8 @@ class BaseItem(Item):
     publisher = Field()
     notes = Field()
     "editorial notes"
+    status = Field()
+    "status information of a given node, i.e. activated or deactivated"
     binary = Field()
     "binary data which should be uploaded (raw data)"
     custom = Field()
