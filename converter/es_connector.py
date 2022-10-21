@@ -633,16 +633,17 @@ class EduSharing:
                     )
                 else:
                     logging.info("Detected edu-sharing bulk api with version " + version_str)
-                EduSharing.groupCache = list(
-                    map(
-                        lambda x: x["authorityName"],
-                        EduSharing.iamApi.search_groups(
-                            EduSharingConstants.HOME, "", max_items=1000000
-                        )["groups"],
+                if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) == False:
+                    EduSharing.groupCache = list(
+                        map(
+                            lambda x: x["authorityName"],
+                            EduSharing.iamApi.search_groups(
+                                EduSharingConstants.HOME, "", max_items=1000000
+                            )["groups"],
+                        )
                     )
-                )
-                logging.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
-                return
+                    logging.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
+                    return
             logging.warning(auth.text)
             raise Exception(
                 "Could not authentify as admin at edu-sharing. Please check your settings for repository "
