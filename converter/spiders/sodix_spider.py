@@ -11,18 +11,6 @@ from .base_classes import LomBase
 from .. import env
 from ..items import LomLifecycleItemloader
 
-import csv
-import json
-
-# Opening JSON file
-f = open('results.json')
-# returns JSON object as
-# a dictionary
-data = json.load(f)
-with open('mycsvfile.csv', 'w') as f:  # You will need 'wb' mode in Python 2.x
-    w = csv.DictWriter(f, data.keys())
-    w.writeheader()
-    w.writerow(data)
 
 def extract_eaf_codes_to_set(eaf_code_list: list[str]) -> set:
     """
@@ -48,7 +36,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.2.7"  # last update: 2022-10-21
+    version = "0.2.7"  # last update: 2022-10-24
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -325,9 +313,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         base.add_value("status", self.get("recordStatus", json=response.meta["item"]))
         last_modified = self.get("updated", json=response.meta["item"])
         if last_modified:
-
             base.add_value('lastModified', last_modified)
-        # ToDo: (optional feature) use 'source'-field from the GraphQL item for 'origin'?
         source_id: str = self.get("source.id", json=response.meta["item"])
         # ToDo: the crawler can't write description text to subfolder names yet
         #  'source.name' or 'source.description' could be used here to make the subfolders more human-readable
@@ -701,7 +687,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             for potential_lrt in potential_lrts:
                 if potential_lrt in self.MAPPING_LRT:
                     potential_lrt = self.MAPPING_LRT.get(potential_lrt)
-                    valuespaces.add_value('learningResourceType', potential_lrt)
+                valuespaces.add_value('learningResourceType', potential_lrt)
         return valuespaces
 
     def parse(self, response, **kwargs):
@@ -724,10 +710,6 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         if potential_lrts:
             if "UNTERRICHTSBAUSTEIN" in potential_lrts:
                 general.add_value('aggregationLevel', 2)
-            if "INTERAKTION" in potential_lrts and env.get(key='CUSTOM_PIPELINES', allow_null=True) is not None:
-                # TODO: Do such logic in a pipeline, not in the crawler!
-                if "LisumPipeline" in env.get(key='CUSTOM_PIPELINES', allow_null=True, default=None):
-                    base.add_value('custom', {'sodix_lisum_lrt': 'interactive_material'})
 
         technical = self.getLOMTechnical(response)
         if self.get("author", json=response.meta["item"]):

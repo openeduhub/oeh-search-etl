@@ -754,12 +754,6 @@ class LisumPipeline(BasicPipeline):
                     for taxon_entry in taxon_entries:
                         if taxon_entry in self.DISCIPLINE_TO_LISUM:
                             discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM.get(taxon_entry))
-            if "sodix_lisum_lrt" in custom_field:
-                # this is necessary for special edge-case values like "INTERAKTION" which have no equivalent in OEH LRT
-                sodix_lisum_lrt: list = custom_field.get("sodix_lisum_lrt")
-                for custom_lrt in sodix_lisum_lrt:
-                    sodix_lisum_custom_lrts.add(custom_lrt)
-                del item["custom"]["sodix_lisum_lrt"]
         if base_item_adapter.get("valuespaces"):
             valuespaces = base_item_adapter.get("valuespaces")
             if valuespaces.get("discipline"):
@@ -851,11 +845,31 @@ class LisumPipeline(BasicPipeline):
                                 lrt_temporary_list.append(lrt_w3id)
                     lrt_list = lrt_temporary_list
                     lrt_list.sort()
-                if sodix_lisum_custom_lrts:
-                    # if there's any Sodix custom LRT values present (e.g. "INTERAKTION"), extend the lrt list
-                    lrt_temporary_list.extend(lrt_list)
                 # after everything is mapped and sorted, save the list:
                 valuespaces["learningResourceType"] = lrt_list
+
+            # Mapping from valuespaces_raw["learningResourceType"]: "INTERAKTION" -> "interactive_material"
+            # (edge-cases like "INTERAKTION" don't exist in the OEH 'learningResourceType'-vocab, therfore wouldn't be
+            # available in valuespaces)
+            if base_item_adapter.get("valuespaces_raw"):
+                vs_raw: dict = base_item_adapter.get("valuespaces_raw")
+                if "learningResourceType" in vs_raw:
+                    raw_lrt: list = vs_raw.get("learningResourceType")
+                    for raw_lrt_item in raw_lrt:
+                        if raw_lrt_item == "INTERAKTION":
+                            sodix_lisum_custom_lrts.add("interactive_material")
+            if sodix_lisum_custom_lrts:
+                # if there's any Sodix custom LRT values present (e.g. "INTERAKTION"):
+                if valuespaces.get("learningResourceType"):
+                    # extending the LRT-list if it was already available
+                    lrt_list: list = valuespaces.get("learningResourceType")
+                    lrt_list.extend(sodix_lisum_custom_lrts)
+                    valuespaces["learningResourceType"] = lrt_list
+                else:
+                    # since most of the time there will be no LRT field available (if "INTERAKTION" is the only
+                    # LRT value, it needs to be created)
+                    lrt_list = list(sodix_lisum_custom_lrts)
+                    valuespaces["learningResourceType"] = lrt_list
 
             if discipline_lisum_keys:
                 discipline_lisum_keys = list(discipline_lisum_keys)
