@@ -11,6 +11,18 @@ from .base_classes import LomBase
 from .. import env
 from ..items import LomLifecycleItemloader
 
+import csv
+import json
+
+# Opening JSON file
+f = open('results.json')
+# returns JSON object as
+# a dictionary
+data = json.load(f)
+with open('mycsvfile.csv', 'w') as f:  # You will need 'wb' mode in Python 2.x
+    w = csv.DictWriter(f, data.keys())
+    w.writeheader()
+    w.writerow(data)
 
 def extract_eaf_codes_to_set(eaf_code_list: list[str]) -> set:
     """
@@ -313,6 +325,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         base.add_value("status", self.get("recordStatus", json=response.meta["item"]))
         last_modified = self.get("updated", json=response.meta["item"])
         if last_modified:
+
             base.add_value('lastModified', last_modified)
         # ToDo: (optional feature) use 'source'-field from the GraphQL item for 'origin'?
         source_id: str = self.get("source.id", json=response.meta["item"])
@@ -712,7 +725,8 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             if "UNTERRICHTSBAUSTEIN" in potential_lrts:
                 general.add_value('aggregationLevel', 2)
             if "INTERAKTION" in potential_lrts and env.get(key='CUSTOM_PIPELINES', allow_null=True) is not None:
-                if "LisumPipeline" in env.get(key='CUSTOM_PIPELINES', allow_null=True):
+                # TODO: Do such logic in a pipeline, not in the crawler!
+                if "LisumPipeline" in env.get(key='CUSTOM_PIPELINES', allow_null=True, default=None):
                     base.add_value('custom', {'sodix_lisum_lrt': 'interactive_material'})
 
         technical = self.getLOMTechnical(response)
