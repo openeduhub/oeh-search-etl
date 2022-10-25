@@ -556,7 +556,10 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                     # e.g. a license pointing to v3.0 and v4.0 at the same time)
                     pass
                 else:
-                    license_loader.add_value('url', license_mapped_url)
+                    if license_mapped_url in [Constants.LICENSE_COPYRIGHT_LAW]:
+                        license_loader.add_value('internal', license_mapped_url)
+                    else:
+                        license_loader.add_value('url', license_mapped_url)
                     if not license_description:
                         # "name"-fields with the "Copyright, freier Zugang"-value don't have "text"-fields, therefore
                         # we're carrying over the custom description, just in case
