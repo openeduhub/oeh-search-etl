@@ -500,7 +500,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             "location", self.getUri(response)
         )
         original = self.get("media.originalUrl", json=response.meta["item"])
-        if original:
+        if original and self.getUri(response) != original:
             technical.add_value(
                 "location", original
             )
