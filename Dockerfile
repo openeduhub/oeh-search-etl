@@ -1,9 +1,10 @@
 FROM python:3.10.0-slim-buster
 
-ENV CRAWLER wirlernenonline_spider 
+# ENV CRAWLER wirlernenonline_spider
 
 WORKDIR /
 
+COPY entrypoint.sh entrypoint.sh
 COPY requirements.txt requirements.txt
 COPY scrapy.cfg scrapy.cfg
 COPY setup.cfg setup.cfg
@@ -14,4 +15,4 @@ COPY valuespace_converter/ valuespace_converter/
 RUN pip3 install -r requirements.txt
 
 
-CMD scrapy crawl "$CRAWLER"
+ENTRYPOINT ["/entrypoint.sh"]
