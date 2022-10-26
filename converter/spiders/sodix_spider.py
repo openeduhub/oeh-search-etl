@@ -127,7 +127,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     }
 
     def __init__(self, oer_filter: str = "False", **kwargs):
-        if oer_filter.lower() == "true" or env.get_bool(key='SODIX_SPIDER_OER_FILTER') is True:
+        if oer_filter.lower() == "true" or env.get_bool(key='SODIX_SPIDER_OER_FILTER', default=False) is True:
             # Scrapy arguments are always handled as Strings, even if you try to set a boolean
             # see: https://docs.scrapy.org/en/latest/topics/spiders.html#spider-arguments
             self.OER_FILTER = True
