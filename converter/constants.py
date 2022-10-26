@@ -2,50 +2,78 @@ from typing import Final, Any
 
 
 class Constants:
+    LICENSE_CC_BY_20: Final[str] = "https://creativecommons.org/licenses/by/2.0/"
+    LICENSE_CC_BY_25: Final[str] = "https://creativecommons.org/licenses/by/2.5/"
     LICENSE_CC_BY_30: Final[str] = "https://creativecommons.org/licenses/by/3.0/"
     LICENSE_CC_BY_40: Final[str] = "https://creativecommons.org/licenses/by/4.0/"
     LICENSE_CC_BY_NC_30: Final[str] = "https://creativecommons.org/licenses/by-nc/3.0/"
     LICENSE_CC_BY_NC_40: Final[str] = "https://creativecommons.org/licenses/by-nc/4.0/"
+    LICENSE_CC_BY_NC_ND_20: Final[str] = "https://creativecommons.org/licenses/by-nc-nd/2.0/"
     LICENSE_CC_BY_NC_ND_30: Final[str] = "https://creativecommons.org/licenses/by-nc-nd/3.0/"
     LICENSE_CC_BY_NC_ND_40: Final[str] = "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+    LICENSE_CC_BY_NC_SA_20: Final[str] = "https://creativecommons.org/licenses/by-nc-sa/2.0/"
+    LICENSE_CC_BY_NC_SA_25: Final[str] = "https://creativecommons.org/licenses/by-nc-sa/2.5/"
     LICENSE_CC_BY_NC_SA_30: Final[str] = "https://creativecommons.org/licenses/by-nc-sa/3.0/"
     LICENSE_CC_BY_NC_SA_40: Final[str] = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    LICENSE_CC_BY_ND_20: Final[str] = "https://creativecommons.org/licenses/by-nd/2.0/"
     LICENSE_CC_BY_ND_30: Final[str] = "https://creativecommons.org/licenses/by-nd/3.0/"
     LICENSE_CC_BY_ND_40: Final[str] = "https://creativecommons.org/licenses/by-nd/4.0/"
+    LICENSE_CC_BY_SA_20: Final[str] = "https://creativecommons.org/licenses/by-sa/2.0/"
+    LICENSE_CC_BY_SA_25: Final[str] = "https://creativecommons.org/licenses/by-sa/2.5/"
     LICENSE_CC_BY_SA_30: Final[str] = "https://creativecommons.org/licenses/by-sa/3.0/"
     LICENSE_CC_BY_SA_40: Final[str] = "https://creativecommons.org/licenses/by-sa/4.0/"
     LICENSE_CC_ZERO_10: Final[str] = "https://creativecommons.org/publicdomain/zero/1.0/"
     LICENSE_PDM: Final[str] = "https://creativecommons.org/publicdomain/mark/1.0/"
 
     VALID_LICENSE_URLS: list[str | Any] = [
+        LICENSE_CC_BY_20,
+        LICENSE_CC_BY_25,
         LICENSE_CC_BY_30,
         LICENSE_CC_BY_40,
         LICENSE_CC_BY_NC_30,
         LICENSE_CC_BY_NC_40,
+        LICENSE_CC_BY_NC_ND_20,
         LICENSE_CC_BY_NC_ND_30,
         LICENSE_CC_BY_NC_ND_40,
+        LICENSE_CC_BY_NC_SA_20,
+        LICENSE_CC_BY_NC_SA_25,
         LICENSE_CC_BY_NC_SA_30,
         LICENSE_CC_BY_NC_SA_40,
+        LICENSE_CC_BY_ND_20,
         LICENSE_CC_BY_ND_30,
         LICENSE_CC_BY_ND_40,
+        LICENSE_CC_BY_SA_20,
+        LICENSE_CC_BY_SA_25,
         LICENSE_CC_BY_SA_30,
         LICENSE_CC_BY_SA_40,
         LICENSE_CC_ZERO_10,
         LICENSE_PDM,
     ]
     LICENSE_MAPPINGS: dict[str, str] = {
-        "https://creativecommons.org/licenses/by/": LICENSE_CC_BY_40,  # ToDo: outdated approximation?
-        # ToDo: - CC_BY_NC (3.0 + 4.0)
+        "https://creativecommons.org/licenses/by/2.0/": LICENSE_CC_BY_20,
+        "https://creativecommons.org/licenses/by/2.5/": LICENSE_CC_BY_25,
+        "https://creativecommons.org/licenses/by/3.0/": LICENSE_CC_BY_30,
+        "https://creativecommons.org/licenses/by/4.0/": LICENSE_CC_BY_40,
+        "https://creativecommons.org/licenses/by-nc/3.0/": LICENSE_CC_BY_NC_30,
+        "https://creativecommons.org/licenses/by-nc/4.0/": LICENSE_CC_BY_NC_40,
+        "https://creativecommons.org/licenses/by-nc-nd/2.0/": LICENSE_CC_BY_NC_ND_20,
         "https://creativecommons.org/licenses/by-nc-nd/3.0/": LICENSE_CC_BY_NC_ND_30,
         "https://creativecommons.org/licenses/by-nc-nd/4.0/": LICENSE_CC_BY_NC_ND_40,
-        # ToDo:
-        #  - CC_BY_NC_SA (3.0 + 4.0)
-        #  - CC_BY_ND (3.0 + 4.0)
-        #  - CC_BY_SA (3.0)
-        "https://creativecommons.org/licenses/by-sa/": LICENSE_CC_BY_SA_40,  # Todo: outdated approximation?
+        "https://creativecommons.org/licenses/by-nc-sa/2.0/": LICENSE_CC_BY_NC_SA_20,
+        "https://creativecommons.org/licenses/by-nc-sa/2.5/": LICENSE_CC_BY_NC_SA_25,
+        "https://creativecommons.org/licenses/by-nc-sa/3.0/": LICENSE_CC_BY_NC_SA_30,
+        "https://creativecommons.org/licenses/by-nc-sa/4.0/": LICENSE_CC_BY_NC_SA_40,
+        "https://creativecommons.org/licenses/by-nd/2.0/": LICENSE_CC_BY_ND_20,
+        "https://creativecommons.org/licenses/by-nd/3.0/": LICENSE_CC_BY_ND_30,
+        "https://creativecommons.org/licenses/by-nd/4.0/": LICENSE_CC_BY_ND_40,
+        "https://creativecommons.org/licenses/by-sa/2.0/": LICENSE_CC_BY_SA_20,
+        "https://creativecommons.org/licenses/by-sa/2.5/": LICENSE_CC_BY_SA_25,
+        "https://creativecommons.org/licenses/by-sa/3.0/": LICENSE_CC_BY_SA_30,
+        "https://creativecommons.org/licenses/by-sa/4.0/": LICENSE_CC_BY_SA_40,
         # wrong mapping (currently from edu-sharing)
         "https://creativecommons.org/publicdomain/zero/": LICENSE_CC_ZERO_10,
         "https://creativecommons.org/licenses/pdm/": LICENSE_PDM,
+        "https://creativecommons.org/publicdomain/mark/1.0/": LICENSE_PDM,
     }
     LICENSE_MAPPINGS_INTERNAL: dict[str, list[str]] = {
         "CC_0": [LICENSE_CC_ZERO_10],

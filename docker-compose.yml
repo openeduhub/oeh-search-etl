@@ -43,6 +43,8 @@ services:
       - "PLAYWRIGHT_WS_ENDPOINT=ws://headless_chrome:3000"
       - "SPLASH_URL=http://splash:8050"
       - "CRAWLER=${CRAWLER}"
+      # optional keyword args, e.g. cleanrun=true
+      - "ARGS=${ARGS}"
       - "DRY_RUN=False"
       - "LOG_LEVEL=${LOG_LEVEL:-INFO}"
       - "EDU_SHARING_BASE_URL=${EDU_SHARING_BASE_URL}"
