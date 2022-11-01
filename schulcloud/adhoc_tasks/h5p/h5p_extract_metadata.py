@@ -1,19 +1,20 @@
 import sys
-from typing import List, Union, IO, Optional, Literal
+from typing import List, Union, IO, Optional, Literal, Set
 import re
 import openpyxl
 from openpyxl.utils import get_column_letter
 
 
 class Metadata:
-    def __init__(self, title: str, publisher: str, keywords: List[str], order: str,
-                 permission: List[Literal['ALLE', 'NDS', 'BRB', 'THR']],
-                 collection: Optional['Collection'] = None, licence: Optional[str] = None):
+    def __init__(self, filename: str, title: str, publisher: str, keywords: List[str], order: str,
+                 permission: List[str],
+                 collection: Optional['Collection'] = None, license: Optional[str] = None):
+        self.filename = filename
         self.title = title
         self.publisher = publisher
         self.keywords = keywords
         self.order = order
-        self.license = licence
+        self.license = license
         self.permission = permission
         self.collection = collection
         if collection is not None and type(collection) != str:
@@ -23,10 +24,18 @@ class Metadata:
 class Collection:
     def __init__(self, name: str):
         self.name = name
+        self.publishers: Set[str] = set()
+        self.keywords: Set[str] = set()
+        self.licenses: Set[str] = set()
+        self.permissions: Set[str] = set()
         self.children: List[Metadata] = []
 
     def add_child(self, child: Metadata):
         self.children.append(child)
+        self.publishers.add(child.publisher)
+        self.keywords.update(child.keywords)
+        self.licenses.add(child.license)
+        self.permissions.update(child.permission)
 
 
 class MetadataFile:
@@ -44,19 +53,19 @@ class MetadataFile:
 
     def __init__(self, file: Union[str, IO]):
         self.file = file
-        self.collections: List[Collection] = []
-        self.single_files: List[Metadata] = []
+        self.collections: List[Collection] = []  # collections of files
+        self.single_files: List[Metadata] = []  # files outside any collection
         self.workbook = openpyxl.load_workbook(filename=file, data_only=True)
         self.o_sheet = self.workbook["Tabelle1"]
-        self.validate_sheet()
-        self.parse()
+        self._validate_sheet()
+        self._parse()
 
     def close(self):
         self.workbook.close()
         if not isinstance(self.file, str):
             self.file.close()
 
-    def validate_sheet(self):
+    def _validate_sheet(self):
         # Check required fields
         required_fields = [self.COLUMN.TITLE, self.COLUMN.FILENAME, self.COLUMN.PERMISSION]
         for row in range(1, self.o_sheet.max_row + 1):
@@ -86,18 +95,21 @@ class MetadataFile:
                     raise ParsingError(f'Permissions in the collection: "{collection}" of "{self.file.name}" '
                                        f'are not matching! ({first_permission} != {permission})')
 
-    def parse(self):
+    def _parse(self):
         for row in range(1, self.o_sheet.max_row + 1):
-            order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
-            prefix = self.fill_zeros(str(order)) + ' ' if order else ""
-            title = prefix + str(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value)
-            keywords_raw = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
-            keywords = re.findall(r'\w+', keywords_raw)
-            publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
-            licence = self.o_sheet.cell(row=row, column=self.COLUMN.LICENSE).value
-            permissions = re.findall(r'\w+', self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value)
+            order_raw: Optional[Union[int, str]] = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
+            order = str(order_raw) if order_raw else ''
+            prefix: str = self._fill_zeros(order) + '. ' if order else ''
+            title: str = prefix + str(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value)
+            filename: str = self.o_sheet.cell(row=row, column=self.COLUMN.FILENAME).value
+            keywords_raw: str = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
+            keywords: List[str] = re.findall(r'\w+', keywords_raw)
+            publisher: str = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
+            license_raw: str = self.o_sheet.cell(row=row, column=self.COLUMN.LICENSE).value or ''
+            license = license_raw.rsplit('(', 1)[0]
+            permissions: List[str] = re.findall(r'\w+', self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value)
 
-            collection_name = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
+            collection_name: Optional[str] = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
             if collection_name:
                 for c in self.collections:
                     if c.name == collection_name:
@@ -106,9 +118,14 @@ class MetadataFile:
                 else:
                     collection = Collection(collection_name)
                     self.collections.append(collection)
-                Metadata(title, publisher, keywords, order, permissions, collection, licence)
+                Metadata(filename, title, publisher, keywords, order, permissions, collection, license)
             else:
-                self.single_files.append(Metadata(title, publisher, keywords, order, permissions, licence=licence))
+                self.single_files.append(Metadata(filename, title, publisher, keywords, order, permissions, license=license))
+
+    def _fill_zeros(self, order: str):
+        max_length = len(str(self.o_sheet.max_row))
+        zero = (max_length - len(order)) * '0'
+        return zero + order
 
     def check_for_files(self, filenames: List[str]):
         existing_filenames = []
@@ -123,69 +140,6 @@ class MetadataFile:
             for filename in missing_filenames:
                 print(f'  {filename}', file=sys.stderr)
             raise ParsingError('The excel file is missing metadata')
-
-    def get_collection(self):
-        return self.o_sheet.cell(row=1, column=self.COLUMN.COLLECTION).value
-
-    def get_collection_permission(self):
-        return self.o_sheet.cell(row=1, column=self.COLUMN.PERMISSION).value
-
-    def get_keywords(self):
-        keywords_raw = self.o_sheet.cell(row=1, column=self.COLUMN.KEYWORDS).value
-        keywords = re.findall(r'\w+', keywords_raw)
-        return keywords
-
-    def get_publisher(self):
-        return self.o_sheet.cell(row=1, column=self.COLUMN.PUBLISHER).value
-
-    def get_license(self):
-        licence = self.o_sheet.cell(row=1, column=self.COLUMN.LICENSE).value
-        if licence is not None:
-            licence = licence.rsplit('(', 1)
-            licence = licence[0]
-        return licence
-
-    def find_metadata_by_file_name(self, h5p_file: str):
-        result = []
-        # looking for exact match
-        for row in range(1, self.o_sheet.max_row + 1):
-            if self.o_sheet.cell(row=row, column=self.COLUMN.FILENAME).value == h5p_file:
-                result.append(row)
-        if not result:
-            # looking for rough match (like relative paths etc.)
-            for row in range(1, self.o_sheet.max_row + 1):
-                if h5p_file in self.o_sheet.cell(row=row, column=self.COLUMN.FILENAME).value:
-                    result.append(row)
-            if not result:
-                raise RuntimeError(f'No metadata found for {h5p_file}')
-
-        if len(result) == 1:
-            return result[0]
-        elif len(result) > 1:
-            raise RuntimeError(f'Multiple metadata matches for {h5p_file}')
-
-    def get_metadata(self, h5p_file: str):
-        row = self.find_metadata_by_file_name(h5p_file)
-
-        collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
-        order = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
-        prefix = self.fill_zeros(str(order)) + ' ' if order else ""
-        title = prefix + str(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value)
-        keywords_raw = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
-        keywords = re.findall(r'\w+', keywords_raw)
-        publisher = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
-        licence = self.o_sheet.cell(row=row, column=self.COLUMN.LICENSE).value
-        if licence is not None:
-            licence = licence.rsplit('(', 1)
-            licence = licence[0]
-        permission = re.findall(r'\w+', self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value)
-
-        return Metadata(title, publisher, keywords, order, permission, collection, licence)
-
-    def fill_zeros(self, order: str):
-        max_length = len(str(self.o_sheet.max_row))
-        zero = (max_length - len(order)) * '0'
-        return zero + order
 
 
 class ParsingError(Exception):

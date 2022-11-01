@@ -27,9 +27,11 @@ class EdusharingSetup:
 
     def _add_metadata_sets(self):
         xml_name = 'homeApplication.properties.xml'
+        key, value = 'metadatasetsV2', 'mds,mds_oeh'
         properties = self.api.get_application_properties(xml_name)
-        properties['metadatasetsV2'] = 'mds,mds_oeh'
-        self.api.set_application_properties(xml_name, properties)
+        if key not in properties or not properties[key] == value:
+            properties[key] = value
+            self.api.set_application_properties(xml_name, properties)
 
     def _add_users_and_groups(self, users: List[User], groups: Set[str]):
         # requirement: all groups within users must also be within groups

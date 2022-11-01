@@ -260,7 +260,7 @@ class TestH5P(unittest.TestCase):
     def test_extract_metadata005_fill_zeros(self):
         path_excel = '.\\h5p_test_files\\test_excel_file.xlsx'
         metadata = MetadataFile(file=path_excel)
-        res = metadata.fill_zeros('4')
+        res = metadata._fill_zeros('4')
         self.assertEqual('04', res, 'Wrong upfilling zeros.')
 
 # h5p_upload
@@ -314,7 +314,7 @@ class TestH5P(unittest.TestCase):
         folder_node = self.api.find_node_by_name(sync_obj.id, folder_name)
         self.uploader.setup_destination_folder(folder_name)
 
-        self.uploader.upload_h5p_non_collection(folder_name, metadata_file, zip)
+        self.uploader.upload_non_collection_files(folder_name, metadata_file, zip)
         try:
             nodes_list = self.api.get_children(folder_node.id)
             self.assertEqual(3, len(nodes_list), "Failed: test upload of a non collection zip!")
@@ -333,7 +333,7 @@ class TestH5P(unittest.TestCase):
         folder_node = self.api.find_node_by_name(sync_obj.id, folder_name)
         self.uploader.setup_destination_folder(folder_name)
 
-        self.uploader.upload_h5p_collection(folder_name, metadata_file, zip)
+        self.uploader.upload_collection(folder_name, metadata_file, zip)
         try:
             nodes_list = self.api.get_children(folder_node.id)
             self.assertEqual(4, len(nodes_list), "Failed: test upload of a collection zip!")
@@ -355,12 +355,13 @@ class TestH5P(unittest.TestCase):
         file = zip.open("test1.h5p")
         properties = generate_node_properties(
             "test", "test", "Tester", "Test-Lizenz", ["H5P", "Test"],
-            folder_name, format="text/html", aggregation_level=2, aggregation_level_hpi=2
+            folder_name, format="text/html", aggregation_level=2,
         )
         collection_rep_source_uuid = properties['ccm:replicationsourceuuid']
         relation = f"{{'kind': 'ispartof', 'resource': {{'identifier': {collection_rep_source_uuid}}}}}"
 
-        result = self.uploader.upload_h5p_file(folder_name, "test1.h5p", metadata, file=file, relation=relation)
+        result = self.uploader.sync_file(folder_name, "test1.h5p", metadata, file=file, relation=relation, searchable=False)
+        file.close()
 
         node_id, rep_source_uuid = result
         nodes_list = self.api.get_children(folder_node.id)
@@ -379,7 +380,8 @@ class TestH5P(unittest.TestCase):
         folder_node = self.api.find_node_by_name(sync_obj.id, folder_name)
         self.uploader.setup_destination_folder(folder_name)
 
-        result = self.uploader.upload_h5p_file(folder_name, "test1.h5p", metadata, file=file)
+        result = self.uploader.sync_file(folder_name, "test1.h5p", metadata, file=file)
+        file.close()
 
         node_id, rep_source_uuid = result
         nodes_list = self.api.get_children(folder_node.id)

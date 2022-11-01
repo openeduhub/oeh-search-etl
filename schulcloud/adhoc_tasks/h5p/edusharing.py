@@ -1,4 +1,7 @@
-from typing import Dict, List, Literal, Optional
+from datetime import datetime
+from typing import Dict, List, Literal, Optional, IO
+
+import urllib
 
 import requests
 import requests.auth
@@ -60,8 +63,28 @@ class EdusharingAPI:
         return self.session.request(method, url, params=params, headers=headers,
                                     json=json_data, files=files, stream=stream)
 
+    def get_application_properties(self, xml_file_name: str):
+        url = f'/admin/v1/applications/{xml_file_name}'
+        response = self.make_request('GET', url)
+        response.raise_for_status()
+        return response.json()
+
+    def set_application_properties(self, xml_file_name: str, values: Dict[str, str]):
+        url = f'/admin/v1/applications/{xml_file_name}'
+        response = self.make_request('PUT', url, json_data=values)
+        response.raise_for_status()
+
+    def upload_file(self, node: Node, filename: str, file: IO[bytes], mimetype: str):
+        query = urllib.parse.urlencode({'versionComment': 'MAIN_FILE_UPLOAD', 'mimetype': mimetype})
+        url = f'/node/v1/nodes/-home-/{node.id}/content?{query}'
+        files = {
+            'file': (filename, file, 'application/zip', {'Expires': '0'})
+        }
+        self.make_request('POST', url, files=files, stream=True)
+
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024 ** 2):
-        url = f'/iam/v1/people/-home-/{username}?password={password}'
+        query = urllib.parse.urlencode({'password': password})
+        url = f'/iam/v1/people/-home-/{username}?{query}'
         body = {
             'primaryAffiliation': type,
             'skills': None,
@@ -75,7 +98,22 @@ class EdusharingAPI:
             'about': None
         }
         response = self.make_request('POST', url, json_data=body)
-        # response.raise_for_status()
+        response.raise_for_status()
+
+    def create_group(self, group_name: str):
+        url = f'/iam/v1/groups/-home-/{group_name}'
+        body = {
+            'displayName': group_name,
+            'groupType': None,
+            'scopeType': None
+        }
+        response = self.make_request('POST', url, json_data=body)
+        response.raise_for_status()
+
+    def group_add_user(self, group_name: str, user_name: str):
+        url = f'/iam/v1/groups/-home-/GROUP_{group_name}/members/{user_name}'
+        response = self.make_request('PUT', url)
+        response.raise_for_status()
 
     def get_children(self, node_id: str) -> List[Node]:
         url = f'/node/v1/nodes/-home-/{node_id}/children'
@@ -94,6 +132,15 @@ class EdusharingAPI:
             if node.name == child_name:
                 return node
         raise NotFoundException(child_name)
+
+    def find_node_by_replication_source_id(self, replication_source_id: str) -> Node:
+        nodes = self.search_custom('ccm:replicationsourceid', replication_source_id, 2, 'FILES')
+        if len(nodes) == 1:
+            return nodes[0]
+        elif len(nodes) > 1:
+            raise FoundTooManyException(replication_source_id)
+        else:
+            raise NotFoundException(replication_source_id)
 
     def delete_node(self, node_id: str):
         url = f'/node/v1/nodes/-home-/{node_id}'
@@ -123,13 +170,18 @@ class EdusharingAPI:
         json_obj = response.json()
         return [Node(node) for node in json_obj['nodes']]
 
-    def get_metadata_of_node(self, nodeId: str):
-        url = f'/node/v1/nodes/-home-/{nodeId}/metadata'
+    def get_metadata_of_node(self, node_id: str):
+        url = f'/node/v1/nodes/-home-/{node_id}/metadata'
         response = self.make_request('GET', url)
         if not response.status_code == 200:
             raise RequestFailedException(response)
         json_obj = response.json()
         return json_obj
+
+    def get_node_timestamp(self, node):
+        meta = self.get_metadata_of_node(node.id)
+        timestamp_str = str(meta["node"]["createdAt"]).replace("Z", "")
+        return datetime.fromisoformat(timestamp_str)
 
     def create_folder(self, parent_id: str, name: str, metadataset: str = 'mds_oeh', payload: Optional[Dict] = None):
         url = f'/node/v1/nodes/-home-/{parent_id}/children?type=cm%3Afolder&renameIfExists=false'
@@ -197,6 +249,11 @@ class RequestFailedException(Exception):
             context_hint += ' -> '
         super(RequestFailedException, self).__init__(f'Request failed: {context_hint}{response.status_code}'
                                                      f' {response.reason}: {response.text}')
+
+
+class FoundTooManyException(Exception):
+    def __init__(self, name: str):
+        super(FoundTooManyException, self).__init__(f'Found too many of {name}')
 
 
 class NotFoundException(Exception):
