@@ -36,11 +36,12 @@ class EduSharingConstants:
     MEDIACENTER_PREFIX = "MEDIA_CENTER_"
     MEDIACENTER_PROXY_PREFIX = "MEDIA_CENTER_PROXY_"
     LIFECYCLE_ROLES_MAPPING = {
-        "publisher": "ccm:lifecyclecontributer_publisher",
         "author": "ccm:lifecyclecontributer_author",
         "editor": "ccm:lifecyclecontributer_editor",
         "metadata_creator": "ccm:metadatacontributer_creator",
         "metadata_provider": "ccm:metadatacontributer_provider",
+        "publisher": "ccm:lifecyclecontributer_publisher",
+        "unknown": "ccm:lifecyclecontributer_unknown",  # (= contributor in an unknown capacity ("Mitarbeiter"))
     }
 
 
