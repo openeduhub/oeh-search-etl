@@ -1,5 +1,4 @@
 import base64
-import collections
 import json
 import logging
 import time
@@ -360,7 +359,6 @@ class EduSharing:
                     pass
                 spaces["cclom:duration"] = duration
 
-        # TODO: this does currently not support multiple values per role
         if "lifecycle" in item["lom"]:
             for person in item["lom"]["lifecycle"]:
                 if not "role" in person:
@@ -408,7 +406,11 @@ class EduSharing:
                 vcard.add("url").value = url
                 if email:
                     vcard.add("EMAIL;TYPE=PREF,INTERNET").value = email
-                spaces[mapping] = [vcard.serialize()]
+                if mapping in spaces:
+                    # checking if a vcard already exists for this role: if so, extend the list
+                    spaces[mapping].append(vcard.serialize())
+                else:
+                    spaces[mapping] = [vcard.serialize()]
 
         valuespaceMapping = {
             "discipline": "ccm:taxonid",
