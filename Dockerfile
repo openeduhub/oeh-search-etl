@@ -1,5 +1,7 @@
 FROM python:3.9-slim-buster
 
+RUN apt-get install ca-certificates
+
 WORKDIR /usr/src/app
 
 COPY requirements.txt .

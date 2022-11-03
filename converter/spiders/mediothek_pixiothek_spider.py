@@ -38,8 +38,13 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             callback=self.parse,
         )
 
-    def parse(self, response: scrapy.http.Response):
-        elements = json.loads(response.body_as_unicode())
+    def parse(self, response: scrapy.http.TextResponse, **kwargs):
+        data = self.getUrlData(response.url)
+        response.meta["rendered_data"] = data
+        # as of Scrapy 2.2 the JSON of a TextResponse can be loaded like this,
+        # see: https://doc.scrapy.org/en/latest/topics/request-response.html#scrapy.http.TextResponse.json
+        elements = response.json()
+
         prepared_elements = [self.prepare_element(element_dict) for element_dict in elements]
 
         collection_elements = self.prepare_collections(prepared_elements)
