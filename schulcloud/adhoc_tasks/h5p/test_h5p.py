@@ -82,7 +82,7 @@ class TestH5P(unittest.TestCase):
         child_name = "SYNC_OBJ"
         folder_exist = False
 
-        folder = self.api.get_or_create_folder(parent_id, child_name)
+        folder = self.api.get_or_create_node(parent_id, child_name, type='folder')
         if folder is not None:
             folder_exist = True
         self.assertTrue(folder_exist, "The Sync_Obj-Folder does not exist.")
@@ -310,7 +310,7 @@ class TestH5P(unittest.TestCase):
 
         folder_name = "h5p_test_folder"
         sync_obj = self.api.get_sync_obj_folder()
-        self.api.get_or_create_folder(sync_obj.id, folder_name)
+        self.api.get_or_create_node(sync_obj.id, folder_name, type='folder')
         folder_node = self.api.find_node_by_name(sync_obj.id, folder_name)
         self.uploader.setup_destination_folder(folder_name)
 
@@ -329,7 +329,7 @@ class TestH5P(unittest.TestCase):
 
         folder_name = "h5p_test_folder"
         sync_obj = self.api.get_sync_obj_folder()
-        self.api.get_or_create_folder(sync_obj.id, folder_name)
+        self.api.get_or_create_node(sync_obj.id, folder_name, type='folder')
         folder_node = self.api.find_node_by_name(sync_obj.id, folder_name)
         self.uploader.setup_destination_folder(folder_name)
 
@@ -348,7 +348,7 @@ class TestH5P(unittest.TestCase):
 
         folder_name = "h5p_test_folder"
         sync_obj = self.api.get_sync_obj_folder()
-        self.api.get_or_create_folder(sync_obj.id, folder_name)
+        self.api.get_or_create_node(sync_obj.id, folder_name, type='folder')
         folder_node = self.api.find_node_by_name(sync_obj.id, folder_name)
         self.uploader.setup_destination_folder(folder_name)
 
@@ -360,7 +360,7 @@ class TestH5P(unittest.TestCase):
         collection_rep_source_uuid = properties['ccm:replicationsourceuuid']
         relation = f"{{'kind': 'ispartof', 'resource': {{'identifier': {collection_rep_source_uuid}}}}}"
 
-        result = self.uploader.sync_file(folder_name, "test1.h5p", metadata, file=file, relation=relation, searchable=False)
+        result = self.uploader.upload_file(folder_name, "test1.h5p", metadata, file=file, relation=relation, searchable=False)
         file.close()
 
         node_id, rep_source_uuid = result
@@ -376,11 +376,11 @@ class TestH5P(unittest.TestCase):
 
         folder_name = "h5p_test_folder"
         sync_obj = self.api.get_sync_obj_folder()
-        self.api.get_or_create_folder(sync_obj.id, folder_name)
+        self.api.get_or_create_node(sync_obj.id, folder_name, type='folder')
         folder_node = self.api.find_node_by_name(sync_obj.id, folder_name)
         self.uploader.setup_destination_folder(folder_name)
 
-        result = self.uploader.sync_file(folder_name, "test1.h5p", metadata, file=file)
+        result = self.uploader.upload_file(folder_name, "test1.h5p", metadata, file=file)
         file.close()
 
         node_id, rep_source_uuid = result

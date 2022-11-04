@@ -6,10 +6,10 @@ from openpyxl.utils import get_column_letter
 
 
 class Metadata:
-    def __init__(self, filename: str, title: str, publisher: str, keywords: List[str], order: str,
+    def __init__(self, filepath: str, title: str, publisher: str, keywords: List[str], order: str,
                  permission: List[str],
                  collection: Optional['Collection'] = None, license: Optional[str] = None):
-        self.filename = filename
+        self.filepath = filepath
         self.title = title
         self.publisher = publisher
         self.keywords = keywords
@@ -101,7 +101,7 @@ class MetadataFile:
             order = str(order_raw) if order_raw else ''
             prefix: str = self._fill_zeros(order) + '. ' if order else ''
             title: str = prefix + str(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value)
-            filename: str = self.o_sheet.cell(row=row, column=self.COLUMN.FILENAME).value
+            filepath: str = self.o_sheet.cell(row=row, column=self.COLUMN.FILENAME).value
             keywords_raw: str = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
             keywords: List[str] = re.findall(r'\w+', keywords_raw)
             publisher: str = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
@@ -118,9 +118,9 @@ class MetadataFile:
                 else:
                     collection = Collection(collection_name)
                     self.collections.append(collection)
-                Metadata(filename, title, publisher, keywords, order, permissions, collection, license)
+                Metadata(filepath, title, publisher, keywords, order, permissions, collection, license)
             else:
-                self.single_files.append(Metadata(filename, title, publisher, keywords, order, permissions, license=license))
+                self.single_files.append(Metadata(filepath, title, publisher, keywords, order, permissions, license=license))
 
     def _fill_zeros(self, order: str):
         max_length = len(str(self.o_sheet.max_row))

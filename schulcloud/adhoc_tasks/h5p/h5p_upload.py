@@ -1,9 +1,10 @@
 import os
+import random
 import sys
 import uuid
 import util
 import hashlib
-from typing import Optional, List, IO, Callable, Dict, Literal
+from typing import Optional, List, IO, Callable, Dict
 from datetime import datetime
 from zipfile import ZipFile
 
@@ -40,9 +41,7 @@ def generate_node_properties(
         folder_name: str,
         replication_source_id: Optional[str] = None,
         replication_source_uuid: Optional[str] = None,
-        url: str = '',
         relation: Optional[str] = None,
-        format: Optional[str] = None,
         aggregation_level: int = 1,
         hpi_searchable: bool = True):
     if not replication_source_id:
@@ -53,27 +52,9 @@ def generate_node_properties(
         relation = "{'kind': 'ispartof', 'resource': {'identifier': []}}"
     if license is None or license == "":
         license = "CUSTOM"
-    if url is None or url == "":
-        # TODO: edusharing should not save schul cloud internals such as urls
-        url = f'/content/{replication_source_uuid}?isCollection=false&q=h5p'
     date = str(datetime.now())
     properties = {
-        "access": [
-            "Read",
-            "ReadAll",
-            "Comment",
-            "Feedback",
-            "AddChildren",
-            "ChangePermissions",
-            "Write",
-            "Delete",
-            "CCPublish"
-        ],
-        "cm:name": [name],
-        "cm:edu_metadataset": ["mds_oeh"],
-        "cm:edu_forcemetadataset": ["true"],
-        "ccm:ph_action": ["PERMISSION_ADD"],
-        #"ccm:objecttype": ["MATERIAL"],
+        "ccm:objecttype": ["MATERIAL"],
         "ccm:replicationsource": [folder_name],
         "ccm:replicationsourceid": [hashlib.sha1(replication_source_id.encode()).hexdigest()],
         "ccm:replicationsourcehash": [date],
@@ -86,14 +67,11 @@ def generate_node_properties(
         "cclom:general_language": ["de"],
         "cclom:general_keyword": keywords,
         "ccm:lom_annotation": ["{'description': 'searchable==1', 'entity': 'crawler'}"],
-        #"ccm:wwwurl": [url],
         "ccm:hpi_lom_relation": [relation],
         "ccm:lom_relation": [relation],
         "ccm:create_version": ["false"],
         "ccm:lifecyclecontributer_publisherFN": [publisher]  # TODO: test whether edusharing supports multiple publishers
     }
-    if format:
-        properties["cclom:format"] = ["text/html"]
     return properties
 
 
@@ -133,44 +111,42 @@ class Uploader:
 
     def setup_destination_folder(self, folder_name: str):
         sync_obj = self.api.get_sync_obj_folder()
-        destination_folder = self.api.get_or_create_folder(sync_obj.id, folder_name)
+        destination_folder = self.api.get_or_create_node(sync_obj.id, folder_name, type='folder')
         return destination_folder
 
-    def sync_file(self, folder_name: str, metadata: Metadata, file: Optional[IO[bytes]] = None, relation: str = "", searchable: bool = True):
+    def upload_file(self, folder: edusharing.Node, metadata: Metadata, file: Optional[IO[bytes]] = None, relation: str = "", searchable: bool = True):
         # get h5p file, add metadata, upload and after all add permissions
-        name = os.path.splitext(os.path.basename(metadata.filename))[0]
+        filename = os.path.basename(metadata.filepath)
+        name = os.path.splitext(filename)[0]
         keywords = [metadata.title, metadata.collection.name, metadata.publisher] + metadata.keywords
 
-        # ToDo: Add the url of the frontend rendering page
-        properties = generate_node_properties(metadata.title, metadata.title, metadata.publisher,
-                                              metadata.license, keywords, folder_name, replication_source_id=name,
-                                              relation=relation, hpi_searchable=searchable)
-
-        node = self.api.sync_node(folder_name, properties, ['ccm:replicationsource', 'ccm:replicationsourceid'])
-
+        self_opened_file = False
         if file is None:
+            file = open(metadata.filepath, 'rb')
             self_opened_file = True
-            file = open(metadata.filename, 'rb')
-        else:
-            self_opened_file = False
 
-        self.api.upload_file(node, os.path.basename(metadata.filename), file, 'application/zip')
+        properties = generate_node_properties(metadata.title, filename, metadata.publisher, metadata.license, keywords,
+                                              folder.name, replication_source_id=name, relation=relation,
+                                              hpi_searchable=searchable)
+
+        node = self.api.get_or_create_node(folder.id, filename, properties=properties)
+
+        self.api.upload_content(node.id, filename, file)
         if self_opened_file:
             file.close()
 
         permitted_groups = self.get_permitted_groups(permissions=metadata.permission)
         self.api.set_permissions(node.id, permitted_groups, False)
 
-        # TODO
-        # if is_h5p
-        # metadata_of_node = self.api.get_metadata_of_node(nodeId=node_id)
-        # if metadata_of_node['node']['preview']['type'] == "TYPE_DEFAULT":
-        # self.api.set_preview_thumbnail(node_id=node_id, filename='thumbnail/H5Pthumbnail.png')
+        if filename.endswith('h5p'):
+            metadata_of_node = self.api.get_metadata_of_node(node.id)
+            if metadata_of_node['node']['preview']['type'] == "TYPE_DEFAULT":
+                self.api.set_preview_thumbnail(node_id=node.id, filename='thumbnail/H5Pthumbnail.png')
 
-        print(f'Upload complete for: {metadata.filename}')
+        print(f'Upload complete for: {metadata.filepath}')
         return node.id, properties["ccm:replicationsourceuuid"][0]
 
-    def upload_collection(self, collection: Collection, zip_file: ZipFile, es_folder_name: str):
+    def upload_collection(self, collection: Collection, zip_file: ZipFile, es_folder: edusharing.Node):
         # save the replicationsourceuuid, nodeId and the collection of each h5p-file corresponding to this package
         children_replication_source_uuids = []
 
@@ -181,10 +157,9 @@ class Uploader:
         # TODO: test whether edusharing collections supports multiple publishers/licenses
         collection_properties = generate_node_properties(
             collection.name, collection.name, next(iter(collection.publishers)), next(iter(collection.licenses)), keywords,
-            es_folder_name, format="text/html", aggregation_level=2
+            es_folder.name, aggregation_level=2
         )
-        collection_node = self.api.sync_node(es_folder_name, collection_properties,
-                                             ['ccm:replicationsource', 'ccm:replicationsourceid'])
+        collection_node = self.api.get_or_create_node(es_folder.id, collection.name, properties=collection_properties)
         # permissions
         permitted_groups = self.get_permitted_groups(list(collection.permissions))
         self.api.set_permissions(collection_node.id, permitted_groups, False)
@@ -193,9 +168,9 @@ class Uploader:
         # TODO: make option to ignore timestamps for (partially) failed uploads etc.
 
         for child in collection.children:
-            file = zip_file.open(child.filename)
+            file = zip_file.open(child.filepath)
             relation = f"{{'kind': 'ispartof', 'resource': {{'identifier': {collection_properties['ccm:replicationsourceuuid']}}}}}"
-            result = self.sync_file(es_folder_name, child, file=file, relation=relation, searchable=False)
+            result = self.upload_file(es_folder, child, file=file, relation=relation, searchable=False)
             file.close()
             if result is None:
                 break
@@ -206,7 +181,7 @@ class Uploader:
         self.api.set_property_relation(collection_node.id, 'ccm:hpi_lom_relation', children_replication_source_uuids)
 
         # TODO: set thumbnail of first item
-        #self.api.set_preview_thumbnail(node_id=collection_node.id, filename='thumbnail/H5Pthumbnail.png')
+        self.api.set_preview_thumbnail(node_id=collection_node.id, filename='thumbnail/H5Pthumbnail.png')
 
     def upload_from_s3(self):
         s3_objects = self.downloader.get_object_list()
@@ -233,7 +208,7 @@ class Uploader:
                 continue
 
             for collection in metadata_file.collections:
-                self.setup_destination_folder(es_folder_name)
+                es_folder = self.setup_destination_folder(es_folder_name)
 
                 replicationsourceid = hashlib.sha1(collection.name.encode()).hexdigest()
                 collection_node = None
@@ -244,7 +219,7 @@ class Uploader:
                     pass
                 except edusharing.FoundTooManyException as err:
                     # TODO: not sure if correct
-                    print(f'Found multiple nodes for collection: {collection.name}')
+                    print(f'Found multiple nodes for collection: {collection.name}', file=sys.stderr)
                     continue
                 if collection_node:
                     # collection already has some content, so check timestamps
@@ -252,11 +227,11 @@ class Uploader:
                     s3_last_modified = s3_obj['LastModified'].replace(tzinfo=None)
                     if edu_timestamp > s3_last_modified:
                         continue
-                self.upload_collection(collection, ZipFile(zip_path), es_folder_name)
+                self.upload_collection(collection, ZipFile(zip_path), es_folder)
 
             for single_metadata in metadata_file.single_files:
-                file = zip_file.open(single_metadata.filename)
-                self.sync_file(es_folder_name, single_metadata, file=file)
+                file = zip_file.open(single_metadata.filepath)
+                self.upload_file(es_folder_name, single_metadata, file=file)
                 file.close()
 
             metadata_file.close()

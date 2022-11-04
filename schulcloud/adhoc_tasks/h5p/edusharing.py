@@ -1,5 +1,6 @@
+import json
 from datetime import datetime
-from typing import Dict, List, Literal, Optional, IO
+from typing import Dict, List, Literal, Optional, IO, Any
 
 import urllib
 
@@ -56,7 +57,7 @@ class EdusharingAPI:
         self.session.auth = requests.auth.HTTPBasicAuth(self.username, self.password)
 
     def make_request(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str,
-                     params: Optional[Dict[str, str]] = None, json_data: Optional[Dict] = None,
+                     params: Optional[Dict[str, Any]] = None, json_data: Optional[Dict] = None,
                      files: Optional[Dict] = None, stream: bool = False):
         url = f'{self.base_url}{url}'
         headers = {'Accept': 'application/json'}
@@ -74,17 +75,24 @@ class EdusharingAPI:
         response = self.make_request('PUT', url, json_data=values)
         response.raise_for_status()
 
-    def upload_file(self, node: Node, filename: str, file: IO[bytes], mimetype: str):
-        query = urllib.parse.urlencode({'versionComment': 'MAIN_FILE_UPLOAD', 'mimetype': mimetype})
-        url = f'/node/v1/nodes/-home-/{node.id}/content?{query}'
+    def upload_content(self, node_id: str, filename: str, file: IO[bytes], mimetype: str = ''):
+        url = f'/node/v1/nodes/-home-/{node_id}/content'
+        params = {'versionComment': 'MAIN_FILE_UPLOAD', 'mimetype': mimetype}
         files = {
-            'file': (filename, file, 'application/zip', {'Expires': '0'})
+            'file': (filename, file, mimetype, {'Expires': '0'})
         }
-        self.make_request('POST', url, files=files, stream=True)
+        response = self.make_request('POST', url, params=params, files=files, stream=True)
+        response.raise_for_status()
+
+    def change_metadata(self, node_id: str, properties: Dict[str, List[str]]):
+        url = f'/node/v1/nodes/-home-/{node_id}/metadata'
+        params = {'versionComment': 'METADATA_UPDATE'}
+        response = self.make_request('POST', url, params=params, json_data=properties)
+        response.raise_for_status()
 
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024 ** 2):
-        query = urllib.parse.urlencode({'password': password})
-        url = f'/iam/v1/people/-home-/{username}?{query}'
+        url = f'/iam/v1/people/-home-/{username}'
+        params = {'password': password}
         body = {
             'primaryAffiliation': type,
             'skills': None,
@@ -97,7 +105,7 @@ class EdusharingAPI:
             'avatar': None,
             'about': None
         }
-        response = self.make_request('POST', url, json_data=body)
+        response = self.make_request('POST', url, params=params, json_data=body)
         response.raise_for_status()
 
     def create_group(self, group_name: str):
@@ -155,7 +163,7 @@ class EdusharingAPI:
             raise RequestFailedException(response)
 
     def get_sync_obj_folder(self):
-        return self.get_or_create_folder('-userhome-', 'SYNC_OBJ')
+        return self.get_or_create_node('-userhome-', 'SYNC_OBJ', type='folder')
 
     def file_exists(self, parent_id: str, name: str):
         # TODO: should only search within specific parent node, not global search
@@ -183,36 +191,34 @@ class EdusharingAPI:
         timestamp_str = str(meta["node"]["createdAt"]).replace("Z", "")
         return datetime.fromisoformat(timestamp_str)
 
-    def create_folder(self, parent_id: str, name: str, metadataset: str = 'mds_oeh', payload: Optional[Dict] = None):
-        url = f'/node/v1/nodes/-home-/{parent_id}/children?type=cm%3Afolder&renameIfExists=false'
-        if payload is None:
-            payload = {}
-        payload['cm:name'] = [name]
-        payload['cm:edu_metadataset'] = [metadataset]
-        payload['cm:edu_forcemetadataset'] = [True]
-        response = self.make_request('POST', url, json_data=payload)
+    def get_or_create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file', properties: Optional[Dict] = None):
+        try:
+            folder = self.find_node_by_name(parent_id, name)
+            if properties:
+                self.change_metadata(folder.id, properties)
+        except NotFoundException:
+            folder = self.create_node(parent_id, name, type=type, properties=properties)
+        return folder
+
+    def create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file', properties: Optional[Dict] = None):
+        url = f'/node/v1/nodes/-home-/{parent_id}/children'
+        params = {
+            'type': 'ccm:io' if type == 'file' else 'cm:folder',
+            'renameIfExists': 'false',
+            'assocType': '',
+            'versionComment': '',
+        }
+        data = {
+            'cm:name': [name],
+            'cm:edu_metadataset': ['mds_oeh'],
+            'cm:edu_forcemetadataset': [True],
+        }
+        if properties:
+            data.update(properties)
+        response = self.make_request('POST', url, params=params, json_data=data)
         if not response.status_code == 200:
             raise RequestFailedException(response)
         return Node(response.json()['node'])
-
-    def get_or_create_folder(self, parent_id: str, name: str, metadataset: str = 'mds_oeh',
-                             payload: Optional[Dict] = None):
-        try:
-            folder = self.find_node_by_name(parent_id, name)
-        except NotFoundException:
-            folder = self.create_folder(parent_id, name, metadataset, payload)
-            print(f"Created folder {name}")
-        return folder
-
-    # ToDo: Do we actual need this method anywhere?
-    # def create_node(self, parent_id: str, name: str):
-    #     url = f'/node/v1/nodes/-home-/{parent_id}/children/' \
-    #           f'?type=ccm%3Aio&renameIfExists=true&assocType=&versionComment=&'
-    #     data = {"cm:name": [name]}
-    #     response = self.make_request('POST', url, json_data=data)
-    #     if not response.status_code == 200:
-    #         raise RequestFailedException(response)
-    #     return Node(response.json()['node'])
 
     def sync_node(self, group: str, properties: Dict, match: List[str], type: str = 'ccm:io',
                   group_by: Optional[str] = None):
@@ -226,11 +232,24 @@ class EdusharingAPI:
             raise RequestFailedException(response)
         return Node(response.json()['node'])
 
+    def set_property(self, node_id: str, property: str, value: Optional[List[str]]):
+        # /node/v1/nodes/{repository}/{node}/property
+        url = f'/node/v1/nodes/-home-/{node_id}/property'
+        params = {'property': property}
+        if value is not None:
+            params['value'] = value
+        response = self.make_request('POST', url, params=params)
+        if not response.status_code == 200:
+            raise RequestFailedException(response, node_id)
+
     def set_property_relation(self, node_id: str, property: str, value: List):
-        property_replacement = property.replace(":", "%3A")
-        url = f'/node/v1/nodes/-home-/{node_id}/property?property={property_replacement}&value=%7B\'kind\'' \
-              f'%3A%20\'haspart\'%2C%20\'resource\'%3A%20%7B\'identifier\'%3A%20{value}%7D%7D'
-        response = self.make_request('POST', url)
+        url = f'/node/v1/nodes/-home-/{node_id}/property'
+        params = {
+            'property': property,
+            'value': json.dumps({'kind': 'ispartof', 'resource': {'identifier': [value]}})
+            #'value': f"{{'kind': 'haspart', 'resource': {{'identifier' [{value}]}}}}"
+        }
+        response = self.make_request('POST', url, params=params)
         if not response.status_code == 200:
             raise RequestFailedException(response, node_id)
 
