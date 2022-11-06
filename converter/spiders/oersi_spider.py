@@ -17,8 +17,10 @@ from converter.items import (
     LomClassificationItemLoader,
     ValuespaceItemLoader,
     LicenseItemLoader,
+    ResponseItemLoader,
 )
 from converter.spiders.base_classes import LomBase
+from converter.web_tools import WebEngine, WebTools
 
 
 class OersiSpider(scrapy.Spider, LomBase):
@@ -32,20 +34,19 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.0.1"
+    version = "0.0.2"   # last update: 2022-11-06
     allowed_domains = "oersi.org"
     custom_settings = {
         "CONCURRENT_REQUESTS": 32,
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "AUTOTHROTTLE_TARGET_CONCURRENCY": 3,
+        "WEB_TOOLS": WebEngine.Playwright,
     }
 
     ELASTIC_PARAMETER_KEEP_ALIVE: str = "1m"
     # for reference: https://www.elastic.co/guide/en/elasticsearch/reference/current/api-conventions.html#time-units
-    ELASTIC_PARAMETER_REQUEST_SIZE: int = (
-        1000  # maximum: 10.000, but responses for bigger request sizes take significantly longer
-    )
+    ELASTIC_PARAMETER_REQUEST_SIZE: int = 1000  # maximum: 10.000, but responses for bigger request sizes take significantly longer
 
     ELASTIC_PIT_ID: dict = dict()
     # the provider-filter at https://oersi.org/resources/ shows you which String values can be used as a provider-name
@@ -781,10 +782,29 @@ class OersiSpider(scrapy.Spider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value("permissions", permissions.load_item())
 
-        base.add_value("response", self.mapResponse(response=response).load_item())
+        response_loader = ResponseItemLoader(response=response)
         # for future maintenance, during debugging the following problems occurred one day,
         # but disappeared the next day:
         #  - OMA URLs cause HTTP Error 400 in Splash
-        #  - OMA URLs can't be rendered by Playwright (the document stays completely blank until timeout)
+        response_loader.add_value("status", response.status)
+        url_data = WebTools.getUrlData(
+            url=response.url, engine=WebEngine.Playwright
+        )
+        if "html" in url_data:
+            response_loader.add_value("html", url_data["html"])
+        if "text" in url_data:
+            response_loader.add_value("text", url_data["text"])
+        if "cookies" in url_data:
+            response_loader.add_value("cookies", url_data["cookies"])
+        if "har" in url_data:
+            response_loader.add_value("har", url_data["har"])
+        if "screenshot_bytes" in url_data:
+            # ToDo: optional thumbnail feature (toggleable via a list?)
+            # -> OMA serves generic thumbnails, which is why a screenshot of the
+            #  website will always be more interesting to users than the same generic image across ~650 materials
+            base.add_value("screenshot_bytes", url_data["screenshot_bytes"])
+        response_loader.add_value("headers", response.headers)
+        response_loader.add_value("url", response.url)
+        base.add_value("response", response_loader.load_item())
 
         yield base.load_item()
