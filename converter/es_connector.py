@@ -323,9 +323,10 @@ class EduSharing:
             if "location" in item["lom"]["technical"] else None,
             "cclom:format": item["lom"]["technical"]["format"] if "format" in item["lom"]["technical"] else None,
             "cclom:aggregationlevel": item["lom"]["general"]["aggregationLevel"] if "aggregationLevel" in item["lom"]["general"] else None,
-            "cclom:title": item["lom"]["general"]["title"],
-            "cclom:general_identifier": item["lom"]["general"]["identifier"]
+            "cclom:title": item["lom"]["general"]["title"]
         }
+        if "identifier" in item["lom"]["general"]:
+            spaces["cclom:general_identifier"] = item["lom"]["general"]["identifier"]
         if "notes" in item:
             spaces["ccm:notes"] = item["notes"]
         if "status" in item:
