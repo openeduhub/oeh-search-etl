@@ -15,6 +15,8 @@ class EduSharingBase(Spider, LomBase):
     friendlyName = "Edu-Sharing repository spider"
     # the location of the edu-sharing rest api
     apiUrl = "http://localhost/edu-sharing/rest/"
+    searchUrl = "search/v1/queriesV2/-home-/"
+    searchToken = "*"
     # the mds to use for the search request
     mdsId = "-default-"
 
@@ -24,7 +26,7 @@ class EduSharingBase(Spider, LomBase):
     def buildUrl(self, offset=0):
         return (
             self.apiUrl
-            + "search/v1/queriesV2/-home-/"
+            + self.searchUrl
             + self.mdsId
             + "/ngsearch?contentType=FILES&maxItems=100&skipCount="
             + str(offset)
@@ -32,9 +34,14 @@ class EduSharingBase(Spider, LomBase):
         )
 
     def search(self, offset=0):
+        criteria = []
+        if "queriesV2" in self.searchUrl:
+            criteria = [({"property": "ngsearchword", "values": [self.searchToken]} )]
         return JsonRequest(
             url=self.buildUrl(offset),
-            data={"criterias": [{"property": "ngsearchword", "values": ["*"]}]},
+            data={
+                ("criterias" if "queriesV2" in self.searchUrl else "criteria"): criteria
+            },
             callback=self.parse,
         )
 
