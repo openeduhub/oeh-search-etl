@@ -10,6 +10,7 @@ class OEHSpider(EduSharingBase):
     friendlyName = "Open Edu Hub"
     url = "https://redaktion.openeduhub.net/edu-sharing/"
     apiUrl = "https://redaktion.openeduhub.net/edu-sharing/rest/"
+    searchUrl = "search/v1/queries/-home-/"
     version = "0.1.1"
     mdsId = "mds_oeh"
     importWhitelist: [str] = None
@@ -23,7 +24,6 @@ class OEHSpider(EduSharingBase):
 
     def getBase(self, response):
         base = EduSharingBase.getBase(self, response)
-        base.replace_value("type", self.getProperty("ccm:objecttype", response))
         return base
 
 
