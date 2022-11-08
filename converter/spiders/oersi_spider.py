@@ -34,7 +34,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.0.2"   # last update: 2022-11-06
+    version = "0.0.3"   # last update: 2022-11-08
     allowed_domains = "oersi.org"
     custom_settings = {
         "CONCURRENT_REQUESTS": 32,
@@ -541,7 +541,6 @@ class OersiSpider(scrapy.Spider, LomBase):
         #  - affiliation            (OERSI uses their own 'sourceOrganization'-field instead)
         #  - assesses
         #  - audience               (might be suitable for "valuespaces.intendedEndUserRole")
-        #  - conditionsOfAccess     (would be suitable for "valuespaces.conditionsOfAccess")
         #  - competencyRequired
         #  - duration               (for audio/video: will be suitable for "technical.location")
         #  - educationalLevel       (might be suitable for 'valuespaces.educationalContext')
@@ -713,6 +712,18 @@ class OersiSpider(scrapy.Spider, LomBase):
             vs.add_value("price", "no")
         else:
             vs.add_value("price", "yes")
+        if "conditionsOfAccess" in elastic_item_source:
+            conditions_of_access: dict = elastic_item_source.get("conditionsOfAccess")
+            if "id" in conditions_of_access:
+                conditions_of_access_id: str = conditions_of_access["id"]
+                # the "id"-field can hold one of two URLs. Either:
+                # https://w3id.org/kim/conditionsOfAccess/login or https://w3id.org/kim/conditionsOfAccess/no_login
+                # which is equal to our OEH vocab:
+                # https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/conditionsOfAccess.ttl
+                if "/conditionsOfAccess/" in conditions_of_access_id:
+                    conditions_of_access_value = conditions_of_access_id.split("/")[-1]
+                    if conditions_of_access_value:
+                        vs.add_value('conditionsOfAccess', conditions_of_access_value)
 
         hcrt_types = dict()
         oeh_lrt_types = dict()
