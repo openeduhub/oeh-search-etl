@@ -58,11 +58,21 @@ class EdusharingAPI:
 
     def make_request(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str,
                      params: Optional[Dict[str, Any]] = None, json_data: Optional[Dict] = None,
-                     files: Optional[Dict] = None, stream: bool = False):
+                     files: Optional[Dict] = None, stream: bool = False, retry: bool = True):
+        if not method == 'GET':
+            print(f'{method} {url} {params=} {json_data=}')
         url = f'{self.base_url}{url}'
         headers = {'Accept': 'application/json'}
-        return self.session.request(method, url, params=params, headers=headers,
-                                    json=json_data, files=files, stream=stream)
+        response = self.session.request(method, url, params=params, headers=headers,
+                                        json=json_data, files=files, stream=stream)
+        print(f'{response.status_code} {response.reason} <--')
+        if 500 <= response.status_code < 600 and retry:
+            # TODO: remove
+            print('RETRYYYYYYYYYYYYYyy')
+            response = self.session.request(method, url, params=params, headers=headers,
+                                            json=json_data, files=files, stream=stream)
+            print(f'{response.status_code} {response.reason} <--')
+        return response
 
     def get_application_properties(self, xml_file_name: str):
         url = f'/admin/v1/applications/{xml_file_name}'
@@ -73,7 +83,8 @@ class EdusharingAPI:
     def set_application_properties(self, xml_file_name: str, values: Dict[str, str]):
         url = f'/admin/v1/applications/{xml_file_name}'
         response = self.make_request('PUT', url, json_data=values)
-        response.raise_for_status()
+        if not response.status_code == 200:
+            raise RequestFailedException(response)
 
     def upload_content(self, node_id: str, filename: str, file: IO[bytes], mimetype: str = ''):
         url = f'/node/v1/nodes/-home-/{node_id}/content'
@@ -82,13 +93,15 @@ class EdusharingAPI:
             'file': (filename, file, mimetype, {'Expires': '0'})
         }
         response = self.make_request('POST', url, params=params, files=files, stream=True)
-        response.raise_for_status()
+        if not response.status_code == 200:
+            raise RequestFailedException(response)
 
     def change_metadata(self, node_id: str, properties: Dict[str, List[str]]):
         url = f'/node/v1/nodes/-home-/{node_id}/metadata'
         params = {'versionComment': 'METADATA_UPDATE'}
         response = self.make_request('POST', url, params=params, json_data=properties)
-        response.raise_for_status()
+        if not response.status_code == 200:
+            raise RequestFailedException(response)
 
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024 ** 2):
         url = f'/iam/v1/people/-home-/{username}'
@@ -222,12 +235,15 @@ class EdusharingAPI:
 
     def sync_node(self, group: str, properties: Dict, match: List[str], type: str = 'ccm:io',
                   group_by: Optional[str] = None):
-        url = f'/bulk/v1/sync/{group}?type={type}&resetVersion=false'
+        url = f'/bulk/v1/sync/{group}'
+        params = {
+            'type': type,
+            'resetVersion': 'false',
+            'match': match
+        }
         if group_by is not None:
-            url += f'&groupBy={group_by}'
-        for m in match:
-            url += f'&match={m}'
-        response = self.make_request('PUT', url, json_data=properties)
+            params['groupBy'] = group_by
+        response = self.make_request('PUT', url, params=params, json_data=properties)
         if not response.status_code == 200:
             raise RequestFailedException(response)
         return Node(response.json()['node'])
@@ -242,16 +258,25 @@ class EdusharingAPI:
         if not response.status_code == 200:
             raise RequestFailedException(response, node_id)
 
-    def set_property_relation(self, node_id: str, property: str, value: List):
-        url = f'/node/v1/nodes/-home-/{node_id}/property'
-        params = {
-            'property': property,
-            'value': json.dumps({'kind': 'ispartof', 'resource': {'identifier': [value]}})
-            #'value': f"{{'kind': 'haspart', 'resource': {{'identifier' [{value}]}}}}"
-        }
-        response = self.make_request('POST', url, params=params)
-        if not response.status_code == 200:
-            raise RequestFailedException(response, node_id)
+    def set_collection_children(self, node_id: str, children_uuids: List[str]):
+        """
+        Sets collection relation to its children. Reverse operation is also needed for all children.
+        @param children_uuids: replication source uuids of ALL children
+        """
+        # frontend relies on exact syntax, no double quotes (as in json) allowed
+        value = f"{{kind': 'hasparts', 'resource': {{'identifier': {str(children_uuids)}}}}}"
+        for property in 'ccm:lom_relation', 'ccm:hpi_lom_relation':
+            self.set_property(node_id, property, [value])
+
+    def set_collection_parent(self, node_id: str, parent_uuid: str):
+        """
+        Sets node's relation to its collection. Reverse operation is needed for collection.
+        @param parent_uuid: replication source uuid of parent
+        """
+        # frontend relies on exact syntax, no double quotes (as in json) allowed
+        value = f"{{'kind': 'ispartof', 'resource': {{'identifier': ['{parent_uuid}']}}}}"
+        for property in 'ccm:lom_relation', 'ccm:hpi_lom_relation':
+            self.set_property(node_id, property, [value])
 
     def set_preview_thumbnail(self, node_id: str, filename: str):
         url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
