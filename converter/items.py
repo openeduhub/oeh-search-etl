@@ -130,6 +130,8 @@ class ValuespaceItem(Item):
     learningResourceType = Field(output_processor=JoinMultivalues())
     new_lrt = Field(output_processor=JoinMultivalues())
     sourceContentType = Field(output_processor=JoinMultivalues())
+    # ToDo: sourceContentType is no longer used in edu-sharing
+    # DO NOT SET this field in crawlers for individual materials!
     toolCategory = Field(output_processor=JoinMultivalues())
 
     conditionsOfAccess = Field(output_processor=JoinMultivalues())

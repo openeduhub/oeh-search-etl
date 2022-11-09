@@ -19,7 +19,7 @@ class GrundSchulKoenigSpider(CrawlSpider, LomBase):
 
     start_urls = ['https://www.grundschulkoenig.de/sitemap.xml?sitemap=pages&cHash=b8e1a6633393d69093d0ebe93a3d2616']
     name = 'grundschulkoenig_spider'
-    version = "0.0.6"  # last update: 2022-08-03
+    version = "0.0.7"  # last update: 2022-08-26
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         # while there is no robots.txt, there is a 404-forward-page that gets misinterpreted by Scrapy
@@ -178,7 +178,6 @@ class GrundSchulKoenigSpider(CrawlSpider, LomBase):
             vs.add_value('discipline', "Religionsunterricht")
         vs.add_value('discipline', 'Allgemein')
         vs.add_value('educationalContext', 'Primarstufe')
-        vs.add_value('sourceContentType', "Unterrichtsmaterial- und Aufgaben-Sammlung")
         # vs.add_value('learningResourceType', 'other_asset_type')
         # ToDo: new_lrt
         if "/vorschule/" in response.url:

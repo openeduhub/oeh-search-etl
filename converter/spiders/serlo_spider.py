@@ -17,7 +17,7 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.2.2"  # last update: 2022-07-29
+    version = "0.2.3"  # last update: 2022-08-26
     custom_settings = settings.BaseSettings({
             # playwright cause of issues with thumbnails+text for serlo
             "WEB_TOOLS": WebEngine.Playwright
@@ -316,8 +316,6 @@ class SerloSpider(scrapy.Spider, LomBase):
         if graphql_json["learningResourceType"] is not None:
             # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/learningResourceType.ttl)
             vs.add_value('learningResourceType', graphql_json["learningResourceType"])
-        vs.add_value('sourceContentType', "Lernportal")
-        # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/sourceContentType.ttl)
 
         base.add_value('valuespaces', vs.load_item())
 
