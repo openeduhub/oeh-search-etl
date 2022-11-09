@@ -11,7 +11,7 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
     name = "zum_spider"
     friendlyName = "ZUM-Unterrichten"
     url = "https://unterrichten.zum.de/"
-    version = "0.1.0"
+    version = "0.1.1"  # last update: 2022-09-13
     license = Constants.LICENSE_CC_BY_SA_40
 
     def technical_item(self, response=None) -> LomTechnicalItem:
