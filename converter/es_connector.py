@@ -1,5 +1,4 @@
 import base64
-import collections
 import json
 import logging
 import time
@@ -36,11 +35,12 @@ class EduSharingConstants:
     MEDIACENTER_PREFIX = "MEDIA_CENTER_"
     MEDIACENTER_PROXY_PREFIX = "MEDIA_CENTER_PROXY_"
     LIFECYCLE_ROLES_MAPPING = {
-        "publisher": "ccm:lifecyclecontributer_publisher",
         "author": "ccm:lifecyclecontributer_author",
         "editor": "ccm:lifecyclecontributer_editor",
         "metadata_creator": "ccm:metadatacontributer_creator",
         "metadata_provider": "ccm:metadatacontributer_provider",
+        "publisher": "ccm:lifecyclecontributer_publisher",
+        "unknown": "ccm:lifecyclecontributer_unknown",  # (= contributor in an unknown capacity ("Mitarbeiter"))
     }
 
 
@@ -360,7 +360,6 @@ class EduSharing:
                     pass
                 spaces["cclom:duration"] = duration
 
-        # TODO: this does currently not support multiple values per role
         if "lifecycle" in item["lom"]:
             for person in item["lom"]["lifecycle"]:
                 if not "role" in person:
@@ -408,7 +407,11 @@ class EduSharing:
                 vcard.add("url").value = url
                 if email:
                     vcard.add("EMAIL;TYPE=PREF,INTERNET").value = email
-                spaces[mapping] = [vcard.serialize()]
+                if mapping in spaces:
+                    # checking if a vcard already exists for this role: if so, extend the list
+                    spaces[mapping].append(vcard.serialize())
+                else:
+                    spaces[mapping] = [vcard.serialize()]
 
         valuespaceMapping = {
             "discipline": "ccm:taxonid",
