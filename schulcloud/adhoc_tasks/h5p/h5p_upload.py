@@ -58,7 +58,7 @@ def generate_node_properties(
         "ccm:replicationsource": [folder_name],
         "ccm:replicationsourceid": [hashlib.md5(replication_source_id.encode()).hexdigest()],
         "ccm:replicationsourcehash": [date],
-        "ccm:replicationsourceuuid": [str(uuid.UUID(hashlib.md5(replication_source_uuid.encode()).hexdigest()))],
+        "ccm:replicationsourceuuid": [str(uuid.uuid5(uuid.NAMESPACE_URL, replication_source_uuid))],
         "ccm:commonlicense_key": [license],  # TODO: test whether edusharing supports multiple licenses
         "ccm:hpi_searchable": ['1' if hpi_searchable else '0'],
         "ccm:hpi_lom_general_aggregationlevel": [str(aggregation_level)],
