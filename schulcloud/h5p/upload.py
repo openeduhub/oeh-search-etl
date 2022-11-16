@@ -10,7 +10,7 @@ from zipfile import ZipFile
 
 import boto3
 
-import edusharing
+from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException
 from h5p_extract_metadata import MetadataFile, Metadata, Collection
 
 
@@ -76,7 +76,7 @@ class Uploader:
     def __init__(self):
         self.env = util.Environment(EXPECTED_ENV_VARS, ask_for_missing=False)
 
-        self.api = edusharing.EdusharingAPI(
+        self.api = EdusharingAPI(
             self.env['EDU_SHARING_BASE_URL'],
             self.env['EDU_SHARING_USERNAME'],
             self.env['EDU_SHARING_PASSWORD'])
@@ -111,7 +111,7 @@ class Uploader:
         destination_folder = self.api.get_or_create_node(sync_obj.id, folder_name, type='folder')
         return destination_folder
 
-    def upload_file(self, folder: edusharing.Node, metadata: Metadata, file: Optional[IO[bytes]] = None, searchable: bool = True):
+    def upload_file(self, folder: Node, metadata: Metadata, file: Optional[IO[bytes]] = None, searchable: bool = True):
         # get h5p file, add metadata, upload and after all add permissions
         filename = os.path.basename(metadata.filepath)
         name = os.path.splitext(filename)[0]
@@ -145,7 +145,7 @@ class Uploader:
         print(f'Upload complete for: {metadata.filepath}')
         return node.id, properties["ccm:replicationsourceuuid"][0]
 
-    def upload_collection(self, collection: Collection, zip_file: ZipFile, es_folder: edusharing.Node):
+    def upload_collection(self, collection: Collection, zip_file: ZipFile, es_folder: Node):
         # save the replicationsourceuuid, nodeId and the collection of each h5p-file corresponding to this package
         children_replication_source_uuids = []
 
@@ -195,10 +195,10 @@ class Uploader:
             collection_node = None
             try:
                 collection_node = self.api.find_node_by_replication_source_id(replicationsourceid)
-            except edusharing.NotFoundException as err:
+            except NotFoundException as err:
                 # just upload
                 pass
-            except edusharing.FoundTooManyException as err:
+            except FoundTooManyException as err:
                 # TODO: not sure if correct
                 print(f'Found multiple nodes for collection: {collection.name}', file=sys.stderr)
                 continue
