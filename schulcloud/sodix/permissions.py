@@ -4,8 +4,8 @@ from typing import List
 
 import tqdm
 
-import edusharing
-import util
+from schulcloud.edusharing import EdusharingAPI, Node
+from schulcloud.util import Environment
 
 
 ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
@@ -34,7 +34,7 @@ class Blacklist:
             return self.all_groups
 
 
-def find_node_by_name(api: edusharing.EdusharingAPI, parent_id: str, child_name: str) -> edusharing.Node:
+def find_node_by_name(api: EdusharingAPI, parent_id: str, child_name: str) -> Node:
     nodes = api.get_children(parent_id)
     for node in nodes:
         if node.name == child_name:
@@ -67,11 +67,11 @@ def create_blacklist_from_json(file_path: str):
 
 
 def main():
-    environment = util.Environment(ENV_VARS, ask_for_missing=True)
+    environment = Environment(ENV_VARS, ask_for_missing=True)
     blacklist = create_blacklist_from_json('blacklist.json')
 
     print('Edusharing:', environment['EDU_SHARING_BASE_URL'])
-    api = edusharing.EdusharingAPI(
+    api = EdusharingAPI(
         environment['EDU_SHARING_BASE_URL'],
         environment['EDU_SHARING_USERNAME'],
         environment['EDU_SHARING_PASSWORD'])

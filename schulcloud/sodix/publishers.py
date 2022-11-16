@@ -2,7 +2,7 @@
 import json
 import requests
 
-import util
+from schulcloud.util import Environment
 
 
 query_string = '''
@@ -20,7 +20,7 @@ class SodixDownloader:
     URL_REQUEST = 'https://api.sodix.de/gql/graphql'
 
     def __init__(self):
-        environment = util.Environment(['SODIX_USER', 'SODIX_PASSWORD'], ask_for_missing=True)
+        environment = Environment(['SODIX_USER', 'SODIX_PASSWORD'], ask_for_missing=True)
         self.user = environment['SODIX_USER']
         self.password = environment['SODIX_PASSWORD']
         self.access_token = ''
