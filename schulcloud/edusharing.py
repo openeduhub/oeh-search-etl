@@ -65,13 +65,14 @@ class EdusharingAPI:
         headers = {'Accept': 'application/json'}
         response = self.session.request(method, url, params=params, headers=headers,
                                         json=json_data, files=files, stream=stream)
-        print(f'{response.status_code} {response.reason} <--')
+        if not method == 'GET':
+            print(f'{response.status_code} {response.reason} <--')
         if 500 <= response.status_code < 600 and retry:
             # TODO: remove
-            print('RETRYYYYYYYYYYYYYyy')
             response = self.session.request(method, url, params=params, headers=headers,
                                             json=json_data, files=files, stream=stream)
-            print(f'{response.status_code} {response.reason} <--')
+            if not method == 'GET':
+                print(f'{response.status_code} {response.reason} <--')
         return response
 
     def get_application_properties(self, xml_file_name: str):
