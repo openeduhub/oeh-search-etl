@@ -1,9 +1,9 @@
 import sys
 import os
-import boto3
-import tqdm
-
 from typing import List
+
+import tqdm
+import boto3
 
 HELP = '''
 s3_cli list [ARGS]

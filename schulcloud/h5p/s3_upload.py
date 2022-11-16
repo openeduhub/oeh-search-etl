@@ -4,7 +4,7 @@ import sys
 import boto3
 import tqdm
 
-import util
+from schulcloud.util import Environment
 
 
 HELP = '''
@@ -22,7 +22,7 @@ EXPECTED_ENV_VARS = [
 
 
 def main():
-    env = util.Environment(EXPECTED_ENV_VARS)
+    env = Environment(EXPECTED_ENV_VARS)
     client = boto3.client(
         's3',
         endpoint_url=env['S3_ENDPOINT_URL'],

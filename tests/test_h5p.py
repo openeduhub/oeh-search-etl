@@ -4,13 +4,13 @@ import unittest
 import zipfile
 import os
 
-from schulcloud.adhoc_tasks.h5p.edusharing import EdusharingAPI, NotFoundException
-from schulcloud.adhoc_tasks.h5p.h5p_upload import util
-from schulcloud.adhoc_tasks.h5p.h5p_upload import S3Downloader
-from schulcloud.adhoc_tasks.h5p.h5p_upload import Uploader
-from schulcloud.adhoc_tasks.h5p.h5p_upload import generate_node_properties
-from schulcloud.adhoc_tasks.h5p.h5p_extract_metadata import Metadata
-from schulcloud.adhoc_tasks.h5p.h5p_extract_metadata import MetadataFile, ParsingError
+from schulcloud.edusharing import EdusharingAPI, NotFoundException
+from schulcloud import util
+from schulcloud.h5p.upload import S3Downloader
+from schulcloud.h5p.upload import Uploader
+from schulcloud.h5p.upload import generate_node_properties
+from schulcloud.h5p.extract_metadata import Metadata
+from schulcloud.h5p.extract_metadata import MetadataFile, ParsingError
 
 EXPECTED_ENV_VARS = [
     'EDU_SHARING_BASE_URL',
@@ -197,7 +197,7 @@ class TestH5P(unittest.TestCase):
     def test_edusharing014_set_preview_thumbnail(self):
         node_id = TestH5P.test_file_node_id
         self.api.set_preview_thumbnail(node_id=node_id,
-                                       filename='.\\thumbnail\\H5Pthumbnail.png')
+                                       filename='../schulcloud/h5p/thumbnail/H5Pthumbnail.png')
 
         url_check_prop = f'/node/v1/nodes/-home-/{node_id}/prepareUsage'
         response = self.api.make_request('POST', url_check_prop)
@@ -217,7 +217,7 @@ class TestH5P(unittest.TestCase):
         self.assertTrue(not_found, 'Node is not deleted.')
 
     def test_extract_metadata001_metadata(self):
-        path = '.\\h5p_test_files\\test_excel_file.xlsx'
+        path = '../schulcloud/h5p/h5p_test_files/test_excel_file.xlsx'
         metadata = MetadataFile(file=path)
         self.assertEqual('test_collection', metadata.get_collection(), 'Wrong collection.')
         self.assertEqual('THR', metadata.get_collection_permission(), 'Wrong permission.')
@@ -226,7 +226,7 @@ class TestH5P(unittest.TestCase):
         self.assertEqual('CC BY-NC-SA 4.0', metadata.get_license(), 'Wrong licence.')
 
     def test_extract_metadata002_metadata_from_file(self):
-        path_excel = '.\\h5p_test_files\\test_excel_file.xlsx'
+        path_excel = '../schulcloud/h5p/h5p_test_files/test_excel_file.xlsx'
         metadata = MetadataFile(file=path_excel)
         element_test = 'test.h5p'
         metadata_file = metadata.get_metadata(element_test)
@@ -240,14 +240,14 @@ class TestH5P(unittest.TestCase):
         self.assertEqual(1, metadata_file.order, 'Wrong order.')
 
     def test_extract_metadata003_metadata_by_file_name(self):
-        path_excel = '.\\h5p_test_files\\test_excel_file.xlsx'
+        path_excel = '../schulcloud/h5p/h5p_test_files/test_excel_file.xlsx'
         metadata = MetadataFile(file=path_excel)
         element_test = 'test.h5p'
         metadata_file = metadata.find_metadata_by_file_name(element_test)
         self.assertEqual(1, metadata_file, 'Multiple metadata matches.')
 
     def test_extract_metadata004_check_for_files(self):
-        path_excel = '.\\h5p_test_files\\test_excel_file.xlsx'
+        path_excel = '../schulcloud/h5p/h5p_test_files/test_excel_file.xlsx'
         metadata = MetadataFile(file=path_excel)
         filenames = ['test.h5p', 'test02.h5p', 'test03.h5p', 'test_false.h5p']
         file_exist = True
@@ -258,7 +258,7 @@ class TestH5P(unittest.TestCase):
         self.assertFalse(file_exist, "Files aren\'t present in the Excel-Sheet")
 
     def test_extract_metadata005_fill_zeros(self):
-        path_excel = '.\\h5p_test_files\\test_excel_file.xlsx'
+        path_excel = '../schulcloud/h5p/h5p_test_files/test_excel_file.xlsx'
         metadata = MetadataFile(file=path_excel)
         res = metadata._fill_zeros('4')
         self.assertEqual('04', res, 'Wrong upfilling zeros.')
@@ -275,7 +275,7 @@ class TestH5P(unittest.TestCase):
         self.api.delete_node(node.id)
 
     def test_h5p_upload_get_metadata_and_excel_file(self):
-        path = os.path.join("h5p_test_files", "test_upload_collection.zip")
+        path = os.path.join("../schulcloud/h5p/h5p_test_files", "test_upload_collection.zip")
         zip = zipfile.ZipFile(path)
         try:
             metadata_file = self.uploader.get_metadata_file(zip)
@@ -284,7 +284,7 @@ class TestH5P(unittest.TestCase):
         self.assertTrue(metadata_file is not None, "Failed to get metadata file and excel file!")
 
     def test_h5p_upload_no_excel_get_metadata_and_excel_file(self):
-        path = os.path.join("h5p_test_files", "test_get_metadata.zip")
+        path = os.path.join("../schulcloud/h5p/h5p_test_files", "test_get_metadata.zip")
         zip = zipfile.ZipFile(path)
         try:
             metadata_file = self.uploader.get_metadata_file(zip)
@@ -303,7 +303,7 @@ class TestH5P(unittest.TestCase):
                          "Returned wrong groups!")
 
     def test_h5p_upload_upload_h5p_non_collection(self):
-        path = os.path.join("h5p_test_files", "test_upload_non_collection.zip")
+        path = os.path.join("../schulcloud/h5p/h5p_test_files", "test_upload_non_collection.zip")
         zip = zipfile.ZipFile(path)
 
         metadata_file = self.uploader.get_metadata_file(zip)
@@ -322,7 +322,7 @@ class TestH5P(unittest.TestCase):
         self.api.delete_node(folder_node.id)
 
     def test_h5p_upload_upload_h5p_collection(self):
-        path = os.path.join("h5p_test_files", "test_upload_collection.zip")
+        path = os.path.join("../schulcloud/h5p/h5p_test_files", "test_upload_collection.zip")
         zip = zipfile.ZipFile(path)
         metadata_file = self.uploader.get_metadata_file(zip)
 
@@ -340,7 +340,7 @@ class TestH5P(unittest.TestCase):
         self.api.delete_node(folder_node.id)
 
     def test_h5p_upload_upload_h5p_file_collection(self):
-        path = os.path.join("h5p_test_files", "test_upload_collection.zip")
+        path = os.path.join("../schulcloud/h5p/h5p_test_files", "test_upload_collection.zip")
         zip = zipfile.ZipFile(path)
         metadata = Metadata("Test Nummer 1", "Tester", ["h5p", "test"], "1", ['ALLE'])
 
@@ -366,7 +366,7 @@ class TestH5P(unittest.TestCase):
         self.api.delete_node(folder_node.id)
 
     def test_h5p_upload_upload_h5p_file_non_collection(self):
-        path = os.path.join("h5p_test_files", "test_upload_non_collection.zip")
+        path = os.path.join("../schulcloud/h5p/h5p_test_files", "test_upload_non_collection.zip")
         zip = zipfile.ZipFile(path)
         metadata = Metadata("Test Nummer 1", "Tester", ["h5p", "test"], "1", ['ALLE'])
         file = zip.open("test1.h5p")
@@ -431,9 +431,9 @@ class TestH5P(unittest.TestCase):
 
     def test_h5p_upload_download_object(self):
         self.downloader.download_object("test_upload_collection.zip", "h5p_temp")
-        obj_list = os.listdir("h5p_temp")
+        obj_list = os.listdir("../schulcloud/h5p/h5p_temp")
         self.assertEqual(["FWURAW", "test_upload_collection.zip"], obj_list, "Failed to download object!")
-        path = os.path.join("h5p_temp", "test_upload_collection.zip")
+        path = os.path.join("../schulcloud/h5p/h5p_temp", "test_upload_collection.zip")
         os.remove(path)
 
 

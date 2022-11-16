@@ -2,7 +2,7 @@
 import os
 import sys
 import uuid
-import util
+from schulcloud import util
 import hashlib
 from typing import Optional, List, IO, Callable, Dict
 from datetime import datetime
@@ -11,7 +11,7 @@ from zipfile import ZipFile
 import boto3
 
 from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException
-from h5p_extract_metadata import MetadataFile, Metadata, Collection
+from schulcloud.h5p.extract_metadata import MetadataFile, Metadata, Collection
 
 
 EXPECTED_ENV_VARS = [

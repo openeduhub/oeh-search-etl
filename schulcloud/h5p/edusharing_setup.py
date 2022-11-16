@@ -2,8 +2,8 @@ import json
 from dataclasses import dataclass
 from typing import List, Set, Literal
 
-import edusharing
-import util
+from schulcloud.edusharing import EdusharingAPI
+from schulcloud.util import Environment
 
 
 ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
@@ -19,8 +19,8 @@ class User:
 
 class EdusharingSetup:
     def __init__(self):
-        environment = util.Environment(ENV_VARS, ask_for_missing=True)
-        self.api = edusharing.EdusharingAPI(
+        environment = Environment(ENV_VARS, ask_for_missing=True)
+        self.api = EdusharingAPI(
             environment['EDU_SHARING_BASE_URL'],
             environment['EDU_SHARING_USERNAME'],
             environment['EDU_SHARING_PASSWORD'])
