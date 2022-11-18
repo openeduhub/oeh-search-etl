@@ -10,6 +10,7 @@ s3_cli list [ARGS]
 s3_cli upload <FILES...> [ARGS]
 s3_cli download <FILES...> [ARGS]
 s3_cli delete <FILES...> [ARGS]
+s3_cli copy <FILES...> -bd <BUCKET_NAME_DESTINATION> [ARGS]
 s3_cli bucket list [ARGS]
 s3_cli bucket create <NAME> [ARGS] 
 s3_cli bucket delete <NAME> [ARGS]
@@ -96,6 +97,17 @@ class CLI:
             response = self.client.delete_object(Bucket=bucket_name, Key=object)
             print(response)
 
+    def copy_objects(self, bucket_name: str, bucket_name_destination: str, objects: List[str]):
+        self.ensure_bucket(bucket_name)
+        self.ensure_bucket(bucket_name_destination)
+        for object in objects:
+            copy_source = {
+                'Bucket': f'{bucket_name}',
+                'Key': f'{object}'
+            }
+            self.client.copy(copy_source, bucket_name_destination, object)
+        print(f'Object was copied successfully from bucket {bucket_name} to bucket {bucket_name_destination}.')
+
     def list_buckets(self):
         response = self.client.list_buckets()
         for bucket in response['Buckets']:
@@ -143,11 +155,15 @@ def main():
         i = 2
 
     bucket = ''
+    bucket_destination = ''
     rest = []
     while i < len(sys.argv):
         arg = sys.argv[i]
         if arg == '-b':
             bucket = sys.argv[i + 1]
+            i += 1
+        elif arg == '-bd':
+            bucket_destination = sys.argv[i + 1]
             i += 1
         else:
             rest.append(arg)
@@ -165,6 +181,8 @@ def main():
         cli.download_objects(dir, bucket, rest)
     elif command == 'delete':
         cli.delete_objects(bucket, rest)
+    elif command == 'copy':
+        cli.copy_objects(bucket, bucket_destination, rest)
     elif command == 'bucket_list':
         cli.list_buckets()
     elif command == 'bucket_create':
