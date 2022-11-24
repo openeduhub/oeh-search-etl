@@ -1,7 +1,6 @@
 ---
 name: oeh-search-etl Docker image on push to GHCR
 on: [push]
-
 jobs:
   build_image_and_push_to_ghcr:
     runs-on: ubuntu-latest
