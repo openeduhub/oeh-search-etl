@@ -2,8 +2,6 @@
 import json
 from typing import List
 
-import tqdm
-
 from schulcloud.edusharing import EdusharingAPI, Node
 from schulcloud.util import Environment
 
@@ -82,12 +80,11 @@ def main():
 
     print('This will take a while and may seem stuck for a few times')
 
-    progress_bar = tqdm.tqdm(total=len(publisher_directories))
     for dir in publisher_directories:
         publisher_id = dir.name
-        progress_bar.set_description(dir.name)
+        print(dir.name)
         if not (dir.name.isalnum() and len(dir.name) == 24):
-            progress_bar.write(f'Warning: Skipped directory because name is not a proper id: {publisher_id}')
+            print(f'Warning: Skipped directory because name is not a proper id: {publisher_id}')
             continue
 
         groups_blacklist = blacklist.get_groups(publisher_id)
@@ -96,9 +93,6 @@ def main():
             api.set_permissions(dir.id, list(blacklist.all_groups), inheritance=True)
         else:
             api.set_permissions(dir.id, list(groups_blacklist), inheritance=False)
-
-        progress_bar.update()
-    progress_bar.close()
 
 
 if __name__ == '__main__':

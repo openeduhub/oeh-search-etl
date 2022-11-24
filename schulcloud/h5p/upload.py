@@ -138,9 +138,7 @@ class Uploader:
         self.api.set_permissions(node.id, permitted_groups, False)
 
         if filename.endswith('h5p'):
-            metadata_of_node = self.api.get_metadata_of_node(node.id)
-            if metadata_of_node['node']['preview']['type'] == "TYPE_DEFAULT":
-                self.api.set_preview_thumbnail(node_id=node.id, filename='thumbnail/H5Pthumbnail.png')
+            self.api.set_preview_thumbnail(node_id=node.id, filename='thumbnail/H5Pthumbnail.png')
 
         print(f'Upload complete for: {metadata.filepath}')
         return node.id, properties["ccm:replicationsourceuuid"][0]
@@ -178,7 +176,8 @@ class Uploader:
         self.api.set_collection_children(collection_node.id, children_replication_source_uuids)
 
         # TODO: set thumbnail of first item
-        self.api.set_preview_thumbnail(node_id=collection_node.id, filename='thumbnail/H5Pthumbnail.png')
+        if collection.children[0].filepath.endswith('h5p'):
+            self.api.set_preview_thumbnail(node_id=collection_node.id, filename='thumbnail/H5Pthumbnail.png')
 
     def upload_zip(self, zip_file: ZipFile, es_folder_name: str, last_modified: Optional[datetime] = None):
         try:
