@@ -154,7 +154,7 @@ def main():
     schedule = env['SCHEDULE'].split(';')
     crawler = env['CRAWLER'].lower()
     if crawler == 'hello_world':
-        job = Job('Hello World', lambda: print('Hello, world!'), schedule)
+        job = Job('Hello World', lambda: print('Hello, world!', file=sys.stderr), schedule)
     elif crawler == 'h5p_upload':
         job = Job('H5P Uploader', H5PUploader().upload_from_s3, schedule)
     elif crawler == 'sodix_permissions':
