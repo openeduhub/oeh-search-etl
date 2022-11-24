@@ -139,22 +139,20 @@ class Job:
                 if rules_next < next_time:
                     next_time = rules_next
 
-            time_remaining = next_time - dt.datetime.now()
-            seconds = time_remaining.days * 3600 + time_remaining.seconds + time_remaining.microseconds / 1_000_000
-            if seconds > 0.0:
-                time.sleep(min(seconds, check_interval_seconds))
-                # redo all calculations to recover from suspend or sudden time changes
-                continue
+            while True:
+                time_remaining = next_time - dt.datetime.now()
+                if time_remaining.total_seconds() > 0.0:
+                    time.sleep(min(time_remaining.total_seconds(), check_interval_seconds))
+                    continue
 
-            self.function()
+                self.function()
+                break
 
 
 def main():
     env = Environment(env_vars=needed_env_vars)
     schedule = env['SCHEDULE'].split(';')
     crawler = env['CRAWLER'].lower()
-    #crawler = 'hello_world'
-    #schedule = ['*-*-12:41']
     if crawler == 'hello_world':
         job = Job('Hello World', lambda: print('Hello, world!'), schedule)
     elif crawler == 'h5p_upload':
@@ -169,7 +167,7 @@ def main():
         )
     else:
         print(f'Unexpected crawler "{crawler}"')
-        return 2
+        return 1
 
     job.run_schedule()
 
