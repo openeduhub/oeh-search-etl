@@ -3,6 +3,7 @@ name: oeh-search-etl Docker image on push to GHCR
 
 on:
   push:
+    - BRB-144-docker-image
 
 jobs:
   build_image_and_push_to_ghcr:
