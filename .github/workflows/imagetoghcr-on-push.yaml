@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - BRB-144-docker-image
-
+    tags:
+      - '*'
 jobs:
   build_image_and_push_to_ghcr:
     runs-on: ubuntu-latest
