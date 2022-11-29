@@ -11,15 +11,20 @@ from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnica
 from converter.spiders.base_classes import LomBase
 
 
-class ZumDwuSpider(CrawlSpider, LomBase):
-    # Crawler for http://www.zum.de/dwu/
-    name = "zum_dwu_spider"
-    friendlyName = "ZUM DWU"
+class DwuSpider(CrawlSpider, LomBase):
+    # Previously: Crawler for http://www.zum.de/dwu/
+    # After 2022-11-29: Crawler for https://www.dwu-unterrichtsmaterialien.de
+    name = "dwu_spider"
+    friendlyName = "dwu-Unterrichtsmaterialien"
     start_urls = [
-        "http://www.zum.de/dwu/umamtg.htm",  # Mathematik-Teilgebiete
-        "http://www.zum.de/dwu/umaptg.htm"  # Physik-Teilgebiete
+        "https://www.dwu-unterrichtsmaterialien.de/umamtg.htm",  # Mathematik-Teilgebiete
+        "https://www.dwu-unterrichtsmaterialien.de/umaptg.htm"  # Physik-Teilgebiete
     ]
-    version = "0.0.2"  # last update: 2022-04-21
+    # For historic context:
+    # Up until crawler version v0.0.2 this crawler used to be named "zum_dwu_spider", but DWU informed us that the
+    # learning materials won't be available on the ZUM Servers in the near future, which is why URLs point towards
+    # DWU's private website offering from now on
+    version = "0.0.5"  # last update: 2022-11-30
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         # "AUTOTHROTTLE_DEBUG": True
@@ -27,7 +32,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
 
     parsed_urls = set()  # holds the already parsed urls to minimize the amount of duplicate requests
     debug_xls_set = set()
-    # The author used a HTML suite for building the .htm documents (Hot Potatoes by Half-Baked Software)
+    # The author used an HTML suite for building the .htm documents (Hot Potatoes by Half-Baked Software)
     # this software seems to set its own keywords if the author didn't specify his keywords for a document
     # we don't want these keywords muddying up our keyword lists, therefore we'll use a set to filter them out later:
     keywords_to_ignore = {'University of Victoria', 'Hot Potatoes', 'Windows', 'Half-Baked Software', 'hot', 'potatoes'}
@@ -50,7 +55,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
 
     def parse_section_overview(self, response: scrapy.http.Response):
         # Each section (e.g. "Mathematik Teilgebiete") holds a list of individual topic-categories (e.g. "Kreislehre")
-        section_urls = response.xpath('/html/body/table/tr/td/a/@href').getall()
+        section_urls = response.xpath('/html/body//tr/td/a/@href').getall()
         section_urls.sort()
         # print(section_urls)
         # print("Section URLs: ", len(section_urls))
@@ -63,7 +68,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         #   .htm-pages with explanations about a specific topic
         #   eLearning-exercises or
         #   "Aufgabengeneratoren" inside a .xls file
-        topic_urls = response.xpath('/html/body/table/tr/td/a/@href').getall()
+        topic_urls = response.xpath('/html/body//tr/td/a/@href').getall()
         # print("Topic URLs:", topic_urls)
         # print("Number of topic_urls in this section:", len(topic_urls))
 
@@ -103,8 +108,6 @@ class ZumDwuSpider(CrawlSpider, LomBase):
 
     def parse(self, response: scrapy.http.Response, **kwargs):
         base = super().getBase(response=response)
-        # there are no suitable images to serve as thumbnails, therefore SPLASH will have to do
-
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
         # description_raw = response.xpath('/html/body/table/tr[4]/td/table/tr/td').get()
@@ -130,7 +133,6 @@ class ZumDwuSpider(CrawlSpider, LomBase):
             title = response.xpath('//td[@class="tt1math"]/text()').get()
             if title is not None:
                 title = title.strip()
-            # desc_list = response.xpath('/html/body/table[2]/tr/td/table/tr[1]/td[1]/text()').getall()
             desc_list = response.xpath('//td[@class="t1fbs"]/text()').getall()
             if desc_list is not None and len(desc_list) == 0:
                 # if the first attempt at grabbing a description fails, we try it at another place
@@ -142,15 +144,18 @@ class ZumDwuSpider(CrawlSpider, LomBase):
                 clean_description = w3lib.html.replace_escape_chars(description_raw)
                 general.replace_value('description', clean_description)
 
-        if title is not None:
+        if title:
             title = w3lib.html.replace_escape_chars(title)
-            if title is not None:
-                # this double-check is necessary for broken headings that ONLY consisted of escape-chars
+            if title:
+                # checking if the title is still valid, which necessary for broken headings that ONLY consisted of
+                # escape-chars
                 if title == '':
-                    # there's some pages (Exercises) that only hold escape chars or whitespaces as their title
+                    # there's some pages (exercises) that only hold escape chars or whitespaces as their title
                     # the title is simply bold text hidden within a div container
                     title = response.xpath('//div[@class="Titles"]/h3[@class="ExerciseSubtitle"]/b/text()').get()
-                title = title.strip()
+                if title:
+                    # checking once more for valid titles, since we might get an empty string from "ExerciseSubtitle"
+                    title = title.strip()
                 # Since we're grabbing titles from headings, a lot of them have a trailing ":"
                 if len(title) > 0 and title.endswith(":"):
                     # replacing the string with itself right up to the point of the colon
@@ -196,9 +201,8 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         lifecycle.add_value('role', 'author')
         lifecycle.add_value('firstName', 'Dieter')
         lifecycle.add_value('lastName', 'Welz')
-        lifecycle.add_value('url', 'dwu@zum.de')
-        lifecycle.add_value('organization',
-                            response.xpath('/html/head/meta[@http-equiv="organization"]/@content').get())
+        lifecycle.add_value('url', 'mail@dwu-unterrichtsmaterialien.de')
+        lifecycle.add_value('organization', 'dwu-Unterrichtsmaterialien')
         lom.add_value('lifecycle', lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
@@ -227,7 +231,9 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         vs.add_value('conditionsOfAccess', 'no login')
 
         lic = LicenseItemLoader()
-        lic.add_value('description', 'http://www.zum.de/dwu/hilfe.htm')
+        lic.add_value('description', 'Copyright-Hinweise und Nutzungsbedingungen siehe '
+                                     'https://www.dwu-unterrichtsmaterialien.de/hilfe.htm '
+                                     'sowie https://www.dwu-unterrichtsmaterialien.de/codaim.htm')
         lic.add_value('internal', Constants.LICENSE_CUSTOM)
         lic.add_value('author', response.xpath('/html/head/meta[@http-equiv="author"]/@content').get())
 
