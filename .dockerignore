@@ -1,1 +1,8 @@
 **/.github
+.venv
+venv
+csv
+temp
+tests
+.env
+.env.*
