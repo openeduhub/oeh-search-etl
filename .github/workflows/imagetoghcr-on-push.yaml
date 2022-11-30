@@ -2,8 +2,6 @@
 name: oeh-search-etl Docker image on push to GHCR
 on:
   push:
-    branches:
-      - BRB-144-docker-image
     tags:
       - '*'
 jobs:
