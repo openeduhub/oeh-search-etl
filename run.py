@@ -139,7 +139,7 @@ class Job:
                 if rules_next < next_time:
                     next_time = rules_next
 
-            print(f'Next run: {next_time}')
+            print(f'Next run: {next_time} / in {str(next_time - now).split(".")[0]}')
 
             while True:
                 time_remaining = next_time - dt.datetime.now()
