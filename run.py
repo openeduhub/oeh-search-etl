@@ -174,8 +174,7 @@ def main():
         print(f'Unexpected crawler "{crawler}"')
         return 1
 
-    #job.run_schedule()
-    job.run()
+    job.run_schedule()
 
 
 if __name__ == '__main__':
