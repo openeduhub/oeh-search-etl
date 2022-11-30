@@ -148,11 +148,16 @@ class Job:
                 self.function()
                 break
 
+    def run(self):
+        self.function()
+
 
 def main():
-    env = Environment(env_vars=needed_env_vars)
-    schedule = env['SCHEDULE'].split(';')
-    crawler = env['CRAWLER'].lower()
+    #env = Environment(env_vars=needed_env_vars)
+    #schedule = env['SCHEDULE'].split(';')
+    #crawler = env['CRAWLER'].lower()
+    schedule = ['*-*-0:00']
+    crawler = 'oeh_spider'
     if crawler == 'hello_world':
         job = Job('Hello World', lambda: print('Hello, world!', file=sys.stderr), schedule)
     elif crawler == 'h5p_upload':
@@ -162,14 +167,15 @@ def main():
     elif crawler in known_crawlers:
         job = Job(
             f'Crawler {crawler}',
-            lambda: scrapy_execute(argv=['python', 'scrapy', 'crawl', crawler, '-s', 'TELNETCONSOLE_ENABLED=0']),
+            lambda: scrapy_execute(argv=['scrapy', 'crawl', crawler, '-s', 'TELNETCONSOLE_ENABLED=0']),
             schedule
         )
     else:
         print(f'Unexpected crawler "{crawler}"')
         return 1
 
-    job.run_schedule()
+    #job.run_schedule()
+    job.run()
 
 
 if __name__ == '__main__':

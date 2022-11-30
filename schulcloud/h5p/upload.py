@@ -249,7 +249,7 @@ class Uploader:
             if node.name.startswith('mags4') or node.name.startswith('Mathematik'):
                 self.api.delete_node(node.id)
 
-        zip_file = ZipFile('Mathe_GS_4_Vol_2.zip')
+        zip_file = ZipFile('schulcloud/h5p/Mathe_GS_4_Vol_2.zip')
         self.upload_zip(zip_file, 'h5p')
 
         nodes = self.api.get_children(h5p.id)
@@ -308,5 +308,4 @@ class MetadataNotFoundError(Exception):
 
 
 if __name__ == '__main__':
-    #Uploader().upload_from_s3()
-    Uploader().test_upload()
+    Uploader().upload_from_s3()
