@@ -90,9 +90,9 @@ class ScheduleRule:
             if now.time() < self.time:
                 return dt.datetime.combine(now.date(), self.time)
             else:
-                _next = dt.date(now.year, now.month, now.day + 1)
+                _next = dt.date(now.year, now.month, now.day) + dt.timedelta(days=1)
         else:
-            _next = dt.date(now.year, now.month, now.day)
+            _next = now.date()
 
         while True:
             if self.month:
