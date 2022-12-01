@@ -6,20 +6,18 @@ import tqdm
 import boto3
 
 HELP = '''
-s3_cli list [ARGS]
-s3_cli upload <FILES...> [ARGS]
-s3_cli download <FILES...> [ARGS]
-s3_cli delete <FILES...> [ARGS]
-s3_cli bucket list [ARGS]
-s3_cli bucket create <NAME> [ARGS] 
-s3_cli bucket delete <NAME> [ARGS]
-
-Optional args:
-    -b bucket_name      Only needed if a different bucket than S3_BUCKET_NAME should be used
+Usage:
+s3_cli list                                     list all buckets
+s3_cli create <BUCKET_NAME>                     create new bucket
+s3_cli delete <BUCKET_NAME>                     delete bucket
+s3_cli -b [BUCKET] list                         list content of bucket
+s3_cli -b [BUCKET] upload <FILES...>            upload files to bucket
+s3_cli -b [BUCKET] download <FILES...>          download files from bucket
+s3_cli -b [BUCKET] delete <FILES...>            delete files from bucket
 '''
 
 
-class CLI:
+class S3CLI:
     def __init__(self, url: str, access_key: str, secret: str):
         self.client = boto3.client(
             's3',
@@ -35,6 +33,35 @@ class CLI:
                 break
         else:
             raise RuntimeError(f'Bucket {bucket_name} does not exist')
+
+    def get_objects(self, bucket_name: str):
+        remote_objects = []
+        continuation_token = ''
+        while True:
+            response = self.client.list_objects_v2(Bucket=bucket_name, ContinuationToken=continuation_token)
+            remote_objects.extend(response['Contents'])
+            if response['isTruncated']:
+                continuation_token = response['NextContinuationToken']
+            else:
+                break
+        return remote_objects
+
+    def get_objects_matching(self, bucket_name: str, objects: List[str]):
+        remote_objects = self.get_objects(bucket_name)
+        filtered = []
+        for obj in objects:
+            if obj.endswith('*'):
+                prefix = obj[:-1]
+                for remote_obj in remote_objects:
+                    if remote_obj['Key'].startswith(prefix):
+                        filtered.append(remote_obj)
+            else:
+                for remote_obj in remote_objects:
+                    if remote_obj['Key'] == obj:
+                        filtered.append(remote_obj)
+                        break
+                else:
+                    raise RuntimeError(f'Object {obj} not found in {bucket_name}')
 
     def list_objects(self, bucket_name: str):
         self.ensure_bucket(bucket_name)
@@ -62,15 +89,7 @@ class CLI:
 
     def download_objects(self, dir_name: str, bucket_name: str, objects: List[str]):
         self.ensure_bucket(bucket_name)
-        response = self.client.list_objects_v2(Bucket=bucket_name)
-        remote_objects = []
-        for obj in objects:
-            for remote_obj in response['Contents']:
-                if remote_obj['Key'] == obj:
-                    remote_objects.append(remote_obj)
-                    break
-            else:
-                raise RuntimeError(f'Object {obj} not found in {bucket_name}')
+        remote_objects = self.get_objects_matching(bucket_name, objects)
 
         print(f'Download {len(remote_objects)} objects from bucket {bucket_name}')
         total_size = sum([obj['Size'] for obj in remote_objects])
@@ -92,8 +111,9 @@ class CLI:
 
     def delete_objects(self, bucket_name: str, objects: List[str]):
         self.ensure_bucket(bucket_name)
-        for object in objects:
-            response = self.client.delete_object(Bucket=bucket_name, Key=object)
+        remote_objects = self.get_objects_matching(bucket_name, objects)
+        for object in remote_objects:
+            response = self.client.delete_object(Bucket=bucket_name, Key=object['Key'])
             print(response)
 
     def list_buckets(self):
@@ -130,57 +150,26 @@ def main():
         sys.exit()
 
     vars = get_vars(['S3_ENDPOINT_URL', 'S3_ACCESS_KEY', 'S3_SECRET_KEY'])
-    cli = CLI(*vars)
+    s3 = S3CLI(*vars)
 
-    if sys.argv[1] == 'bucket':
-        if len(sys.argv) < 3:
-            print(HELP)
-            sys.exit(1)
-        command = 'bucket_' + sys.argv[2]
-        i = 3
+    if sys.argv[1] == 'list':
+        pass
+    if sys.argv[1] == 'create':
+        pass
+    if sys.argv[1] == 'delete':
+        pass
+    if sys.argv[1] == '-b':
+        bucket_name = sys.argv[2]
+        if sys.argv[3] == 'list':
+            s3.list_objects(bucket_name)
+        elif sys.argv[3] == 'upload':
+            s3.upload_objects(bucket_name, sys.argv[4:])
+        elif sys.argv[3] == 'download':
+            s3.download_objects('.', bucket_name, sys.argv[4:])
+        elif sys.argv[3] == 'delete':
+            s3.delete_objects(bucket_name, sys.argv[4:])
     else:
-        command = sys.argv[1]
-        i = 2
-
-    bucket = ''
-    rest = []
-    while i < len(sys.argv):
-        arg = sys.argv[i]
-        if arg == '-b':
-            bucket = sys.argv[i + 1]
-            i += 1
-        else:
-            rest.append(arg)
-        i += 1
-
-    if command in ['list', 'download', 'upload', 'delete'] and not bucket:
-        bucket = get_vars(['S3_BUCKET_NAME'])[0]
-
-    if command == 'list':
-        cli.list_objects(bucket)
-    elif command == 'upload':
-        cli.upload_objects(bucket, rest)
-    elif command == 'download':
-        dir = '.' if len(rest) == 1 else 'downloaded'
-        cli.download_objects(dir, bucket, rest)
-    elif command == 'delete':
-        cli.delete_objects(bucket, rest)
-    elif command == 'bucket_list':
-        cli.list_buckets()
-    elif command == 'bucket_create':
-        if not len(rest) == 1:
-            print('Invalid arguments')
-            print(HELP)
-            sys.exit(1)
-        cli.create_bucket(rest[0])
-    elif command == 'bucket_delete':
-        if not len(rest) == 1:
-            print('Invalid arguments')
-            print(HELP)
-            sys.exit(1)
-        cli.delete_bucket(rest[0])
-    else:
-        print(f'Unknown command: "{command}"')
+        print('Unknown command')
         print(HELP)
         sys.exit(1)
 
