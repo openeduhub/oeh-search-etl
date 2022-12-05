@@ -5,4 +5,7 @@ csv
 temp
 tests
 .env
-.env.*
+.env.example
+.idea
+.git
+.gitignore

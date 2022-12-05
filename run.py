@@ -171,7 +171,7 @@ def main():
             schedule
         )
     else:
-        print(f'Unexpected crawler "{crawler}"')
+        print(f'Unexpected crawler "{crawler}"', file=sys.stderr)
         return 1
 
     job.run_schedule()
