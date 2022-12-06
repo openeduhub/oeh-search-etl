@@ -14,9 +14,6 @@ s3_cli copy <FILES...> -bd <BUCKET_NAME_DESTINATION> [ARGS]
 s3_cli bucket list [ARGS]
 s3_cli bucket create <NAME> [ARGS] 
 s3_cli bucket delete <NAME> [ARGS]
-
-Optional args:
-    -b bucket_name      Only needed if a different bucket than S3_BUCKET_NAME should be used
 '''
 
 
@@ -36,6 +33,35 @@ class CLI:
                 break
         else:
             raise RuntimeError(f'Bucket {bucket_name} does not exist')
+
+    def get_objects(self, bucket_name: str):
+        remote_objects = []
+        continuation_token = ''
+        while True:
+            response = self.client.list_objects_v2(Bucket=bucket_name, ContinuationToken=continuation_token)
+            remote_objects.extend(response['Contents'])
+            if response['isTruncated']:
+                continuation_token = response['NextContinuationToken']
+            else:
+                break
+        return remote_objects
+
+    def get_objects_matching(self, bucket_name: str, objects: List[str]):
+        remote_objects = self.get_objects(bucket_name)
+        filtered = []
+        for obj in objects:
+            if obj.endswith('*'):
+                prefix = obj[:-1]
+                for remote_obj in remote_objects:
+                    if remote_obj['Key'].startswith(prefix):
+                        filtered.append(remote_obj)
+            else:
+                for remote_obj in remote_objects:
+                    if remote_obj['Key'] == obj:
+                        filtered.append(remote_obj)
+                        break
+                else:
+                    raise RuntimeError(f'Object {obj} not found in {bucket_name}')
 
     def list_objects(self, bucket_name: str):
         self.ensure_bucket(bucket_name)
@@ -63,15 +89,7 @@ class CLI:
 
     def download_objects(self, dir_name: str, bucket_name: str, objects: List[str]):
         self.ensure_bucket(bucket_name)
-        response = self.client.list_objects_v2(Bucket=bucket_name)
-        remote_objects = []
-        for obj in objects:
-            for remote_obj in response['Contents']:
-                if remote_obj['Key'] == obj:
-                    remote_objects.append(remote_obj)
-                    break
-            else:
-                raise RuntimeError(f'Object {obj} not found in {bucket_name}')
+        remote_objects = self.get_objects_matching(bucket_name, objects)
 
         print(f'Download {len(remote_objects)} objects from bucket {bucket_name}')
         total_size = sum([obj['Size'] for obj in remote_objects])
@@ -93,8 +111,9 @@ class CLI:
 
     def delete_objects(self, bucket_name: str, objects: List[str]):
         self.ensure_bucket(bucket_name)
-        for object in objects:
-            response = self.client.delete_object(Bucket=bucket_name, Key=object)
+        remote_objects = self.get_objects_matching(bucket_name, objects)
+        for object in remote_objects:
+            response = self.client.delete_object(Bucket=bucket_name, Key=object['Key'])
             print(response)
 
     def copy_objects(self, bucket_name: str, bucket_name_destination: str, objects: List[str]):
@@ -198,7 +217,7 @@ def main():
             sys.exit(1)
         cli.delete_bucket(rest[0])
     else:
-        print(f'Unknown command: "{command}"')
+        print('Unknown command')
         print(HELP)
         sys.exit(1)
 

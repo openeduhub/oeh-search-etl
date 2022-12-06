@@ -6,7 +6,7 @@ from schulcloud.edusharing import EdusharingAPI, Node
 from schulcloud.util import Environment
 
 
-ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
+ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD', 'SODIX_BLACKLIST_PATH']
 
 
 class Blacklist:
@@ -66,9 +66,8 @@ def create_blacklist_from_json(file_path: str):
 
 def main():
     environment = Environment(ENV_VARS, ask_for_missing=True)
-    blacklist = create_blacklist_from_json('blacklist.json')
+    blacklist = create_blacklist_from_json(environment['SODIX_BLACKLIST_PATH'])
 
-    print('Edusharing:', environment['EDU_SHARING_BASE_URL'])
     api = EdusharingAPI(
         environment['EDU_SHARING_BASE_URL'],
         environment['EDU_SHARING_USERNAME'],
@@ -77,8 +76,6 @@ def main():
     sync = find_node_by_name(api, '-userhome-', 'SYNC_OBJ')
     sodix_spider = find_node_by_name(api, sync.id, 'sodix_spider')
     publisher_directories = [node for node in api.get_children(sodix_spider.id) if node.is_directory]
-
-    print('This will take a while and may seem stuck for a few times')
 
     for dir in publisher_directories:
         publisher_id = dir.name

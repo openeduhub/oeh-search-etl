@@ -90,9 +90,9 @@ class ScheduleRule:
             if now.time() < self.time:
                 return dt.datetime.combine(now.date(), self.time)
             else:
-                _next = dt.date(now.year, now.month, now.day + 1)
+                _next = now.date() + dt.timedelta(days=1)
         else:
-            _next = dt.date(now.year, now.month, now.day)
+            _next = now.date()
 
         while True:
             if self.month:
@@ -139,24 +139,27 @@ class Job:
                 if rules_next < next_time:
                     next_time = rules_next
 
-            time_remaining = next_time - dt.datetime.now()
-            seconds = time_remaining.days * 3600 + time_remaining.seconds + time_remaining.microseconds / 1_000_000
-            if seconds > 0.0:
-                time.sleep(min(seconds, check_interval_seconds))
-                # redo all calculations to recover from suspend or sudden time changes
-                continue
+            print(f'Next run: {next_time} / in {str(next_time - now).split(".")[0]}', file=sys.stderr)
 
-            self.function()
+            while True:
+                time_remaining = next_time - dt.datetime.now()
+                if time_remaining.total_seconds() > 0.0:
+                    time.sleep(min(time_remaining.total_seconds(), check_interval_seconds))
+                    continue
+
+                self.function()
+                break
+
+    def run(self):
+        self.function()
 
 
 def main():
     env = Environment(env_vars=needed_env_vars)
     schedule = env['SCHEDULE'].split(';')
     crawler = env['CRAWLER'].lower()
-    #crawler = 'hello_world'
-    #schedule = ['*-*-12:41']
     if crawler == 'hello_world':
-        job = Job('Hello World', lambda: print('Hello, world!'), schedule)
+        job = Job('Hello World', lambda: print('Hello, world!', file=sys.stderr), schedule)
     elif crawler == 'h5p_upload':
         job = Job('H5P Uploader', H5PUploader().upload_from_s3, schedule)
     elif crawler == 'sodix_permissions':
@@ -164,12 +167,12 @@ def main():
     elif crawler in known_crawlers:
         job = Job(
             f'Crawler {crawler}',
-            lambda: scrapy_execute(argv=['python', 'scrapy', 'crawl', crawler, '-s', 'TELNETCONSOLE_ENABLED=0']),
+            lambda: scrapy_execute(argv=['scrapy', 'crawl', crawler, '-s', 'TELNETCONSOLE_ENABLED=0']),
             schedule
         )
     else:
-        print(f'Unexpected crawler "{crawler}"')
-        return 2
+        print(f'Unexpected crawler "{crawler}"', file=sys.stderr)
+        return 1
 
     job.run_schedule()
 
