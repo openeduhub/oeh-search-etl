@@ -24,7 +24,7 @@ class DwuSpider(CrawlSpider, LomBase):
     # Up until crawler version v0.0.2 this crawler used to be named "zum_dwu_spider", but DWU informed us that the
     # learning materials won't be available on the ZUM Servers in the near future, which is why URLs point towards
     # DWU's private website offering from now on
-    version = "0.0.5"  # last update: 2022-11-30
+    version = "0.0.6"  # last update: 2022-12-06
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         # "AUTOTHROTTLE_DEBUG": True
@@ -61,6 +61,7 @@ class DwuSpider(CrawlSpider, LomBase):
         # print("Section URLs: ", len(section_urls))
         for url in section_urls:
             current_url = response.urljoin(url)
+            # scraping the overview to extract links to individual materials:
             yield scrapy.Request(url=current_url, callback=self.parse_topic_overview)
 
     def parse_topic_overview(self, response: scrapy.http.Response):
@@ -98,31 +99,55 @@ class DwuSpider(CrawlSpider, LomBase):
 
         # print("debug XLS set length:", len(self.debug_xls_set))
         # print(self.debug_xls_set)
+        # scraping the overview-page itself:
+        yield scrapy.Request(url=response.url, callback=self.parse, dont_filter=True)
 
         for url in url_set:
             # only yield a scrapy Request if the url hasn't been parsed yet, this should help with duplicate links
             # that are found across different topics
             if url not in self.parsed_urls:
-                yield scrapy.Request(url=url, callback=self.parse)
+                url_of_overview_page = response.url  # this workaround is needed to link to the overview-page within
+                # the description-text of each material.
+                overview_page_title = response.xpath('/html/head/title/text()').get()
+                # scraping the individual materials:
+                yield scrapy.Request(url=url,
+                                     callback=self.parse,
+                                     cb_kwargs={'overview_url': url_of_overview_page,
+                                                'overview_title': overview_page_title})
                 self.parsed_urls.add(url)
+        # making sure that we don't crawl the overview-page more than once:
+        self.parsed_urls.add(response.url)
 
     def parse(self, response: scrapy.http.Response, **kwargs):
         base = super().getBase(response=response)
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
-        # description_raw = response.xpath('/html/body/table/tr[4]/td/table/tr/td').get()
+        description_addendum = str()
+        if 'overview_url' in kwargs and 'overview_title' in kwargs:
+            # Due to a request from DWU we're adding the higher-level overview URL to each description string so users
+            # can find their way back (in those cases where it isn't possible to reach the overview page with the
+            # "back"-Button (implemented as "javascript:history.back()"-Buttons)
+            overview_url = kwargs.get('overview_url')
+            overview_title = kwargs.get('overview_title')
+            description_addendum = f"Dieses Material gehört zur übergeordneten Navigationsseite " \
+                                   f"<a href=\"{overview_url}\">{overview_title}</a>" \
+                                   f"\n"
         description_raw = response.xpath('//descendant::td[@class="t1fbs"]').getall()
         description_raw: str = ''.join(description_raw)
         if description_raw is not None:
             description_raw = w3lib.html.remove_tags(description_raw)
             description_raw = w3lib.html.strip_html5_whitespace(description_raw)
             clean_description = w3lib.html.replace_escape_chars(description_raw)
+            if description_addendum:
+                clean_description = f"{description_addendum}{clean_description}"
             general.add_value('description', clean_description)
         if len(description_raw) == 0:
             # Fallback for exercise-pages where there's only 1 title field and 1 short instruction sentence
             # e.g.: http://www.zum.de/dwu/depothp/hp-phys/hppme24.htm
             description_fallback = response.xpath('//descendant::div[@id="InstructionsDiv"]/descendant'
                                                   '::*/text()').get()
+            if description_addendum:
+                description_fallback = f"{description_addendum}{description_fallback}"
             general.replace_value('description', description_fallback)
         # most of the time the title is stored directly
         title: str = response.xpath('/html/head/title/text()').get()
@@ -167,8 +192,12 @@ class DwuSpider(CrawlSpider, LomBase):
         # on the vast majority of .htm pages the keywords sit in the http-equiv content tag
         keyword_string = response.xpath('/html/head/meta[@http-equiv="keywords"]/@content').get()
         if keyword_string is None:
-            # but on some sub-pages, especially the interactive javascript pages, the keywords are in another container
-            keyword_string = response.xpath('/html/head/meta[@name="keywords"]/@content').get()
+            # 1st workaround: some overview-pages have their keywords in a capitalized Keywords container:
+            keyword_string = response.xpath('/html/head/meta[@http-equiv="Keywords"]/@content').get()
+            if keyword_string is None:
+                # but on some sub-pages, especially the interactive javascript pages, the keywords can be found in
+                # another element of the DOM
+                keyword_string = response.xpath('/html/head/meta[@name="keywords"]/@content').get()
         if keyword_string is not None:
             keyword_list = keyword_string.rsplit(", ")
             # trying to catch the completely broken keyword strings to clean them up manually
@@ -231,9 +260,10 @@ class DwuSpider(CrawlSpider, LomBase):
         vs.add_value('conditionsOfAccess', 'no login')
 
         lic = LicenseItemLoader()
-        lic.add_value('description', 'Copyright-Hinweise und Nutzungsbedingungen siehe '
-                                     'https://www.dwu-unterrichtsmaterialien.de/hilfe.htm '
-                                     'sowie https://www.dwu-unterrichtsmaterialien.de/codaim.htm')
+        lic.add_value('description', 'Bitte '
+                                     '<a href="https://www.dwu-unterrichtsmaterialien.de/codaim.htm">Copyright-Hinweise'
+                                     ' und Nutzungsbedingungen</a> beachten! (siehe auch: '
+                                     '<a href="https://www.dwu-unterrichtsmaterialien.de/hilfe.htm">Hilfe</a>)')
         lic.add_value('internal', Constants.LICENSE_CUSTOM)
         lic.add_value('author', response.xpath('/html/head/meta[@http-equiv="author"]/@content').get())
 
