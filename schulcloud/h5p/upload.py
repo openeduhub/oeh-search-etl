@@ -175,7 +175,7 @@ class Uploader:
 
         self.api.set_collection_children(collection_node.id, children_replication_source_uuids)
 
-        # TODO: set thumbnail of first item
+        # TODO: set thumbnail of first item or have other solution for non-h5p collections
         if collection.children[0].filepath.endswith('h5p'):
             self.api.set_preview_thumbnail(node_id=collection_node.id, filename='thumbnail/H5Pthumbnail.png')
 
