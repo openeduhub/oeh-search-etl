@@ -125,12 +125,16 @@ class Job:
         self.name = name
         self.function = function
         self.schedule_rules = []
-        for rule in schedule:
-            self.schedule_rules.append(ScheduleRule(rule))
-        if not self.schedule_rules:
-            raise ValueError('No schedule')
+        if 'now' not in schedule:
+            for rule in schedule:
+                self.schedule_rules.append(ScheduleRule(rule))
+            if not self.schedule_rules:
+                raise ValueError('No schedule')
 
     def run_schedule(self):
+        if not self.schedule_rules:
+            self.run()
+            return
         while True:
             now = dt.datetime.now()
             next_time = self.schedule_rules[0].next_datetime(now=now)
@@ -147,7 +151,7 @@ class Job:
                     time.sleep(min(time_remaining.total_seconds(), check_interval_seconds))
                     continue
 
-                self.function()
+                self.run()
                 break
 
     def run(self):
