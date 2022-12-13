@@ -7,7 +7,7 @@ from schulcloud.edusharing import EdusharingAPI, NotFoundException
 from schulcloud.util import Environment
 
 
-ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD', 'COLORPICKER_PATH']
+ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
 
 
 @dataclass
@@ -51,13 +51,13 @@ class EdusharingSetup:
     def _upload_color_picker(self):
         # the color picker h5p content contains the color picker library needed for other h5p items
         # which will be installed after upload
-        colorpicker_path = self.env['COLORPICKER_PATH']
+        colorpicker_path = 'schulcloud/update_colorpicker.h5p'
         colorpicker_name = os.path.basename(colorpicker_path)
         try:
             self.api.find_node_by_name('-userhome-', colorpicker_name)
         except NotFoundException:
             node = self.api.create_node('-userhome-', colorpicker_name)
-            file = open(colorpicker_path, 'wb')
+            file = open(colorpicker_path, 'rb')
             self.api.upload_content(node.id, colorpicker_name, file)
             file.close()
 
@@ -73,7 +73,7 @@ class EdusharingSetup:
 
 
 def temporary_setup():
-    file = open('es_users.json')
+    file = open('schulcloud/es_users.json')
     obj = json.load(file)
     file.close()
     json_users = obj['users']
