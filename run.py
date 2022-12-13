@@ -152,11 +152,7 @@ class Job:
                     time.sleep(min(time_remaining.total_seconds(), check_interval_seconds))
                     continue
 
-                try:
-                    self.run()
-                except Exception:
-                    traceback.print_exc()
-                break
+                self.run()
 
     def run(self):
         self.function()
