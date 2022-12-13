@@ -24,6 +24,7 @@ EXPECTED_ENV_VARS = [
     'S3_BUCKET_NAME'
 ]
 TEMP_FOLDER = 'temp'
+H5P_THUMBNAIL_PATH = 'schulcloud/h5p/H5Pthumbnail.png'
 
 GROUPS_EXCEL_TO_ES = {
     'THR': 'Thuringia-public',
@@ -138,7 +139,7 @@ class Uploader:
         self.api.set_permissions(node.id, permitted_groups, False)
 
         if filename.endswith('h5p'):
-            self.api.set_preview_thumbnail(node_id=node.id, filename='thumbnail/H5Pthumbnail.png')
+            self.api.set_preview_thumbnail(node_id=node.id, filename=H5P_THUMBNAIL_PATH)
 
         print(f'Upload complete for: {metadata.filepath}')
         return node.id, properties["ccm:replicationsourceuuid"][0]
@@ -177,7 +178,7 @@ class Uploader:
 
         # TODO: set thumbnail of first item or have other solution for non-h5p collections
         if collection.children[0].filepath.endswith('h5p'):
-            self.api.set_preview_thumbnail(node_id=collection_node.id, filename='thumbnail/H5Pthumbnail.png')
+            self.api.set_preview_thumbnail(node_id=collection_node.id, filename=H5P_THUMBNAIL_PATH)
 
     def upload_zip(self, zip_file: ZipFile, es_folder_name: str, last_modified: Optional[datetime] = None):
         try:
@@ -216,6 +217,8 @@ class Uploader:
         metadata_file.close()
 
     def upload_from_s3(self):
+        excludes = ['FWURAW']
+
         s3_objects = self.downloader.get_object_list()
         total_size = 0
         for s3_obj in s3_objects:
@@ -229,14 +232,20 @@ class Uploader:
                 print(f'Skipping {s3_obj["Key"]}, not a zip file.', file=sys.stderr)
                 continue
 
+            folder_name = s3_obj['Key'].split('/')[0]
+
+            if folder_name in excludes:
+                print(f'Skipping {s3_obj["Key"]} because it\'s excluded')
+                continue
+
             self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER)
 
             zip_path = os.path.join(TEMP_FOLDER, s3_obj['Key'])
             zip_file = ZipFile(zip_path)
-            es_folder_name = s3_obj['Key'].split('/')[0]
+
             last_modified = s3_obj['LastModified'].replace(tzinfo=None)
 
-            self.upload_zip(zip_file, es_folder_name, last_modified)
+            self.upload_zip(zip_file, folder_name, last_modified)
 
             zip_file.close()
             os.remove(zip_path)
