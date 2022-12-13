@@ -2,6 +2,7 @@
 import sys
 import datetime as dt
 import time
+import traceback
 from typing import Callable, Optional
 
 from scrapy.cmdline import execute as scrapy_execute
@@ -151,7 +152,10 @@ class Job:
                     time.sleep(min(time_remaining.total_seconds(), check_interval_seconds))
                     continue
 
-                self.run()
+                try:
+                    self.run()
+                except Exception:
+                    traceback.print_exc()
                 break
 
     def run(self):
