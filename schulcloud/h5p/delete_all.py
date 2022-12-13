@@ -1,6 +1,8 @@
 
 import random
 
+import tqdm
+
 from schulcloud.util import Environment
 from schulcloud.edusharing import EdusharingAPI, Node
 
@@ -16,6 +18,38 @@ def find_node_by_name(api: EdusharingAPI, parent_id: str, child_name: str) -> No
     raise RuntimeError(f'Could not find node {child_name}')
 
 
+def delete_sodix(api: EdusharingAPI):
+    sync = find_node_by_name(api, '-userhome-', 'SYNC_OBJ')
+    sodix_spider = find_node_by_name(api, sync.id, 'sodix_spider')
+    publisher_directories = [node for node in api.get_children(sodix_spider.id) if node.is_directory]
+
+    for dir in tqdm.tqdm(publisher_directories):
+        try:
+            children = api.get_children(dir.id)
+            for child in tqdm.tqdm(children):
+                try:
+                    api.delete_node(child.id)
+                except RuntimeError:
+                    continue
+            api.delete_node(dir.id)
+        except RuntimeError:
+            continue
+
+
+def delete_h5p(api: EdusharingAPI):
+    sync = find_node_by_name(api, '-userhome-', 'SYNC_OBJ')
+    h5p = find_node_by_name(api, sync.id, 'h5pFiles')
+
+    count = 0
+    for node in [node for node in api.get_children(h5p.id) if not node.is_directory]:
+        count += 1
+        try:
+            api.delete_node(node.id)
+            print(f'{count} deleted')
+        except RuntimeError:
+            print(f'{count} error')
+
+
 def main():
     environment = Environment(ENV_VARS, ask_for_missing=True)
 
@@ -24,30 +58,7 @@ def main():
         environment['EDU_SHARING_USERNAME'],
         environment['EDU_SHARING_PASSWORD'])
 
-    sync = find_node_by_name(api, '-userhome-', 'SYNC_OBJ')
-    sodix_spider = find_node_by_name(api, sync.id, 'sodix_spider')
-    publisher_directories = [node for node in api.get_children(sodix_spider.id) if node.is_directory]
-    random.shuffle(publisher_directories)
-
-    count = 0
-    for dir in publisher_directories:
-        try:
-            children = api.get_children(dir.id)
-        except RuntimeError:
-            continue
-        for child in children:
-            count += 1
-            try:
-                api.delete_node(child.id)
-                print(f'{count} deleted')
-            except RuntimeError:
-                print(f'{count} error')
-        try:
-            api.delete_node(dir.id)
-            print('dir deleted')
-        except RuntimeError:
-            print('dir error')
-            continue
+    delete_sodix(api)
 
 
 if __name__ == '__main__':
