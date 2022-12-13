@@ -12,15 +12,15 @@ from tqdm import tqdm
 
 
 from converter.es_connector import EduSharing
-from schulcloud.adhoc_tasks.upload_sportinhalt_brandenburg.convert_to_collection import \
+from schulcloud.upload_sportinhalt_brandenburg.convert_to_collection import \
     identify_collections_in_directory, get_directory_elements, convert_to_collection
-from schulcloud.adhoc_tasks.upload_sportinhalt_brandenburg.sportinhalt_permissions import \
+from schulcloud.upload_sportinhalt_brandenburg.sportinhalt_permissions import \
     edusharing_add_to_permission_groups, edusharing_get_permission_groups
 
 import pathlib
 
 # Load information required to connect to Edu-Sharing.
-from schulcloud.adhoc_tasks.upload_sportinhalt_brandenburg.sportinhalt_utils import get_base_headers, get_configuration, \
+from schulcloud.upload_sportinhalt_brandenburg.sportinhalt_utils import get_base_headers, get_configuration, \
     authenticate, edusharing_change_metadata, edusharing_set_property
 
 

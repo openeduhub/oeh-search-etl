@@ -3,7 +3,7 @@ import json
 
 import requests
 
-from schulcloud.adhoc_tasks.upload_sportinhalt_brandenburg.sportinhalt_utils import get_base_headers
+from schulcloud.upload_sportinhalt_brandenburg.sportinhalt_utils import get_base_headers
 
 
 def edusharing_add_to_permission_groups(config, hostname, auth_response, node_id, total_permissions, permissions_response_dict):

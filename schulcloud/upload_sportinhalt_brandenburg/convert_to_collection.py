@@ -1,7 +1,7 @@
 import json
 from http.client import HTTPResponse
 import requests
-from schulcloud.adhoc_tasks.upload_sportinhalt_brandenburg.sportinhalt_utils import get_configuration, get_base_headers, \
+from schulcloud.upload_sportinhalt_brandenburg.sportinhalt_utils import get_configuration, get_base_headers, \
     edusharing_set_property, edusharing_change_metadata
 from tqdm import tqdm
 
