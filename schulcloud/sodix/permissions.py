@@ -6,8 +6,8 @@ from schulcloud.edusharing import EdusharingAPI, Node
 from schulcloud.util import Environment
 
 
-ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD', 'SODIX_BLACKLIST_PATH']
-
+ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
+BLACKLIST_PATH = 'schulcloud/sodix/blacklist.json'
 
 class Blacklist:
 
@@ -66,7 +66,7 @@ def create_blacklist_from_json(file_path: str):
 
 def main():
     environment = Environment(ENV_VARS, ask_for_missing=True)
-    blacklist = create_blacklist_from_json(environment['SODIX_BLACKLIST_PATH'])
+    blacklist = create_blacklist_from_json(BLACKLIST_PATH)
 
     api = EdusharingAPI(
         environment['EDU_SHARING_BASE_URL'],
