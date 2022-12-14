@@ -44,7 +44,7 @@ class MemuchoSpider(CrawlSpider, LomBase, JSONBase):
         return LomBase.mapResponse(self, response)
 
     def getId(self, response):
-        return response.meta["item"].get("ItemUrl")
+        return response.meta["item"].get("TopicId")
 
     def getHash(self, response):
         date_modified = response.meta["item"].get("DateModified")
