@@ -40,7 +40,7 @@ class CLI:
         while True:
             response = self.client.list_objects_v2(Bucket=bucket_name, ContinuationToken=continuation_token)
             remote_objects.extend(response['Contents'])
-            if response['isTruncated']:
+            if response['IsTruncated']:
                 continuation_token = response['NextContinuationToken']
             else:
                 break
@@ -62,6 +62,7 @@ class CLI:
                         break
                 else:
                     raise RuntimeError(f'Object {obj} not found in {bucket_name}')
+        return filtered
 
     def list_objects(self, bucket_name: str):
         self.ensure_bucket(bucket_name)
@@ -90,7 +91,6 @@ class CLI:
     def download_objects(self, dir_name: str, bucket_name: str, objects: List[str]):
         self.ensure_bucket(bucket_name)
         remote_objects = self.get_objects_matching(bucket_name, objects)
-
         print(f'Download {len(remote_objects)} objects from bucket {bucket_name}')
         total_size = sum([obj['Size'] for obj in remote_objects])
         progress_bar = tqdm.tqdm(total=total_size, unit='B', unit_scale=True, unit_divisor=1024)
