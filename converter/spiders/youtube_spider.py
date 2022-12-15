@@ -27,7 +27,7 @@ from .base_classes import LomBase, CSVBase
 
 class YoutubeSpider(Spider):
     """
-    Parse a CSV file with Youtube channels and playlists and crawl them.
+    Parse a CSV file with YouTube channels and playlists and crawl them.
 
     The CSV file was manually exported from
     https://docs.google.com/spreadsheets/d/1VsGyb4mrbzq45qIGVt-j6_ut4_VGJPRA39oBhi5SxGk to
@@ -37,7 +37,7 @@ class YoutubeSpider(Spider):
     name = "youtube_spider"
     friendlyName = "Youtube"
     url = "https://www.youtube.com/"
-    version = "0.2.1"  # last update: 2022-04-07
+    version = "0.2.2"  # last update: 2022-12-15
 
     @staticmethod
     def get_video_url(item: dict) -> str:
@@ -70,12 +70,50 @@ class YoutubeSpider(Spider):
     @overrides  # Spider
     def start_requests(self):
         if env.get("YOUTUBE_API_KEY", False) == "":
-            logging.error("YOUTUBE_API_KEY is required for youtube_spider")
+            logging.error("YOUTUBE_API_KEY is required for youtube_spider. Please check your '.env'-settings!")
             return
-        for row in YoutubeSpider.get_csv_rows("youtube.csv"):
-            request = self.request_row(row)
-            if request is not None:
-                yield request
+        if env.get(key="YOUTUBE_LIMITED_CRAWL_URL", allow_null=True, default=None) == "":
+            # If no value is set, this serves as a reminder that you can disable the '.env'-variable altogether
+            logging.debug("The '.env'-variable 'YOUTUBE_LIMITED_CRAWL_URL' was detected, but no URL was set. \n"
+                          "If you meant to start a LIMITED crawl, please check your '.env'-file and restart the "
+                          "crawler. The crawler is now commencing with a COMPLETE crawl according to the "
+                          "'csv/youtube.csv'-table.")
+        if env.get(key="YOUTUBE_LIMITED_CRAWL_URL", allow_null=True, default=None):
+            # the OPTIONAL .env parameter is used to crawl from a SINGULAR URL ONLY
+            logging.debug("'.env'-variable 'YOUTUBE_LIMITED_CRAWL_URL' recognized. LIMITED crawling mode activated!\n"
+                          "(This mode WILL NOT crawl the complete 'csv/youtube.csv'-file, but only a SINGLE YouTube "
+                          "channel or playlist!)\n"
+                          "If you actually wanted to start a complete/full crawl, please disable the variable in your "
+                          "'.env'-file.")
+            singular_crawl_target_url: str = env.get(key="YOUTUBE_LIMITED_CRAWL_URL", default=None)
+            if singular_crawl_target_url:
+                logging.debug(f"'.env'-variable 'YOUTUBE_LIMITED_CRAWL_URL' is set to: {singular_crawl_target_url} \n"
+                              f"Searching for {singular_crawl_target_url} within 'csv/youtube.csv' for metadata values.")
+                match_found: bool = False
+                for row in YoutubeSpider.get_csv_rows("youtube.csv"):
+                    if row["url"] == singular_crawl_target_url:
+                        # ToDo (optional): several YouTube URLs (youtu.be, youtube.com / youtube.de) can point to the same
+                        #  channel or playlist. Providing some leniency by resolving an URL to the "real" target might
+                        #  provide some Quality of Life while using this feature.
+                        match_found = True
+                        logging.debug(f"Match found in 'csv/youtube.csv' for {singular_crawl_target_url}! Commencing"
+                                      f"SINGULAR crawl process.")
+                        request = self.request_row(row)
+                        if request:
+                            # we are expecting exactly one result, therefore we can stop looking after the first match
+                            yield request
+                            break
+                if match_found is False:
+                    logging.error(f"Could not find a match for {singular_crawl_target_url} within 'csv/youtube.csv'. "
+                                  f"Please confirm that the EXACT specified URL can be found in a row of the CSV and "
+                                  f"restart the crawler.")
+                    return
+        else:
+            # this is where the COMPLETE crawl happens: requests are yielded row-by-row from 'csv/youtube.csv'
+            for row in YoutubeSpider.get_csv_rows("youtube.csv"):
+                request = self.request_row(row)
+                if request is not None:
+                    yield request
 
     def request_row(self, row: dict) -> Request:
         if row["url"].startswith("https://www.youtube.com"):
@@ -87,11 +125,11 @@ class YoutubeSpider(Spider):
                 channel_id = url.path.split("/")[2]
                 return self.request_channel(channel_id, meta={"row": row})
             else:
-                # Youtube offers custom URLs to popular channels of the form
+                # YouTube offers custom URLs to popular channels of the form
                 #   - https://www.youtube.com/c/<custom channel name>
                 #   - https://www.youtube.com/<custom channel name>
                 #   - https://www.youtube.com/user/<legacy user name>
-                #   - https://www.youtube.com/<legacy user name>
+                #   - https://www.youtube.com/<legacy username>
                 #
                 # All of these lead to an ordinary channel, but we need to read its ID from the page
                 # body.
@@ -330,19 +368,19 @@ class YoutubeLomLoader(LomBase):
 
     @overrides  # LomBase
     def getLicense(self, response: Response) -> items.LicenseItemLoader:
-        license = LomBase.getLicense(self, response)
-        license.add_value("internal", response.meta["item"]["status"]["license"])
-        # possible values: "youtube", "creativeCommon"
+        license_loader = LomBase.getLicense(self, response)
+        # there are only two possible values according to https://developers.google.com/youtube/v3/docs/videos:
+        #   "youtube", "creativeCommon"
         if response.meta["item"]["status"]["license"] == "creativeCommon":
-            license.add_value(
+            license_loader.add_value(
                 "url", Constants.LICENSE_CC_BY_30
             )
         elif response.meta["item"]["status"]["license"] == "youtube":
-            license.replace_value("internal", Constants.LICENSE_CUSTOM)
-            license.add_value("description", "Youtube-Standardlizenz")
+            license_loader.replace_value("internal", Constants.LICENSE_CUSTOM)
+            license_loader.add_value("description", "Youtube-Standardlizenz")
         else:
             logging.warning("Youtube element {} has no license".format(self.getId()))
-        return license
+        return license_loader
 
     @overrides  # LomBase
     def getValuespaces(self, response: Response) -> items.ValuespaceItemLoader:
