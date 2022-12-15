@@ -11,15 +11,20 @@ from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnica
 from converter.spiders.base_classes import LomBase
 
 
-class ZumDwuSpider(CrawlSpider, LomBase):
-    # Crawler for http://www.zum.de/dwu/
-    name = "zum_dwu_spider"
-    friendlyName = "ZUM DWU"
+class DwuSpider(CrawlSpider, LomBase):
+    # Previously: Crawler for http://www.zum.de/dwu/
+    # After 2022-11-29: Crawler for https://www.dwu-unterrichtsmaterialien.de
+    name = "dwu_spider"
+    friendlyName = "dwu-Unterrichtsmaterialien"
     start_urls = [
-        "http://www.zum.de/dwu/umamtg.htm",  # Mathematik-Teilgebiete
-        "http://www.zum.de/dwu/umaptg.htm"  # Physik-Teilgebiete
+        "https://www.dwu-unterrichtsmaterialien.de/umamtg.htm",  # Mathematik-Teilgebiete
+        "https://www.dwu-unterrichtsmaterialien.de/umaptg.htm"  # Physik-Teilgebiete
     ]
-    version = "0.0.2"  # last update: 2022-04-21
+    # For historic context:
+    # Up until crawler version v0.0.2 this crawler used to be named "zum_dwu_spider", but DWU informed us that the
+    # learning materials won't be available on the ZUM Servers in the near future, which is why URLs point towards
+    # DWU's private website offering from now on
+    version = "0.0.6"  # last update: 2022-12-06
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         # "AUTOTHROTTLE_DEBUG": True
@@ -27,7 +32,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
 
     parsed_urls = set()  # holds the already parsed urls to minimize the amount of duplicate requests
     debug_xls_set = set()
-    # The author used a HTML suite for building the .htm documents (Hot Potatoes by Half-Baked Software)
+    # The author used an HTML suite for building the .htm documents (Hot Potatoes by Half-Baked Software)
     # this software seems to set its own keywords if the author didn't specify his keywords for a document
     # we don't want these keywords muddying up our keyword lists, therefore we'll use a set to filter them out later:
     keywords_to_ignore = {'University of Victoria', 'Hot Potatoes', 'Windows', 'Half-Baked Software', 'hot', 'potatoes'}
@@ -50,12 +55,13 @@ class ZumDwuSpider(CrawlSpider, LomBase):
 
     def parse_section_overview(self, response: scrapy.http.Response):
         # Each section (e.g. "Mathematik Teilgebiete") holds a list of individual topic-categories (e.g. "Kreislehre")
-        section_urls = response.xpath('/html/body/table/tr/td/a/@href').getall()
+        section_urls = response.xpath('/html/body//tr/td/a/@href').getall()
         section_urls.sort()
         # print(section_urls)
         # print("Section URLs: ", len(section_urls))
         for url in section_urls:
             current_url = response.urljoin(url)
+            # scraping the overview to extract links to individual materials:
             yield scrapy.Request(url=current_url, callback=self.parse_topic_overview)
 
     def parse_topic_overview(self, response: scrapy.http.Response):
@@ -63,7 +69,7 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         #   .htm-pages with explanations about a specific topic
         #   eLearning-exercises or
         #   "Aufgabengeneratoren" inside a .xls file
-        topic_urls = response.xpath('/html/body/table/tr/td/a/@href').getall()
+        topic_urls = response.xpath('/html/body//tr/td/a/@href').getall()
         # print("Topic URLs:", topic_urls)
         # print("Number of topic_urls in this section:", len(topic_urls))
 
@@ -93,33 +99,55 @@ class ZumDwuSpider(CrawlSpider, LomBase):
 
         # print("debug XLS set length:", len(self.debug_xls_set))
         # print(self.debug_xls_set)
+        # scraping the overview-page itself:
+        yield scrapy.Request(url=response.url, callback=self.parse, dont_filter=True)
 
         for url in url_set:
             # only yield a scrapy Request if the url hasn't been parsed yet, this should help with duplicate links
             # that are found across different topics
             if url not in self.parsed_urls:
-                yield scrapy.Request(url=url, callback=self.parse)
+                url_of_overview_page = response.url  # this workaround is needed to link to the overview-page within
+                # the description-text of each material.
+                overview_page_title = response.xpath('/html/head/title/text()').get()
+                # scraping the individual materials:
+                yield scrapy.Request(url=url,
+                                     callback=self.parse,
+                                     cb_kwargs={'overview_url': url_of_overview_page,
+                                                'overview_title': overview_page_title})
                 self.parsed_urls.add(url)
+        # making sure that we don't crawl the overview-page more than once:
+        self.parsed_urls.add(response.url)
 
     def parse(self, response: scrapy.http.Response, **kwargs):
         base = super().getBase(response=response)
-        # there are no suitable images to serve as thumbnails, therefore SPLASH will have to do
-
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
-        # description_raw = response.xpath('/html/body/table/tr[4]/td/table/tr/td').get()
+        description_addendum = str()
+        if 'overview_url' in kwargs and 'overview_title' in kwargs:
+            # Due to a request from DWU we're adding the higher-level overview URL to each description string so users
+            # can find their way back (in those cases where it isn't possible to reach the overview page with the
+            # "back"-Button (implemented as "javascript:history.back()"-Buttons)
+            overview_url = kwargs.get('overview_url')
+            overview_title = kwargs.get('overview_title')
+            description_addendum = f"Dieses Material gehört zur übergeordneten Navigationsseite " \
+                                   f"<a href=\"{overview_url}\">{overview_title}</a>" \
+                                   f"\n"
         description_raw = response.xpath('//descendant::td[@class="t1fbs"]').getall()
         description_raw: str = ''.join(description_raw)
         if description_raw is not None:
             description_raw = w3lib.html.remove_tags(description_raw)
             description_raw = w3lib.html.strip_html5_whitespace(description_raw)
             clean_description = w3lib.html.replace_escape_chars(description_raw)
+            if description_addendum:
+                clean_description = f"{description_addendum}{clean_description}"
             general.add_value('description', clean_description)
         if len(description_raw) == 0:
             # Fallback for exercise-pages where there's only 1 title field and 1 short instruction sentence
             # e.g.: http://www.zum.de/dwu/depothp/hp-phys/hppme24.htm
             description_fallback = response.xpath('//descendant::div[@id="InstructionsDiv"]/descendant'
                                                   '::*/text()').get()
+            if description_addendum:
+                description_fallback = f"{description_addendum}{description_fallback}"
             general.replace_value('description', description_fallback)
         # most of the time the title is stored directly
         title: str = response.xpath('/html/head/title/text()').get()
@@ -130,7 +158,6 @@ class ZumDwuSpider(CrawlSpider, LomBase):
             title = response.xpath('//td[@class="tt1math"]/text()').get()
             if title is not None:
                 title = title.strip()
-            # desc_list = response.xpath('/html/body/table[2]/tr/td/table/tr[1]/td[1]/text()').getall()
             desc_list = response.xpath('//td[@class="t1fbs"]/text()').getall()
             if desc_list is not None and len(desc_list) == 0:
                 # if the first attempt at grabbing a description fails, we try it at another place
@@ -142,15 +169,18 @@ class ZumDwuSpider(CrawlSpider, LomBase):
                 clean_description = w3lib.html.replace_escape_chars(description_raw)
                 general.replace_value('description', clean_description)
 
-        if title is not None:
+        if title:
             title = w3lib.html.replace_escape_chars(title)
-            if title is not None:
-                # this double-check is necessary for broken headings that ONLY consisted of escape-chars
+            if title:
+                # checking if the title is still valid, which necessary for broken headings that ONLY consisted of
+                # escape-chars
                 if title == '':
-                    # there's some pages (Exercises) that only hold escape chars or whitespaces as their title
+                    # there's some pages (exercises) that only hold escape chars or whitespaces as their title
                     # the title is simply bold text hidden within a div container
                     title = response.xpath('//div[@class="Titles"]/h3[@class="ExerciseSubtitle"]/b/text()').get()
-                title = title.strip()
+                if title:
+                    # checking once more for valid titles, since we might get an empty string from "ExerciseSubtitle"
+                    title = title.strip()
                 # Since we're grabbing titles from headings, a lot of them have a trailing ":"
                 if len(title) > 0 and title.endswith(":"):
                     # replacing the string with itself right up to the point of the colon
@@ -162,8 +192,12 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         # on the vast majority of .htm pages the keywords sit in the http-equiv content tag
         keyword_string = response.xpath('/html/head/meta[@http-equiv="keywords"]/@content').get()
         if keyword_string is None:
-            # but on some sub-pages, especially the interactive javascript pages, the keywords are in another container
-            keyword_string = response.xpath('/html/head/meta[@name="keywords"]/@content').get()
+            # 1st workaround: some overview-pages have their keywords in a capitalized Keywords container:
+            keyword_string = response.xpath('/html/head/meta[@http-equiv="Keywords"]/@content').get()
+            if keyword_string is None:
+                # but on some sub-pages, especially the interactive javascript pages, the keywords can be found in
+                # another element of the DOM
+                keyword_string = response.xpath('/html/head/meta[@name="keywords"]/@content').get()
         if keyword_string is not None:
             keyword_list = keyword_string.rsplit(", ")
             # trying to catch the completely broken keyword strings to clean them up manually
@@ -196,9 +230,8 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         lifecycle.add_value('role', 'author')
         lifecycle.add_value('firstName', 'Dieter')
         lifecycle.add_value('lastName', 'Welz')
-        lifecycle.add_value('url', 'dwu@zum.de')
-        lifecycle.add_value('organization',
-                            response.xpath('/html/head/meta[@http-equiv="organization"]/@content').get())
+        lifecycle.add_value('url', 'mail@dwu-unterrichtsmaterialien.de')
+        lifecycle.add_value('organization', 'dwu-Unterrichtsmaterialien')
         lom.add_value('lifecycle', lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
@@ -227,7 +260,10 @@ class ZumDwuSpider(CrawlSpider, LomBase):
         vs.add_value('conditionsOfAccess', 'no login')
 
         lic = LicenseItemLoader()
-        lic.add_value('description', 'http://www.zum.de/dwu/hilfe.htm')
+        lic.add_value('description', 'Bitte '
+                                     '<a href="https://www.dwu-unterrichtsmaterialien.de/codaim.htm">Copyright-Hinweise'
+                                     ' und Nutzungsbedingungen</a> beachten! (siehe auch: '
+                                     '<a href="https://www.dwu-unterrichtsmaterialien.de/hilfe.htm">Hilfe</a>)')
         lic.add_value('internal', Constants.LICENSE_CUSTOM)
         lic.add_value('author', response.xpath('/html/head/meta[@http-equiv="author"]/@content').get())
 
