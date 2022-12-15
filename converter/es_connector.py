@@ -300,7 +300,7 @@ class EduSharing:
                     if "description" in license:
                         spaces["cclom:rights_description"] = license["description"]
                 case _:
-                    logging.warning(f"Received a value for license['internal'] that is not recognized by es_connector."
+                    logging.warning(f"Received a value for license['internal'] that is not recognized by es_connector. "
                                     f"Please double-check if the provided value {license['internal']} is correctly "
                                     f"mapped within Constants AND es_connector.")
 
