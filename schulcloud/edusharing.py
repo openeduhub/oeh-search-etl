@@ -1,8 +1,6 @@
-import json
+import time
 from datetime import datetime
 from typing import Dict, List, Literal, Optional, IO, Any
-
-import urllib
 
 import requests
 import requests.auth
@@ -19,6 +17,11 @@ class Node:
         except KeyError:
             raise RuntimeError(f'Could not parse node object: {obj}')
         self.obj = obj
+
+    def __eq__(self, other):
+        if isinstance(other, Node):
+            return other.id == self.id
+        return False
 
     def __repr__(self):
         return f'Node<{self.id}, {self.name}, is_dir={self.is_directory}>'
@@ -58,21 +61,22 @@ class EdusharingAPI:
 
     def make_request(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str,
                      params: Optional[Dict[str, Any]] = None, json_data: Optional[Dict] = None,
-                     files: Optional[Dict] = None, stream: bool = False, retry: bool = True):
+                     files: Optional[Dict] = None, stream: bool = False, retry: int = 50):
+        # TODO: remove print statements
         if not method == 'GET':
             print(f'{method} {url} {params=} {json_data=}')
         url = f'{self.base_url}{url}'
         headers = {'Accept': 'application/json'}
-        response = self.session.request(method, url, params=params, headers=headers,
-                                        json=json_data, files=files, stream=stream)
-        if not method == 'GET':
-            print(f'{response.status_code} {response.reason} <--')
-        if 500 <= response.status_code < 600 and retry:
-            # TODO: remove
+        while True:
             response = self.session.request(method, url, params=params, headers=headers,
                                             json=json_data, files=files, stream=stream)
-            if not method == 'GET':
-                print(f'{response.status_code} {response.reason} <--')
+            if 500 <= response.status_code < 600 and retry:
+                retry -= 1
+                time.sleep(1.0)
+                continue
+            break
+        if not method == 'GET':
+            print(f'{response.status_code} {response.reason} <--')
         return response
 
     def get_application_properties(self, xml_file_name: str):
@@ -104,6 +108,23 @@ class EdusharingAPI:
         if not response.status_code == 200:
             raise RequestFailedException(response)
 
+    def get_user(self, name: str = None):
+        if name is None:
+            name = '-me-'
+        url = f'/iam/v1/people/-home-/{name}'
+        response = self.make_request('GET', url)
+        if response.status_code == 404:
+            raise NotFoundException(name)
+        response.raise_for_status()
+        return response.json()
+
+    def get_users(self):
+        url = f'/iam/v1/people/-home-'
+        params = {'pattern': '*'}
+        response = self.make_request('GET', url, params=params)
+        response.raise_for_status()
+        return response.json()['users']
+
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024 ** 2):
         url = f'/iam/v1/people/-home-/{username}'
         params = {'password': password}
@@ -120,6 +141,12 @@ class EdusharingAPI:
             'about': None
         }
         response = self.make_request('POST', url, params=params, json_data=body)
+        response.raise_for_status()
+
+    def delete_user(self, name: str):
+        url = f'/iam/v1/people/-home-/{name}'
+        params = {'force': 'true'}
+        response = self.make_request('DELETE', url, params=params)
         response.raise_for_status()
 
     def create_group(self, group_name: str):
@@ -170,7 +197,14 @@ class EdusharingAPI:
         if not response.status_code == 200:
             raise RequestFailedException(response)
 
-    def set_permissions(self, node_id: str, groups: List[str], inheritance: bool):
+    def get_permissions(self, node_id: str):
+        url = f'/node/v1/nodes/-home-/{node_id}'
+        response = self.make_request('GET', url)
+        if not response.status_code == 200:
+            raise RequestFailedException(response)
+        return response.json()
+
+    def set_permissions(self, node_id: str, groups: List[str], inheritance: bool) -> None:
         url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
         response = self.make_request('POST', url, json_data=self._craft_permission_body(groups, inheritance))
         if not response.status_code == 200:
