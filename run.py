@@ -2,7 +2,6 @@
 import sys
 import datetime as dt
 import time
-import traceback
 from typing import Callable, Optional
 
 from scrapy.cmdline import execute as scrapy_execute
