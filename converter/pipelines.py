@@ -30,6 +30,7 @@ from scrapy.utils.project import get_project_settings
 from converter import env
 from converter.constants import *
 from converter.es_connector import EduSharing
+from converter.items import BaseItem
 from converter.web_tools import WebTools, WebEngine
 from valuespace_converter.app.valuespaces import Valuespaces
 
@@ -268,6 +269,7 @@ class ProcessValuespacePipeline(BasicPipeline):
     def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
         json = item["valuespaces"]
+        item["valuespaces_raw"] = dict(json)
         delete = []
         for key in json:
             # remap to new i18n layout
@@ -661,4 +663,216 @@ class DummyPipeline(BasicPipeline):
     def process_item(self, item, spider):
         log.info("DRY RUN scraped {}".format(item["response"]["url"]))
         # self.exporter.export_item(item)
+        return item
+
+
+# example pipeline which simply outputs the item in the log
+class ExampleLoggingPipeline(BasicPipeline):
+    def process_item(self, item, spider):
+        log.info(item)
+        # self.exporter.export_item(item)
+        return item
+
+
+class LisumPipeline(BasicPipeline):
+    DISCIPLINE_TO_LISUM = {
+        "020": "C-WAT",  # Arbeitslehre -> Wirtschaft, Arbeit, Technik
+        "060": "C-KU",  # Bildende Kunst
+        "080": "C-BIO",  # Biologie
+        "100": "C-CH",  # Chemie
+        "120": "C-DE",  # Deutsch
+        "160": "C-Eth",  # Ethik
+        "200": "C-FS",  # Fremdsprachen
+        "220": "C-GEO",  # Geographie,
+        "240": "C-GE",  # Geschichte
+        "380": "C-MA",  # Mathematik
+        "420": "C-MU",  # Musik
+        "450": "C-Phil",  # Philosophie
+        "460": "C-Ph",  # Physik
+        "480": "C-PB",  # Politische Bildung
+        "510": "C-Psy",  # Psychologie
+        "520": "C-LER",  # Religion -> Lebensgestaltung-Ethik-Religionskunde
+        # ToDo: 560 -> "C-NW56-3-8" ? (Sexualerziehung)
+        "700": "C-SOWI",  # Wirtschaftskunde -> "Sozialwissenschaft/Wirtschaftswissenschaft"
+        "12002": "C-Thea",  # Darstellendes Spiel, Schultheater -> Theater
+        "20001": "C-EN",  # Englisch
+        "20002": "C-FR",  # Französisch
+        "20003": "C-AGR",  # Griechisch -> Altgriechisch
+        "20004": "C-IT",  # Italienisch
+        "20005": "C-La",  # Latein
+        "20006": "C-RU",  # Russisch
+        "20007": "C-ES",  # Spanisch
+        "20008": "C-TR",  # Türkisch
+        "20011": "C-PL",  # Polnisch
+        "20014": "C-PT",  # Portugiesisch
+        "20041": "C-ZH",  # Chinesisch
+        "28010": "C-SU",  # Sachkunde -> Sachunterricht
+        "32002": "C-Inf",  # Informatik
+        "46014": "C-AS",  # Astronomie
+        "48005": "C-GEWIWI",  # Gesellschaftspolitische Gegenwartsfragen -> Gesellschaftswissenschaften
+        "2800506": "C-PL",  # Polnisch
+    }
+
+    EDUCATIONALCONTEXT_TO_LISUM = {
+        "elementarbereich": "pre-school",
+        "grundschule": "primary school",
+        "sekundarstufe_1": "lower secondary school",
+        "sekundarstufe_2": "upper secondary school",
+        "berufliche_bildung": "vocational education",
+        # "fortbildung": "",  # does not exist in Lisum valuespace
+        "erwachsenenbildung": "continuing education",
+        "foerderschule": "special education",
+        # "fernunterricht": ""  # does not exist in Lisum valuespace
+    }
+
+    LRT_OEH_TO_LISUM = {
+        # LRT-values that aren't listed here, can be mapped 1:1
+        "audiovisual_medium": ["audio", "video"],
+        "open_activity": "",  # exists in 2 out of 60.000 items
+        "broadcast": "audio",
+        "demonstration": "image",  # "Veranschaulichung"
+    }
+
+    def process_item(self, item: BaseItem, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        """
+        Takes a BaseItem and transforms its metadata-values to Lisum-metadataset-compatible values.
+        Touches the following fields within the BaseItem:
+        - valuespaces.discipline
+        - valuespaces.educationalContext
+        - valuespaces.intendedEndUserRole
+        - valuespaces.learningResourceType
+        """
+        base_item_adapter = ItemAdapter(item)
+        discipline_lisum_keys = set()
+        sodix_lisum_custom_lrts = set()
+        if base_item_adapter.get("custom"):
+            custom_field = base_item_adapter.get("custom")
+            if "ccm:taxonentry" in custom_field:
+                taxon_entries: list = custom_field.get("ccm:taxonentry")
+                # first round of mapping from (all) Sodix eafCodes to 'ccm:taxonid'
+                if taxon_entries:
+                    for taxon_entry in taxon_entries:
+                        if taxon_entry in self.DISCIPLINE_TO_LISUM:
+                            discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM.get(taxon_entry))
+        if base_item_adapter.get("valuespaces"):
+            valuespaces = base_item_adapter.get("valuespaces")
+            if valuespaces.get("discipline"):
+                discipline_list = valuespaces.get("discipline")
+                # a singular entry will look like 'http://w3id.org/openeduhub/vocabs/discipline/380'
+                # the last part of the URL string equals to a corresponding eafCode
+                # (see: http://agmud.de/wp-content/uploads/2021/09/eafsys.txt)
+                # this eafCode (key) gets mapped to Lisum specific B-B shorthands like "C-MA"
+                if discipline_list:
+                    for discipline_w3id in discipline_list:
+                        discipline_eaf_code: str = discipline_w3id.split(sep='/')[-1]
+                        match discipline_eaf_code in self.DISCIPLINE_TO_LISUM:
+                            case True:
+                                discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM.get(discipline_eaf_code))
+                                # ToDo: there are no Sodix eafCode-values for these Lisum keys:
+                                #  - Deutsche Gebärdensprache (C-DGS)
+                                #  - Hebräisch (C-HE)
+                                #  - Japanisch (C-JP)
+                                #  - Naturwissenschaften (5/6) (= C-NW56)
+                                #  - Naturwissenschaften (C-NW)
+                                #  - Neu Griechisch (C-EL)
+                                #  - Sorbisch/Wendisch (C-SW)
+                            case _:
+                                # due to having the 'custom'-field as a (raw) list of all eafCodes, this mainly serves
+                                # the purpose of reminding us if a 'discipline'-value couldn't be mapped to Lisum
+                                logging.warning(f"Lisum Pipeline failed to map from eafCode {discipline_eaf_code} "
+                                                f"to its corresponding ccm:taxonid short-handle")
+                logging.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
+                              f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
+
+            if valuespaces.get("educationalContext"):
+                # mapping educationalContext values from OEH SKOS to lisum keys
+                educational_context_list = valuespaces.get("educationalContext")
+                educational_context_lisum_keys = set()
+                if educational_context_list:
+                    # making sure that we filter out empty lists []
+                    # up until this point, every educationalContext entry will be a w3id link, e.g.
+                    # 'http://w3id.org/openeduhub/vocabs/educationalContext/grundschule'
+                    for educational_context_w3id in educational_context_list:
+                        educational_context_w3id_key = educational_context_w3id.split(sep='/')[-1]
+                        match educational_context_w3id_key in self.EDUCATIONALCONTEXT_TO_LISUM:
+                            case True:
+                                educational_context_w3id_key = self.EDUCATIONALCONTEXT_TO_LISUM.get(
+                                    educational_context_w3id_key)
+                                educational_context_lisum_keys.add(educational_context_w3id_key)
+                            case _:
+                                logging.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key}"
+                                              f"not found in mapping table.")
+                educational_context_list = list(educational_context_lisum_keys)
+                educational_context_list.sort()
+                valuespaces["educationalContext"] = educational_context_list
+
+            if valuespaces.get("intendedEndUserRole"):
+                intended_end_user_role_list = valuespaces.get("intendedEndUserRole")
+                intended_end_user_roles = set()
+                if intended_end_user_role_list:
+                    for item_w3id in intended_end_user_role_list:
+                        item_w3id: str = item_w3id.split(sep='/')[-1]
+                        if item_w3id:
+                            intended_end_user_roles.add(item_w3id)
+                    intended_end_user_role_list = list(intended_end_user_roles)
+                    intended_end_user_role_list.sort()
+                valuespaces["intendedEndUserRole"] = intended_end_user_role_list
+
+            if valuespaces.get("learningResourceType"):
+                lrt_list: list = valuespaces.get("learningResourceType")
+                lrt_temporary_list = list()
+                if lrt_list:
+                    for lrt_item in lrt_list:
+                        if type(lrt_item) is list:
+                            # some values like "audiovisual" were already mapped to ["audio", "visual"] multivalues
+                            # during transformation from Sodix to OEH
+                            lrt_multivalue = list()
+                            for lrt_string in lrt_item:
+                                lrt_string = lrt_string.split(sep='/')[-1]
+                                if lrt_string in self.LRT_OEH_TO_LISUM:
+                                    lrt_string = self.LRT_OEH_TO_LISUM.get(lrt_string)
+                                if lrt_string:
+                                    # making sure to exclude ''-strings
+                                    lrt_multivalue.append(lrt_string)
+                            lrt_temporary_list.append(lrt_multivalue)
+                        if type(lrt_item) is str:
+                            lrt_w3id: str = lrt_item.split(sep='/')[-1]
+                            if lrt_w3id in self.LRT_OEH_TO_LISUM:
+                                lrt_w3id = self.LRT_OEH_TO_LISUM.get(lrt_w3id)
+                            if lrt_w3id:
+                                # ToDo: workaround
+                                # making sure to exclude '' strings from populating the list
+                                lrt_temporary_list.append(lrt_w3id)
+                    lrt_list = lrt_temporary_list
+                    lrt_list.sort()
+                # after everything is mapped and sorted, save the list:
+                valuespaces["learningResourceType"] = lrt_list
+
+            # Mapping from valuespaces_raw["learningResourceType"]: "INTERAKTION" -> "interactive_material"
+            # (edge-cases like "INTERAKTION" don't exist in the OEH 'learningResourceType'-vocab, therfore wouldn't be
+            # available in valuespaces)
+            if base_item_adapter.get("valuespaces_raw"):
+                vs_raw: dict = base_item_adapter.get("valuespaces_raw")
+                if "learningResourceType" in vs_raw:
+                    raw_lrt: list = vs_raw.get("learningResourceType")
+                    for raw_lrt_item in raw_lrt:
+                        if raw_lrt_item == "INTERAKTION":
+                            sodix_lisum_custom_lrts.add("interactive_material")
+            if sodix_lisum_custom_lrts:
+                # if there's any Sodix custom LRT values present (e.g. "INTERAKTION"):
+                if valuespaces.get("learningResourceType"):
+                    # extending the LRT-list if it was already available
+                    lrt_list: list = valuespaces.get("learningResourceType")
+                    lrt_list.extend(sodix_lisum_custom_lrts)
+                    valuespaces["learningResourceType"] = lrt_list
+                else:
+                    # since most of the time there will be no LRT field available (if "INTERAKTION" is the only
+                    # LRT value, it needs to be created)
+                    lrt_list = list(sodix_lisum_custom_lrts)
+                    valuespaces["learningResourceType"] = lrt_list
+
+            if discipline_lisum_keys:
+                discipline_lisum_keys = list(discipline_lisum_keys)
+                discipline_lisum_keys.sort()
+                valuespaces["discipline"] = discipline_lisum_keys
         return item

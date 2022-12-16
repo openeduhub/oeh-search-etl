@@ -14,7 +14,7 @@ class ZUMKlexikonSpider(MediaWikiBase, scrapy.Spider):
     name = "zum_klexikon_spider"
     friendlyName = "ZUM-Klexikon"
     url = "https://klexikon.zum.de/"
-    version = "0.1.2"  # last update: 2022-02-16
+    version = "0.1.3"  # last update: 2022-09-13
     license = Constants.LICENSE_CC_BY_SA_30
 
     def parse_page_query(self, response: scrapy.http.Response):

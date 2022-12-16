@@ -11,7 +11,7 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
     name = "zum_deutschlernen_spider"
     friendlyName = "ZUM-Deutsch-Lernen"
     url = "https://deutsch-lernen.zum.de/"
-    version = "0.1.0"
+    version = "0.1.1"  # last update: 2022-09-13
     license = Constants.LICENSE_CC_BY_40
 
     def parse_page_query(self, response: scrapy.http.Response):

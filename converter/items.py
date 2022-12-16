@@ -32,7 +32,7 @@ class MutlilangItem(Item):
 
 
 class LomGeneralItem(Item):
-    identifier = Field()
+    identifier = Field(output_processor=JoinMultivalues())
     title = Field()
     language = Field()
     keyword = Field(output_processor=JoinMultivalues())
@@ -130,6 +130,8 @@ class ValuespaceItem(Item):
     learningResourceType = Field(output_processor=JoinMultivalues())
     new_lrt = Field(output_processor=JoinMultivalues())
     sourceContentType = Field(output_processor=JoinMultivalues())
+    # ToDo: sourceContentType is no longer used in edu-sharing
+    # DO NOT SET this field in crawlers for individual materials!
     toolCategory = Field(output_processor=JoinMultivalues())
 
     conditionsOfAccess = Field(output_processor=JoinMultivalues())
@@ -186,14 +188,21 @@ class BaseItem(Item):
     lastModified = Field()
     lom = Field(serializer=LomBaseItem)
     valuespaces = Field(serializer=ValuespaceItem)
+    "all items which are based on (skos) based valuespaces. The ProcessValuespacePipeline will automatically convert items inside here"
+    valuespaces_raw = Field(serializer=ValuespaceItem)
+    "this item is only used by the ProcessValuespacePipeline and holds the ""raw"" data which were given to the valuespaces. Please do not use it inside crawlers"
     permissions = Field(serializer=PermissionItem)
     "permissions (access rights) for this entry"
     license = Field(serializer=LicenseItem)
     publisher = Field()
     notes = Field()
     "editorial notes"
+    status = Field()
+    "status information of a given node, i.e. activated or deactivated"
     binary = Field()
     "binary data which should be uploaded (raw data)"
+    custom = Field()
+    "custom data, it can be used by the target transformer to store data in the native format (i.e. ccm/cclom properties in edu-sharing)"
     screenshot_bytes = Field()
     # this is a (temporary) field that gets deleted after the thumbnail pipeline processed its byte-data
 

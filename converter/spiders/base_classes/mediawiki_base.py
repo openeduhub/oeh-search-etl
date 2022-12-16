@@ -206,7 +206,10 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
     def mapResponse(self, response, fetchData=True):
         mr = super().mapResponse(response, fetchData=False)
         data = json.loads(response.body)
-        mr.replace_value('url', f'{self.url}wiki/{jmes_title.search(data)}')
+        title = jmes_title.search(data)
+        mr.replace_value('url', f"{self.url}{urllib.parse.quote('wiki/')}{urllib.parse.quote(title)}")
+        # response.url can't be used for string concatenation here since it would point to "/api.php"
+        # self.url is overwritten by the children of MediaWikiBase with the URL root
         return mr
 
     def getBase(self, response=None) -> BaseItemLoader:
@@ -240,7 +243,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
         loader.replace_value('format', 'text/html')
         data = response.meta['item']
         title = jmes_title.search(data)
-        loader.replace_value('location', f'{self.url}wiki/{urllib.parse.quote(title)}')
+        loader.replace_value('location', f"{self.url}{urllib.parse.quote('wiki/')}{urllib.parse.quote(title)}")
         return loader
 
     def getValuespaces(self, response):

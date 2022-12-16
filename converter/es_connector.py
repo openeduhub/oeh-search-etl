@@ -14,6 +14,7 @@ from vobject.vcard import VCardBehavior
 
 from converter import env
 from converter.constants import Constants
+from edu_sharing_client import ABOUTApi
 from edu_sharing_client.api.bulk_v1_api import BULKV1Api
 from edu_sharing_client.api.iam_v1_api import IAMV1Api
 from edu_sharing_client.api.mediacenter_v1_api import MEDIACENTERV1Api
@@ -34,11 +35,12 @@ class EduSharingConstants:
     MEDIACENTER_PREFIX = "MEDIA_CENTER_"
     MEDIACENTER_PROXY_PREFIX = "MEDIA_CENTER_PROXY_"
     LIFECYCLE_ROLES_MAPPING = {
-        "publisher": "ccm:lifecyclecontributer_publisher",
         "author": "ccm:lifecyclecontributer_author",
         "editor": "ccm:lifecyclecontributer_editor",
         "metadata_creator": "ccm:metadatacontributer_creator",
         "metadata_provider": "ccm:metadatacontributer_provider",
+        "publisher": "ccm:lifecyclecontributer_publisher",
+        "unknown": "ccm:lifecyclecontributer_unknown",  # (= contributor in an unknown capacity ("Mitarbeiter"))
     }
 
 
@@ -94,7 +96,9 @@ class EduSharing:
 
     cookie: str = None
     resetVersion: bool = False
+    version: any
     apiClient: ESApiClient
+    aboutApi: ABOUTApi
     bulkApi: BULKV1Api
     iamApi: IAMV1Api
     mediacenterApi: MEDIACENTERV1Api
@@ -217,6 +221,13 @@ class EduSharing:
     def mapLicense(self, spaces, license):
         if "url" in license:
             match license["url"]:
+                # ToDo: refactor this ungodly method asap
+                case Constants.LICENSE_CC_BY_20:
+                    spaces["ccm:commonlicense_key"] = "CC_BY"
+                    spaces["ccm:commonlicense_cc_version"] = "2.0"
+                case Constants.LICENSE_CC_BY_25:
+                    spaces["ccm:commonlicense_key"] = "CC_BY"
+                    spaces["ccm:commonlicense_cc_version"] = "2.5"
                 case Constants.LICENSE_CC_BY_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
@@ -229,24 +240,42 @@ class EduSharing:
                 case Constants.LICENSE_CC_BY_NC_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_NC_ND_20:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "20"
                 case Constants.LICENSE_CC_BY_NC_ND_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
                 case Constants.LICENSE_CC_BY_NC_ND_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_NC_SA_20:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "2.0"
+                case Constants.LICENSE_CC_BY_NC_SA_25:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "2.5"
                 case Constants.LICENSE_CC_BY_NC_SA_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
                 case Constants.LICENSE_CC_BY_NC_SA_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_ND_20:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "2.0"
                 case Constants.LICENSE_CC_BY_ND_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_ND"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
                 case Constants.LICENSE_CC_BY_ND_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY_ND"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_SA_20:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "2.0"
+                case Constants.LICENSE_CC_BY_SA_25:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "2.5"
                 case Constants.LICENSE_CC_BY_SA_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_SA"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
@@ -271,7 +300,7 @@ class EduSharing:
                     if "description" in license:
                         spaces["cclom:rights_description"] = license["description"]
                 case _:
-                    logging.warning(f"Received a value for license['internal'] that is not recognized by es_connector."
+                    logging.warning(f"Received a value for license['internal'] that is not recognized by es_connector. "
                                     f"Please double-check if the provided value {license['internal']} is correctly "
                                     f"mapped within Constants AND es_connector.")
 
@@ -293,10 +322,15 @@ class EduSharing:
             "cclom:location": item["lom"]["technical"]["location"]
             if "location" in item["lom"]["technical"] else None,
             "cclom:format": item["lom"]["technical"]["format"] if "format" in item["lom"]["technical"] else None,
-            "cclom:title": item["lom"]["general"]["title"],
+            "cclom:aggregationlevel": item["lom"]["general"]["aggregationLevel"] if "aggregationLevel" in item["lom"]["general"] else None,
+            "cclom:title": item["lom"]["general"]["title"]
         }
+        if "identifier" in item["lom"]["general"]:
+            spaces["cclom:general_identifier"] = item["lom"]["general"]["identifier"]
         if "notes" in item:
             spaces["ccm:notes"] = item["notes"]
+        if "status" in item:
+            spaces["ccm:editorial_state"] = item["status"]
         if "origin" in item:
             spaces["ccm:replicationsourceorigin"] = item[
                 "origin"
@@ -305,6 +339,9 @@ class EduSharing:
         self.mapLicense(spaces, item["license"])
         if "description" in item["lom"]["general"]:
             spaces["cclom:general_description"] = item["lom"]["general"]["description"]
+
+        if "identifier" in item["lom"]["general"]:
+            spaces["cclom:general_identifier"] = item["lom"]["general"]["identifier"]
 
         if "language" in item["lom"]["general"]:
             spaces["cclom:general_language"] = item["lom"]["general"]["language"]
@@ -317,13 +354,12 @@ class EduSharing:
             if "duration" in item["lom"]["technical"]:
                 duration = item["lom"]["technical"]["duration"]
                 try:
-                    # edusharing requries milliseconds
+                    # edusharing requires milliseconds
                     duration = int(float(duration) * 1000)
                 except:
                     pass
                 spaces["cclom:duration"] = duration
 
-        # TODO: this does currently not support multiple values per role
         if "lifecycle" in item["lom"]:
             for person in item["lom"]["lifecycle"]:
                 if not "role" in person:
@@ -371,7 +407,11 @@ class EduSharing:
                 vcard.add("url").value = url
                 if email:
                     vcard.add("EMAIL;TYPE=PREF,INTERNET").value = email
-                spaces[mapping] = [vcard.serialize()]
+                if mapping in spaces:
+                    # checking if a vcard already exists for this role: if so, extend the list
+                    spaces[mapping].append(vcard.serialize())
+                else:
+                    spaces[mapping] = [vcard.serialize()]
 
         valuespaceMapping = {
             "discipline": "ccm:taxonid",
@@ -391,19 +431,33 @@ class EduSharing:
         }
         for key in item["valuespaces"]:
             spaces[valuespaceMapping[key]] = item["valuespaces"][key]
+        # add raw values if the api supports it
+        if EduSharing.version["major"] >= 1 and EduSharing.version["minor"] >= 1:
+            for key in item["valuespaces_raw"]:
+                splitted = valuespaceMapping[key].split(":")
+                splitted[0] = "virtual"
+                spaces[":".join(splitted)] = item["valuespaces_raw"][key]
         if "typicalAgeRange" in item["lom"]["educational"]:
             tar = item["lom"]["educational"]["typicalAgeRange"]
             if "fromRange" in tar:
                 spaces["ccm:educationaltypicalagerange_from"] = tar["fromRange"]
             if "toRange" in tar:
                 spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
+
+        # map custom fields directly into the edu-sharing properties
+        if "custom" in item:
+            for key in item["custom"]:
+                spaces[key] = item["custom"][key]
+
         # intendedEndUserRole = Field(output_processor=JoinMultivalues())
         # discipline = Field(output_processor=JoinMultivalues())
         # educationalContext = Field(output_processor=JoinMultivalues())
         # learningResourceType = Field(output_processor=JoinMultivalues())
         # sourceContentType = Field(output_processor=JoinMultivalues())
-        spaces["cm:edu_metadataset"] = "mds_oeh"
-        spaces["cm:edu_forcemetadataset"] = "true"
+        mdsId = env.get("EDU_SHARING_METADATASET", allow_null=True, default="mds_oeh")
+        if mdsId != "default":
+            spaces["cm:edu_metadataset"] = mdsId
+            spaces["cm:edu_forcemetadataset"] = "true"
         for key in spaces:
             if type(spaces[key]) is tuple:
                 spaces[key] = list([x for y in spaces[key] for x in y])
@@ -457,6 +511,9 @@ class EduSharing:
                 EduSharing.groupCache.append(result["authorityName"])
 
     def setNodePermissions(self, uuid, item):
+        if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) == False:
+            logging.debug("Skipping permissions, EDU_SHARING_PERMISSION_CONTROL is set to false")
+            return
         if "permissions" in item:
             permissions = {
                 "inherited": True,  # let inherited = true to add additional permissions via edu-sharing
@@ -593,20 +650,33 @@ class EduSharing:
                     header_name="Accept",
                     header_value="application/json",
                 )
+                EduSharing.aboutApi = ABOUTApi(EduSharing.apiClient)
                 EduSharing.bulkApi = BULKV1Api(EduSharing.apiClient)
                 EduSharing.iamApi = IAMV1Api(EduSharing.apiClient)
                 EduSharing.mediacenterApi = MEDIACENTERV1Api(EduSharing.apiClient)
                 EduSharing.nodeApi = NODEV1Api(EduSharing.apiClient)
-                EduSharing.groupCache = list(
-                    map(
-                        lambda x: x["authorityName"],
-                        EduSharing.iamApi.search_groups(
-                            EduSharingConstants.HOME, "", max_items=1000000
-                        )["groups"],
+                about = EduSharing.aboutApi.about()
+                EduSharing.version = list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0]["version"]
+                version_str = str(EduSharing.version["major"]) + "." + str(EduSharing.version["minor"])
+                if EduSharing.version["major"] != 1 or EduSharing.version["minor"] < 0 or EduSharing.version["minor"] > 1:
+                    raise Exception(
+                        f"Given repository api version is unsupported: " + version_str
                     )
-                )
-                logging.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
-                return
+                else:
+                    logging.info("Detected edu-sharing bulk api with version " + version_str)
+                if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) == True:
+                    EduSharing.groupCache = list(
+                        map(
+                            lambda x: x["authorityName"],
+                            EduSharing.iamApi.search_groups(
+                                EduSharingConstants.HOME, "", max_items=1000000
+                            )["groups"],
+                        )
+                    )
+                    logging.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
+                    return
+                else:
+                    return
             logging.warning(auth.text)
             raise Exception(
                 "Could not authentify as admin at edu-sharing. Please check your settings for repository "
