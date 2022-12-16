@@ -35,18 +35,31 @@ class EdusharingSetup:
             self.api.set_application_properties(xml_name, properties)
 
     def _add_users_and_groups(self, users: List[User], groups: Set[str]):
-        # requirement: all groups within users must also be within groups
-        # TODO: change only if users and groups do not exist
+        # requirement: all groups within "users" must also be within "groups"
+
+        existing_usernames = [user['userName'] for user in self.api.get_users()]
+
         for user in users:
-            self.api.create_user(user.name, user.password, user.type)
-            print(f'Created user {user.name}')
+            if user.name not in existing_usernames:
+                self.api.create_user(user.name, user.password, user.type)
+                print(f'Created user {user.name}')
+            else:
+                print(f'User already exists: {user.name}')
+
+        existing_groupnames = [group['groupName'] for group in self.api.get_groups()]
 
         for group in groups:
-            self.api.create_group(group)
+            if group not in existing_groupnames:
+                self.api.create_group(group)
+                print(f'Created group {group}')
+            else:
+                print(f'Group already exists: {group}')
 
         for user in users:
+            existing_memberships = [group['groupName'] for group in self.api.user_get_groups(user.name)]
             for group in user.groups:
-                self.api.group_add_user(group, user.name)
+                if group not in existing_memberships:
+                    self.api.group_add_user(group, user.name)
 
     def _upload_color_picker(self):
         # the color picker h5p content contains the color picker library needed for other h5p items
@@ -81,8 +94,6 @@ def temporary_setup():
     users = []
     for json_user in json_users:
         users.append(User(json_user[0], json_user[1], json_user[2], json_user[3]))
-    print(users)
-    print(groups)
     EdusharingSetup().run(users, groups)
 
 
