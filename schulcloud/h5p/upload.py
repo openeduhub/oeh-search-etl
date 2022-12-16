@@ -141,7 +141,6 @@ class Uploader:
         if filename.endswith('h5p'):
             self.api.set_preview_thumbnail(node_id=node.id, filename=H5P_THUMBNAIL_PATH)
 
-        print(f'Upload complete for: {metadata.filepath}')
         return node.id, properties["ccm:replicationsourceuuid"][0]
 
     def upload_collection(self, collection: Collection, zip_file: ZipFile, es_folder: Node):
@@ -163,7 +162,6 @@ class Uploader:
         # permissions
         permitted_groups = self.get_permitted_groups(list(collection.permissions))
         self.api.set_permissions(collection_node.id, permitted_groups, False)
-        print(f'Created Collection {collection.name}.')
 
         # TODO: make option to ignore timestamps for (partially) failed uploads etc.
 
@@ -249,6 +247,8 @@ class Uploader:
 
             zip_file.close()
             os.remove(zip_path)
+
+            print(f'Upload done: {zip_file}')
 
     def test_upload(self):
         sync = self.api.get_sync_obj_folder()
