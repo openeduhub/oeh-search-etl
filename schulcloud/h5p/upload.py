@@ -2,7 +2,7 @@
 import os
 import sys
 import uuid
-from schulcloud import util
+import re
 import hashlib
 from typing import Optional, List, IO, Callable, Dict
 from datetime import datetime
@@ -10,6 +10,7 @@ from zipfile import ZipFile
 
 import boto3
 
+from schulcloud import util
 from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException
 from schulcloud.h5p.extract_metadata import MetadataFile, Metadata, Collection
 
@@ -33,6 +34,10 @@ GROUPS_EXCEL_TO_ES = {
 }
 
 
+def escape_filename(filename: str):
+    return re.sub(r'[,;:\'="@$%/\\{}]', '_', filename)
+
+
 def generate_node_properties(
         title: str,
         name: str,
@@ -52,7 +57,7 @@ def generate_node_properties(
         license = "CUSTOM"
     date = str(datetime.now())
     properties = {
-        "cm:name": [name],
+        "cm:name": [escape_filename(name)],
         "cm:edu_metadataset": ["mds_oeh"],
         "cm:edu_forcemetadataset": ["true"],
         "ccm:objecttype": ["MATERIAL"],
