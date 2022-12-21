@@ -121,7 +121,8 @@ class EdusharingSetup:
             'county-3353',
             'county-3157',
             'county-3454',
-            'county-3257'
+            'county-3257',
+            'LowerSaxony-private' 
         ]
         existing_groupnames = [group['groupName'] for group in self.api.get_groups()]
 
@@ -140,7 +141,8 @@ class EdusharingSetup:
 
         self._add_metadata_sets()
         self._add_users_and_groups(users, groups)
-        self._county_workaround()  # TODO: remove once fixed
+        # only needed when setup is scaled - has to run on single replica (repository-service)
+        # self._county_workaround()  # TODO: remove once fixed
         self._upload_color_picker()
 
 
