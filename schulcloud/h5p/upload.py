@@ -121,7 +121,9 @@ class Uploader:
         # get h5p file, add metadata, upload and after all add permissions
         filename = os.path.basename(metadata.filepath)
         name = os.path.splitext(filename)[0]
-        keywords = [metadata.title, metadata.collection.name, metadata.publisher] + metadata.keywords
+        keywords = [metadata.title, metadata.publisher] + metadata.keywords
+        if metadata.collection is not None:
+            keywords.append(metadata.collection.name)
 
         self_opened_file = False
         if file is None:

@@ -269,7 +269,7 @@ class EdusharingAPI:
         return [Node(node) for node in json_obj['nodes']]
 
     def get_permissions(self, node_id: str):
-        url = f'/node/v1/nodes/-home-/{node_id}'
+        url = f'/node/v1/nodes/-home-/{node_id}/permissions'
         response = self.make_request('GET', url)
         if not response.status_code == 200:
             raise RequestFailedException(response)
