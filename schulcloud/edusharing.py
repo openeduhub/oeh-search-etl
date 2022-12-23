@@ -61,7 +61,7 @@ class EdusharingAPI:
 
     def make_request(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str,
                      params: Optional[Dict[str, Any]] = None, json_data: Optional[Dict] = None,
-                     files: Optional[Dict] = None, stream: bool = False, retry: int = 20):
+                     files: Optional[Dict] = None, stream: bool = False, retry: int = 30):
         url = f'{self.base_url}{url}'
         headers = {'Accept': 'application/json'}
         i = 0
