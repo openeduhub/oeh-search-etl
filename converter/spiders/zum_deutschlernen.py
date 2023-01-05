@@ -5,14 +5,18 @@ from .base_classes import MediaWikiBase
 import scrapy
 
 from ..constants import Constants
+from ..web_tools import WebEngine
 
 
 class ZUMSpider(MediaWikiBase, scrapy.Spider):
     name = "zum_deutschlernen_spider"
     friendlyName = "ZUM-Deutsch-Lernen"
     url = "https://deutsch-lernen.zum.de/"
-    version = "0.1.1"  # last update: 2022-09-13
+    version = "0.1.2"  # last update: 2023-01-05
     license = Constants.LICENSE_CC_BY_40
+    custom_settings = {
+        "WEB_TOOLS": WebEngine.Playwright
+    }
 
     def parse_page_query(self, response: scrapy.http.Response):
         """
