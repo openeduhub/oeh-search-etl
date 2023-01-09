@@ -36,7 +36,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.2.7"  # last update: 2022-10-24
+    version = "0.2.8"  # last update: 2022-01-09
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -524,8 +524,12 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             if license_name in self.MAPPING_LICENSE_NAMES:
                 license_internal_mapped = self.MAPPING_LICENSE_NAMES.get(license_name)
                 return license_internal_mapped in [
+                    Constants.LICENSE_CC_BY_20,
+                    Constants.LICENSE_CC_BY_25,
                     Constants.LICENSE_CC_BY_30,
                     Constants.LICENSE_CC_BY_40,
+                    Constants.LICENSE_CC_BY_SA_20,
+                    Constants.LICENSE_CC_BY_SA_25,
                     Constants.LICENSE_CC_BY_SA_30,
                     Constants.LICENSE_CC_BY_SA_40,
                     Constants.LICENSE_CC_ZERO_10,
