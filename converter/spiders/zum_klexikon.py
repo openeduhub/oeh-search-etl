@@ -15,10 +15,12 @@ class ZUMKlexikonSpider(MediaWikiBase, scrapy.Spider):
     name = "zum_klexikon_spider"
     friendlyName = "ZUM-Klexikon"
     url = "https://klexikon.zum.de/"
-    version = "0.1.4"  # last update: 2023-01-05
+    version = "0.1.5"  # last update: 2023-01-09
     license = Constants.LICENSE_CC_BY_SA_40
     custom_settings = {
-        "WEB_TOOLS": WebEngine.Playwright
+        "WEB_TOOLS": WebEngine.Playwright,
+        "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_DEBUG": True
     }
 
     def parse_page_query(self, response: scrapy.http.Response):

@@ -65,7 +65,6 @@ jmes_description = jmespath.compile('parse.properties[?name==\'description\']."*
 jmes_text = jmespath.compile('parse.text."*"')
 jmes_pageid = jmespath.compile('parse.pageid')
 jmes_revid = jmespath.compile('parse.revid')
-log = logging.getLogger(__name__)
 
 
 def _api_url(url) -> str:
@@ -95,7 +94,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
     _query_params = _default_params | {
         'action': 'query',
         'list': 'allpages',
-        'aplimit': '100',
+        'aplimit': '500',  # Values between 1 and 500 are allowed by MediaWiki APIs
         'apfilterredir': 'nonredirects'  # ignore redirection pages
     }
 
@@ -187,7 +186,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
         response.meta['item'] = data
         response.meta['item_extra'] = extra
         if error := data.get('error', None):
-            log.error(f"""
+            logging.error(f"""
             | Wiki Error: {error}
             | for request {response.request.body}
             | extra data: {extra}
