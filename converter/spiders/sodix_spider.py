@@ -36,7 +36,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.2.8"  # last update: 2022-01-09
+    version = "0.2.9"  # last update: 2022-01-10
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -73,7 +73,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         "PROJECT": "project",
         "QUELLE": "reference",
         "RADIO": "broadcast",
-        "RECHERCHE": "enquiry-oriented activity",
+        "RECHERCHE": "enquiry_oriented_activity",
         "RESSOURCENTYP": "other",  # "Anderer Ressourcentyp"
         "ROLLENSPIEL": "role play",
         "SIMULATION": "simulation",

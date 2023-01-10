@@ -685,14 +685,17 @@ class LisumPipeline(BasicPipeline):
         "200": "C-FS",  # Fremdsprachen
         "220": "C-GEO",  # Geographie,
         "240": "C-GE",  # Geschichte
+        "260": "B-GES",  # Gesundheit -> Gesundheitsförderung
         "380": "C-MA",  # Mathematik
+        "400": "B-BCM",  # Medienerziehung / Medienpädagogik -> Basiscurriculum Medienbildung
         "420": "C-MU",  # Musik
         "450": "C-Phil",  # Philosophie
         "460": "C-Ph",  # Physik
         "480": "C-PB",  # Politische Bildung
         "510": "C-Psy",  # Psychologie
         "520": "C-LER",  # Religion -> Lebensgestaltung-Ethik-Religionskunde
-        # ToDo: 560 -> "C-NW56-3-8" ? (Sexualerziehung)
+        "560": "B-SE",  # Sexualerziehung
+        "660": "B-MB",  # Verkehrserziehung -> "Mobilitätsbildung und Verkehrserziehung"
         "700": "C-SOWI",  # Wirtschaftskunde -> "Sozialwissenschaft/Wirtschaftswissenschaft"
         "12002": "C-Thea",  # Darstellendes Spiel, Schultheater -> Theater
         "20001": "C-EN",  # Englisch
@@ -730,7 +733,8 @@ class LisumPipeline(BasicPipeline):
         "audiovisual_medium": ["audio", "video"],
         "open_activity": "",  # exists in 2 out of 60.000 items
         "broadcast": "audio",
-        "demonstration": "image",  # "Veranschaulichung"
+        "demonstration": ["demonstration", "image"],  # "Veranschaulichung"
+        "text": "teaching_aids",  # "Arbeitsmaterial"
     }
 
     def process_item(self, item: BaseItem, spider: scrapy.Spider) -> Optional[scrapy.Item]:
