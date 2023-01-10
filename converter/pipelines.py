@@ -719,7 +719,7 @@ class LisumPipeline(BasicPipeline):
         "sekundarstufe_1": "lower secondary school",
         "sekundarstufe_2": "upper secondary school",
         "berufliche_bildung": "vocational education",
-        # "fortbildung": "",  # does not exist in Lisum valuespace
+        "fortbildung": "professional development",
         "erwachsenenbildung": "continuing education",
         "foerderschule": "special education",
         # "fernunterricht": ""  # does not exist in Lisum valuespace
@@ -800,7 +800,7 @@ class LisumPipeline(BasicPipeline):
                                     educational_context_w3id_key)
                                 educational_context_lisum_keys.add(educational_context_w3id_key)
                             case _:
-                                logging.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key}"
+                                logging.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key} "
                                               f"not found in mapping table.")
                 educational_context_list = list(educational_context_lisum_keys)
                 educational_context_list.sort()
