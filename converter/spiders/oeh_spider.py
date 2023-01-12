@@ -13,6 +13,9 @@ class OEHSpider(EduSharingBase):
     version = "0.1.2"  # last update: 2023-01-12
     mdsId = "mds_oeh"
     importWhitelist: [str] = None
+    custom_settings = {
+        "ROBOTSTXT_OBEY": False
+    }
 
     def __init__(self, **kwargs):
         EduSharingBase.__init__(self, **kwargs)
