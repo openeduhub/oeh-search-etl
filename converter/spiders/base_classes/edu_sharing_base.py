@@ -28,7 +28,7 @@ class EduSharingBase(Spider, LomBase):
             self.apiUrl
             + self.searchUrl
             + self.mdsId
-            + "/ngsearch?contentType=FILES&maxItems=100&skipCount="
+            + "/ngsearch?contentType=FILES&maxItems=500&skipCount="
             + str(offset)
             + "&sortProperties=cm%3Acreated&sortAscending=true&propertyFilter=-all-"
         )
