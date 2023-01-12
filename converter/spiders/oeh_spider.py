@@ -44,7 +44,8 @@ class OEHSpider(EduSharingBase):
                 source = source[0] if source and source[0] else "oeh"
             if "ccm:oeh_publisher_combined" in response.meta["item"]["properties"]:
                 publisher_combined = response.meta["item"]["properties"]["ccm:oeh_publisher_combined"]
-                publisher_combined = publisher_combined[0] if publisher_combined and publisher_combined[0] else "oeh"
+                if publisher_combined and publisher_combined[0]:
+                    publisher_combined = publisher_combined[0]
             whitelist_hit_source = False
             whitelist_hit_publisher_combined = False
             if source in self.importWhitelist:
@@ -52,14 +53,15 @@ class OEHSpider(EduSharingBase):
             if publisher_combined in self.importWhitelist:
                 whitelist_hit_publisher_combined = True
             if whitelist_hit_source or whitelist_hit_publisher_combined:
-                # Item is detected on one whitelist (either 'ccm:replicationsource' or 'ccm:oeh_publisher_combined')
+                # If item is detected in one whitelist (either 'ccm:replicationsource' or 'ccm:oeh_publisher_combined')
                 if whitelist_hit_source:
-                    logging.info("Item {} was found on whitelist for 'ccm:replicationsource: {}".format(
+                    logging.info("Item {} was detected in whitelist for 'ccm:replicationsource: {}".format(
                         response.meta["item"]["ref"]["id"], source))
                 if whitelist_hit_publisher_combined:
-                    logging.info("Item {} was found on whitelist for 'ccm:oeh_publisher_combined': {}".format(
+                    logging.info("Item {} was detected in whitelist for 'ccm:oeh_publisher_combined': {}".format(
                         response.meta["item"]["ref"]["id"], publisher_combined))
             elif whitelist_hit_source is False and whitelist_hit_publisher_combined is False:
+                # if the item is on neither whitelist, it will be skipped
                 logging.info(
                     "Skipping item {} because it has no whitelisted 'ccm:replicationsource'-value: {}".format(
                         response.meta["item"]["ref"]["id"], source)
