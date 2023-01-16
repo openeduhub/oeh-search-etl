@@ -61,14 +61,20 @@ class EdusharingAPI:
 
     def make_request(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str,
                      params: Optional[Dict[str, Any]] = None, json_data: Optional[Dict] = None,
-                     files: Optional[Dict] = None, stream: bool = False, retry: int = 30):
+                     files: Optional[Dict] = None, stream: bool = False, retry: int = 50,
+                     timeout: Optional[float] = None):
         url = f'{self.base_url}{url}'
         headers = {'Accept': 'application/json'}
         i = 0
         while True:
-            response = self.session.request(method, url, params=params, headers=headers,
-                                            json=json_data, files=files, stream=stream)
-            if 500 <= response.status_code < 600 and i < retry:
+            print(method, url, params, json_data)
+            response = None
+            try:
+                response = self.session.request(method, url, params=params, headers=headers,
+                                                json=json_data, files=files, stream=stream, timeout=timeout)
+            except requests.exceptions.ReadTimeout:
+                pass
+            if (response is None or 500 <= response.status_code < 600) and i < retry:
                 time.sleep(i // 2)
                 i += 1
                 continue
@@ -184,16 +190,33 @@ class EdusharingAPI:
         if not 200 <= response.status_code < 300:
             raise RequestFailedException(response)
 
-    def get_children(self, node_id: str) -> List[Node]:
+    def get_children(self, node_id: str, all_properties: bool = False, type: Literal['all', 'folders', 'files'] = 'all') -> List[Node]:
         url = f'/node/v1/nodes/-home-/{node_id}/children'
-        response = self.make_request('GET', url, {'maxItems': '500', 'skipCount': '0'})
-        if response.status_code == 200:
-            try:
-                return [Node(node) for node in response.json()['nodes']]
-            except KeyError:
-                raise RuntimeError(f'Could not parse response: {response.text}')
-        else:
-            raise RequestFailedException(response)
+        params = {'maxItems': '200'}
+        if all_properties:
+            params['propertyFilter'] = '-all-'
+        if not type == 'all':
+            if type not in ('files', 'folders'):
+                raise ValueError(f'Unknown node type: {type}')
+            params['filter'] = type
+        offset = 0
+        children = []
+        while True:
+            params['skipCount'] = str(offset)
+            response = self.make_request('GET', url, params)
+            if response.status_code == 200:
+                content = response.json()
+                try:
+                    children += [Node(node) for node in content['nodes']]
+                    offset += content['pagination']['count']
+                    total = content['pagination']['total']
+                except KeyError:
+                    raise RuntimeError(f'Could not parse response: {response.text}')
+                if offset >= total:
+                    break
+            else:
+                raise RequestFailedException(response)
+        return children
 
     def find_node_by_name(self, parent_id: str, child_name: str) -> Node:
         nodes = self.get_children(parent_id)
@@ -259,6 +282,36 @@ class EdusharingAPI:
         # TODO: should only search within specific parent node, not global search
         return len(self.search_custom('cm:name', name, 2, 'FILES')) > 0
 
+    def search_schulcloud(self, query: str):
+        url = f'/search/v1/queries/-home-/mds_oeh/ngsearch/'
+        params = {
+            'contentType': 'FILES',
+            'skipCount': '0',
+            'maxItems': '20',
+            'sortProperties': 'score',
+            'sortAscending': 'false',
+            'propertyFilter': '-all-',
+        }
+        body = {
+            "criteria": [
+                {
+                    "property": "ccm:ph_invited",
+                    "values": [
+                        "GROUP_county-12051", "GROUP_public", "GROUP_LowerSaxony-public",
+                                      "GROUP_Brandenburg-public", "GROUP_Thuringia-public"
+                    ]
+                },
+                {
+                    "property": "ccm:hpi_searchable", "values": ["1"]},
+                {
+                    "property": "ngsearchword", "values": [query]
+                }
+            ],
+            "facets": ["cclom:general_keyword"]
+        }
+        response = self.make_request('POST', url, params=params, json_data=body)
+        return response
+
     def search_custom(self, property: str, value: str, max_items: int, content_type: Literal['FOLDERS', 'FILES']):
         url = f'/search/v1/custom/-home-?contentType={content_type}&combineMode=AND&property={property}&value={value}' \
               f'&maxItems={max_items}&skipCount=0'
@@ -273,11 +326,14 @@ class EdusharingAPI:
         response = self.make_request('GET', url)
         if not response.status_code == 200:
             raise RequestFailedException(response)
-        return response.json()
+        try:
+            return response.json()['permissions']
+        except KeyError:
+            raise RequestFailedException(response)
 
     def set_permissions(self, node_id: str, groups: List[str], inheritance: bool) -> None:
         url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
-        response = self.make_request('POST', url, json_data=self._craft_permission_body(groups, inheritance))
+        response = self.make_request('POST', url, json_data=self._craft_permission_body(groups, inheritance), timeout=8)
         if not response.status_code == 200:
             raise RequestFailedException(response)
 
