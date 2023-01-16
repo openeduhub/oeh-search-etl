@@ -1,0 +1,4230 @@
+{
+  "permissions": [
+    {
+      "path": "SYNC_OBJ",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/merlin_spider",
+      "inherit": false,
+      "permitted_groups": ["LowerSaxony"]
+    },
+    {
+      "path": "SYNC_OBJ/mediothek_pixiothek_spider",
+      "comment": "content in this folder has explicit permissions from crawler",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider",
+      "comment": "permissions are set explicitly on subfolders; new folders are blocked by default",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/wirlernenonline_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/planet_schule_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/digitallearninglab_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/leifi_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/serlo_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/oai_sodis_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/br_rss_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/irights_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/zum_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/rlp_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/youtube_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/zdf_rss_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/tutory_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/segu_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/biologie_lernprogramme_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/chemie_lernprogramme_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/quizdidaktik_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/bpb_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/memucho_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/zum_deutschlernen_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/zum_klexikon_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/schule_im_aufbruch_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/fobizz_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/ddb",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/rpi_virtuell_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/kindoergarten_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/zum_dwu_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/F3_kollektiv #digital_global",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/ginkgomaps_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/kmap_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/niedersachsen_abi_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "International",
+        "HPIBossCloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider",
+      "comment": "permissions are set explicitly on subfolders; new folders are blocked by default",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7372465ea86af1e973a0",
+      "comment": "mebis Tube",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7372465ea86af1e973a2",
+      "comment": "Aktion Mensch e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7372465ea86af1e973a4",
+      "comment": "Ernst Meli und Jo Strebel | lernenxxl",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7372465ea86af1e973a6",
+      "comment": "Eduversum GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973a8",
+      "comment": "Deutsche Gesetzliche Unfallversicherung (DGUV)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973aa",
+      "comment": "Planet Schule (SWR/WDR)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973ac",
+      "comment": "Joachim Herz Stiftung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973ae",
+      "comment": "ZDF",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973b1",
+      "comment": "Bundesagentur f\\u00fcr Arbeit",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973b7",
+      "comment": "Douglas Brown, Wolfgang Christian, Robert M Hanson",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973b9",
+      "comment": "Interactive Fiction Technology Foundation",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973bb",
+      "comment": "Dr. Adrian Vo\\u00dfk\\u00fchler | Viana.NET",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973bd",
+      "comment": "Google",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973c3",
+      "comment": "digital.learning.lab",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973c5",
+      "comment": "Thomas Schatz | kunstunterricht.ch",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973c7",
+      "comment": "Wikimedia Commons",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7375465ea86af1e973c9",
+      "comment": "Pestizid Aktions-Netzwerk e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7376465ea86af1e973cb",
+      "comment": "Christine Heider | Deutsch-Arbeitsbl\\u00e4tter",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7376465ea86af1e973cd",
+      "comment": "Freiwillige Selbstkontrolle Multimedia-Diensteanbieter e.V. (FSM)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737c465ea86af1e977b7",
+      "comment": "Bergwaldprojekt e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737c465ea86af1e977b9",
+      "comment": "The Open University",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737c465ea86af1e977bb",
+      "comment": "3dgeometrie.com",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737c465ea86af1e977bd",
+      "comment": "Bayerischer Rundfunk",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979b3",
+      "comment": "Projekt segu | Dr. Christoph Pallaske",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979b9",
+      "comment": "Projekt Zeitlupe e. V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979bb",
+      "comment": "BUND Baden W\\u00fcrttemberg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979bd",
+      "comment": "PONS GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979bf",
+      "comment": "Hessischer Bildungsserver",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979c1",
+      "comment": "Medicalgraphics",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979c3",
+      "comment": "lichtmikroskop.net",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979c5",
+      "comment": "PfadiWiki",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979c7",
+      "comment": "Kiwithek",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979c9",
+      "comment": "Slow Food Deutschland gUG",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979cb",
+      "comment": "Spiegel-Verlag Rudolf Augstein",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737e465ea86af1e97bc4",
+      "comment": "Landeszentrale f\\u00fcr politische Bildung Baden-W\\u00fcrttemberg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bc6",
+      "comment": "Mathigon Ltd",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bc8",
+      "comment": "Thomas Gottfried EDV",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bca",
+      "comment": "Videoanalyse",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bcc",
+      "comment": "LibreOffice",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bd0",
+      "comment": "Prof. Dr. Andreas Liese TU Hamburg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bd2",
+      "comment": "Kinovea",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bd4",
+      "comment": "jitsi",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bd8",
+      "comment": "hashtagify",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bda",
+      "comment": "Handbrake",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bdc",
+      "comment": "Joubel",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bde",
+      "comment": "Peter Rank Software | histomania ... schreib Geschichte",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97be0",
+      "comment": "GeoGebra",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97be2",
+      "comment": "DuckDuckGo",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97be4",
+      "comment": "DeepL GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97be6",
+      "comment": "Classroomscreen B.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97be8",
+      "comment": "Deutsches Kinderhilfswerk e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bea",
+      "comment": "Dienststelle Volksschulbildung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bec",
+      "comment": "Landesinstitut f\\u00fcr P\\u00e4dagogik und Medien",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bf1",
+      "comment": "DIPF - Leibniz-Institut",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7380465ea86af1e97de8",
+      "comment": "Start Coding e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7380465ea86af1e97dea",
+      "comment": "Kathleen Ble\\u00dfmann | Lesejule",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7380465ea86af1e97dec",
+      "comment": "LegaKids Stiftungs-GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7380465ea86af1e97dee",
+      "comment": "COOLLAMA GbR",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7380465ea86af1e97df0",
+      "comment": "Prof. Dr. Hauck-Thum, Uta | Adaptable Books",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7380465ea86af1e97df2",
+      "comment": "Nieders\\u00e4chsisches Kultusministerium",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7380465ea86af1e97df4",
+      "comment": "G\\u00f6ttinger Institut f\\u00fcr Demokratieforschung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7383465ea86af1e983d3",
+      "comment": "Bergische Universit\\u00e4t Wuppertal",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7383465ea86af1e983d5",
+      "comment": "Friedrich Verlag GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7383465ea86af1e983d7",
+      "comment": "Deutscher Bundestag",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7385465ea86af1e983da",
+      "comment": "Stiftung Haus der kleinen Forscher",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7386465ea86af1e983dc",
+      "comment": "MINT-Kolleg Baden-W\\u00fcrttemberg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7387465ea86af1e989ba",
+      "comment": "Deutsche Wildtier Stiftung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7388465ea86af1e98da4",
+      "comment": "Rundfunk Berlin-Brandenburg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7388465ea86af1e98da6",
+      "comment": "Ginkgo Maps",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b738b465ea86af1e99384",
+      "comment": "Haus der Bayerischen Geschichte",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b738b465ea86af1e99386",
+      "comment": "Das Kindermissionswerk - Die Sternsinger e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b738e465ea86af1e99770",
+      "comment": "Bundesanstalt f\\u00fcr Landwirtschaft und Ern\\u00e4hrung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b738e465ea86af1e99772",
+      "comment": "flipclass.eu",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b738e465ea86af1e99775",
+      "comment": "Audacity Team",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b738e465ea86af1e99777",
+      "comment": "FWU Institut f\\u00fcr Film und Bild",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b738e465ea86af1e99779",
+      "comment": "Internet-ABC e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b738e465ea86af1e9977b",
+      "comment": "Code.org",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b738e465ea86af1e9977f",
+      "comment": "Bundeszentrale f\\u00fcr gesundheitliche Aufkl\\u00e4rung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b738e465ea86af1e99781",
+      "comment": "Lie Detectors",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7393465ea86af1e99d60",
+      "comment": "S\\u00fcdwestrundfunk",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7395465ea86af1e9a533",
+      "comment": "Deutsche Bundesbank",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7395465ea86af1e9a72a",
+      "comment": "Staatsinstitut f\\u00fcr Schulqualit\\u00e4t und Bildungsforschung (ISB)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7398465ea86af1e9ad09",
+      "comment": "LISUM Berlin-Brandenburg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7398465ea86af1e9ad0b",
+      "comment": "Landesinstitut f\\u00fcr Schule und Medien Berlin-Brandenburg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7398465ea86af1e9af01",
+      "comment": "Senatsverwaltung Berlin",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7399465ea86af1e9af05",
+      "comment": "Th\\u00fcringer Institut f\\u00fcr Lehrerfortbildung, Lehrplanentwicklung und Medien",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b739b465ea86af1e9b2ef",
+      "comment": "ETH Z\\u00fcrich",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b739c465ea86af1e9b2f1",
+      "comment": "Gregor Louisoder Umweltstiftung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b739c465ea86af1e9b2f3",
+      "comment": "\\u201eLernroboter im Unterricht\\u201c | Universit\\u00e4t M\\u00fcnster, Prof. Dr. Horst Zeinz, Raphael Fehrmann",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b739c465ea86af1e9b2f6",
+      "comment": "Bayerische Landeszentrale f\\u00fcr politische Bildungsarbeit",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b739d465ea86af1e9b2f8",
+      "comment": "Duplicon",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b739d465ea86af1e9b2fc",
+      "comment": "memucho GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a2465ea86af1e9b6e6",
+      "comment": "Wissensfabrik - Unternehmen f\\u00fcr Deutschland e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a7465ea86af1e9b6e8",
+      "comment": "Stiftung Haus der Geschichte der Bundesrepublik Deutschland",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a7465ea86af1e9b6ea",
+      "comment": "Bisch\\u00f6fliches Hilfswerk MISEREOR e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a7465ea86af1e9b6ec",
+      "comment": "Chemie-Verb\\u00e4nde Baden-W\\u00fcrttemberg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a7465ea86af1e9b6f0",
+      "comment": "CIDSE in Zusammenarbeit mit dem Bisch\\u00f6flichen Hilfswerk MISEREOR e. V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a7465ea86af1e9b6f2",
+      "comment": "eduvinet",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a7465ea86af1e9b6f4",
+      "comment": "OroVerde - Die Tropenwaldstiftung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a7465ea86af1e9b6f7",
+      "comment": "Deutschlandradio",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b6fa",
+      "comment": "Westdeutscher Rundfunk",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b6fd",
+      "comment": "Vector Stiftung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b700",
+      "comment": "Greenpeace e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b702",
+      "comment": "Der Blaue Reiter",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b706",
+      "comment": "Deutsches Institut f\\u00fcr Menschenrechte",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b708",
+      "comment": "Europ\\u00e4ische Zentralbank (EZB)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b70a",
+      "comment": "erdbeerwoche GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b70c",
+      "comment": "denkmal aktiv | Deutsche Stiftung Denkmalschutz",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b70e",
+      "comment": "WordArt.com",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b710",
+      "comment": "Century Competence Center",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b712",
+      "comment": "Tweedback GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b714",
+      "comment": "InMeteo",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b716",
+      "comment": "WiseMapping",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b718",
+      "comment": "Holger Engels | KMap",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b71a",
+      "comment": "Quizizz Inc.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b71c",
+      "comment": "Norbert Sroke",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b71e",
+      "comment": "MeisterLabs GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b720",
+      "comment": "eLeDia GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b722",
+      "comment": "Windows",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b724",
+      "comment": "Aptoide",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b726",
+      "comment": "MAGIX Software GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b728",
+      "comment": "simpleshow gmbh",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b72a",
+      "comment": "NM, LLC",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b72c",
+      "comment": "Nimbus Web Inc",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b72e",
+      "comment": "Apps for Cities",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b730",
+      "comment": "Olaf M\\u00fcller",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b732",
+      "comment": "OBS Studio",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b734",
+      "comment": "Apache Software Foundation",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b736",
+      "comment": "OpenStreetMap Foundation",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b738",
+      "comment": "c/o Oliver Nix University of Colorado",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b73a",
+      "comment": "Wordpress",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b73c",
+      "comment": "RWTH Aachen",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b73e",
+      "comment": "Pixton Comics Inc.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b740",
+      "comment": "Plickers",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b742",
+      "comment": "Junge T\\u00fcftler gGmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b744",
+      "comment": "SCHUFA Holding AG",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b1465ea86af1e9bb2e",
+      "comment": "a tip: tap e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b1465ea86af1e9bb31",
+      "comment": "Saarl\\u00e4ndischer Rundfunk",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b1465ea86af1e9bb33",
+      "comment": "Stiftung Medienp\\u00e4dagogik Bayern",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b2465ea86af1e9bb35",
+      "comment": "Bayerisches Staatsministerium f\\u00fcr Unterricht und Kultus",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b3465ea86af1e9bb37",
+      "comment": "Landeszentrale f\\u00fcr politische Bildung Nordrhein-Westfalen",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b3465ea86af1e9bb39",
+      "comment": "Deutschland sicher im Netz e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b3465ea86af1e9bb3b",
+      "comment": "Fonds der Chemischen Industrie im Verband der Chemischen Industrie e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b3465ea86af1e9bb3f",
+      "comment": "Nieders\\u00e4chsisches Landesinstitut f\\u00fcr schulische Qualit\\u00e4tsentwicklung (NLQ)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b5465ea86af1e9bf2a",
+      "comment": "FUNK",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b5465ea86af1e9bf2c",
+      "comment": "Polizeipr\\u00e4sidium Schwaben Nord, Augsburg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b5465ea86af1e9bf30",
+      "comment": "Der Landesbeauftragte f\\u00fcr Politische Bildung Schleswig-Holstein",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b5465ea86af1e9bf32",
+      "comment": "Christian Meyer-Heidemann und Michael Holldorf | Der Landesbeauftragte f\\u00fcr politische Bildung SH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b5465ea86af1e9bf35",
+      "comment": "Science on Stage Deutschland e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b6465ea86af1e9c12e",
+      "comment": "Wikipedia",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b6465ea86af1e9c130",
+      "comment": "ARBEIT UND LEBEN Berlin-Brandenburg DGB/VHS e. V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b6465ea86af1e9c132",
+      "comment": "ZUM.de - Unterrichtsmaterial, Projekte, Ideen",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b6465ea86af1e9c134",
+      "comment": "WissensWerte Erkl\\u00e4rfilme: /e-politik.de/ e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b6465ea86af1e9c136",
+      "comment": "Neurowissenschaftliche Gesellschaft e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b6465ea86af1e9c13a",
+      "comment": "Bundeszentrale f\\u00fcr politische Bildung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b6465ea86af1e9c13c",
+      "comment": "Goethe-Institut e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b6465ea86af1e9c332",
+      "comment": "Mercator-Institut f\\u00fcr Sprachf\\u00f6rderung und Deutsch als Zweitsprache",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b6465ea86af1e9c334",
+      "comment": "EduSkills+",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b7465ea86af1e9c336",
+      "comment": "LNCU",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b7465ea86af1e9c339",
+      "comment": "oncampus GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b7465ea86af1e9c33c",
+      "comment": "Deutsches Zentrum f\\u00fcr Luft- und Raumfahrt e.V. (DLR)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b7465ea86af1e9c33e",
+      "comment": "ALP Dillingen",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b7465ea86af1e9c341",
+      "comment": "Lindau Nobel Laureate Meetings",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b7465ea86af1e9c343",
+      "comment": "Rh\\u00f6n-Gymnasium Bad Neustadt an der Saale",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b8465ea86af1e9c345",
+      "comment": "Verbund Safer Internet ",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b9465ea86af1e9c733",
+      "comment": "LE Commsulting GmbH | QuizAcademy School Edition",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b9465ea86af1e9c735",
+      "comment": "Landesinstitut f\\u00fcr Lehrerbildung und Schulentwicklung Hamburg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b9465ea86af1e9c73a",
+      "comment": "P\\u00e4dagogische Hochschule PHBern",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c741",
+      "comment": "Institut f\\u00fcr Kartografie und Geoinformation",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c743",
+      "comment": "Christiane Stricker | Medien f\\u00fcr Bildung ",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c745",
+      "comment": "Stiftung Deutschland im Plus",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c747",
+      "comment": "Peter Doll | Rechentrainer auf dem Hessischen Bildungsserver",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c749",
+      "comment": "eggheads",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c74b",
+      "comment": "Kialo",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c74f",
+      "comment": "World University Service - Deutsches Komitee e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c751",
+      "comment": "Rossipotti - Unabh\\u00e4ngiges Literaturmagazin f\\u00fcr Kinder",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c753",
+      "comment": "softwarea GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c755",
+      "comment": "effective WEBWORK GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c757",
+      "comment": "MIT.edu",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c759",
+      "comment": "Citilab",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c75b",
+      "comment": "Atlassian",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c75d",
+      "comment": "Twitter International Company",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c75f",
+      "comment": "BitPaper Ltd.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c761",
+      "comment": "Canva",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c763",
+      "comment": "CATMA",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c765",
+      "comment": "DelighteX GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c767",
+      "comment": "eTwinning",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c769",
+      "comment": "Guter Unterricht f\\u00fcr alle e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c76b",
+      "comment": "Foundata GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c76d",
+      "comment": "Dirk Farin | ImageMeter",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c76f",
+      "comment": "CamStudio.org",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c771",
+      "comment": "Edkimo GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c773",
+      "comment": "Neue Wege des Lernens e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c775",
+      "comment": "Nordtouch",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c777",
+      "comment": "Zygomatic",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c779",
+      "comment": "fragFINN e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c77b",
+      "comment": "Giphy",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c77d",
+      "comment": "Creative Heroes",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c77f",
+      "comment": "Blinde Kuh e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c781",
+      "comment": "fairkom",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c784",
+      "comment": "solocode GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73bb465ea86af1e9cb70",
+      "comment": "netzdurchblick.de",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73bb465ea86af1e9cb72",
+      "comment": "Deutsche Welle",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73bc465ea86af1e9cf68",
+      "comment": "Tierstimmenarchiv",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73e1465ea86af1e9e8d5",
+      "comment": "edeos - digital education",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73e7465ea86af1e9eeb9",
+      "comment": "Stiftung Jugend und Bildung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73e8465ea86af1e9eebb",
+      "comment": "Bildungsmaterialspende",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ed465ea86af1e9f2a6",
+      "comment": "Norddeutscher Rundfunk",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73f5465ea86af1e9fe65",
+      "comment": "Finlit Foundation gGmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73f5465ea86af1e9fe67",
+      "comment": "Evang. Dekanat\\u00e4mter Schorndorf und Waiblingen",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73f5465ea86af1e9fe69",
+      "comment": "Fachagentur Nachwachsende Rohstoffe e.V. (FNR)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73f5465ea86af1e9fe6d",
+      "comment": "Mathe.Zone",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73fa465ea86af1ea13ed",
+      "comment": "Holger Hunger | Bilderhamster",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ff465ea86af1ea2584",
+      "comment": "Bayerische Staatsgem\\u00e4ldesammlungen",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b740a465ea86af1ea3528",
+      "comment": "explainity GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b740b465ea86af1ea352a",
+      "comment": "ESO - European Southern Observatory",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b740d465ea86af1ea3914",
+      "comment": "University of Colorado Boulder",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7414465ea86af1ea3924",
+      "comment": "Landesanstalt f\\u00fcr Medien Nordrhein-Westfalen (LfM)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7444465ea86af1ea73ee",
+      "comment": "Radio Bremen",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b745b465ea86af1ea8390",
+      "comment": "Siemens Stiftung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b751e465ea86af1eaf017",
+      "comment": "Anja Muser | Berater digitale Bildung (mBdB/iBdB) der Gymnasien in Oberbayern/West",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b751f465ea86af1eaf01d",
+      "comment": "wikiHow",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6061d0aaf7b58c64bc9b1cbd",
+      "comment": "Regionales Umweltbildungszentrum Hollen e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/606303792179cd4f01909e8e",
+      "comment": "Jacqueline Schuster",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/606303792179cd4f01909e9a",
+      "comment": "Ina Salomon-Schmidt",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/606dcfc4e1eeb059dc48db88",
+      "comment": "test publisher 07.04",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6075212f4848375fba23e64f",
+      "comment": "EIROforum",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/607d00fb8ad91c655e42d2ea",
+      "comment": "Welt der Physik",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/607d1bf78ad91c655e42d2eb",
+      "comment": "Freie Universit\\u00e4t Berlin, Fachbereich Physik",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/607d70078ad91c655e42d2ed",
+      "comment": "Gesellschaft f\\u00fcr Umweltbildung Baden-W\\u00fcrttemberg e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6081353b8ad91c655e42d2f0",
+      "comment": "Jonathan Zebhauser | Welt der Buchstaben",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6086c74d8ad91c655e42d309",
+      "comment": "Institut zur Qualit\\u00e4tsentwicklung im Bildungswesen",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6087beb18ad91c655e42d31f",
+      "comment": "i!bk Institut f\\u00fcr innovative Bildungskonzepte GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/608a57d9474de721de075b79",
+      "comment": "Coding For Tomorrow",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6091624f474de721de075bb9",
+      "comment": "Helmholtz-Zentrum Potsdam  - GFZ ",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60a283ead859ea400d5cc84c",
+      "comment": "Stiftung Neue Verantwortung e.V. ",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60a7b83821e3565a18f028ae",
+      "comment": "Kaleido AI GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ae52e621e3565a18f028b2",
+      "comment": "Forum Fairer Handel e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ae564321e3565a18f028b3",
+      "comment": "Marisa Herzog | Lehrmittel Boutique",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60bf482c56de175f7c08cb33",
+      "comment": "Stefan M\\u00fcller | Schlau ist WOW!",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60c0785856de175f7c08cb55",
+      "comment": "Maximilian Josch | Studimup",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60c07c2756de175f7c08cb57",
+      "comment": "Georg-Eckert-Institut",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60c73cf993ffac04e3e86a16",
+      "comment": "Felix Elsenbruch",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60c773ba93ffac04e3e86a28",
+      "comment": "Lorenz Derungs | Learning and Doing",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60d1c7fb93ffac04e3e86d87",
+      "comment": "Plattform Lernende Systeme",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60d5bc2c1b795b3ee7491f39",
+      "comment": "Studimup ",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60dc3f543277401bd8771007",
+      "comment": "MK&G Museum f\\u00fcr Kunst und Gewerbe Hamburg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ddd1b93277401bd877130e",
+      "comment": "Polished Play, LLC",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ddd4713277401bd8771310",
+      "comment": "QRCode Monkey GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ddd67a3277401bd8771312",
+      "comment": "iHandy Group",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60dddb5b3277401bd8771314",
+      "comment": "Scratch Foundation",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60e2891f6d481d154d2b65d8",
+      "comment": "Keuwlsoft",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60e2901a6d481d154d2b65da",
+      "comment": "Kahoot!",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60e299786d481d154d2b65dc",
+      "comment": "Mentimeter AB",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60e69dcb6d481d154d2b671c",
+      "comment": "Stefan Richtberg | Virtuelle Experimente",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60e700c46d481d154d2b672c",
+      "comment": "Bundesstiftung zur Aufarbeitung der SED-Diktatur",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ebf5c26d481d154d2b6733",
+      "comment": "P\\u00e4dagogische Hochschule FHNW",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ebfc956d481d154d2b6736",
+      "comment": "Atlassian Pty Ltd",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ec13816d481d154d2b673a",
+      "comment": "PlayPosit, Inc.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ec19b36d481d154d2b673d",
+      "comment": "Educreations, Inc",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ec21fd6d481d154d2b6740",
+      "comment": "TechSmith Corporation",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ec27546d481d154d2b6743",
+      "comment": "Powtoon Ltd.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ec2b2c6d481d154d2b6746",
+      "comment": "Prezi Inc.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ec31a56d481d154d2b6749",
+      "comment": "Miro",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ec382a6d481d154d2b674c",
+      "comment": "Technische Informationsbibliothek",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ec40966d481d154d2b674f",
+      "comment": "Tsaedek",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ec427a6d481d154d2b6751",
+      "comment": "Dayana Networks Ltd",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ec618a6d481d154d2b6753",
+      "comment": "Notion Inc.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ed360b6d481d154d2b6756",
+      "comment": "R&W Scientific",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ee6b186d481d154d2b675f",
+      "comment": "Maximilian Wimmer | Strukturformelzeichner",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ee72776d481d154d2b6762",
+      "comment": "Bundesministerium f\\u00fcr Umwelt, Naturschutz und nukleare Sicherheit",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60ee90696d481d154d2b6766",
+      "comment": "Kubikfoto GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60f0e82ff9942e471c6bbf24",
+      "comment": "Quarks",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60f523566d481d154d2b6770",
+      "comment": "Mark H\\u00fcther | huethereducation",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60f52ed46d481d154d2b6772",
+      "comment": "Musescore",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60f5788f6d481d154d2b67ce",
+      "comment": "Christian Pothmann",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60fbdd342841201fec012363",
+      "comment": "Moodle Pty Ltd.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60fe56da2841201fec01236f",
+      "comment": "Stiftung Deutsches Historisches Museum",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/610d2eb82c52267ea34d4765",
+      "comment": "EastDock Media",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/610eccb42c52267ea34d4770",
+      "comment": "Wasserwacht-Bayern (BRK)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6113819a3f52c64a180f6f94",
+      "comment": "Helmholtz Zentrum M\\u00fcnchen",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6114e4e43f52c64a180f6fc1",
+      "comment": "Bayerisches Landesamt f\\u00fcr Umwelt",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6119f254a2cfeb12cd34bc7e",
+      "comment": "Bundesamt f\\u00fcr Verfassungsschutz",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/611a51b9a2cfeb12cd34bc9d",
+      "comment": "Engagement Global",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/611b8918e58503235b4fed05",
+      "comment": "Deutsches Zentrum f\\u00fcr Lehrerbildung Mathematik (DZLM)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/611ba854e58503235b4fed08",
+      "comment": "Institut f\\u00fcr Bildungsmonitoring und Qualit\\u00e4tsentwicklung (IfBQ)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/611f6acbe58503235b4fed3b",
+      "comment": "Volksbund Deutsche Kriegsgr\\u00e4berf\\u00fcrsorge e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61233defe58503235b4feea4",
+      "comment": "Gemeinsam f\\u00fcr Afrika e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6124fb126726b97cf000221d",
+      "comment": "P\\u00e4dagogischer Austauschdienst",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6125f9376726b97cf0002226",
+      "comment": "Deutsches Krebsforschungszentrum (DKFZ) ",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6131ff0da96ff943b936e920",
+      "comment": "Accenture Dienstleistungen GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6135d0f26a2c9d288b9d9f0a",
+      "comment": "Mitteldeutscher Rundfunk",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6138b440843eba5a6b85ee56",
+      "comment": "Okua GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6144534a9c6eee23ae8d8fa7",
+      "comment": "Deutsches Polen-Institut",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61449fa29c6eee23ae8d8fad",
+      "comment": "Hamburger Stiftung f\\u00fcr Wirtschaftsethik",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6148610e9c6eee23ae8d8fd8",
+      "comment": "Hans-B\\u00f6ckler-Stiftung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/614879929c6eee23ae8d8fdc",
+      "comment": "Bundesministerium f\\u00fcr Familien, Senioren, Frauen und Jugend",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/615197b89c6eee23ae8d904c",
+      "comment": "Martin Behm | MB Nachhilfe",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6151db4d9c6eee23ae8d9062",
+      "comment": "NABU (Naturschutzbund Deutschland) e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6151eb3f9c6eee23ae8d9064",
+      "comment": "Stiftung Weltethos",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/615439229c6eee23ae8d90ef",
+      "comment": "Umwelt-Bildungs-Zentrum Steiermark",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/615ec23195a6201a55321696",
+      "comment": "3D Interaction Technologies GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/615ee08c95a6201a553216a1",
+      "comment": "Le GEP Langues de l\\u2019acad\\u00e9mie de Versailles",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61693d74a3bc006807d5fb22",
+      "comment": "Alfred-Wegener-Institut",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61726fc1a3bc006807d5fced",
+      "comment": "Alzheimer Forschung Initiative e.V. ",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6177ade1373d710e746ef630",
+      "comment": "acatech - Deutsche Akademie der Technikwissenschaften e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6179163c373d710e746ef658",
+      "comment": "andereachterhuizen.nl",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61813b09e1c0d63f02587f4e",
+      "comment": "Jens Reuther | Biofunk",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6189263dbc60d67f4a8b9b11",
+      "comment": "Max-Planck-Gesellschaft zur F\\u00f6rderung der Wissenschaften e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/618935b5bc60d67f4a8b9b14",
+      "comment": "Bisch\\u00f6fliche Aktion Adveniat e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/618b7e14bc60d67f4a8b9daa",
+      "comment": "SCHAU HIN! Was Dein Kind mit Medien macht",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/618b9063bc60d67f4a8b9dae",
+      "comment": "Michael W\\u00e4chter | Distanzunterricht Chemie",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/618ce3da7985fc3cea6709bb",
+      "comment": "Amadeu Antonio Stiftung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6192629e96fd91656632ef20",
+      "comment": "Lingo4you Mario M\\u00fcller & Heike Pahlow GbR",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61927ef296fd91656632ef24",
+      "comment": "Dipl. P\\u00e4d. Alois Klotz & Christian Klotz | easy4me",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/619e0c3fb8a70a4da2b6c3ba",
+      "comment": "App Camps",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61a47ddd01fcb35977c62603",
+      "comment": "Hessischer Rundfunk",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61a48e3401fcb35977c62607",
+      "comment": "Marcus von Amsberg | Ivi-Education",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61a5d93b33f2e85b69d350df",
+      "comment": "Andreas Kalt | rete-mirabile.net ",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61b0c3e84fb0df4321ef0845",
+      "comment": "klicksafe",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61b9e90c2d09585d64658720",
+      "comment": "OHRKA e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61ba01d12d09585d6465876c",
+      "comment": "SOS-Kinderdorf Campus",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61bc47f72d09585d646587aa",
+      "comment": "Agrar Koordination: Forum f\\u00fcr internationale Agrarpolitik e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61c0a6b52d09585d64658825",
+      "comment": "5 am Tag e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61cc715dd17d266ebc6ac167",
+      "comment": "Deutscher Bildungsserver",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61e1404dc66c7c7fd1517ce9",
+      "comment": "arche noVa - Initiative f\\u00fcr Menschen in Not e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61e80765b41eb70b5273f09d",
+      "comment": "arsEdition GmbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61ea928fb41eb70b5273f141",
+      "comment": "Studio2B GmbH | Dein erster Tag",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61f0fb96b41eb70b5273f371",
+      "comment": "Das Lernb\\u00fcro",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61f2673cb41eb70b5273f39c",
+      "comment": "ADAC Stiftung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61f278d9b41eb70b5273f3a0",
+      "comment": "Gesellschaft f\\u00fcr Informatik e.V. (GI)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61fa90b1efc2f735517aa5a0",
+      "comment": "Transparency International Deutschland e. V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62038c93efc2f735517aa690",
+      "comment": "CBM Christoffel-Blindenmission Christian Blind Mission e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/620a6021efc2f735517aa741",
+      "comment": "Kubiss e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/620a703aefc2f735517aa744",
+      "comment": "Frankfurter B\\u00fcndnis f\\u00fcr Familien",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/620bb1dcefc2f735517aa760",
+      "comment": "Woche des Sehens",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6214da82c55e97204787e87d",
+      "comment": "Netzwerk Bildung f\\u00fcr Ressourcenschonung und Ressourceneffizienz (BilRess)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6216254bc55e97204787e89c",
+      "comment": "Lernort Keibelstrasse",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/621644bfc55e97204787e89f",
+      "comment": "WWF Deutschland",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/621cc53194beb117f5139196",
+      "comment": "Understanding Europe",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6221c20e94beb117f5139247",
+      "comment": "Zentrum Bayern Familie und Soziales",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6221d8c694beb117f513924b",
+      "comment": "JFF \\u2013 Jugend Film Fernsehen e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6221e65a94beb117f513924f",
+      "comment": "Programmberatung f\\u00fcr Eltern e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6221fa1294beb117f5139253",
+      "comment": "fjp>media Verband junger Medienmacher Sachsen-Anhalt",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62220cda94beb117f5139257",
+      "comment": "Landesbund f\\u00fcr Vogelschutz in Bayern (LBV) e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6225d99b94beb117f51392c8",
+      "comment": "Zentrale f\\u00fcr Unterrichtsmedien im Internet e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/622b1ade9ec93b3512e87965",
+      "comment": "Handysektor",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/622b2ace9ec93b3512e87968",
+      "comment": "Das Deutsche Schulportal ",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/622f599f9ec93b3512e879be",
+      "comment": "Zentrum f\\u00fcr Schul- und Bildungsforschung der Martin-Luther-Universit\\u00e4t Halle-Wittenberg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6231cadf714f7f77f80ee294",
+      "comment": "Institut f\\u00fcr Modernisierung der Bildungsinhalte IMZO | \\u0406\\u043d\\u0441\\u0442\\u0438\\u0442\\u0443\\u0442 \\u043c\\u043e\\u0434\\u0435\\u0440\\u043d\\u0456\\u0437\\u0430\\u0446\\u0456\\u0457 \\u0437\\u043c\\u0456\\u0441\\u0442\\u0443 \\u043e\\u0441\\u0432\\u0456\\u0442\\u0438",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/623ac6039321366ddab1d7a2",
+      "comment": "Deutsche Physikalische Gesellschaft (DPG)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/623ac7639321366ddab1d7a3",
+      "comment": "Bundesministerium f\\u00fcr Bildung und Forschung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/623d6f75cc76001907c624be",
+      "comment": "Lebenshilfe Bremen | Leichte Sprache",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/623d99c0cc76001907c624cb",
+      "comment": "Staatliche Berufsschule 2 Passau",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6256c64446a6f357be98229c",
+      "comment": "Anne Frank House",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/625ffc1746a6f357be9823f5",
+      "comment": "Bundesamt f\\u00fcr Naturschutz",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6260032346a6f357be9823f7",
+      "comment": "dtv Verlagsgesellschaft mbH",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62664dce323fbc71663f90b8",
+      "comment": "MUNDO",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6267f0cc323fbc71663f9190",
+      "comment": "Bayerisches Staatsministerium f\\u00fcr Familie, Arbeit und Soziales",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62725ec7323fbc71663f92c5",
+      "comment": "Deutsche Telekom Stiftung",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62739413323fbc71663f92f6",
+      "comment": "Das M\\u00f6hrchenheft",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6274d83b323fbc71663f9320",
+      "comment": "streamline",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62790286323fbc71663f9384",
+      "comment": "fluchterfahren / Jiyan Foundation",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/627a5b01ea86ee79d9c09b2a",
+      "comment": "Stiftung Gesundheitswissen",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6282032ba70b3d458b6d3a8b",
+      "comment": "Cocomaterial",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6284cac4a70b3d458b6d3ac6",
+      "comment": "Niels-Stensen-Gymnasium",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/628bf9a1a70b3d458b6d3b71",
+      "comment": "Vision Kino gGmbH: Netzwerk f\\u00fcr Film- und Medienkompetenz",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62989928a70b3d458b6d3d53",
+      "comment": "Hochschule der Medien Stuttgart",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62a32219b3428322662d057f",
+      "comment": "Arbeitskreis Kappenberg",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62b04ec19d42757bd4dea2ff",
+      "comment": "Endometriose-Vereinigung Deutschland e.V.",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62b075589d42757bd4dea303",
+      "comment": "Arbeitskreis deutscher Bildungsst\\u00e4tten e.V. (AdB)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62b191d69d42757bd4dea39e",
+      "comment": "Neue Wege des Lernens e. V. (zu l\\u00f6schen!)",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973bf",
+      "comment": "Apple",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a8465ea86af1e9b704",
+      "comment": "123Chemie",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/624bd536b085a21ed659b163",
+      "comment": "Arillus gemeinnützige GmbH i. L.",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/614088439c6eee23ae8d8f6b",
+      "comment": "Attac Trägerverein e.V.",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73f5465ea86af1e9fe6b",
+      "comment": "Pixabay",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/611611ed3f52c64a180f6fe0",
+      "comment": "Pushkin State Russian Language Institute",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73f5465ea86af1ea0063",
+      "comment": "Serlo",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/607fbb1e8ad91c655e42d2ef",
+      "comment": "Wolfgang Dehmer",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/61a6342b33f2e85b69d350ee",
+      "comment": "ANU - Arbeitsgemeinschaft Natur- und Umweltbildung",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737d465ea86af1e979b7",
+      "comment": "Age Exchange",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/60e6b2306d481d154d2b6728",
+      "comment": "Berufswahlpass",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b3465ea86af1e9bb3d",
+      "comment": "Chemistry@home",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/62445e9293b0373146061587",
+      "comment": "ClimateScience",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b7373465ea86af1e973b3",
+      "comment": "Culture Street",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73a7465ea86af1e9b6ee",
+      "comment": "Arbeitgeberverband Chemie Baden-Württemberg e.V.",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6130da20a96ff943b936e7de",
+      "comment": "Alexander König | Gedanken - Ideen - Artefakte",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b9465ea86af1e9c738",
+      "comment": "Khan Academy",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c74d",
+      "comment": "Learning Snacks GmbH",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bce",
+      "comment": "LearningApps",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/6179621e373d710e746ef65f",
+      "comment": "Andreas Breuer | Medien in Schule",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c73d",
+      "comment": "Medieninstitut des Verlegerverbandes Schweizer Medien",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73b6465ea86af1e9c12b",
+      "comment": "openclipart",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/622b025f9ec93b3512e87961",
+      "comment": "dSign Systems GmbH | TaskCards",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b73ba465ea86af1e9c73f",
+      "comment": "TermTrainer",
+      "inherit": false,
+      "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/sodix_spider/604b737f465ea86af1e97bee",
+      "comment": "WetterKontor GmbH",
+      "inherit": false,
+      "permitted_groups": []
+    }
+  ]
+}
