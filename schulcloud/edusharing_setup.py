@@ -74,65 +74,6 @@ class EdusharingSetup:
             self.api.upload_content(node.id, colorpicker_name, file)
             file.close()
 
-    def _county_workaround(self):
-        counties = [
-            'county-3455',
-            'county-3357',
-            'county-3103',
-            'county-3156',
-            'county-3154',
-            'county-3100',
-            'county-3254',
-            'county-3355',
-            'county-3359',
-            'county-3461',
-            'county-3256',
-            'county-3404',
-            'county-3459',
-            'county-3462',
-            'county-3352',
-            'county-3356',
-            'county-3401',
-            'county-3151',
-            'county-3158',
-            'county-3360',
-            'county-3453',
-            'county-3458',
-            'county-3152',
-            'county-3403',
-            'county-3452',
-            'county-3155',
-            'county-3101',
-            'county-3241',
-            'county-3252',
-            'county-3255',
-            'county-3358',
-            'county-3361',
-            'county-3456',
-            'county-3457',
-            'county-3351',
-            'county-3451',
-            'county-3153',
-            'county-3460',
-            'county-3102',
-            'county-3402',
-            'county-3354',
-            'county-3251',
-            'county-3353',
-            'county-3157',
-            'county-3454',
-            'county-3257',
-            'LowerSaxony-private' 
-        ]
-        existing_groupnames = [group['groupName'] for group in self.api.get_groups()]
-
-        for county in counties:
-            if county not in existing_groupnames:
-                self.api.create_group(county)
-                print(f'Created group {county}')
-            else:
-                print(f'Group already exists: {county}')
-
     def run(self, users: List[User], groups: List[str]):
         groups = set(groups)
         for user in users:
@@ -141,8 +82,6 @@ class EdusharingSetup:
 
         self._add_metadata_sets()
         self._add_users_and_groups(users, groups)
-        # only needed when setup is scaled - has to run on single replica (repository-service)
-        # self._county_workaround()  # TODO: remove once fixed
         self._upload_color_picker()
 
 
