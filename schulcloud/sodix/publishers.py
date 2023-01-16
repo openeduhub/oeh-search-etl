@@ -51,7 +51,7 @@ class SodixDownloader:
     def download(self):
         self.login()
         response = requests.post(self.URL_REQUEST, self.get_body(), headers=self.get_headers())
-        file = open('all_publishers.json', 'w')
+        file = open('schulcloud/sodix/all_publishers.json', 'w')
         file.write(json.dumps(response.json()['data']['publishers'], indent=4))
         file.close()
         print('Success.')
