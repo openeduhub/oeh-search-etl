@@ -8,7 +8,7 @@ from schulcloud.edusharing import EdusharingAPI, NotFoundException
 from schulcloud import util
 from schulcloud.h5p.upload import S3Downloader, MetadataNotFoundError
 from schulcloud.h5p.upload import Uploader
-from schulcloud.h5p.extract_metadata import MetadataFile
+from schulcloud.h5p.metadata import MetadataFile
 
 EXPECTED_ENV_VARS = [
     'EDU_SHARING_BASE_URL',
