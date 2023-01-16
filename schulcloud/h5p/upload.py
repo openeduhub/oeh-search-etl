@@ -12,7 +12,7 @@ import boto3
 
 from schulcloud import util
 from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException
-from schulcloud.h5p.extract_metadata import MetadataFile, Metadata, Collection
+from schulcloud.h5p.metadata import MetadataFile, Metadata, Collection
 
 
 EXPECTED_ENV_VARS = [
