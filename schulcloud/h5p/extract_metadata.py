@@ -53,7 +53,7 @@ class MetadataFile:
         COUNT = 9
 
     def __init__(self, file: Union[str, IO]):
-        self.file = file
+        self._file = file
         self.collections: List[Collection] = []  # collections of files
         self.single_files: List[Metadata] = []  # files outside any collection
         self.workbook = openpyxl.load_workbook(filename=file, data_only=True)
@@ -63,8 +63,8 @@ class MetadataFile:
 
     def close(self):
         self.workbook.close()
-        if not isinstance(self.file, str):
-            self.file.close()
+        if not isinstance(self._file, str):
+            self._file.close()
 
     def _validate_sheet(self):
         # Check required fields
@@ -74,7 +74,7 @@ class MetadataFile:
                 if column in required_fields:
                     if not self.o_sheet.cell(row=row, column=column).value:
                         raise ParsingError(f'Empty required cell: column: {get_column_letter(column)} row: {row} at '
-                                           f'{self.file.name}')
+                                           f'{self._file.name}')
 
         # Check for collection
         if self.o_sheet.cell(row=1, column=self.COLUMN.COLLECTION).value:
@@ -82,7 +82,7 @@ class MetadataFile:
             for row in range(1, self.o_sheet.max_row + 1):
                 other_collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
                 if not other_collection == collection:
-                    raise ParsingError(f'Multiple collection or spelling mistake in row {row} at {self.file.name}.')
+                    raise ParsingError(f'Multiple collection or spelling mistake in row {row} at {self._file.name}.')
         # Check permissions of collection
             permissions = []
             for row in range(1, self.o_sheet.max_row + 1):
@@ -91,9 +91,9 @@ class MetadataFile:
             first_permission = permissions[0]
             for permission in permissions:
                 if permission not in ('NDS', 'BRB', 'THR', 'ALLE'):
-                    raise ParsingError(f'Spelling mistake or unknown permission: {permission} at {self.file.name}')
+                    raise ParsingError(f'Spelling mistake or unknown permission: {permission} at {self._file.name}')
                 elif permission != first_permission:
-                    raise ParsingError(f'Permissions in the collection: "{collection}" of "{self.file.name}" '
+                    raise ParsingError(f'Permissions in the collection: "{collection}" of "{self._file.name}" '
                                        f'are not matching! ({first_permission} != {permission})')
 
     def _parse(self):
@@ -119,7 +119,7 @@ class MetadataFile:
                 else:
                     collection = Collection(collection_name)
                     self.collections.append(collection)
-                Metadata(filepath, title, publisher, keywords, order, permissions, collection, license)
+                Metadata(filepath, title, publisher, keywords, order, permissions, collection=collection, license=license)
             else:
                 self.single_files.append(Metadata(filepath, title, publisher, keywords, order, permissions, license=license))
 
@@ -127,20 +127,6 @@ class MetadataFile:
         max_length = len(str(self.o_sheet.max_row))
         zero = (max_length - len(order)) * '0'
         return zero + order
-
-    def check_for_files(self, filenames: List[str]):
-        existing_filenames = []
-        missing_filenames = []
-        for row in range(1, self.o_sheet.max_row + 1):
-            existing_filenames.append(self.o_sheet.cell(row=row, column=self.COLUMN.FILENAME).value)
-        for filename in filenames:
-            if filename not in existing_filenames:
-                missing_filenames.append(filename)
-        if missing_filenames:
-            print('Missing in excel file:', file=sys.stderr)
-            for filename in missing_filenames:
-                print(f'  {filename}', file=sys.stderr)
-            raise ParsingError('The excel file is missing metadata')
 
 
 class ParsingError(Exception):
