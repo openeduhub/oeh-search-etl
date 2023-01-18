@@ -9,34 +9,61 @@ from scrapy.spiders import Spider
 import json
 import vobject
 from converter.es_connector import EduSharingConstants
+import converter.env as env
 
 
 class EduSharingBase(Spider, LomBase):
+    # max items per request, recommended value between 100-1000
+    maxItems = 500
     friendlyName = "Edu-Sharing repository spider"
     # the location of the edu-sharing rest api
     apiUrl = "http://localhost/edu-sharing/rest/"
+    savedSearchUrl = "search/v1/queries/load/"
     searchUrl = "search/v1/queriesV2/-home-/"
     searchToken = "*"
     # the mds to use for the search request
     mdsId = "-default-"
+    # searchId to import from, if empty, whole repository will be fetched
+    importSearchId = ''
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
+        importSearchId = env.get("EDU_SHARING_IMPORT_SEARCH_ID", True, None)
+
+        if importSearchId:
+            self.importSearchId = importSearchId
+            logging.info("Importing only data based on the search query: {}".format(self.importSearchId))
 
     def buildUrl(self, offset=0):
+        if self.importSearchId:
+            return (
+                self.apiUrl
+                + self.savedSearchUrl
+                + self.importSearchId
+                + "?contentType=FILES&propertyFilter=-all-"
+                + "&maxItems=" + str(self.maxItems) + "&skipCount=" + str(offset)
+            )
         return (
             self.apiUrl
             + self.searchUrl
             + self.mdsId
-            + "/ngsearch?contentType=FILES&maxItems=500&skipCount="
+            + "/ngsearch?contentType=FILES&propertyFilter=-all-"
+              "&maxItems=" + str(self.maxItems) + "&skipCount="
             + str(offset)
-            + "&sortProperties=cm%3Acreated&sortAscending=true&propertyFilter=-all-"
+            + "&sortProperties=cm%3Acreated&sortAscending=true"
         )
 
     def search(self, offset=0):
         criteria = []
         if "queriesV2" in self.searchUrl:
             criteria = [({"property": "ngsearchword", "values": [self.searchToken]} )]
+        data = {}
+        if self.importSearchId:
+            return JsonRequest(
+                url=self.buildUrl()
+            )
+
+        # criterias only required for regular endpoint
         return JsonRequest(
             url=self.buildUrl(offset),
             data={
@@ -44,6 +71,7 @@ class EduSharingBase(Spider, LomBase):
             },
             callback=self.parse,
         )
+
 
     def getProperty(self, name, response):
         return (

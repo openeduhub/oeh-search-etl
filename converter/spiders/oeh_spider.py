@@ -19,10 +19,11 @@ class OEHSpider(EduSharingBase):
 
     def __init__(self, **kwargs):
         EduSharingBase.__init__(self, **kwargs)
-        import_whitelist = env.get("OEH_IMPORT_SOURCES", True, None)
-        if import_whitelist:
-            self.importWhitelist = import_whitelist.split(";")
-            logging.info("Importing only whitelisted sources: {}".format(self.importWhitelist))
+        if not EduSharingBase.importSearchId:
+            import_whitelist = env.get("OEH_IMPORT_SOURCES", True, None)
+            if import_whitelist:
+                self.importWhitelist = import_whitelist.split(";")
+                logging.info("Importing only whitelisted sources: {}".format(self.importWhitelist))
 
     def getBase(self, response):
         base = EduSharingBase.getBase(self, response)
