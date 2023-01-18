@@ -99,7 +99,10 @@ class EduSharingBase(Spider, LomBase):
         base.replace_value(
             "origin", self.getProperty("ccm:replicationsource", response)
         )
-        if self.getProperty("ccm:replicationsource", response):
+        if (
+            self.getProperty("ccm:replicationsource", response) and
+            self.getProperty("ccm:wwwurl", response)
+        ):
             # imported objects usually have the content as binary text
             # TODO: Sometimes, edu-sharing redirects if no local content is found, and this should be html-parsed
             if response.meta["item"]["downloadUrl"]:
