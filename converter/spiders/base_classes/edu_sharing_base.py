@@ -60,7 +60,7 @@ class EduSharingBase(Spider, LomBase):
         data = {}
         if self.importSearchId:
             return JsonRequest(
-                url=self.buildUrl()
+                url=self.buildUrl(offset)
             )
 
         # criterias only required for regular endpoint
