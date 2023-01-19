@@ -14,7 +14,7 @@ import converter.env as env
 
 class EduSharingBase(Spider, LomBase):
     # max items per request, recommended value between 100-1000
-    maxItems = 500
+    maxItems = 200
     friendlyName = "Edu-Sharing repository spider"
     # the location of the edu-sharing rest api
     apiUrl = "http://localhost/edu-sharing/rest/"
