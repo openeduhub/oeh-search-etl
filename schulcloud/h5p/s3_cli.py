@@ -88,6 +88,21 @@ class CLI:
                                     Callback=lambda n: progress_bar.update(n))
         progress_bar.close()
 
+    def upload_dir(self, root_path, bucket_name):
+        try:
+            for path, subdirs, files in os.walk(root_path):
+                path = path.replace("\\", "/")
+                directory_name = path.replace(root_path, "")
+                for file in files:
+                    # ToDo: Sanitize the absolute path to the relative path with prefixed subdirectories
+                    filename_sanitize = directory_name.replace(r"C:/Users/ddeiters/Desktop/Alles_Meins/project/oeh-search-etl/schulcloud/h5p/FWURAW/unzipped/", "")
+                    self.client.upload_file(os.path.join(path, file), bucket_name, filename_sanitize + '/' + file)
+                    # ToDo: Add progress bar
+                    print(f'Sucessfully upload file: ' + file)
+
+        except Exception as err:
+            print(err)
+
     def download_objects(self, dir_name: str, bucket_name: str, objects: List[str]):
         self.ensure_bucket(bucket_name)
         remote_objects = self.get_objects_matching(bucket_name, objects)
@@ -195,6 +210,10 @@ def main():
         cli.list_objects(bucket)
     elif command == 'upload':
         cli.upload_objects(bucket, rest)
+    elif command == 'upload_directory':
+        cli.upload_dir(
+            r"C:/Users/ddeiters/Desktop/Alles_Meins/project/oeh-search-etl/schulcloud/h5p/FWURAW/unzipped/5501202",
+            bucket)
     elif command == 'download':
         dir = '.' if len(rest) == 1 else 'downloaded'
         cli.download_objects(dir, bucket, rest)
