@@ -295,6 +295,8 @@ class EduSharing:
             match license["internal"]:
                 case Constants.LICENSE_COPYRIGHT_LAW:
                     spaces["ccm:commonlicense_key"] = "COPYRIGHT_FREE"
+                case "CC_BY" | "CC_BY_SA" | "CC_BY_NC" | "CC_BY_ND":
+                    spaces["ccm:commonlicense_key"] = license["internal"]
                 case Constants.LICENSE_CUSTOM:
                     spaces["ccm:commonlicense_key"] = "CUSTOM"
                     if "description" in license:
