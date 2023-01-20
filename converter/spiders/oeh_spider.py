@@ -10,7 +10,7 @@ class OEHSpider(EduSharingBase):
     url = "https://redaktion.openeduhub.net/edu-sharing/"
     apiUrl = "https://redaktion.openeduhub.net/edu-sharing/rest/"
     searchUrl = "search/v1/queries/-home-/"
-    version = "0.1.2"  # last update: 2023-01-12
+    version = "0.1.4"  # last update: 2023-01-20
     mdsId = "mds_oeh"
     importWhitelist: [str] = None
     custom_settings = {
@@ -35,6 +35,15 @@ class OEHSpider(EduSharingBase):
             technical.replace_value("format", "text/html")
             technical.replace_value("location", response.meta["item"]["properties"]["ccm:wwwurl"][0])
         return technical
+
+
+    def getLOMLifecycle(self, response):
+        lifecycle = EduSharingBase.getLOMLifecycle(self, response)
+        if "ccm:oeh_publisher_combined" in response.meta["item"]["properties"]:
+            lifecycle.add_value("role", "publisher")
+            lifecycle.add_value("organization", response.meta["item"]["properties"]["ccm:oeh_publisher_combined"][0])
+        return lifecycle
+
 
     def shouldImport(self, response=None):
         if self.importWhitelist:
