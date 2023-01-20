@@ -176,7 +176,7 @@ class EduSharingBase(Spider, LomBase):
                     lifecycle.add_value("role", role)
                     lifecycle.add_value("firstName", given)
                     lifecycle.add_value("lastName", family)
-        return lifecycle
+                    yield lifecycle
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)

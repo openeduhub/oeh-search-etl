@@ -2,6 +2,7 @@ import logging
 
 import converter.env as env
 from .base_classes import EduSharingBase
+from ..items import LomLifecycleItemloader
 
 
 class OEHSpider(EduSharingBase):
@@ -10,7 +11,7 @@ class OEHSpider(EduSharingBase):
     url = "https://redaktion.openeduhub.net/edu-sharing/"
     apiUrl = "https://redaktion.openeduhub.net/edu-sharing/rest/"
     searchUrl = "search/v1/queries/-home-/"
-    version = "0.1.4"  # last update: 2023-01-20
+    version = "0.1.5"  # last update: 2023-01-20
     mdsId = "mds_oeh"
     importWhitelist: [str] = None
     custom_settings = {
@@ -38,11 +39,17 @@ class OEHSpider(EduSharingBase):
 
 
     def getLOMLifecycle(self, response):
-        lifecycle = EduSharingBase.getLOMLifecycle(self, response)
-        if "ccm:oeh_publisher_combined" in response.meta["item"]["properties"]:
+        has_publisher = False
+        for lifecycle in EduSharingBase.getLOMLifecycle(self, response):
+            if lifecycle.load_item()["role"] == "publisher":
+                has_publisher = True
+            yield lifecycle
+
+        if not has_publisher and "ccm:oeh_publisher_combined" in response.meta["item"]["properties"]:
+            lifecycle = LomLifecycleItemloader(response=response)
             lifecycle.add_value("role", "publisher")
             lifecycle.add_value("organization", response.meta["item"]["properties"]["ccm:oeh_publisher_combined"][0])
-        return lifecycle
+            yield lifecycle
 
 
     def shouldImport(self, response=None):
