@@ -10,6 +10,7 @@ import json
 import vobject
 from converter.es_connector import EduSharingConstants
 import converter.env as env
+from ...items import LomLifecycleItemloader
 
 
 class EduSharingBase(Spider, LomBase):
@@ -100,6 +101,9 @@ class EduSharingBase(Spider, LomBase):
         base.replace_value(
             "origin", self.getProperty("ccm:replicationsource", response)
         )
+        # ToDo: base.origin is used for creating subfolders in "SYNC_OBJ/<crawler_name>/..."
+        #  - currently only subfolders for learning objects that were gathered by crawlers are created?
+        #  - base.origin could be set for (safe) values from 'ccm:oeh_publisher_combined' as well
         if (
             self.getProperty("ccm:replicationsource", response) and
             self.getProperty("ccm:wwwurl", response)
@@ -151,6 +155,9 @@ class EduSharingBase(Spider, LomBase):
         general.add_value(
             "description", self.getProperty("cclom:general_description", response)
         )
+        general.add_value('identifier', self.getProperty("cclom:general_identifier", response))
+        general.add_value('language', self.getProperty("cclom:general_language", response))
+        general.add_value('aggregationLevel', self.getProperty("cclom:aggregationLevel", response))
         return general
 
     def getLOMEducational(self, response):
@@ -162,22 +169,64 @@ class EduSharingBase(Spider, LomBase):
             range.add_value("fromRange", tar_from)
             range.add_value("toRange", tar_to)
             educational.add_value("typicalAgeRange", range.load_item())
+        educational.add_value("typicalLearningTime", self.getProperty("cclom:typicallearningtime", response))
         return educational
 
     def getLOMLifecycle(self, response):
-        lifecycle = LomBase.getLOMLifecycle(self, response)
-        for role in EduSharingConstants.LIFECYCLE_ROLES_MAPPING.keys():
-            entry = self.getProperty("ccm:lifecyclecontributer_" + role, response)
-            if entry and entry[0]:
-                # TODO: we currently only support one author per role
-                vcard = vobject.readOne(entry[0])
-                if hasattr(vcard, "n"):
-                    given = vcard.n.value.given
-                    family = vcard.n.value.family
-                    lifecycle.add_value("role", role)
-                    lifecycle.add_value("firstName", given)
-                    lifecycle.add_value("lastName", family)
-                    yield lifecycle
+        for role, edu_sharing_lifecycle_property in EduSharingConstants.LIFECYCLE_ROLES_MAPPING.items():
+            # there can be multiple authors or contributors per role
+            vcard_list: list = self.getProperty(edu_sharing_lifecycle_property, response)
+            # vCards are returned by the edu-sharing API as a list of strings
+            if vcard_list:
+                # making sure that we only create lifecycle items when there's actual vCards to parse
+                for vcard_entry in vcard_list:
+                    # each vCard-String needs its own LOM Lifecycle Item
+                    lifecycle: LomLifecycleItemloader = LomBase.getLOMLifecycle(self, response)
+                    if vcard_entry:
+                        yield from self.get_lifecycle_from_vcard_string(lifecycle, role, vcard_entry)
+
+    @staticmethod
+    def get_lifecycle_from_vcard_string(lifecycle: LomLifecycleItemloader, role, vcard_entry: str):
+        """
+        This method parses a vCard from a string and saves its values to LifecycleItem's fields if possible.
+        """
+        vcard: vobject.base.Component = vobject.readOne(vcard_entry)
+        if hasattr(vcard, "n"):
+            given = vcard.n.value.given
+            family = vcard.n.value.family
+            lifecycle.add_value("role", role)
+            lifecycle.add_value("firstName", given)
+            lifecycle.add_value("lastName", family)
+        if hasattr(vcard, "email"):
+            # ToDo: recognize multiple emails
+            vcard_email: str = vcard.email.value
+            lifecycle.add_value("email", vcard_email)
+        if hasattr(vcard, "url"):
+            # ToDo: recognize multiple URLs
+            vcard_url: str = vcard.url.value
+            lifecycle.add_value("url", vcard_url)
+        if hasattr(vcard, "org"):
+            vcard_org: str = vcard.org.value
+            lifecycle.add_value("organization", vcard_org)
+        if hasattr(vcard, "x-es-lom-contribute-date"):
+            # copy the contribution date only if available
+            vcard_es_date: list = vcard.contents.get("x-es-lom-contribute-date")  # edu-sharing contributor date
+            # has its own vCard extension. By calling vcard.contents.get() we'll receive:
+            # a list of <class 'vobject.base.ContentLine>
+            if vcard_es_date:
+                # <X-ES-LOM-CONTRIBUTE-DATE{}2021-06-05T00:00:00> -> we only need the date itself
+                vcard_es_date_value: str = vcard_es_date[0].value
+                if vcard_es_date_value:
+                    # some (malformed) vCards with the 'x-es-lom-contribute-date'-key look like this:
+                    # <X-ES-LOM-CONTRIBUTE-DATE{}> which means they are missing the actual date itself.
+                    # By checking if the string is True-ish, empty strings '' won't be saved to Lifecycle
+                    lifecycle.add_value("date", vcard_es_date_value)
+                # ToDo: this might be a good place for an 'else'-statement to catch malformed vCards
+                #  by their node-ID
+        if hasattr(vcard, "uid"):
+            vcard_uid: str = vcard.uid.value
+            lifecycle.add_value("uuid", vcard_uid)
+        yield lifecycle
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
@@ -192,11 +241,36 @@ class EduSharingBase(Spider, LomBase):
         license.add_value(
             "internal", self.getProperty("ccm:commonlicense_key", response)
         )
+        # ToDo: setting 'internal' here like this might be problematic in regards to CC-Versions:
+        #   need to double-check if this might (wrongfully) turn CC x.0 licenses into other versions
+        #  - "ccm:commonlicense_cc_version"
         license.add_value("author", self.getProperty("ccm:author_freetext", response))
+        license.add_value("description", self.getProperty("cclom:rights_description", response))
+        license.add_value("expirationDate", self.getProperty("ccm:license_to", response))
         return license
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
+        valuespaces.add_value("accessibilitySummary", self.getProperty("ccm:accessibilitySummary", response))
+        if self.getProperty("ccm:conditionsOfAccess", response):
+            valuespaces.add_value("conditionsOfAccess", self.getProperty("ccm:conditionsOfAccess", response))
+        elif self.getProperty("ccm:oeh_quality_login", response):
+            # this fallback will lose metadata in the long run since the "conditionsOfAccess"-Vocab has 3 values, while
+            # "ccm:oeh_quality_login" returns only binary string values:
+            # - "0": login required
+            # - "1": no login required
+            oeh_quality_login_value: list = self.getProperty("ccm:oeh_quality_login", response)
+            if oeh_quality_login_value:
+                oeh_quality_login_value: str = oeh_quality_login_value[0]
+                match oeh_quality_login_value:
+                    case "1":
+                        valuespaces.add_value("conditionsOfAccess", "no_login")
+                    case "2":
+                        valuespaces.add_value("conditionsOfAccess", "login")
+                    case _:
+                        logging.warning(f"edu-sharing property 'ccm:oeh_quality_login' returned an unexpected value: "
+                                        f"{oeh_quality_login_value} for node-ID {response.meta['item']['ref']['id']}")
+        valuespaces.add_value("dataProtectionConformity", self.getProperty("ccm:dataProtectionConformity", response))
         valuespaces.add_value("discipline", self.getProperty("ccm:taxonid", response))
         valuespaces.add_value(
             "intendedEndUserRole",
@@ -205,10 +279,16 @@ class EduSharingBase(Spider, LomBase):
         valuespaces.add_value(
             "educationalContext", self.getProperty("ccm:educationalcontext", response)
         )
+        valuespaces.add_value("fskRating", self.getProperty("ccm:fskRating", response))
         valuespaces.add_value(
             "learningResourceType",
             self.getProperty("ccm:educationallearningresourcetype", response),
         )
+        valuespaces.add_value('new_lrt', self.getProperty("ccm:oeh_lrt", response))
+        valuespaces.add_value("oer", self.getProperty("ccm:license_oer", response))
+        valuespaces.add_value("price", self.getProperty("ccm:price", response))
+        # ToDo: confirm if 'sourceContentType' & 'toolCategory' should be used at all,
+        #  since they are already obsolete in WLO crawlers (might be obsolete here as well)
         valuespaces.add_value(
             "sourceContentType", self.getProperty("ccm:sourceContentType", response)
         )
