@@ -460,6 +460,10 @@ class EduSharing:
         if mdsId != "default":
             spaces["cm:edu_metadataset"] = mdsId
             spaces["cm:edu_forcemetadataset"] = "true"
+            logging.debug("Using metadataset " + mdsId)
+        else:
+            logging.debug("Using default metadataset")
+
         for key in spaces:
             if type(spaces[key]) is tuple:
                 spaces[key] = list([x for y in spaces[key] for x in y])
