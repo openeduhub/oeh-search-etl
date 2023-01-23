@@ -135,6 +135,7 @@ ITEM_PIPELINES = {
 ADDITIONAL_PIPELINES = env.get("CUSTOM_PIPELINES", True)
 if ADDITIONAL_PIPELINES:
     for pipe in map(lambda p: p.split(":"), ADDITIONAL_PIPELINES.split(",")):
+        logging.info("Enabling custom pipeline: " + pipe[0])
         ITEM_PIPELINES[pipe[0]] = int(pipe[1])
 
 # Enable and configure the AutoThrottle extension (disabled by default)
