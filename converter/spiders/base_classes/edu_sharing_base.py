@@ -42,6 +42,7 @@ class EduSharingBase(Spider, LomBase):
                 + self.importSearchId
                 + "?contentType=FILES&propertyFilter=-all-"
                 + "&maxItems=" + str(self.maxItems) + "&skipCount=" + str(offset)
+                + "&sortProperties=cm%3Acreated&sortAscending=true"
             )
         return (
             self.apiUrl
