@@ -9,6 +9,13 @@ on:
     # - cron: '0 2 * * *'
     - cron: '2 13 * * *'
 
+permissions:
+  # required for all workflows
+  security-events: write
+  # only required for workflows in private repositories
+  actions: read
+  contents: read
+
 # Template Single Image Repro GHA
 jobs:
   trivy_image_scan_cron:
