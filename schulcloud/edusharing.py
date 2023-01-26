@@ -52,12 +52,13 @@ class EdusharingAPI:
             'permissions': permissions
         }
 
-    def __init__(self, base_url: str, username: str, password: str):
+    def __init__(self, base_url: str, username: str = '', password: str = ''):
         self.base_url = base_url + 'rest'
         self.username = username
         self.password = password
         self.session = requests.Session()
-        self.session.auth = requests.auth.HTTPBasicAuth(self.username, self.password)
+        if self.username and self.password:
+            self.session.auth = requests.auth.HTTPBasicAuth(self.username, self.password)
 
     def make_request(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str,
                      params: Optional[Dict[str, Any]] = None, json_data: Optional[Dict] = None,
