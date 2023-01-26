@@ -175,14 +175,20 @@ class NormLicensePipeline(BasicPipeline):
                     break
 
         if "url" in item["license"] and "oer" not in item["license"]:
-            if (
-                    item["license"]["url"] == Constants.LICENSE_CC_BY_40
-                    or item["license"]["url"] == Constants.LICENSE_CC_BY_30
-                    or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_30
-                    or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_40
-                    or item["license"]["url"] == Constants.LICENSE_CC_ZERO_10
-            ):
-                item["license"]["oer"] = OerType.ALL
+            match item["license"]["url"]:
+                case Constants.LICENSE_CC_BY_20 | \
+                     Constants.LICENSE_CC_BY_25 | \
+                     Constants.LICENSE_CC_BY_30 | \
+                     Constants.LICENSE_CC_BY_40 | \
+                     Constants.LICENSE_CC_BY_SA_20 | \
+                     Constants.LICENSE_CC_BY_SA_25 | \
+                     Constants.LICENSE_CC_BY_SA_30 | \
+                     Constants.LICENSE_CC_BY_SA_40 | \
+                     Constants.LICENSE_CC_ZERO_10:
+                    item["license"]["oer"] = OerType.ALL
+                case _:
+                    # ToDo: log default case if not too spammy
+                    pass
 
         if "internal" in item["license"] and "oer" not in item["license"]:
             internal = item["license"]["internal"].lower()
