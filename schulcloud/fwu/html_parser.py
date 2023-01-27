@@ -1,4 +1,5 @@
 from bs4 import BeautifulSoup
+import converter.env as env
 
 
 def get_data(class_name: str, s: BeautifulSoup):
@@ -38,8 +39,8 @@ def validate_result(class_name: str, result: str):
 
 
 def main():
-    # add your local path to your index.html
-    local_path = "local/path"
+    # add your local path to your index.html in your .env (LOCAL_PATH="local/path/index.html")
+    local_path = env.get('LOCAL_PATH')
     html_file = open(local_path, "r")
 
     s = BeautifulSoup(html_file.read(), 'lxml')
