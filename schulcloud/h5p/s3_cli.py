@@ -4,22 +4,32 @@ from typing import List
 
 import tqdm
 import boto3
+import converter.env as env
 
 HELP = '''
-s3_cli list [ARGS]
-s3_cli upload <FILES...> [ARGS]
-s3_cli download <FILES...> [ARGS]
-s3_cli delete <FILES...> [ARGS]
-s3_cli copy <FILES...> -bd <BUCKET_NAME_DESTINATION> [ARGS]
-s3_cli bucket list [ARGS]
-s3_cli bucket create <NAME> [ARGS] 
-s3_cli bucket delete <NAME> [ARGS]
+To execute with .env, take oeh-search-etl as root dir and type: python -m schulcloud.h5p.s3_cli <command>
+s3_cli list [ARGS] (List all objects in bucket, but max. 1000 entries)
+s3_cli print_list [ARGS] (Prints all objects in bucket in a text file)
+s3_cli upload <FILES...> [ARGS] (Upload files to bucket)
+s3_cli upload_directory <DIRECTORY ABSOLUTE PATH...> [ARGS] (Upload a complete directory to bucket with subdirectories)
+s3_cli download <FILES...> [ARGS] (Download files from bucket to local folder)
+s3_cli delete <FILES...> [ARGS] (Deletes files from bucket)
+s3_cli copy <FILES...> -bd <BUCKET_NAME_DESTINATION> [ARGS] (Copy files from one bucket to another)
+s3_cli bucket list [ARGS] (List all buckets)
+s3_cli bucket create <NAME> [ARGS] (Create a bucket)
+s3_cli bucket delete <NAME> [ARGS] (Delete a bucket)
 '''
 
 
 class CLI:
     def __init__(self, url: str, access_key: str, secret: str):
         self.client = boto3.client(
+            's3',
+            endpoint_url=url,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret,
+        )
+        self.s3 = boto3.resource(
             's3',
             endpoint_url=url,
             aws_access_key_id=access_key,
@@ -45,6 +55,31 @@ class CLI:
             else:
                 break
         return remote_objects
+
+    def get_all_objects(self, bucket_name: str):
+        bucket = self.s3.Bucket(bucket_name)
+        files_list = []
+        counter = 0
+
+        for object in bucket.objects.all():
+            files = object.key
+            files_list.append(files)
+            counter += 1
+
+        file_name = f'{bucket_name}_all_objects.txt'
+        if os.path.exists(file_name):
+            os.remove(file_name)
+        file = open(file_name, 'w')
+        file.write(f'Objects in bucket {bucket_name}:\n')
+        file.write(f'Name:\n')
+
+        for object in files_list:
+            file.write(f'{object}\n')
+
+        file.write(f'\n')
+        file.write(f'Totally {counter} objects.')
+        file.close()
+        print(f'Objects in bucket {bucket_name} were printed to {file_name} in this directory.')
 
     def get_objects_matching(self, bucket_name: str, objects: List[str]):
         remote_objects = self.get_objects(bucket_name)
@@ -88,20 +123,40 @@ class CLI:
                                     Callback=lambda n: progress_bar.update(n))
         progress_bar.close()
 
-    def upload_dir(self, root_path, bucket_name):
-        try:
-            for path, subdirs, files in os.walk(root_path):
-                path = path.replace("\\", "/")
-                directory_name = path.replace(root_path, "")
-                for file in files:
-                    # ToDo: Sanitize the absolute path to the relative path with prefixed subdirectories
-                    filename_sanitize = directory_name.replace(r"C:/Users/ddeiters/Desktop/Alles_Meins/project/oeh-search-etl/schulcloud/h5p/FWURAW/unzipped/", "")
-                    self.client.upload_file(os.path.join(path, file), bucket_name, filename_sanitize + '/' + file)
-                    # ToDo: Add progress bar
-                    print(f'Sucessfully upload file: ' + file)
+    def upload_direction(self, bucket_name, root_path,):
+        self.ensure_bucket(bucket_name)
+        file_counter = 0
 
-        except Exception as err:
-            print(err)
+        for path, subdirs, files in os.walk(root_path):
+            path = path.replace("\\", "/")
+            total_size = 0
+            for file in files:
+                file_counter += 1
+                if len(path) > len(root_path):
+                    total_size += os.stat(path + '/' + file).st_size
+                else:
+                    total_size += os.stat(root_path + '/' + file).st_size
+            progress_bar = tqdm.tqdm(total=total_size, unit='B', unit_scale=True, unit_divisor=1024)
+
+            for file in files:
+                # Extract the last direction name of the root_path with subdirections for the S3-key
+                if len(path) > len(root_path):
+                    head_root, tail_root = os.path.splitdrive(root_path)
+                    filename_sanitize_root = os.path.basename(tail_root)
+                    direction = path.replace(root_path, "")
+                    filename_sanitize = filename_sanitize_root + direction
+                else:
+                    head_root, tail_root = os.path.splitdrive(root_path)
+                    filename_sanitize = os.path.basename(tail_root)
+
+                progress_bar.set_description(file)
+                self.client.upload_file(Filename=os.path.join(path, file),
+                                        Bucket=bucket_name,
+                                        Key=filename_sanitize + '/' + file,
+                                        Callback=lambda n: progress_bar.update(n))
+            progress_bar.close()
+
+        print(f'Sucessfully upload {file_counter} files from {root_path} to bucket {bucket_name}.')
 
     def download_objects(self, dir_name: str, bucket_name: str, objects: List[str]):
         self.ensure_bucket(bucket_name)
@@ -160,7 +215,7 @@ class CLI:
 def get_vars(var_names: List[str]):
     vars = []
     for var_name in var_names:
-        vars.append(os.getenv(var_name))
+        vars.append(env.get(var_name))
     for i in range(len(vars)):
         if not vars[i]:
             print(f'{var_names[i]} not found in environment variables')
@@ -203,17 +258,17 @@ def main():
             rest.append(arg)
         i += 1
 
-    if command in ['list', 'download', 'upload', 'delete'] and not bucket:
+    if command in ['list', 'print_list', 'upload', 'upload_directory', 'download', 'delete'] and not bucket:
         bucket = get_vars(['S3_BUCKET_NAME'])[0]
 
     if command == 'list':
         cli.list_objects(bucket)
+    elif command == 'print_list':
+        cli.get_all_objects(bucket)
     elif command == 'upload':
         cli.upload_objects(bucket, rest)
     elif command == 'upload_directory':
-        cli.upload_dir(
-            r"C:/Users/ddeiters/Desktop/Alles_Meins/project/oeh-search-etl/schulcloud/h5p/FWURAW/unzipped/5501202",
-            bucket)
+        cli.upload_direction(bucket, rest)
     elif command == 'download':
         dir = '.' if len(rest) == 1 else 'downloaded'
         cli.download_objects(dir, bucket, rest)
