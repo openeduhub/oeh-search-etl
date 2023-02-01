@@ -9,7 +9,7 @@ from schulcloud.util import Environment
 ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
 
 
-class PermissionStuff:
+class PermissionUpdater:
     def __init__(self):
         self.env = Environment(env_vars=ENV_VARS)
         self.api = EdusharingAPI(
@@ -63,4 +63,4 @@ class PathNotFoundException(Exception):
 
 
 if __name__ == '__main__':
-    PermissionStuff().run()
+    PermissionUpdater().run()
