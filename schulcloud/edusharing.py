@@ -68,7 +68,7 @@ class EdusharingAPI:
         headers = {'Accept': 'application/json'}
         i = 0
         while True:
-            print(method, url, params, json_data)
+            #print(method, url, params, json_data)
             response = None
             try:
                 response = self.session.request(method, url, params=params, headers=headers,
