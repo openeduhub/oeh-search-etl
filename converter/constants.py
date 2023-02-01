@@ -86,7 +86,7 @@ class Constants:
         "PDM": [LICENSE_PDM],
     }
 
-    LICENSE_COPYRIGHT_LAW: Final[str] = "COPYRIGHT_LAW"
+    LICENSE_COPYRIGHT_LAW: Final[str] = "COPYRIGHT_FREE"
     LICENSE_CUSTOM: Final[str] = "CUSTOM"  # Custom License, use the license description field for arbitrary values
     LICENSE_NONPUBLIC: Final[str] = "NONPUBLIC"
 
