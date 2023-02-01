@@ -8,15 +8,8 @@ from scrapy.cmdline import execute as scrapy_execute
 
 from schulcloud.util import Environment
 from schulcloud.h5p.upload import Uploader as H5PUploader
-from schulcloud.sodix.permissions import main as permissions
+from schulcloud.permission_updater import PermissionUpdater
 
-
-known_crawlers = [
-    'oeh_spider',
-    'mediothek_pixiothek_spider',
-    'merlin_spider',
-    'sodix_spider',
-]
 
 needed_env_vars = [
     'CRAWLER',
@@ -165,16 +158,16 @@ def main():
         job = Job('Hello World', lambda: print('Hello, world!', file=sys.stderr), schedule)
     elif crawler == 'h5p_upload':
         job = Job('H5P Uploader', H5PUploader().upload_from_s3, schedule)
-    elif crawler == 'sodix_permissions':
-        job = Job('Sodix Permission Updater', permissions, schedule)
-    elif crawler in known_crawlers:
+    elif crawler == 'permission_updater':
+        job = Job('Permission Updater', PermissionUpdater().run, schedule)
+    elif crawler.endswith('spider'):
         job = Job(
             f'Crawler {crawler}',
             lambda: scrapy_execute(argv=['scrapy', 'crawl', crawler, '-s', 'TELNETCONSOLE_ENABLED=0']),
             schedule
         )
     else:
-        print(f'Unexpected crawler "{crawler}"', file=sys.stderr)
+        print(f'Unexpected execution target "{crawler}"', file=sys.stderr)
         return 1
 
     job.run_schedule()
