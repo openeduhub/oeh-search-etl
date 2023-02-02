@@ -1,6 +1,9 @@
 import json
 import datetime
+import sys
 import time
+import boto3
+from bs4 import BeautifulSoup
 
 import requests
 import scrapy.http
@@ -22,97 +25,66 @@ class FWUSpider(CrawlSpider, LomBase):
 
     Author: Team CaptnEdu
     """
-
-    name = 'fwu_spider'
+    # ToDo: Comment out name
+    # name = 'fwu_spider'
     friendlyName = 'FWU'
     version = '0.1'
     s3_url = env.get('S3_ENDPOINT_URL')
     s3_access_key = env.get('S3_ACCESS_KEY')
     s3_secret_key = env.get('S3_SECRET_KEY')
-    download_delay = float(env.get('SODIX_DOWNLOAD_DELAY', default='0.5'))  # don't stress sodix image server
+    s3_bucket = env.get('S3_BUCKET_NAME')
+    download_delay = float(env.get('SODIX_DOWNLOAD_DELAY', default='0.5'))
+    files_index = [5501191, 5501193, 5501202, 5501207, 5501211, 5501213, 5501219, 5501222, 5501224, 5501225, 5501234,
+                   5501235, 5501238, 5501239, 5501245, 5501248, 5501252, 5501259, 5501267, 5501454, 5501458, 5501460,
+                   5501472, 5501478, 5501588, 5501595, 5501597, 5501630, 5501638, 5501649, 5501655, 5501656, 5501657,
+                   5501665, 5501685, 5511001, 5511002, 5511003, 5511004, 5511005, 5511006, 5511018, 5511019, 5511024,
+                   5511044, 5511045, 5511050, 5511057, 5511089, 5511093, 5511094, 5511095, 5511098, 5511099, 5511100,
+                   5511102, 5511106, 5511123, 5511128, 5511138, 5511184, 5511356, 5521211, 5521227, 5521287, 5521289,
+                   5521310, 5521344, 5521345, 5521348, 5521354, 5521366, 5521370, 5521405, 5521408, 5521411, 5521413,
+                   5521415, 5521418, 5521427]
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
-        self.access_token = ''
-        self.retry_counter = 0
-        self.start_time = 0.0
-        self.item_pos = 0
-        self.item_count = 0
 
     def start_requests(self):
-        self.start_time = time.time()
-        self.login()
         yield self.make_request()
 
     def make_request(self):
-        return scrapy.Request(
-            body=self.get_body(),
-            callback=self.parse_sodix,
-            dont_filter=True,
-            errback=lambda failure: self.errback_error(failure, self.make_request),
-            headers=self.get_headers(),
-            method='POST',
-            url=self.s3_url,
+        s3 = boto3.resource(
+            's3',
+            endpoint_url=self.s3_url,
+            aws_access_key_id=self.s3_access_key,
+            aws_secret_access_key=self.s3_secret_key,
         )
 
-    def login(self):
-        #ToDo: Check login for S3
-        response = requests.post(
-            self.s3_url,
-            headers={'Content-Type': 'application/json'},
-            data=f'{{"access_key": "{self.s3_access_key}", "secret_key": "{self.s3_secret_key}"}}'
-        )
-        try:
-            if response.json()['error'] or not response.status_code == 200:
-                raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
-            self.access_token = response.json()['access_token']
-        except (KeyError, UnexpectedResponseError):
-            raise UnexpectedResponseError(f'Unexpected login response: {response.json()}')
+        fwu_json = {}
 
-    def get_headers(self):
-        # ToDo: Check header for S3 login
-        return {
-            'Authorization': 'Bearer ' + self.access_token,
-            'Content-Type': 'application/json'
-        }
+        for index in self.files_index:
+            key = str(index) + '/index.html'
+            s3_object = s3.Object(bucket_name=self.s3_bucket, key=key)
+            html_string = s3_object.get()['Body'].read()
+            title = self.get_data(html_string, 'pname')
+            description = self.get_data(html_string, 'ptext')
+            thumbnail_path = self.get_data(html_string, 'player_outer')
 
-    def get_body(self):
-        #ToDo: Add body for S3 login
+            thumbnail_bytes = s3.Object(bucket_name=self.s3_bucket, key=str(index) + '/' + thumbnail_path)
+            thumbnail = thumbnail_bytes.get()['Body'].read()
 
-        # return json.dumps({'query': query_string})
-        pass
+            fwu_object = {'title': title, 'description': description, 'thumbnail': thumbnail.hex()}
+            fwu_json[f'fwu-object-{str(index)}'] = fwu_object
 
-    def log_progress(self):
-        def seconds_to_str(t: float):
-            sec = int(t) % 60
-            min = int(t / 60) % 60
-            hours = int(t / 3600) % 24
-            days = int(t / 3600 / 24)
-            s = f'{min:02}:{sec:02}'
-            if days:
-                s = f'{days:02}:{hours:02}:{s}'
-            elif hours:
-                s = f'{hours:02}:{s}'
-            return s
-        percentage = f'{int(self.item_pos / self.item_count * 100)}%'
-        absolute = f'{self.item_pos} / {self.item_count}'
-        elapsed = time.time() - self.start_time
-        remaining = (self.item_count - self.item_pos) / self.item_pos * elapsed
-        self.logger.info(f'Progress: |{percentage :^6}|{absolute:^18}|{seconds_to_str(elapsed):^14}|{seconds_to_str(remaining):^14}|')
+        fwu_json_all = json.dumps(fwu_json)
 
-    def errback_error(self, failure, make_request_method):
-        if failure.check(HttpError) and self.retry_counter < 3:
-            self.retry_counter += 1
-            self.logger.warning(f'Re-login ({self.retry_counter}) ...')
-            self.login()
-            yield make_request_method()
+        # Possible Mock Response
+        #ToDo: It seems, that in scrapy it is forbidden to send NO URL!!!!
 
-    def parse_sodix(self, response: scrapy.http.Response):
-        json_response = json.loads(response.body.decode())
+        return fwu_json_all
+
+    def parse(self, response):
+        json_response = json.loads(response)
+        print(f'JSON RESPONSE: {json_response}')
+        # sys.exit("Just stop for the JSON output.")
         metadata = json_response['data']['findAllMetadata']
-        self.item_count = len(metadata)
-
-        #ToDo: Add html_parser and summarize in one object.
 
         # split response metadata into one response per metadata object
         for meta_obj in metadata:
@@ -124,17 +96,15 @@ class FWUSpider(CrawlSpider, LomBase):
             yield LomBase.parse(self, response_copy)
 
     def getBase(self, response):
-        self.item_pos += 1
-        self.log_progress()
+        # self.item_pos += 1
+        # self.log_progress()
+        metadata = response.meta['item']
 
         base = LomBase.getBase(self, response)
-
-        #ToDo: Add html_parser for thumbnail
-        base.add_value('thumbnail', '')
-
-        #ToDo: Do we need it here? Same on line 184.
+        base.add_value('thumbnail', metadata['thumbnail'])
+        # ToDo: Do we need it here? Same on line 184.
         base.add_value('origin', 'FWU Institut für Film und Bild in Wissenschaft und Unterricht'
-                                                ' gemeinnützige GmbH')
+                                 ' gemeinnützige GmbH')
 
         return base
 
@@ -154,22 +124,20 @@ class FWUSpider(CrawlSpider, LomBase):
 
     def getLOMEducational(self, response=None):
         educational = LomBase.getLOMEducational(self, response)
-        #ToDo: Is this needed furthermore
+        # ToDo: Is this needed furthermore
         educational.add_value('language', 'german')
 
         return educational
 
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
-        #ToDo: Add html_parser here
-        title = ''
-        description = ''
-        keywords = ['FWU', title]
+        metadata = response.meta['item']
+        keywords = ['FWU', metadata['title']]
 
         general.add_value('aggregationLevel', '1')
-        general.add_value('title', title)
+        general.add_value('title', metadata['title'])
         general.add_value('language', 'german')
-        general.add_value('description', description)
+        general.add_value('description', metadata['description'])
         general.add_value('keyword', keywords)
 
         return general
@@ -177,7 +145,7 @@ class FWUSpider(CrawlSpider, LomBase):
     def getLicense(self, response=None):
         license = LomBase.getLicense(self, response)
 
-        #ToDo: Clarify the official license - copyright
+        # ToDo: Clarify the official license - copyright
         license.replace_value('internal', Constants.LICENSE_COPYRIGHT_LAW)
         license.replace_value('description', Constants.LICENSE_NONPUBLIC)
 
@@ -186,26 +154,27 @@ class FWUSpider(CrawlSpider, LomBase):
     def getLOMLifecycle(self, response=None) -> LomLifecycleItemloader:
         lifecycle = LomBase.getLOMLifecycle(self, response)
 
+        #ToDo: Ask PO for publisher
         lifecycle.add_value('role', 'publisher')
         lifecycle.add_value('organization', 'FWU Institut für Film und Bild in Wissenschaft und Unterricht'
-                                                ' gemeinnützige GmbH')
+                                            ' gemeinnützige GmbH')
 
         return lifecycle
 
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
-
-        technical.add_value('format', 'video/mp4')
-        #ToDo: Add location. S3 URL? Looks like the wwwurl.
+        #ToDo: Check the right format. Sodix make 'application/pdf'
+        technical.add_value('format', 'application/pdf')
+        # ToDo: Add location. S3 URL? Looks like the wwwurl.
         technical.add_value('location', '')
-        #ToDo: Does it make sense to specify the size?
-        #technical.add_value('size', metadata['media']['size'])
+        # ToDo: Does it make sense to specify the size?
+        # technical.add_value('size', metadata['media']['size'])
 
         return technical
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
-        #ToDo: Is this the right learningResourceType? Clarify with PO.
+        # ToDo: Is this the right learningResourceType? Clarify with PO.
         valuespaces.add_value('learningResourceType', 'http://w3id.org/openeduhub/vocabs/learningResourceType/web_page')
 
         return valuespaces
@@ -225,11 +194,47 @@ class FWUSpider(CrawlSpider, LomBase):
 
     def getPermissions(self, response):
         permissions = LomBase.getPermissions(self, response)
-        #ToDo: Add Brandenburg or is it managed by the permission script?
+        # ToDo: Managed by the permission script. Add it to the script.
         permissions.add_value('autoCreateGroups', True)
         permissions.add_value('groups', ['public'])
 
         return permissions
+
+    def get_data(self, body: str, class_name: str):
+        if not class_name == "pname" and not class_name == "ptext" and not class_name == "player_outer":
+            raise RuntimeError(
+                f'False value "{class_name}" for class_name in get_data(). Options: pname, ptext, player_outer')
+
+        s = BeautifulSoup(body, 'html.parser')
+
+        html_snippet = s.find_all("div", class_=class_name)
+        html_snippet = str(html_snippet)
+
+        if class_name == "player_outer":
+            index_start = html_snippet.index("(", 0) + 1
+            index_end = html_snippet.index(")", 2)
+        else:
+            index_start = html_snippet.index(">", 0) + 1
+            index_end = html_snippet.index("<", 2)
+
+        result = html_snippet[index_start:index_end]
+        result = result.strip()
+
+        if class_name != "player_outer":
+            self.validate_result(class_name, result)
+
+        return result
+
+    def validate_result(self, class_name: str, result: str):
+        data_definition = ""
+
+        if class_name == "pname":
+            data_definition = "Title"
+        elif class_name == "ptext":
+            data_definition = "Description"
+
+        if result is None or result == "" or result == " ":
+            raise RuntimeError(f'{data_definition} not found in class "{class_name}"')
 
 
 class UnexpectedResponseError(Exception):
