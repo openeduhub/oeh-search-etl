@@ -11,6 +11,8 @@ permissions:
 jobs:
   build_image_and_push_to_ghcr:
     runs-on: ubuntu-latest
+    outputs:
+      output1: ${{ steps.docker_build_push.outputs.digest }}
     permissions:
       packages: write
     steps:
@@ -45,14 +47,19 @@ jobs:
           tags: ${{ steps.docker_meta_img_hub.outputs.tags }}
           labels: ${{ steps.docker_meta_img_hub.outputs.labels }}
 
+  trivy-vulnerability-scanning:
+    needs:
+      - build_image_and_push_to_ghcr
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@9ab158e8597f3b310480b9a69402b419bc03dbd5
-        permissions:
-          actions: read
-          contents: read
-          security-events: write
         with:
-          image-ref: 'ghcr.io/${{ github.repository_owner }}/oeh-search-etl@${{ steps.docker_build_push.outputs.digest }}'
+          image-ref: 'ghcr.io/${{ github.repository_owner }}/oeh-search-etl@$ ${{needs.build_image_and_push_to_ghcr.outputs.output1}}'
           format: 'template'
           template: '@/contrib/sarif.tpl'
           output: 'trivy-results.sarif'
