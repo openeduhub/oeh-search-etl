@@ -1,6 +1,6 @@
 wheel
 image
-requests
+requests~=2.28.1
 scrapy-splash
 dateparser==1.0.0
 isodate==0.6.0
@@ -27,3 +27,4 @@ urllib3~=1.26.9
 tqdm~=4.64.0
 boto3~=1.24.38
 openpyxl~=3.0.10
+beautifulsoup4~=4.11.1
