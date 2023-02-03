@@ -283,6 +283,10 @@ class EdusharingAPI:
         # TODO: should only search within specific parent node, not global search
         return len(self.search_custom('cm:name', name, 2, 'FILES')) > 0
 
+    def file_exists_by_name(self, name: str):
+        name = name.replace(" ", "_")
+        return len(self.search_custom('name', name, 2, 'FILES')) > 0
+
     def search_schulcloud(self, query: str):
         url = f'/search/v1/queries/-home-/mds_oeh/ngsearch/'
         params = {
@@ -372,9 +376,10 @@ class EdusharingAPI:
         params = {'property': property}
         if value is not None:
             params['value'] = value
-        response = self.make_request('POST', url, params=params)
-        if not response.status_code == 200:
-            raise RequestFailedException(response, node_id)
+        response = self.make_request('POST', url, params=params, retry=0)
+        # ToDo: Set the right status_code for Kubernetes - comment out!
+        # if not response.status_code == 200:
+        #     raise RequestFailedException(response, node_id)
 
     def set_collection_children(self, node_id: str, children_uuids: List[str]):
         """
@@ -403,6 +408,13 @@ class EdusharingAPI:
         if not response.status_code == 200:
             raise RequestFailedException(response, node_id)
         files['image'][1].close()
+
+    def set_preview_thumbnail_fwu(self, node_id: str, filename: str):
+        url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
+        files = {'image': filename}
+        response = self.make_request('POST', url, files=files, stream=True)
+        if not response.status_code == 200:
+            raise RequestFailedException(response, node_id)
 
 
 class RequestFailedException(Exception):
