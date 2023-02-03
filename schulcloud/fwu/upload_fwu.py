@@ -47,6 +47,7 @@ class Uploader:
             response = self.downloader.read_object(key)
 
             title = self.get_data(response, 'pname')
+            title = self.sanitize_string(title)
             description = self.get_data(response, 'ptext')
             thumbnail_key = self.get_data(response, 'player_outer')
             thumbnail_bytes = self.downloader.read_object(str(index) + '/' + thumbnail_key)
@@ -61,23 +62,25 @@ class Uploader:
             properties = generate_node_properties(title=title, description=description, keywords=keywords,
                                                   replication_source_id=title, hpi_searchable=True, license=license,
                                                   publisher=publisher, url=target_url)
-            node = self.api.get_or_create_node(es_folder.id, title, properties=properties)
 
-            for property, value in properties.items():
-                #  ToDo: Check set_property for reloop (self.api.make_request -> retry=0 and response = 500)
-                self.api.set_property(node.id, property, value)
+            if not self.api.file_exists_by_name(title):
+                node = self.api.get_or_create_node(es_folder.id, title, properties=properties)
 
-            # Set thumbnail
-            try:
-                self.api.set_preview_thumbnail_fwu(node_id=node.id, filename=thumbnail_bytes)
-            except:
-                raise RuntimeError(f'Error: Can not set thumbnail.')
+                for property, value in properties.items():
+                    # ToDo: Check set_property for reloop (self.api.make_request -> retry=0 and response = 500)
+                    self.api.set_property(node.id, property, value)
 
-            # Set permissions - Works, but will be done by permission script in production
-            # permitted_groups = ['Brandenburg_public']
-            # self.api.set_permissions(node.id, permitted_groups, False)
+                # Set thumbnail
+                try:
+                    self.api.set_preview_thumbnail_fwu(node_id=node.id, filename=thumbnail_bytes)
+                except:
+                    raise RuntimeError(f'Error: Can not set thumbnail.')
 
-        print(f'Sucessfully upload all data to Edu-sharing')
+                # Set permissions - Works, but will be done by permission script in production
+                # permitted_groups = ['Brandenburg_public']
+                # self.api.set_permissions(node.id, permitted_groups, False)
+
+        print(f'Sucessfully upload all data to Edu-sharing.')
 
     def get_data(self, body: str, class_name: str):
         if not class_name == "pname" and not class_name == "ptext" and not class_name == "player_outer":
@@ -114,6 +117,18 @@ class Uploader:
 
         if result is None or result == "" or result == " ":
             raise RuntimeError(f'{data_definition} not found in class "{class_name}"')
+
+    def sanitize_string(self, input: str):
+        input = input.replace('ä', 'ae')
+        input = input.replace('ö', 'oe')
+        input = input.replace('ü', 'ue')
+        input = input.replace('ß', 'ss')
+        input = input.replace('Ä', 'Ae')
+        input = input.replace('Ö', 'Oe')
+        input = input.replace('Ü', 'Ue')
+        input = input.replace('\'', '')
+
+        return input
 
 
 class S3Downloader:
