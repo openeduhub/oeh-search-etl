@@ -789,8 +789,8 @@ class LisumPipeline(BasicPipeline):
                             case _:
                                 # due to having the 'custom'-field as a (raw) list of all eafCodes, this mainly serves
                                 # the purpose of reminding us if a 'discipline'-value couldn't be mapped to Lisum
-                                logging.warning(f"Lisum Pipeline failed to map from eafCode {discipline_eaf_code} "
-                                                f"to its corresponding ccm:taxonid short-handle")
+                                logging.debug(f"Lisum Pipeline failed to map from eafCode {discipline_eaf_code} "
+                                              f"to its corresponding ccm:taxonid short-handle")
                 logging.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
                               f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
 
