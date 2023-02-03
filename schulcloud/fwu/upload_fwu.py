@@ -76,9 +76,11 @@ class Uploader:
                 except:
                     raise RuntimeError(f'Error: Can not set thumbnail.')
 
-                # Set permissions - Works, but will be done by permission script in production
+                # ToDo: Set permissions - Works, but will be done by permission script in production
                 # permitted_groups = ['Brandenburg_public']
                 # self.api.set_permissions(node.id, permitted_groups, False)
+            else:
+                print(f'Node "{title}" already exist on Edu-Sharing.')
 
         print(f'Sucessfully upload all data to Edu-sharing.')
 
