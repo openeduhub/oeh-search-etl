@@ -149,12 +149,8 @@ class EduSharingBase(Spider, LomBase):
     def getLOMGeneral(self, response):
         general = LomBase.getLOMGeneral(self, response)
         general.replace_value("title", response.meta["item"]["title"])
-        general.add_value(
-            "keyword", self.getProperty("cclom:general_keyword", response)
-        )
-        general.add_value(
-            "description", self.getProperty("cclom:general_description", response)
-        )
+        general.add_value("keyword", self.getProperty("cclom:general_keyword", response))
+        general.add_value("description", self.getProperty("cclom:general_description", response))
         general.add_value('identifier', self.getProperty("cclom:general_identifier", response))
         general.add_value('language', self.getProperty("cclom:general_language", response))
         general.add_value('aggregationLevel', self.getProperty("cclom:aggregationLevel", response))
@@ -232,6 +228,7 @@ class EduSharingBase(Spider, LomBase):
         technical = LomBase.getLOMTechnical(self, response)
         technical.replace_value("format", "text/html")
         technical.replace_value("location", response.url)
+        # ToDo: 'cclom:location' supports multiple values (compare response.url <-> list of URLs)
         technical.replace_value("duration", self.getProperty("cclom:duration", response))
         return technical
 
@@ -272,18 +269,10 @@ class EduSharingBase(Spider, LomBase):
                                         f"{oeh_quality_login_value} for node-ID {response.meta['item']['ref']['id']}")
         valuespaces.add_value("dataProtectionConformity", self.getProperty("ccm:dataProtectionConformity", response))
         valuespaces.add_value("discipline", self.getProperty("ccm:taxonid", response))
-        valuespaces.add_value(
-            "intendedEndUserRole",
-            self.getProperty("ccm:educationalintendedenduserrole", response),
-        )
-        valuespaces.add_value(
-            "educationalContext", self.getProperty("ccm:educationalcontext", response)
-        )
+        valuespaces.add_value("educationalContext", self.getProperty("ccm:educationalcontext", response))
         valuespaces.add_value("fskRating", self.getProperty("ccm:fskRating", response))
-        valuespaces.add_value(
-            "learningResourceType",
-            self.getProperty("ccm:educationallearningresourcetype", response),
-        )
+        valuespaces.add_value("intendedEndUserRole", self.getProperty("ccm:educationalintendedenduserrole", response))
+        valuespaces.add_value("learningResourceType", self.getProperty("ccm:educationallearningresourcetype", response))
         valuespaces.add_value('new_lrt', self.getProperty("ccm:oeh_lrt", response))
         valuespaces.add_value("oer", self.getProperty("ccm:license_oer", response))
         valuespaces.add_value("price", self.getProperty("ccm:price", response))
