@@ -18,7 +18,7 @@ class TestH5P(unittest.TestCase):
         env.get('S3_BUCKET_NAME')
     )
     uploader = Uploader()
-    bucket_name = 'fwu-test-folder'
+    bucket_name = 'fwu-content'
 
     # Test-cases for S3Download
     def test_s3Download_001_check_bucket_exists(self):
