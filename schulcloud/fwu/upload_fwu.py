@@ -24,7 +24,7 @@ class Uploader:
             env.get('S3_ENDPOINT_URL'),
             env.get('S3_ACCESS_KEY'),
             env.get('S3_SECRET_KEY'),
-            env.get('S3_BUCKET_NAME')
+            env.get('S3_BUCKET_NAME'),
         )
 
     def setup_destination_folder(self, folder_name: str):
@@ -112,17 +112,17 @@ class Uploader:
         if result is None or result == "" or result == " ":
             raise RuntimeError(f'{data_definition} not found in class "{class_name}"')
 
-    def sanitize_string(self, input: str):
-        input = input.replace('ä', 'ae')
-        input = input.replace('ö', 'oe')
-        input = input.replace('ü', 'ue')
-        input = input.replace('ß', 'ss')
-        input = input.replace('Ä', 'Ae')
-        input = input.replace('Ö', 'Oe')
-        input = input.replace('Ü', 'Ue')
-        input = input.replace('\'', '')
+    def sanitize_string(self, string: str):
+        string = string.replace('ä', 'ae')
+        string = string.replace('ö', 'oe')
+        string = string.replace('ü', 'ue')
+        string = string.replace('ß', 'ss')
+        string = string.replace('Ä', 'Ae')
+        string = string.replace('Ö', 'Oe')
+        string = string.replace('Ü', 'Ue')
+        string = string.replace('\'', '')
 
-        return input
+        return string
 
 
 class S3Downloader:
