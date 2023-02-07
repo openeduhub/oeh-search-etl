@@ -8,6 +8,7 @@ from scrapy.cmdline import execute as scrapy_execute
 
 from schulcloud.util import Environment
 from schulcloud.h5p.upload import Uploader as H5PUploader
+from schulcloud.fwu.upload_fwu import Uploader as FWU_Uploader
 from schulcloud.sodix.permissions import main as permissions
 
 
@@ -165,6 +166,9 @@ def main():
         job = Job('Hello World', lambda: print('Hello, world!', file=sys.stderr), schedule)
     elif crawler == 'h5p_upload':
         job = Job('H5P Uploader', H5PUploader().upload_from_s3, schedule)
+    elif crawler == 'fwu_upload':
+        # Time to upload FWU ~20min
+        job = Job('FWU Uploader', FWU_Uploader.upload, schedule)
     elif crawler == 'sodix_permissions':
         job = Job('Sodix Permission Updater', permissions, schedule)
     elif crawler in known_crawlers:
