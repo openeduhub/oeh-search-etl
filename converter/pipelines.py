@@ -9,6 +9,7 @@ import base64
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 import csv
 import logging
+import re
 import time
 from abc import ABCMeta
 from io import BytesIO
@@ -681,7 +682,7 @@ class ExampleLoggingPipeline(BasicPipeline):
 
 
 class LisumPipeline(BasicPipeline):
-    DISCIPLINE_TO_LISUM = {
+    DISCIPLINE_TO_LISUM_SHORTHANDLE = {
         "020": "C-WAT",  # Arbeitslehre -> Wirtschaft, Arbeit, Technik
         "060": "C-KU",  # Bildende Kunst
         "080": "C-BIO",  # Biologie
@@ -754,6 +755,7 @@ class LisumPipeline(BasicPipeline):
         """
         base_item_adapter = ItemAdapter(item)
         discipline_lisum_keys = set()
+        discipline_eafcodes = set()
         sodix_lisum_custom_lrts = set()
         if base_item_adapter.get("custom"):
             custom_field = base_item_adapter.get("custom")
@@ -762,8 +764,8 @@ class LisumPipeline(BasicPipeline):
                 # first round of mapping from (all) Sodix eafCodes to 'ccm:taxonid'
                 if taxon_entries:
                     for taxon_entry in taxon_entries:
-                        if taxon_entry in self.DISCIPLINE_TO_LISUM:
-                            discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM.get(taxon_entry))
+                        if taxon_entry in self.DISCIPLINE_TO_LISUM_SHORTHANDLE:
+                            discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM_SHORTHANDLE.get(taxon_entry))
         if base_item_adapter.get("valuespaces"):
             valuespaces = base_item_adapter.get("valuespaces")
             if valuespaces.get("discipline"):
@@ -775,9 +777,10 @@ class LisumPipeline(BasicPipeline):
                 if discipline_list:
                     for discipline_w3id in discipline_list:
                         discipline_eaf_code: str = discipline_w3id.split(sep='/')[-1]
-                        match discipline_eaf_code in self.DISCIPLINE_TO_LISUM:
+                        eaf_code_digits_only_regex: re.Pattern = re.compile(r'\d{3,}')
+                        match discipline_eaf_code in self.DISCIPLINE_TO_LISUM_SHORTHANDLE:
                             case True:
-                                discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM.get(discipline_eaf_code))
+                                discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM_SHORTHANDLE.get(discipline_eaf_code))
                                 # ToDo: there are no Sodix eafCode-values for these Lisum keys:
                                 #  - Deutsche Gebärdensprache (C-DGS)
                                 #  - Hebräisch (C-HE)
@@ -789,8 +792,21 @@ class LisumPipeline(BasicPipeline):
                             case _:
                                 # due to having the 'custom'-field as a (raw) list of all eafCodes, this mainly serves
                                 # the purpose of reminding us if a 'discipline'-value couldn't be mapped to Lisum
-                                logging.debug(f"Lisum Pipeline failed to map from eafCode {discipline_eaf_code} "
-                                              f"to its corresponding ccm:taxonid short-handle")
+                                logging.debug(f"LisumPipeline failed to map from eafCode {discipline_eaf_code} "
+                                              f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback...")
+                        if eaf_code_digits_only_regex.search(discipline_eaf_code):
+                            # each numerical eafCode must have a length of (minimum) 3 digits
+                            logging.debug(f"LisumPipeline: Writing eafCode {discipline_eaf_code} to buffer. (Wil be "
+                                          f"used later for 'ccm:taxonentry').")
+                            discipline_eafcodes.add(discipline_eaf_code)
+                        else:
+                            # our 'discipline.ttl'-vocab holds custom keys (e.g. 'niederdeutsch', 'oeh04010') which
+                            # shouldn't be saved into 'ccm:taxonentry' (since they are not part of the regular
+                            # "EAF Sachgebietssystematik"
+                            logging.debug(f"LisumPipeline eafCode fallback for {discipline_eaf_code} to "
+                                          f"'ccm:taxonentry' was not possible. Only eafCodes with a minimum length "
+                                          f"of 3+ digits are valid. (Please confirm if the provided value is part of "
+                                          f"the 'EAF Sachgebietssystematik' (see: eafsys.txt))")
                 logging.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
                               f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
 
@@ -854,8 +870,7 @@ class LisumPipeline(BasicPipeline):
                                 # making sure to exclude '' strings from populating the list
                                 lrt_temporary_list.append(lrt_w3id)
                     lrt_list = lrt_temporary_list
-                    lrt_list.sort()
-                # after everything is mapped and sorted, save the list:
+                # after everything is mapped, we're saving the (updated) list back to our LRT:
                 valuespaces["learningResourceType"] = lrt_list
 
             # Mapping from valuespaces_raw["learningResourceType"]: "INTERAKTION" -> "interactive_material"
@@ -885,4 +900,28 @@ class LisumPipeline(BasicPipeline):
                 discipline_lisum_keys = list(discipline_lisum_keys)
                 discipline_lisum_keys.sort()
                 valuespaces["discipline"] = discipline_lisum_keys
+            if discipline_eafcodes:
+                # Fallback: saving 'discipline.ttl'-Vocab keys to eafCodes ('ccm:taxonentry')
+                if base_item_adapter.get("custom"):
+                    custom_field = base_item_adapter.get("custom")
+                    if "ccm:taxonentry" in custom_field:
+                        taxon_entries: list = custom_field.get("ccm:taxonentry")
+                        if taxon_entries:
+                            # if eafCodes already exist in the custom filed (e.g.: sodix_spider), we're making sure that
+                            # there are no double entries of the same eafCode
+                            taxon_set = set(taxon_entries)
+                            taxon_set.update(discipline_eafcodes)
+                            taxon_entries = list(taxon_set)
+                            logging.debug(f"LisumPipeline: Saving eafCodes {taxon_entries} to 'ccm:taxonentry'.")
+                            base_item_adapter["custom"]["ccm:taxonentry"] = taxon_entries
+                else:
+                    # oeh_spider typically won't have neither the 'custom'-field nor the 'ccm:taxonentry'-field
+                    # Therefore we have to create and fill it with the eafCodes that we gathered from our
+                    # 'discipline'-vocabulary-keys.
+                    discipline_eafcodes_list = list(discipline_eafcodes)
+                    logging.debug(f"LisumPipeline: Saving eafCodes {discipline_eafcodes_list} to 'ccm:taxonentry'.")
+                    base_item_adapter.update(
+                        {'custom': {
+                            'ccm:taxonentry': discipline_eafcodes_list}})
+                    base_item_adapter["custom"]["ccm:taxonentry"] = discipline_eafcodes_list
         return item
