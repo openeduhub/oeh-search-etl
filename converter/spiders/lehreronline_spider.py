@@ -465,7 +465,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             if thumbnail_url:
                 base.add_value('thumbnail', thumbnail_url)
         if "origin_folder_name" in metadata_dict.keys():
-            base.add_value('origin', metadata_dict.get("origin_folder_name"))
+            base.replace_value('origin', metadata_dict.get("origin_folder_name"))
 
         lom = LomBaseItemloader()
 
