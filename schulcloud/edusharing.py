@@ -377,9 +377,8 @@ class EdusharingAPI:
         if value is not None:
             params['value'] = value
         response = self.make_request('POST', url, params=params, retry=0)
-        # ToDo: Set the right status_code for Kubernetes - comment out!
-        # if not response.status_code == 200:
-        #     raise RequestFailedException(response, node_id)
+        if not response.status_code == 200 and response.status_code > 500:
+            raise RequestFailedException(response, node_id)
 
     def set_collection_children(self, node_id: str, children_uuids: List[str]):
         """
