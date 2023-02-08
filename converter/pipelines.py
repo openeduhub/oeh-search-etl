@@ -723,6 +723,21 @@ class LisumPipeline(BasicPipeline):
         "2800506": "C-PL",  # Polnisch
     }
 
+    EAFCODE_EXCLUSIONS = [
+        # eafCodes in this list are used as keys in
+        # https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/discipline.ttl
+        # but are not part of the (standard) http://agmud.de/wp-content/uploads/2021/09/eafsys.txt
+        '20090',  # "Esperanto" ToDo: remove this entry after the vocab has been corrected
+        '44099',  # "Open Educational Resources"
+        '64018',  # "Nachhaltigkeit"
+        '72001',  # "Zeitgemäße Bildung"
+        '900',  # Medienbildung
+        '999',  # Sonstiges
+        'niederdeutsch',
+        'oeh01',  # "Arbeit, Ernährung, Soziales"
+        'oeh04010'  # Mechatronik
+    ]
+
     EDUCATIONALCONTEXT_TO_LISUM = {
         "elementarbereich": "pre-school",
         "grundschule": "primary school",
@@ -748,6 +763,7 @@ class LisumPipeline(BasicPipeline):
         """
         Takes a BaseItem and transforms its metadata-values to Lisum-metadataset-compatible values.
         Touches the following fields within the BaseItem:
+        - base.custom
         - valuespaces.discipline
         - valuespaces.educationalContext
         - valuespaces.intendedEndUserRole
@@ -795,10 +811,16 @@ class LisumPipeline(BasicPipeline):
                                 logging.debug(f"LisumPipeline failed to map from eafCode {discipline_eaf_code} "
                                               f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback...")
                         if eaf_code_digits_only_regex.search(discipline_eaf_code):
-                            # each numerical eafCode must have a length of (minimum) 3 digits
+                            # each numerical eafCode must have a length of (minimum) 3 digits to be considered valid
                             logging.debug(f"LisumPipeline: Writing eafCode {discipline_eaf_code} to buffer. (Wil be "
                                           f"used later for 'ccm:taxonentry').")
-                            discipline_eafcodes.add(discipline_eaf_code)
+                            if discipline_eaf_code not in self.EAFCODE_EXCLUSIONS:
+                                # making sure to only save eafCodes that are part of the standard eafsys.txt
+                                discipline_eafcodes.add(discipline_eaf_code)
+                            else:
+                                logging.debug(f"LisumPipeline: eafCode {discipline_eaf_code} is not part of 'EAF "
+                                              f"Sachgebietssystematik' (see: eafsys.txt), therefore skipping this "
+                                              f"value.")
                         else:
                             # our 'discipline.ttl'-vocab holds custom keys (e.g. 'niederdeutsch', 'oeh04010') which
                             # shouldn't be saved into 'ccm:taxonentry' (since they are not part of the regular

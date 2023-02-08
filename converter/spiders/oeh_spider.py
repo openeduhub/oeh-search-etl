@@ -11,7 +11,7 @@ class OEHSpider(EduSharingBase):
     url = "https://redaktion.openeduhub.net/edu-sharing/"
     apiUrl = "https://redaktion.openeduhub.net/edu-sharing/rest/"
     searchUrl = "search/v1/queries/-home-/"
-    version = "0.1.7"  # last update: 2023-02-07
+    version = "0.1.8"  # last update: 2023-02-08
     mdsId = "mds_oeh"
     importWhitelist: [str] = None
     custom_settings = {
