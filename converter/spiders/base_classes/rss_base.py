@@ -1,3 +1,5 @@
+import logging
+
 from scrapy.spiders import CrawlSpider
 
 from .lom_base import LomBase
@@ -131,15 +133,21 @@ class RSSBase(CrawlSpider, LomBase):
         link_url = response.meta["item"].xpath("link//text()").get()
         if link_url:
             technical.add_value("location", link_url)
-        elif enclosure_url:
-            technical.add_value("location", enclosure_url)
+        guid: str = response.meta["item"].xpath("guid//text()").get()
         guid_is_permalink: str = response.meta["item"].xpath("guid/@isPermaLink").get()
-        if guid_is_permalink:
-            guid: str = response.meta["item"].xpath("guid//text()").get()
-            # if <guid>'s "isPermaLink"-attribute is true, guid points to a URL
-            if guid_is_permalink.strip() == "true" and guid:
+        if guid:
+            # if <guid>'s "isPermaLink"-attribute is true or missing, the guid points to a URL
+            if guid_is_permalink:
+                if guid_is_permalink.strip() == "false" and guid:
+                    logging.debug(f"The <guid> {guid} is not an URL. Will not save it to 'technical.location'")
+            elif guid:
                 if guid != response.url:
+                    # making sure to save the provided URI (in addition to the resolved URL)
                     technical.add_value("location", guid)
+        elif enclosure_url:
+            # According to Apple RSS Guidelines, the enclosure URL-attribute is considered a fallback for a missing
+            # <guid> element
+            technical.add_value("location", enclosure_url)
         return technical
 
     def getLOMLifecycle(self, response):
