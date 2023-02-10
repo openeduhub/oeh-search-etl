@@ -28,7 +28,6 @@ class Node:
 
 
 class EdusharingAPI:
-
     @staticmethod
     def _craft_permission_body(groups: List[str], inheritance: bool):
         permissions = []
@@ -66,34 +65,36 @@ class EdusharingAPI:
                      timeout: Optional[float] = None):
         url = f'{self.base_url}{url}'
         headers = {'Accept': 'application/json'}
-        i = 0
+        i = -1
         while True:
-            print(method, url, params, json_data)
-            response = None
+            i += 1
+            #print(method, url, params, json_data)
             try:
                 response = self.session.request(method, url, params=params, headers=headers,
                                                 json=json_data, files=files, stream=stream, timeout=timeout)
             except requests.exceptions.ReadTimeout:
-                pass
-            if (response is None or 500 <= response.status_code < 600) and i < retry:
+                if i < retry:
+                    time.sleep(i // 2)
+                    continue
+                else:
+                    raise RequestTimeoutException()
+            if 500 <= response.status_code < 600 and i < retry:
                 time.sleep(i // 2)
-                i += 1
                 continue
-            break
-        return response
+            return response
 
     def get_application_properties(self, xml_file_name: str):
         url = f'/admin/v1/applications/{xml_file_name}'
         response = self.make_request('GET', url)
         if not 200 <= response.status_code < 300:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
         return response.json()
 
     def set_application_properties(self, xml_file_name: str, values: Dict[str, str]):
         url = f'/admin/v1/applications/{xml_file_name}'
         response = self.make_request('PUT', url, json_data=values)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
 
     def upload_content(self, node_id: str, filename: str, file: IO[bytes], mimetype: str = ''):
         url = f'/node/v1/nodes/-home-/{node_id}/content'
@@ -103,7 +104,7 @@ class EdusharingAPI:
         }
         response = self.make_request('POST', url, params=params, files=files, stream=True)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
 
     def get_user(self, name: str = None):
         if name is None:
@@ -113,7 +114,7 @@ class EdusharingAPI:
         if response.status_code == 404:
             raise NotFoundException(name)
         if not 200 <= response.status_code < 300:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
         return response.json()
 
     def get_users(self):
@@ -121,10 +122,10 @@ class EdusharingAPI:
         params = {'pattern': '*'}
         response = self.make_request('GET', url, params=params)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
         response = response.json()
         if not response['pagination']['count'] == response['pagination']['total']:
-            raise RequestFailedException(response, 'Too many users')
+            raise RequestErrorResponseException(response, 'Too many users')
         return response['users']
 
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024 ** 2):
@@ -144,23 +145,23 @@ class EdusharingAPI:
         }
         response = self.make_request('POST', url, params=params, json_data=body)
         if not 200 <= response.status_code < 300:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
 
     def delete_user(self, name: str):
         url = f'/iam/v1/people/-home-/{name}'
         params = {'force': 'true'}
         response = self.make_request('DELETE', url, params=params)
         if not 200 <= response.status_code < 300:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
 
     def user_get_groups(self, username: str):
         url = f'/iam/v1/people/-home-/{username}/memberships'
         response = self.make_request('GET', url)
         if not 200 <= response.status_code < 300:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
         response = response.json()
         if not response['pagination']['count'] == response['pagination']['total']:
-            raise RequestFailedException(response, 'Too many groups')
+            raise RequestErrorResponseException(response, 'Too many groups')
         return response['groups']
 
     def create_group(self, group_name: str):
@@ -172,24 +173,24 @@ class EdusharingAPI:
         }
         response = self.make_request('POST', url, json_data=body)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
 
     def get_groups(self):
         url = f'/iam/v1/groups/-home-/'
         params = {'pattern': '*', 'maxItems': 1024}
         response = self.make_request('GET', url, params=params)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
         response = response.json()
         if not response['pagination']['count'] == response['pagination']['total']:
-            raise RequestFailedException(response, 'Too many groups')
+            raise RequestErrorResponseException(response, 'Too many groups')
         return response['groups']
 
     def group_add_user(self, group_name: str, user_name: str):
         url = f'/iam/v1/groups/-home-/GROUP_{group_name}/members/{user_name}'
         response = self.make_request('PUT', url)
         if not 200 <= response.status_code < 300:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
 
     def get_children(self, node_id: str, all_properties: bool = False, type: Literal['all', 'folders', 'files'] = 'all') -> List[Node]:
         url = f'/node/v1/nodes/-home-/{node_id}/children'
@@ -216,7 +217,7 @@ class EdusharingAPI:
                 if offset >= total:
                     break
             else:
-                raise RequestFailedException(response)
+                raise RequestErrorResponseException(response)
         return children
 
     def find_node_by_name(self, parent_id: str, child_name: str) -> Node:
@@ -252,7 +253,7 @@ class EdusharingAPI:
             data.update(properties)
         response = self.make_request('POST', url, params=params, json_data=data)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
         return Node(response.json()['node'])
 
     def sync_node(self, group: str, properties: Dict, match: List[str], type: str = 'ccm:io',
@@ -267,14 +268,14 @@ class EdusharingAPI:
             params['groupBy'] = group_by
         response = self.make_request('PUT', url, params=params, json_data=properties)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
         return Node(response.json()['node'])
 
     def delete_node(self, node_id: str):
         url = f'/node/v1/nodes/-home-/{node_id}'
         response = self.make_request('DELETE', url)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
 
     def get_sync_obj_folder(self):
         return self.get_or_create_node('-userhome-', 'SYNC_OBJ', type='folder')
@@ -322,7 +323,7 @@ class EdusharingAPI:
               f'&maxItems={max_items}&skipCount=0'
         response = self.make_request('GET', url)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
         json_obj = response.json()
         return [Node(node) for node in json_obj['nodes']]
 
@@ -330,23 +331,23 @@ class EdusharingAPI:
         url = f'/node/v1/nodes/-home-/{node_id}/permissions'
         response = self.make_request('GET', url)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
         try:
             return response.json()['permissions']
         except KeyError:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
 
     def set_permissions(self, node_id: str, groups: List[str], inheritance: bool) -> None:
         url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
         response = self.make_request('POST', url, json_data=self._craft_permission_body(groups, inheritance), timeout=8)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
 
     def get_metadata(self, node_id: str):
         url = f'/node/v1/nodes/-home-/{node_id}/metadata'
         response = self.make_request('GET', url)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
         return response.json()
 
     def change_metadata(self, node_id: str, properties: Dict[str, List[str]]):
@@ -354,10 +355,10 @@ class EdusharingAPI:
         params = {'versionComment': 'METADATA_UPDATE'}
         response = self.make_request('POST', url, params=params, json_data=properties)
         if not response.status_code == 200:
-            raise RequestFailedException(response)
+            raise RequestErrorResponseException(response)
 
     def get_node_timestamp(self, node):
-        meta = self.get_metadata_of_node(node.id)
+        meta = self.get_metadata(node.id)
         timestamp_str = str(meta["node"]["createdAt"]).replace("Z", "")
         return datetime.fromisoformat(timestamp_str)
 
@@ -378,7 +379,7 @@ class EdusharingAPI:
             params['value'] = value
         response = self.make_request('POST', url, params=params, retry=0)
         if not response.status_code == 200 and response.status_code > 500:
-            raise RequestFailedException(response, node_id)
+            raise RequestErrorResponseException(response, node_id)
 
     def set_collection_children(self, node_id: str, children_uuids: List[str]):
         """
@@ -405,7 +406,7 @@ class EdusharingAPI:
         files = {'image': (filename, open(filename, 'rb'))}
         response = self.make_request('POST', url, files=files, stream=True)
         if not response.status_code == 200:
-            raise RequestFailedException(response, node_id)
+            raise RequestErrorResponseException(response, node_id)
         files['image'][1].close()
 
     def set_preview_thumbnail_fwu(self, node_id: str, filename: str):
@@ -417,16 +418,24 @@ class EdusharingAPI:
 
 
 class RequestFailedException(Exception):
+    pass
+
+
+class RequestErrorResponseException(RequestFailedException):
     def __init__(self, response: requests.Response, context_hint: str = ''):
-        super(RequestFailedException, self).__init__(f'Request failed: {response.status_code} {response.reason}: '
-                                                     f':{response.text}; {context_hint}')
+        msg = f'Request failed: {response.status_code} {response.reason}: {response.text}; {context_hint}'
+        super(RequestErrorResponseException, self).__init__(msg)
 
 
-class FoundTooManyException(Exception):
+class RequestTimeoutException(RequestFailedException):
+    pass
+
+
+class FoundTooManyException(RequestFailedException):
     def __init__(self, name: str):
         super(FoundTooManyException, self).__init__(f'Found too many of {name}')
 
 
-class NotFoundException(Exception):
+class NotFoundException(RequestFailedException):
     def __init__(self, name: str):
         super(NotFoundException, self).__init__(f'Could not find {name}')

@@ -1,15 +1,16 @@
 import json
 import os.path
 import sys
+import traceback
 
-from schulcloud.edusharing import EdusharingAPI, Node
+from schulcloud.edusharing import EdusharingAPI, Node, RequestFailedException
 from schulcloud.util import Environment
 
 
 ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
 
 
-class PermissionStuff:
+class PermissionUpdater:
     def __init__(self):
         self.env = Environment(env_vars=ENV_VARS)
         self.api = EdusharingAPI(
@@ -50,10 +51,12 @@ class PermissionStuff:
             print(permission['path'])
             try:
                 node = self.get_node_by_path(permission['path'])
+                self.api.set_permissions(node.id, permission['permitted_groups'], permission['inherit'])
             except PathNotFoundException:
-                print(f'Warning: Not found:', permission['path'], file=sys.stderr)
-                continue
-            self.api.set_permissions(node.id, permission['permitted_groups'], permission['inherit'])
+                print(f'Warning: Could not find {permission["path"]}', file=sys.stderr)
+            except:
+                print(f'Error: Could not set permission for {permission["path"]}', file=sys.stderr)
+                traceback.print_exc()
 
 
 class PathNotFoundException(Exception):
@@ -63,4 +66,4 @@ class PathNotFoundException(Exception):
 
 
 if __name__ == '__main__':
-    PermissionStuff().run()
+    PermissionUpdater().run()
