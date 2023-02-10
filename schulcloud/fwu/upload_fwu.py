@@ -66,7 +66,6 @@ class Uploader:
                 node = self.api.get_or_create_node(es_folder.id, title, properties=properties)
 
                 for property, value in properties.items():
-                    # ToDo: Check set_property for reloop (self.api.make_request -> retry=0 and response = 500)
                     self.api.set_property(node.id, property, value)
 
                 # Set thumbnail
@@ -76,7 +75,7 @@ class Uploader:
                     raise RuntimeError(f'Error: Can not set thumbnail.')
 
                 # ToDo: Set permissions - Works, but will be done by permission script in production
-                # permitted_groups = ['Brandenburg_public']
+                # permitted_groups = ['Brandenburg_public', 'public']
                 # self.api.set_permissions(node.id, permitted_groups, False)
             else:
                 print(f'Node "{title}" already exist on Edu-Sharing.')
