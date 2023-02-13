@@ -161,7 +161,7 @@ def main():
         job = Job('H5P Uploader', H5PUploader().upload_from_s3, schedule)
     elif crawler == 'fwu_upload':
         # Time to upload FWU ~20min
-        job = Job('FWU Uploader', FWU_Uploader.upload, schedule)
+        job = Job('FWU Uploader', FWU_Uploader().upload, schedule)
     elif crawler == 'permission_updater':
         job = Job('Permission Updater', PermissionUpdater().run, schedule)
     elif crawler.endswith('spider'):
