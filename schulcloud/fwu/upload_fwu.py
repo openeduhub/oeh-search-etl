@@ -77,10 +77,12 @@ class Uploader:
                 # ToDo: Set permissions - Works, but will be done by permission script in production
                 # permitted_groups = ['Brandenburg_public', 'public']
                 # self.api.set_permissions(node.id, permitted_groups, False)
+                print(f'Successfully upload file "{title}" (FWU-{index}) to Edu-Sharing.')
+
             else:
                 print(f'Node "{title}" already exist on Edu-Sharing.')
 
-        print(f'Sucessfully upload all data to Edu-sharing.')
+        print(f'Successfully upload all FWU-metadata to Edu-sharing.')
 
     def get_data(self, body: str, class_name: str):
         if not class_name == "pname" and not class_name == "ptext" and not class_name == "player_outer":
