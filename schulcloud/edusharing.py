@@ -68,7 +68,7 @@ class EdusharingAPI:
         i = -1
         while True:
             i += 1
-            #print(method, url, params, json_data)
+            # print(method, url, params, json_data)
             try:
                 response = self.session.request(method, url, params=params, headers=headers,
                                                 json=json_data, files=files, stream=stream, timeout=timeout)
@@ -192,7 +192,8 @@ class EdusharingAPI:
         if not 200 <= response.status_code < 300:
             raise RequestErrorResponseException(response)
 
-    def get_children(self, node_id: str, all_properties: bool = False, type: Literal['all', 'folders', 'files'] = 'all') -> List[Node]:
+    def get_children(self, node_id: str, all_properties: bool = False,
+                     type: Literal['all', 'folders', 'files'] = 'all') -> List[Node]:
         url = f'/node/v1/nodes/-home-/{node_id}/children'
         params = {'maxItems': '200'}
         if all_properties:
@@ -236,7 +237,8 @@ class EdusharingAPI:
         else:
             raise NotFoundException(replication_source_id)
 
-    def create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file', properties: Optional[Dict] = None):
+    def create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file',
+                    properties: Optional[Dict] = None):
         url = f'/node/v1/nodes/-home-/{parent_id}/children'
         params = {
             'type': 'ccm:io' if type == 'file' else 'cm:folder',
@@ -304,7 +306,7 @@ class EdusharingAPI:
                     "property": "ccm:ph_invited",
                     "values": [
                         "GROUP_county-12051", "GROUP_public", "GROUP_LowerSaxony-public",
-                                      "GROUP_Brandenburg-public", "GROUP_Thuringia-public"
+                                "GROUP_Brandenburg-public", "GROUP_Thuringia-public"
                     ]
                 },
                 {
@@ -362,7 +364,8 @@ class EdusharingAPI:
         timestamp_str = str(meta["node"]["createdAt"]).replace("Z", "")
         return datetime.fromisoformat(timestamp_str)
 
-    def get_or_create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file', properties: Optional[Dict] = None):
+    def get_or_create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file',
+                           properties: Optional[Dict] = None):
         try:
             folder = self.find_node_by_name(parent_id, name)
             if properties:
@@ -385,6 +388,7 @@ class EdusharingAPI:
         """
         Sets collection relation to its children. Reverse operation is also needed for all children.
         @param children_uuids: replication source uuids of ALL children
+        @param node_id: ID of node
         """
         # frontend relies on exact syntax, no double quotes (as in json) allowed
         value = f"{{kind': 'hasparts', 'resource': {{'identifier': {str(children_uuids)}}}}}"
@@ -395,6 +399,7 @@ class EdusharingAPI:
         """
         Sets node's relation to its collection. Reverse operation is needed for collection.
         @param parent_uuid: replication source uuid of parent
+        @param node_id: ID of node
         """
         # frontend relies on exact syntax, no double quotes (as in json) allowed
         value = f"{{'kind': 'ispartof', 'resource': {{'identifier': ['{parent_uuid}']}}}}"
