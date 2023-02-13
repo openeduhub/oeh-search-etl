@@ -9,6 +9,8 @@ from schulcloud.util import Environment
 
 ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
 
+# ToDo: To fit this convention we have to delete the 'ph_invited' logic from sc-server.
+
 
 class PermissionUpdater:
     def __init__(self):
