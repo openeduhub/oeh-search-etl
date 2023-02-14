@@ -693,6 +693,7 @@ class LisumPipeline(BasicPipeline):
         "220": "C-GEO",         # Geographie,
         "240": "C-GE",          # Geschichte
         "260": "B-GES",         # Gesundheit -> Gesundheitsförderung
+        "320": "C-Inf",         # Informatik
         "380": "C-MA",          # Mathematik
         "400": "B-BCM",         # Medienerziehung / Medienpädagogik -> Basiscurriculum Medienbildung
         "420": "C-MU",          # Musik
@@ -728,7 +729,8 @@ class LisumPipeline(BasicPipeline):
         # eafCodes in this list are used as keys in
         # https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/discipline.ttl
         # but are not part of the (standard) http://agmud.de/wp-content/uploads/2021/09/eafsys.txt
-        '20090',  # "Esperanto" ToDo: remove this entry after the vocab has been corrected
+        '04010',  # OEH: "Körperpflege" <-> eafCode 04010: "Mechatronik"
+        '20090',  # OEH: "Esperanto" <-> eafCode: 20080
         '44099',  # "Open Educational Resources"
         '64018',  # "Nachhaltigkeit"
         '72001',  # "Zeitgemäße Bildung"
@@ -736,7 +738,7 @@ class LisumPipeline(BasicPipeline):
         '999',  # Sonstiges
         'niederdeutsch',
         'oeh01',  # "Arbeit, Ernährung, Soziales"
-        'oeh04010'  # Mechatronik
+        'oeh04010'  # OEH: "Mechatronik" <-> eafCode: 04010 (Mechatronik)
     ]
 
     EDUCATIONALCONTEXT_TO_LISUM = {
@@ -811,6 +813,14 @@ class LisumPipeline(BasicPipeline):
                                 # the purpose of reminding us if a 'discipline'-value couldn't be mapped to Lisum
                                 logging.debug(f"LisumPipeline failed to map from eafCode {discipline_eaf_code} "
                                               f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback...")
+                        match discipline_eaf_code:
+                            # catching edge-cases where OEH 'discipline'-vocab-keys don't line up with eafsys.txt values
+                            case "20090":
+                                discipline_eafcodes.add("20080")  # Esperanto
+                            case "oeh04010":
+                                discipline_eafcodes.add("04010")  # Mechatronik
+                            case "04010":
+                                discipline_eafcodes.add("2600103")  # Körperpflege
                         if eaf_code_digits_only_regex.search(discipline_eaf_code):
                             # each numerical eafCode must have a length of (minimum) 3 digits to be considered valid
                             logging.debug(f"LisumPipeline: Writing eafCode {discipline_eaf_code} to buffer. (Wil be "
