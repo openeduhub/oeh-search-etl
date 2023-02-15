@@ -9,6 +9,7 @@ import base64
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 import csv
 import logging
+import re
 import time
 from abc import ABCMeta
 from io import BytesIO
@@ -175,14 +176,20 @@ class NormLicensePipeline(BasicPipeline):
                     break
 
         if "url" in item["license"] and "oer" not in item["license"]:
-            if (
-                    item["license"]["url"] == Constants.LICENSE_CC_BY_40
-                    or item["license"]["url"] == Constants.LICENSE_CC_BY_30
-                    or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_30
-                    or item["license"]["url"] == Constants.LICENSE_CC_BY_SA_40
-                    or item["license"]["url"] == Constants.LICENSE_CC_ZERO_10
-            ):
-                item["license"]["oer"] = OerType.ALL
+            match item["license"]["url"]:
+                case Constants.LICENSE_CC_BY_20 | \
+                     Constants.LICENSE_CC_BY_25 | \
+                     Constants.LICENSE_CC_BY_30 | \
+                     Constants.LICENSE_CC_BY_40 | \
+                     Constants.LICENSE_CC_BY_SA_20 | \
+                     Constants.LICENSE_CC_BY_SA_25 | \
+                     Constants.LICENSE_CC_BY_SA_30 | \
+                     Constants.LICENSE_CC_BY_SA_40 | \
+                     Constants.LICENSE_CC_ZERO_10:
+                    item["license"]["oer"] = OerType.ALL
+                case _:
+                    # ToDo: log default case if not too spammy
+                    pass
 
         if "internal" in item["license"] and "oer" not in item["license"]:
             internal = item["license"]["internal"].lower()
@@ -675,43 +682,64 @@ class ExampleLoggingPipeline(BasicPipeline):
 
 
 class LisumPipeline(BasicPipeline):
-    DISCIPLINE_TO_LISUM = {
-        "020": "C-WAT",  # Arbeitslehre -> Wirtschaft, Arbeit, Technik
-        "060": "C-KU",  # Bildende Kunst
-        "080": "C-BIO",  # Biologie
-        "100": "C-CH",  # Chemie
-        "120": "C-DE",  # Deutsch
-        "160": "C-Eth",  # Ethik
-        "200": "C-FS",  # Fremdsprachen
-        "220": "C-GEO",  # Geographie,
-        "240": "C-GE",  # Geschichte
-        "380": "C-MA",  # Mathematik
-        "420": "C-MU",  # Musik
-        "450": "C-Phil",  # Philosophie
-        "460": "C-Ph",  # Physik
-        "480": "C-PB",  # Politische Bildung
-        "510": "C-Psy",  # Psychologie
-        "520": "C-LER",  # Religion -> Lebensgestaltung-Ethik-Religionskunde
-        # ToDo: 560 -> "C-NW56-3-8" ? (Sexualerziehung)
-        "700": "C-SOWI",  # Wirtschaftskunde -> "Sozialwissenschaft/Wirtschaftswissenschaft"
-        "12002": "C-Thea",  # Darstellendes Spiel, Schultheater -> Theater
-        "20001": "C-EN",  # Englisch
-        "20002": "C-FR",  # Französisch
-        "20003": "C-AGR",  # Griechisch -> Altgriechisch
-        "20004": "C-IT",  # Italienisch
-        "20005": "C-La",  # Latein
-        "20006": "C-RU",  # Russisch
-        "20007": "C-ES",  # Spanisch
-        "20008": "C-TR",  # Türkisch
-        "20011": "C-PL",  # Polnisch
-        "20014": "C-PT",  # Portugiesisch
-        "20041": "C-ZH",  # Chinesisch
-        "28010": "C-SU",  # Sachkunde -> Sachunterricht
-        "32002": "C-Inf",  # Informatik
-        "46014": "C-AS",  # Astronomie
-        "48005": "C-GEWIWI",  # Gesellschaftspolitische Gegenwartsfragen -> Gesellschaftswissenschaften
-        "2800506": "C-PL",  # Polnisch
+    DISCIPLINE_TO_LISUM_SHORTHAND = {
+        "020": "C-WAT",         # Arbeitslehre -> Wirtschaft, Arbeit, Technik
+        "060": "C-KU",          # Bildende Kunst
+        "080": "C-BIO",         # Biologie
+        "100": "C-CH",          # Chemie
+        "120": "C-DE",          # Deutsch
+        "160": "C-Eth",         # Ethik
+        "200": "C-FS",          # Fremdsprachen
+        "220": "C-GEO",         # Geographie,
+        "240": "C-GE",          # Geschichte
+        "260": "B-GES",         # Gesundheit -> Gesundheitsförderung
+        "320": "C-Inf",         # Informatik
+        "380": "C-MA",          # Mathematik
+        "400": "B-BCM",         # Medienerziehung / Medienpädagogik -> Basiscurriculum Medienbildung
+        "420": "C-MU",          # Musik
+        "450": "C-Phil",        # Philosophie
+        "460": "C-Ph",          # Physik
+        "480": "C-PB",          # Politische Bildung
+        "510": "C-Psy",         # Psychologie
+        "520": "C-LER",         # Religion -> Lebensgestaltung-Ethik-Religionskunde
+        "560": "B-SE",          # Sexualerziehung
+        # "600": "",              # ToDo: "Sport" is not available as a Lisum Rahmenlehrplan shorthand
+        "660": "B-MB",          # Verkehrserziehung -> "Mobilitätsbildung und Verkehrserziehung"
+        "700": "C-SOWI",        # Wirtschaftskunde -> "Sozialwissenschaft/Wirtschaftswissenschaft"
+        "12002": "C-Thea",      # Darstellendes Spiel, Schultheater -> Theater
+        "20001": "C-EN",        # Englisch
+        "20002": "C-FR",        # Französisch
+        "20003": "C-AGR",       # Griechisch -> Altgriechisch
+        "20004": "C-IT",        # Italienisch
+        "20005": "C-La",        # Latein
+        "20006": "C-RU",        # Russisch
+        "20007": "C-ES",        # Spanisch
+        "20008": "C-TR",        # Türkisch
+        "20011": "C-PL",        # Polnisch
+        "20014": "C-PT",        # Portugiesisch
+        "20041": "C-ZH",        # Chinesisch
+        "28010": "C-SU",        # Sachkunde -> Sachunterricht
+        "32002": "C-Inf",       # Informatik
+        "46014": "C-AS",        # Astronomie
+        "48005": "C-GEWIWI",    # Gesellschaftspolitische Gegenwartsfragen -> Gesellschaftswissenschaften
+        "2800506": "C-PL",      # Polnisch
     }
+
+    EAFCODE_EXCLUSIONS = [
+        # eafCodes in this list are used as keys in
+        # https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/discipline.ttl
+        # but are not part of the (standard) http://agmud.de/wp-content/uploads/2021/09/eafsys.txt
+        '04010',  # OEH: "Körperpflege" <-> eafCode 04010: "Mechatronik"
+        '20090',  # OEH: "Esperanto" <-> eafCode: 20080
+        '44099',  # "Open Educational Resources"
+        '64018',  # "Nachhaltigkeit"
+        '72001',  # "Zeitgemäße Bildung"
+        '900',  # Medienbildung
+        '999',  # Sonstiges
+        'niederdeutsch',
+        'oeh01',  # "Arbeit, Ernährung, Soziales"
+        'oeh04010'  # OEH: "Mechatronik" <-> eafCode: 04010 (Mechatronik)
+    ]
 
     EDUCATIONALCONTEXT_TO_LISUM = {
         "elementarbereich": "pre-school",
@@ -719,7 +747,7 @@ class LisumPipeline(BasicPipeline):
         "sekundarstufe_1": "lower secondary school",
         "sekundarstufe_2": "upper secondary school",
         "berufliche_bildung": "vocational education",
-        # "fortbildung": "",  # does not exist in Lisum valuespace
+        "fortbildung": "professional development",
         "erwachsenenbildung": "continuing education",
         "foerderschule": "special education",
         # "fernunterricht": ""  # does not exist in Lisum valuespace
@@ -730,13 +758,15 @@ class LisumPipeline(BasicPipeline):
         "audiovisual_medium": ["audio", "video"],
         "open_activity": "",  # exists in 2 out of 60.000 items
         "broadcast": "audio",
-        "demonstration": "image",  # "Veranschaulichung"
+        "demonstration": ["demonstration", "image"],  # "Veranschaulichung"
+        "text": "teaching_aids",  # "Arbeitsmaterial"
     }
 
     def process_item(self, item: BaseItem, spider: scrapy.Spider) -> Optional[scrapy.Item]:
         """
         Takes a BaseItem and transforms its metadata-values to Lisum-metadataset-compatible values.
         Touches the following fields within the BaseItem:
+        - base.custom
         - valuespaces.discipline
         - valuespaces.educationalContext
         - valuespaces.intendedEndUserRole
@@ -744,16 +774,17 @@ class LisumPipeline(BasicPipeline):
         """
         base_item_adapter = ItemAdapter(item)
         discipline_lisum_keys = set()
+        discipline_eafcodes = set()
         sodix_lisum_custom_lrts = set()
         if base_item_adapter.get("custom"):
             custom_field = base_item_adapter.get("custom")
             if "ccm:taxonentry" in custom_field:
                 taxon_entries: list = custom_field.get("ccm:taxonentry")
-                # first round of mapping from (all) Sodix eafCodes to 'ccm:taxonid'
+                # first round of mapping from SODIX eafCodes to 'ccm:taxonid'
                 if taxon_entries:
                     for taxon_entry in taxon_entries:
-                        if taxon_entry in self.DISCIPLINE_TO_LISUM:
-                            discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM.get(taxon_entry))
+                        if taxon_entry in self.DISCIPLINE_TO_LISUM_SHORTHAND:
+                            discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM_SHORTHAND.get(taxon_entry))
         if base_item_adapter.get("valuespaces"):
             valuespaces = base_item_adapter.get("valuespaces")
             if valuespaces.get("discipline"):
@@ -765,9 +796,10 @@ class LisumPipeline(BasicPipeline):
                 if discipline_list:
                     for discipline_w3id in discipline_list:
                         discipline_eaf_code: str = discipline_w3id.split(sep='/')[-1]
-                        match discipline_eaf_code in self.DISCIPLINE_TO_LISUM:
+                        eaf_code_digits_only_regex: re.Pattern = re.compile(r'\d{3,}')
+                        match discipline_eaf_code in self.DISCIPLINE_TO_LISUM_SHORTHAND:
                             case True:
-                                discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM.get(discipline_eaf_code))
+                                discipline_lisum_keys.add(self.DISCIPLINE_TO_LISUM_SHORTHAND.get(discipline_eaf_code))
                                 # ToDo: there are no Sodix eafCode-values for these Lisum keys:
                                 #  - Deutsche Gebärdensprache (C-DGS)
                                 #  - Hebräisch (C-HE)
@@ -779,10 +811,39 @@ class LisumPipeline(BasicPipeline):
                             case _:
                                 # due to having the 'custom'-field as a (raw) list of all eafCodes, this mainly serves
                                 # the purpose of reminding us if a 'discipline'-value couldn't be mapped to Lisum
-                                logging.warning(f"Lisum Pipeline failed to map from eafCode {discipline_eaf_code} "
-                                                f"to its corresponding ccm:taxonid short-handle")
+                                logging.debug(f"LisumPipeline failed to map from eafCode {discipline_eaf_code} "
+                                              f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback...")
+                        match discipline_eaf_code:
+                            # catching edge-cases where OEH 'discipline'-vocab-keys don't line up with eafsys.txt values
+                            case "20090":
+                                discipline_eafcodes.add("20080")  # Esperanto
+                            case "oeh04010":
+                                discipline_eafcodes.add("04010")  # Mechatronik
+                            case "04010":
+                                discipline_eafcodes.add("2600103")  # Körperpflege
+                        if eaf_code_digits_only_regex.search(discipline_eaf_code):
+                            # each numerical eafCode must have a length of (minimum) 3 digits to be considered valid
+                            logging.debug(f"LisumPipeline: Writing eafCode {discipline_eaf_code} to buffer. (Wil be "
+                                          f"used later for 'ccm:taxonentry').")
+                            if discipline_eaf_code not in self.EAFCODE_EXCLUSIONS:
+                                # making sure to only save eafCodes that are part of the standard eafsys.txt
+                                discipline_eafcodes.add(discipline_eaf_code)
+                            else:
+                                logging.debug(f"LisumPipeline: eafCode {discipline_eaf_code} is not part of 'EAF "
+                                              f"Sachgebietssystematik' (see: eafsys.txt), therefore skipping this "
+                                              f"value.")
+                        else:
+                            # our 'discipline.ttl'-vocab holds custom keys (e.g. 'niederdeutsch', 'oeh04010') which
+                            # shouldn't be saved into 'ccm:taxonentry' (since they are not part of the regular
+                            # "EAF Sachgebietssystematik"
+                            logging.debug(f"LisumPipeline eafCode fallback for {discipline_eaf_code} to "
+                                          f"'ccm:taxonentry' was not possible. Only eafCodes with a minimum length "
+                                          f"of 3+ digits are valid. (Please confirm if the provided value is part of "
+                                          f"the 'EAF Sachgebietssystematik' (see: eafsys.txt))")
                 logging.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
                               f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
+                valuespaces["discipline"] = list()  # clearing 'discipline'-field, so we don't accidentally write the
+                # remaining OEH w3id-URLs to Lisum's 'ccm:taxonid'-field
 
             if valuespaces.get("educationalContext"):
                 # mapping educationalContext values from OEH SKOS to lisum keys
@@ -800,7 +861,7 @@ class LisumPipeline(BasicPipeline):
                                     educational_context_w3id_key)
                                 educational_context_lisum_keys.add(educational_context_w3id_key)
                             case _:
-                                logging.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key}"
+                                logging.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key} "
                                               f"not found in mapping table.")
                 educational_context_list = list(educational_context_lisum_keys)
                 educational_context_list.sort()
@@ -844,8 +905,7 @@ class LisumPipeline(BasicPipeline):
                                 # making sure to exclude '' strings from populating the list
                                 lrt_temporary_list.append(lrt_w3id)
                     lrt_list = lrt_temporary_list
-                    lrt_list.sort()
-                # after everything is mapped and sorted, save the list:
+                # after everything is mapped, we're saving the (updated) list back to our LRT:
                 valuespaces["learningResourceType"] = lrt_list
 
             # Mapping from valuespaces_raw["learningResourceType"]: "INTERAKTION" -> "interactive_material"
@@ -874,5 +934,29 @@ class LisumPipeline(BasicPipeline):
             if discipline_lisum_keys:
                 discipline_lisum_keys = list(discipline_lisum_keys)
                 discipline_lisum_keys.sort()
-                valuespaces["discipline"] = discipline_lisum_keys
+                valuespaces["discipline"] = discipline_lisum_keys  # only shorthand values are saved to 'ccm:taxonid'
+            if discipline_eafcodes:
+                # Fallback: saving 'discipline.ttl'-Vocab keys to eafCodes ('ccm:taxonentry')
+                if base_item_adapter.get("custom"):
+                    custom_field = base_item_adapter.get("custom")
+                    if "ccm:taxonentry" in custom_field:
+                        taxon_entries: list = custom_field.get("ccm:taxonentry")
+                        if taxon_entries:
+                            # if eafCodes already exist in the custom filed (e.g.: sodix_spider), we're making sure that
+                            # there are no double entries of the same eafCode
+                            taxon_set = set(taxon_entries)
+                            taxon_set.update(discipline_eafcodes)
+                            taxon_entries = list(taxon_set)
+                            logging.debug(f"LisumPipeline: Saving eafCodes {taxon_entries} to 'ccm:taxonentry'.")
+                            base_item_adapter["custom"]["ccm:taxonentry"] = taxon_entries
+                else:
+                    # oeh_spider typically won't have neither the 'custom'-field nor the 'ccm:taxonentry'-field
+                    # Therefore we have to create and fill it with the eafCodes that we gathered from our
+                    # 'discipline'-vocabulary-keys.
+                    discipline_eafcodes_list = list(discipline_eafcodes)
+                    logging.debug(f"LisumPipeline: Saving eafCodes {discipline_eafcodes_list} to 'ccm:taxonentry'.")
+                    base_item_adapter.update(
+                        {'custom': {
+                            'ccm:taxonentry': discipline_eafcodes_list}})
+                    base_item_adapter["custom"]["ccm:taxonentry"] = discipline_eafcodes_list
         return item

@@ -3,7 +3,6 @@ import json
 from enum import Enum
 
 import html2text
-import pyppeteer
 import requests
 from playwright.async_api import async_playwright
 from scrapy.utils.project import get_project_settings
@@ -14,8 +13,6 @@ from converter import env
 class WebEngine(Enum):
     # Splash (default engine)
     Splash = 'splash',
-    # Pyppeteer is controlling a headless Chrome browser
-    Pyppeteer = 'pyppeteer'
     # Playwright is controlling a headless Chrome browser
     Playwright = 'playwright'
 
@@ -25,18 +22,10 @@ class WebTools:
     def getUrlData(url: str, engine=WebEngine.Splash):
         if engine == WebEngine.Splash:
             return WebTools.__getUrlDataSplash(url)
-        elif engine == WebEngine.Pyppeteer:
-            return WebTools.__getUrlDataPyppeteer(url)
         elif engine == WebEngine.Playwright:
             return WebTools.__getUrlDataPlaywright(url)
 
         raise Exception("Invalid engine")
-
-    @staticmethod
-    def __getUrlDataPyppeteer(url: str):
-        # html = "test"
-        html = asyncio.run(WebTools.fetchDataPyppeteer(url))
-        return {"html": html, "text": WebTools.html2Text(html), "cookies": None, "har": None}
 
     @staticmethod
     def __getUrlDataPlaywright(url: str):
@@ -81,18 +70,6 @@ class WebTools:
                     "har": json.dumps(j["har"])}
         else:
             return {"html": None, "text": None, "cookies": None, "har": None}
-
-    @staticmethod
-    async def fetchDataPyppeteer(url: str):
-        browser = await pyppeteer.connect({
-            'browserWSEndpoint': env.get('PYPPETEER_WS_ENDPOINT'),
-            'logLevel': 'WARN'
-        })
-        page = await browser.newPage()
-        await page.goto(url)
-        content = await page.content()
-        # await page.close()
-        return content
 
     @staticmethod
     async def fetchDataPlaywright(url: str):
