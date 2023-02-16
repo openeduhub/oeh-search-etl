@@ -70,13 +70,10 @@ class Uploader:
 
                 # Set thumbnail
                 try:
-                    self.api.set_preview_thumbnail_fwu(node_id=node.id, filename=thumbnail_bytes)
+                    self.api.set_preview_thumbnail(node_id=node.id, filename=thumbnail_bytes, type='remote')
                 except:
                     raise RuntimeError(f'Error: Can not set thumbnail.')
 
-                # ToDo: Set permissions - Works, but will be done by permission script in production
-                # permitted_groups = ['Brandenburg_public', 'public']
-                # self.api.set_permissions(node.id, permitted_groups, False)
                 print(f'Successfully upload file "{title}" (FWU-{index}) to Edu-Sharing.')
 
             else:
