@@ -375,7 +375,6 @@ class EdusharingAPI:
         return folder
 
     def set_property(self, node_id: str, property: str, value: Optional[List[str]]):
-        # /node/v1/nodes/{repository}/{node}/property
         url = f'/node/v1/nodes/-home-/{node_id}/property'
         params = {'property': property}
         if value is not None:
@@ -406,20 +405,20 @@ class EdusharingAPI:
         for property in 'ccm:lom_relation', 'ccm:hpi_lom_relation':
             self.set_property(node_id, property, [value])
 
-    def set_preview_thumbnail(self, node_id: str, filename: str):
-        url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
-        files = {'image': (filename, open(filename, 'rb'))}
-        response = self.make_request('POST', url, files=files, stream=True)
-        if not response.status_code == 200:
-            raise RequestErrorResponseException(response, node_id)
-        files['image'][1].close()
-
-    def set_preview_thumbnail_fwu(self, node_id: str, filename: str):
-        url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
-        files = {'image': filename}
-        response = self.make_request('POST', url, files=files, stream=True)
-        if not response.status_code == 200:
-            raise RequestFailedException(response, node_id)
+    def set_preview_thumbnail(self, node_id: str, filename: str, type: Literal['local', 'remote'] = 'local'):
+        if type == 'local':
+            url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
+            files = {'image': (filename, open(filename, 'rb'))}
+            response = self.make_request('POST', url, files=files, stream=True)
+            if not response.status_code == 200:
+                raise RequestErrorResponseException(response, node_id)
+            files['image'][1].close()
+        if type == 'remote':
+            url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
+            files = {'image': filename}
+            response = self.make_request('POST', url, files=files, stream=True)
+            if not response.status_code == 200:
+                raise RequestFailedException(response, node_id)
 
 
 class RequestFailedException(Exception):
