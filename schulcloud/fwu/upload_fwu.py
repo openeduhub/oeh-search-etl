@@ -35,11 +35,18 @@ class Uploader:
         )
 
     def setup_destination_folder(self, folder_name: str):
+        """
+        Create the destination folder for the upload inside the sync_obj folder, if the folder doesn't exist.
+        @param folder_name: Name of the folder
+        """
         sync_obj = self.api.get_sync_obj_folder()
         destination_folder = self.api.get_or_create_node(sync_obj.id, folder_name, type='folder')
         return destination_folder
 
     def upload(self):
+        """
+        Upload the FWU content from AWS S3-bucket to Edu-Sharing and add the metadata to the corresponding node.
+        """
         # Fetch the metadata from S3 - Loop over known files (files_index)
         for index in self.files_index:
             key = str(index) + '/index.html'
@@ -82,6 +89,11 @@ class Uploader:
         print(f'Successfully upload all FWU-metadata to Edu-sharing.')
 
     def get_data(self, body: str, class_name: str):
+        """
+        Extract the metadata from HTML.
+        @param body: HTML body-tag with HTML content
+        @param class_name: Name of the CSS-class in the HTML-tag.
+        """
         if not class_name == "pname" and not class_name == "ptext" and not class_name == "player_outer":
             raise RuntimeError(
                 f'False value "{class_name}" for class_name in get_data(). Options: pname, ptext, player_outer')
@@ -107,6 +119,11 @@ class Uploader:
         return result
 
     def validate_result(self, class_name: str, result: str):
+        """
+        Validate, if the result is found inside the CSS-class.
+        @param class_name: Name of the CSS-class in the HTML-tag.
+        @param result: Content of the extracted HTML-tag
+        """
         data_definition = ""
 
         if class_name == "pname":
@@ -118,6 +135,10 @@ class Uploader:
             raise RuntimeError(f'{data_definition} not found in class "{class_name}"')
 
     def sanitize_string(self, string: str):
+        """
+        Replace german umlauts and single quotes.
+        @param string: String to sanitize
+        """
         string = string.replace('ä', 'ae')
         string = string.replace('ö', 'oe')
         string = string.replace('ü', 'ue')
@@ -147,6 +168,10 @@ class S3Downloader:
         self.bucket_name = bucket_name
 
     def check_bucket_exists(self, bucket_name: str):
+        """
+        Check, if the bucket exists on AWS S3.
+        @param bucket_name: Name of the bucket on AWS S3
+        """
         response = self.client.list_buckets()
         for bucket in response['Buckets']:
             if bucket['Name'] == bucket_name:
@@ -155,6 +180,9 @@ class S3Downloader:
             raise RuntimeError(f'Bucket {bucket_name} does not exist')
 
     def get_all_objects(self):
+        """
+        Return a file list with all object keys from the AWS S3 bucket.
+        """
         self.check_bucket_exists(self.bucket_name)
         bucket = self.s3.Bucket(self.bucket_name)
         files_list = []
@@ -166,6 +194,10 @@ class S3Downloader:
         return files_list
 
     def read_object(self, object_key: str):
+        """
+        Return the content of the specific AWS S3 object.
+        @param object_key: Object key from AWS S3 object.
+        """
         self.check_bucket_exists(self.bucket_name)
         s3_object = self.s3.Object(bucket_name=self.bucket_name, key=object_key)
         response = s3_object.get()['Body'].read()
@@ -183,6 +215,19 @@ def generate_node_properties(
         replication_source_uuid: Optional[str] = None,
         aggregation_level: int = 1,
         hpi_searchable: bool = True):
+    """
+    Return the node properties corresponding to mds_oeh metadataset.
+    @param title: Title of the node
+    @param description: Description of the node
+    @param publisher: Publisher of the node
+    @param license: License for the node
+    @param keywords: Keywords of the node
+    @param url: URL for external resources
+    @param replication_source_id: Replication source ID of the node
+    @param replication_source_uuid: Replication source UUID of the node
+    @param aggregation_level: Aggregation level of the node
+    @param hpi_searchable: 1 is equal to 'isSearchable', 0 is equal to 'notSearchable'
+    """
     if not replication_source_id:
         replication_source_id = title
     if not replication_source_uuid:
