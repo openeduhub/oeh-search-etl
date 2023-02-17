@@ -90,8 +90,8 @@ class Constants:
     LICENSE_CUSTOM: Final[str] = "CUSTOM"  # Custom License, use the license description field for arbitrary values
     LICENSE_NONPUBLIC: Final[str] = "NONPUBLIC"
 
-    NEW_LRT_MATERIAL: Final[str] = "https://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb"
-    NEW_LRT_TOOL: Final[str] = "https://w3id.org/openeduhub/vocabs/new_lrt/cefccf75-cba3-427d-9a0f-35b4fedcbba1"
+    NEW_LRT_MATERIAL: Final[str] = "1846d876-d8fd-476a-b540-b8ffd713fedb"
+    NEW_LRT_TOOL: Final[str] = "cefccf75-cba3-427d-9a0f-35b4fedcbba1"
 
     SOURCE_TYPE_SPIDER: int = 1
     SOURCE_TYPE_EDITORIAL: int = 2
