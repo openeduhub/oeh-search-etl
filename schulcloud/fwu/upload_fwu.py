@@ -58,7 +58,7 @@ class Uploader:
             thumbnail_key = self.get_data(response, 'player_outer')
             thumbnail_bytes = self.downloader.read_object(str(index) + '/' + thumbnail_key)
             keywords = ['FWU', title]
-            license = "COPYRIGHT_LAW"
+            license = "COPYRIGHT_LICENSE"
             publisher = 'FWU Institut für Film und Bild in Wissenschaft und Unterricht gemeinnützige GmbH'
             # ToDo: Add the right URL, if the route of the fwu-service on schulcloud-server is constant!
             target_url = f'{self.instance_url}api/v3/FWU/{key}'
