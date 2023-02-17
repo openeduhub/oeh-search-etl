@@ -7,7 +7,7 @@ from scrapy import settings
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
+    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
 from converter.spiders.base_classes import LomBase
 from converter.web_tools import WebEngine, WebTools
 
@@ -333,9 +333,12 @@ class SerloSpider(scrapy.Spider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value('permissions', permissions.load_item())
 
-        response_loader = super().mapResponse(response)
+        response_loader = ResponseItemLoader()
+        response_loader.replace_value('headers', response.headers)
         response_loader.replace_value('html', html_body)
+        response_loader.replace_value('status', response.status)
         response_loader.replace_value('text', html_text)
+        response_loader.replace_value('url', self.getUri(response))
         base.add_value('response', response_loader.load_item())
 
         yield base.load_item()
