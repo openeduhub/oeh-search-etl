@@ -37,6 +37,10 @@ class CLI:
         )
 
     def ensure_bucket(self, bucket_name: str):
+        """
+        Check, if the bucket exists on AWS S3.
+        @param bucket_name: Name of the bucket on AWS S3
+        """
         response = self.client.list_buckets()
         for bucket in response['Buckets']:
             if bucket['Name'] == bucket_name:
@@ -45,6 +49,10 @@ class CLI:
             raise RuntimeError(f'Bucket {bucket_name} does not exist')
 
     def get_objects(self, bucket_name: str):
+        """
+        Return a list with max. 1000 objects from AWS S3 bucket.
+        @param bucket_name: Name of the bucket on AWS S3
+        """
         remote_objects = []
         continuation_token = ''
         while True:
@@ -57,6 +65,10 @@ class CLI:
         return remote_objects
 
     def get_all_objects(self, bucket_name: str):
+        """
+        Get all objects from AWS S3 bucket and print the object keys into the file '[bucket_name]_all_objects-txt'.
+        @param bucket_name: Name of the bucket on AWS S3
+        """
         bucket = self.s3.Bucket(bucket_name)
         files_list = []
         counter = 0
@@ -82,6 +94,12 @@ class CLI:
         print(f'Objects in bucket {bucket_name} were printed to {file_name} in this directory.')
 
     def get_objects_matching(self, bucket_name: str, objects: List[str]):
+        """
+        Return a filtered list, which contains the matching objects between a matching list and the remote objects
+        on AWS S3 bucket.
+        @param bucket_name: Name of the bucket on AWS S3
+        @param objects: List of matching objects
+        """
         remote_objects = self.get_objects(bucket_name)
         filtered = []
         for obj in objects:
@@ -100,6 +118,10 @@ class CLI:
         return filtered
 
     def list_objects(self, bucket_name: str):
+        """
+        Print max. 1000 objects from the AWS S3 bucket into the console.
+        @param bucket_name: Name of the bucket on AWS S3
+        """
         self.ensure_bucket(bucket_name)
         response = self.client.list_objects_v2(Bucket=bucket_name)
         if 'Contents' not in response:
@@ -111,6 +133,11 @@ class CLI:
                 print(f'{obj["Key"]:>40}{obj["Size"]:>16}{obj["LastModified"].ctime():>32}')
 
     def upload_objects(self, bucket_name: str, objects: List[str]):
+        """
+        Upload local files from the list to the AWS S3 bucket.
+        @param bucket_name: Name of the bucket on AWS S3
+        @param objects: List of local objects for the upload
+        """
         self.ensure_bucket(bucket_name)
         print(f'Upload {len(objects)} object(s) to bucket {bucket_name}')
         total_size = 0
@@ -123,7 +150,12 @@ class CLI:
                                     Callback=lambda n: progress_bar.update(n))
         progress_bar.close()
 
-    def upload_direction(self, bucket_name, root_path,):
+    def upload_directory(self, bucket_name, root_path):
+        """
+        Upload the content from a local directory to the AWS S3 bucket.
+        @param bucket_name: Name of the bucket on AWS S3
+        @param root_path: Path to the local directory
+        """
         self.ensure_bucket(bucket_name)
         file_counter = 0
 
@@ -159,6 +191,12 @@ class CLI:
         print(f'Sucessfully upload {file_counter} files from {root_path} to bucket {bucket_name}.')
 
     def download_objects(self, dir_name: str, bucket_name: str, objects: List[str]):
+        """
+        Download all objects from the AWS S3 bucket matching with the list objects to a local directory.
+        @param dir_name: Local directory to download the objects to
+        @param bucket_name: Name of the bucket on AWS S3
+        @param objects: List of objects for the download
+        """
         self.ensure_bucket(bucket_name)
         remote_objects = self.get_objects_matching(bucket_name, objects)
         print(f'Download {len(remote_objects)} objects from bucket {bucket_name}')
@@ -180,6 +218,11 @@ class CLI:
         print(f'Objects saved to {dir_name}')
 
     def delete_objects(self, bucket_name: str, objects: List[str]):
+        """
+        Delete all objects from the AWS S3 bucket matching with the list objects.
+        @param bucket_name: Name of the bucket on AWS S3
+        @param objects: List of objects for deletion
+        """
         self.ensure_bucket(bucket_name)
         remote_objects = self.get_objects_matching(bucket_name, objects)
         for object in remote_objects:
@@ -187,6 +230,12 @@ class CLI:
             print(response)
 
     def copy_objects(self, bucket_name: str, bucket_name_destination: str, objects: List[str]):
+        """
+        Copy all objects from one AWS S3 bucket to another AWS S3 bucket.
+        @param bucket_name: Name of the bucket on AWS S3 to copy from
+        @param bucket_name_destination: Name of the bucket on AWS S3 to copy to
+        @param objects: List of objects for the download
+        """
         self.ensure_bucket(bucket_name)
         self.ensure_bucket(bucket_name_destination)
         for object in objects:
@@ -198,14 +247,25 @@ class CLI:
         print(f'Object was copied successfully from bucket {bucket_name} to bucket {bucket_name_destination}.')
 
     def list_buckets(self):
+        """
+        Print the existing AWS S3 buckets from the AWS account into the console.
+        """
         response = self.client.list_buckets()
         for bucket in response['Buckets']:
             print(bucket['Name'])
 
     def create_bucket(self, bucket_name: str):
+        """
+        Copy all objects from one AWS S3 bucket to another AWS S3 bucket.
+        @param bucket_name: Name of the bucket on AWS S3
+        """
         self.client.create_bucket(Bucket=bucket_name)
 
     def delete_bucket(self, bucket_name: str):
+        """
+        Delete a bucket with content from AWS S3.
+        @param bucket_name: Name of the bucket on AWS S3
+        """
         self.ensure_bucket(bucket_name)
         answer = input(f'Are you sure to delete {bucket_name} (y/N)? ')
         if answer.lower() in ('y', 'yes', 'j', 'ja'):
@@ -213,6 +273,10 @@ class CLI:
 
 
 def get_vars(var_names: List[str]):
+    """
+    Get all required environment variables from the list.
+    @param var_names: List of environment variables
+    """
     vars = []
     for var_name in var_names:
         vars.append(env.get(var_name))
@@ -268,7 +332,7 @@ def main():
     elif command == 'upload':
         cli.upload_objects(bucket, rest)
     elif command == 'upload_directory':
-        cli.upload_direction(bucket, rest)
+        cli.upload_directory(bucket, rest)
     elif command == 'download':
         dir = '.' if len(rest) == 1 else 'downloaded'
         cli.download_objects(dir, bucket, rest)
