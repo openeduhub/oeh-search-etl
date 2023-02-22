@@ -38,22 +38,22 @@ class EdusharingAPI:
         permissions = []
         for group in groups:
             permission = {
-                'editable': True,
-                'authority': {
-                    'authorityName': f'GROUP_{group}',
-                    'authorityType': 'GROUP'
+                "editable": "true",
+                "authority": {
+                    "authorityName": f'GROUP_{group}',
+                    "authorityType": "GROUP"
                 },
-                'group': {
-                    'displayName': group
+                "group": {
+                    "displayName": group
                 },
-                'permissions': ['Consumer']
+                "permissions": ["Consumer"]
             }
 
             permissions.append(permission)
 
         return {
-            'inherited': inheritance,
-            'permissions': permissions
+            "inherited": inheritance,
+            "permissions": permissions
         }
 
     def __init__(self, base_url: str, username: str = '', password: str = ''):
@@ -468,7 +468,8 @@ class EdusharingAPI:
         @param inheritance: Inheritance True or False
         """
         url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
-        response = self.make_request('POST', url, json_data=self._craft_permission_body(groups, inheritance), timeout=8)
+        json = self._craft_permission_body(groups, inheritance)
+        response = self.make_request('POST', url, json_data=json, retry=1)
         if not response.status_code == 200:
             raise RequestErrorResponseException(response)
 
