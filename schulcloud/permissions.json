@@ -4231,7 +4231,8 @@
       "comment": "FWU",
       "inherit": false,
       "permitted_groups": [
-        "Brandenburg"
+        "Brandenburg",
+        "Brandenburg-public"
       ]
     }
   ]
