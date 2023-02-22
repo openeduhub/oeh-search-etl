@@ -1,3 +1,4 @@
+import time
 import uuid
 import hashlib
 from typing import Optional, List
@@ -80,6 +81,11 @@ class Uploader:
                     self.api.set_preview_thumbnail(node_id=node.id, filename=thumbnail_bytes, type='remote')
                 except:
                     raise RuntimeError(f'Error: Can not set thumbnail.')
+
+                # ToDo: Set permissions - Works, but will be done by permission script in production
+                time.sleep(2)
+                permitted_groups = ['Brandenburg-public']
+                self.api.set_permissions(node.id, permitted_groups, False)
 
                 print(f'Successfully upload file "{title}" (FWU-{index}) to Edu-Sharing.')
 
