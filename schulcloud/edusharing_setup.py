@@ -27,6 +27,9 @@ class EdusharingSetup:
             self.env['EDU_SHARING_PASSWORD'])
 
     def _add_metadata_sets(self):
+        """
+        Add required metadataSets MDS and MDS_OEH to new Edu-Sharing instance.
+        """
         xml_name = 'homeApplication.properties.xml'
         key, value = 'metadatasetsV2', 'mds,mds_oeh'
         properties = self.api.get_application_properties(xml_name)
@@ -35,8 +38,12 @@ class EdusharingSetup:
             self.api.set_application_properties(xml_name, properties)
 
     def _add_users_and_groups(self, users: List[User], groups: Set[str]):
-        # requirement: all groups within "users" must also be within "groups"
-
+        """
+        Add all required users, groups and the relation between users and groups to new Edu-Sharing instance.
+        Requirement: All groups within "users" must also be within "groups"
+        @param users: List of Edu-Sharing Users
+        @param groups: Set of Edu-Sharing groups
+        """
         existing_usernames = [user['userName'] for user in self.api.get_users()]
 
         for user in users:
@@ -62,8 +69,10 @@ class EdusharingSetup:
                     self.api.group_add_user(group, user.name)
 
     def _upload_color_picker(self):
-        # the color picker h5p content contains the color picker library needed for other h5p items
-        # which will be installed after upload
+        """
+        The color picker h5p content contains the color picker library needed for other h5p items, which will be
+        automatically installed by Edu-Sharing after upload.
+        """
         colorpicker_path = 'schulcloud/update_colorpicker.h5p'
         colorpicker_name = os.path.basename(colorpicker_path)
         try:
@@ -75,6 +84,11 @@ class EdusharingSetup:
             file.close()
 
     def run(self, users: List[User], groups: List[str]):
+        """
+        Run the MetadataSets, User & Groups and the colorpicker-update.
+        @param users: List of Edu-Sharing Users
+        @param groups: List of Edu-Sharing groups
+        """
         groups = set(groups)
         for user in users:
             for group in user.groups:

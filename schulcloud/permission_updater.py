@@ -23,6 +23,10 @@ class PermissionUpdater:
         self.node_cache: dict[str, Node] = {}
 
     def get_node_by_path(self, path: str) -> Node:
+        """
+        Get the node of Edu-Sharing by path.
+        @param path: Path to node
+        """
         path = os.path.normpath(path)
         try:
             return self.node_cache[path]
@@ -45,6 +49,9 @@ class PermissionUpdater:
             return node
 
     def run(self):
+        """
+        Update the permissions accordingly to 'schulcloud/permissions.json'.
+        """
         file = open('schulcloud/permissions.json')
         permissions = json.load(file)['permissions']
         file.close()
