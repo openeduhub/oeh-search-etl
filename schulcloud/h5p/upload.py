@@ -1,4 +1,3 @@
-
 import os
 import sys
 import uuid
@@ -13,7 +12,6 @@ import boto3
 from schulcloud import util
 from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException
 from schulcloud.h5p.metadata import MetadataFile, Metadata, Collection
-
 
 EXPECTED_ENV_VARS = [
     'EDU_SHARING_BASE_URL',
@@ -62,7 +60,7 @@ def generate_node_properties(
         "cm:edu_forcemetadataset": ["true"],
         "ccm:objecttype": ["MATERIAL"],
         "ccm:replicationsource": [folder_name],
-        "ccm:replicationsourceid": [hashlib.md5(replication_source_id.encode()).hexdigest()],
+        "ccm:replicationsourceid": [hashlib.sha1(replication_source_id.encode()).hexdigest()],
         "ccm:replicationsourcehash": [date],
         "ccm:replicationsourceuuid": [str(uuid.uuid5(uuid.NAMESPACE_URL, replication_source_uuid))],
         "ccm:commonlicense_key": [license],  # TODO: test whether edusharing supports multiple licenses
@@ -73,7 +71,8 @@ def generate_node_properties(
         "cclom:general_language": ["de"],
         "cclom:general_keyword": keywords,
         "ccm:create_version": ["false"],
-        "ccm:lifecyclecontributer_publisherFN": [publisher]  # TODO: test whether edusharing supports multiple publishers
+        "ccm:lifecyclecontributer_publisherFN": [publisher]
+        # TODO: test whether edusharing supports multiple publishers
     }
     return properties
 
@@ -160,10 +159,12 @@ class Uploader:
 
         # TODO: test whether edusharing collections supports multiple publishers/licenses
         collection_properties = generate_node_properties(
-            collection.name, collection.name, next(iter(collection.publishers)), next(iter(collection.licenses)), keywords,
+            collection.name, collection.name, next(iter(collection.publishers)), next(iter(collection.licenses)),
+            keywords,
             es_folder.name, aggregation_level=2
         )
         collection_node = self.api.get_or_create_node(es_folder.id, collection.name)
+
         for property, value in collection_properties.items():
             self.api.set_property(collection_node.id, property, value)
         # permissions
@@ -191,13 +192,13 @@ class Uploader:
         except MetadataNotFoundError as exc:
             print(f'No metadata file found in {exc.zip.filename}. Skipping.', file=sys.stderr)
             return
-
         es_folder = self.setup_destination_folder(es_folder_name)
 
         for collection in metadata_file.collections:
 
             replicationsourceid = hashlib.sha1(collection.name.encode()).hexdigest()
             collection_node = None
+
             try:
                 collection_node = self.api.find_node_by_replication_source_id(replicationsourceid)
             except NotFoundException as err:
@@ -244,18 +245,14 @@ class Uploader:
                 continue
 
             self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER)
-
             zip_path = os.path.join(TEMP_FOLDER, s3_obj['Key'])
             zip_file = ZipFile(zip_path)
 
             last_modified = s3_obj['LastModified'].replace(tzinfo=None)
-
             self.upload_zip(zip_file, folder_name, last_modified)
-
+            print(f'Upload done: {zip_file}')
             zip_file.close()
             os.remove(zip_path)
-
-            print(f'Upload done: {zip_file}')
 
     def test_upload(self):
         sync = self.api.get_sync_obj_folder()
