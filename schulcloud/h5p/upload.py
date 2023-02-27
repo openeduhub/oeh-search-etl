@@ -78,7 +78,7 @@ def generate_node_properties(
         "cm:edu_forcemetadataset": ["true"],
         "ccm:objecttype": ["MATERIAL"],
         "ccm:replicationsource": [folder_name],
-        "ccm:replicationsourceid": [hashlib.md5(replication_source_id.encode()).hexdigest()],
+        "ccm:replicationsourceid": [hashlib.sha1(replication_source_id.encode()).hexdigest()],
         "ccm:replicationsourcehash": [date],
         "ccm:replicationsourceuuid": [str(uuid.uuid5(uuid.NAMESPACE_URL, replication_source_uuid))],
         "ccm:commonlicense_key": [license],  # TODO: test whether edusharing supports multiple licenses
