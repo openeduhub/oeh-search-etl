@@ -153,7 +153,7 @@ class Uploader:
 
         return node.id, properties["ccm:replicationsourceuuid"][0]
 
-    def upload_collection(self, collection: Collection, zip_file: ZipFile, es_folder: Node):
+    def upload_collection(self, collection: Collection, zip_file: ZipFile, es_folder: Node, collection_node: Node):
         # save the replicationsourceuuid, nodeId and the collection of each h5p-file corresponding to this package
         children_replication_source_uuids = []
 
@@ -167,7 +167,8 @@ class Uploader:
             keywords,
             es_folder.name, aggregation_level=2
         )
-        collection_node = self.api.get_or_create_node(es_folder.id, collection.name)
+        if not collection_node:
+            collection_node = self.api.get_or_create_node(es_folder.id, collection.name)
 
         for property, value in collection_properties.items():
             self.api.set_property(collection_node.id, property, value)
@@ -211,12 +212,17 @@ class Uploader:
                 # TODO: not sure if correct
                 print(f'Found multiple nodes for collection: {collection.name}', file=sys.stderr)
                 continue
-            if collection_node and last_modified:
-                # collection already has some content, so check timestamps
-                edu_timestamp = self.api.get_node_timestamp(collection_node)
-                if edu_timestamp > last_modified:
-                    continue
-            self.upload_collection(collection, zip_file, es_folder)
+            if collection_node:
+                collection_node_children = self.api.get_children(collection_node.id)
+                if not collection_node_children:
+                    pass
+                else:
+                    if last_modified:
+                        # collection already has some content, so check timestamps
+                        edu_timestamp = self.api.get_node_timestamp(collection_node)
+                        if edu_timestamp > last_modified:
+                            continue
+            self.upload_collection(collection, zip_file, es_folder, collection_node)
 
         for single_metadata in metadata_file.single_files:
             file = zip_file.open(single_metadata.filepath)
