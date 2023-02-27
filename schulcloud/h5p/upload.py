@@ -36,6 +36,10 @@ def escape_filename(filename: str):
     return re.sub(r'[,;:\'="@$%/\\{}]', '_', filename)
 
 
+def create_replicationsourceid(name: str):
+    return hashlib.sha1(name.encode()).hexdigest()
+
+
 def generate_node_properties(
         title: str,
         name: str,
@@ -60,7 +64,7 @@ def generate_node_properties(
         "cm:edu_forcemetadataset": ["true"],
         "ccm:objecttype": ["MATERIAL"],
         "ccm:replicationsource": [folder_name],
-        "ccm:replicationsourceid": [hashlib.sha1(replication_source_id.encode()).hexdigest()],
+        "ccm:replicationsourceid": [create_replicationsourceid(replication_source_id)],
         "ccm:replicationsourcehash": [date],
         "ccm:replicationsourceuuid": [str(uuid.uuid5(uuid.NAMESPACE_URL, replication_source_uuid))],
         "ccm:commonlicense_key": [license],  # TODO: test whether edusharing supports multiple licenses
@@ -195,8 +199,7 @@ class Uploader:
         es_folder = self.setup_destination_folder(es_folder_name)
 
         for collection in metadata_file.collections:
-
-            replicationsourceid = hashlib.sha1(collection.name.encode()).hexdigest()
+            replicationsourceid = create_replicationsourceid(collection.name)
             collection_node = None
 
             try:
