@@ -115,6 +115,18 @@ class Uploader:
             raise MetadataNotFoundError(zip)
         return metadata_file
 
+    def collection_extists(self, collection: Collection, zip_file: ZipFile):
+        for child in collection.children:
+            file = zip_file.open(child.filepath)
+            filename = os.path.basename(child.filepath)
+            name = os.path.splitext(filename)[0]
+            rep_source_id = create_replicationsourceid(name)
+            file.close()
+            node_exists = self.api.find_node_by_replication_source_id(rep_source_id, skip_exception=True)
+            if not node_exists:
+                return False
+        return True
+
     def setup_destination_folder(self, folder_name: str):
         sync_obj = self.api.get_sync_obj_folder()
         destination_folder = self.api.get_or_create_node(sync_obj.id, folder_name, type='folder')
@@ -213,8 +225,7 @@ class Uploader:
                 print(f'Found multiple nodes for collection: {collection.name}', file=sys.stderr)
                 continue
             if collection_node:
-                collection_node_children = self.api.get_children(collection_node.id)
-                if not collection_node_children:
+                if not self.collection_extists(collection, zip_file):
                     pass
                 else:
                     if last_modified:
