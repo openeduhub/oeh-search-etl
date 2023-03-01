@@ -635,20 +635,19 @@ class OersiSpider(scrapy.Spider, LomBase):
         lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
-        technical.add_value(
-            "format", "text/html"
-        )  # e.g. if the learning object is a web-page
         if "id" in elastic_item_source:
             identifier_url: str = elastic_item_source.get(
                 "id"
-            )  # this URL REQUIRED and should always be available
+            )  # this URL is REQUIRED and should always be available
             # see https://dini-ag-kim.github.io/amb/draft/#id
             if identifier_url:
-                technical.add_value("location", identifier_url)
-                # the identifier_url should be more stable/robust than the current response.url
-                # navigated by the crawler
-            else:
-                technical.add_value("location", response.url)
+                if identifier_url != response.url:
+                    technical.add_value("location", identifier_url)
+                    # the identifier_url should be more stable/robust than the (resolved) response.url in the long term,
+                    # so we will save both
+                    technical.add_value("location", response.url)
+        else:
+            technical.add_value("location", response.url)
         lom.add_value("technical", technical.load_item())
 
         authors = self.get_lifecycle_author(
