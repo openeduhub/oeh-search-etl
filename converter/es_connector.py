@@ -129,6 +129,7 @@ class EduSharing:
                 group=spider.name,
                 group_by=groupBy,
                 reset_version=EduSharing.resetVersion,
+                _request_timeout=30  # prevents crawlers from hanging
             )
         except ApiException as e:
             jsonError = json.loads(e.body)
