@@ -123,10 +123,10 @@ class EdusharingAPI:
         response = self.make_request('GET', url, params=params)
         if not response.status_code == 200:
             raise RequestErrorResponseException(response)
-        response = response.json()
-        if not response['pagination']['count'] == response['pagination']['total']:
+        content = response.json()
+        if not content['pagination']['count'] == content['pagination']['total']:
             raise RequestErrorResponseException(response, 'Too many users')
-        return response['users']
+        return content['users']
 
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024 ** 2):
         url = f'/iam/v1/people/-home-/{username}'
@@ -159,10 +159,10 @@ class EdusharingAPI:
         response = self.make_request('GET', url)
         if not 200 <= response.status_code < 300:
             raise RequestErrorResponseException(response)
-        response = response.json()
-        if not response['pagination']['count'] == response['pagination']['total']:
+        content = response.json()
+        if not content['pagination']['count'] == content['pagination']['total']:
             raise RequestErrorResponseException(response, 'Too many groups')
-        return response['groups']
+        return content['groups']
 
     def create_group(self, group_name: str):
         url = f'/iam/v1/groups/-home-/{group_name}'
@@ -412,7 +412,7 @@ class RequestFailedException(Exception):
 
 class RequestErrorResponseException(RequestFailedException):
     def __init__(self, response: requests.Response, context_hint: str = ''):
-        msg = f'Request failed: {response.status_code} {response.reason}: {response.text}; {context_hint}'
+        msg = f'Request failed: {context_hint}; {response.status_code} {response.reason}: {response.text}'
         super(RequestErrorResponseException, self).__init__(msg)
 
 
