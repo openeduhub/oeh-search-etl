@@ -9,6 +9,7 @@ from scrapy.cmdline import execute as scrapy_execute
 from schulcloud.util import Environment
 from schulcloud.h5p.upload import Uploader as H5PUploader
 from schulcloud.permission_updater import PermissionUpdater
+from schulcloud.oeh_importer import OehImporter
 
 
 needed_env_vars = [
@@ -160,6 +161,8 @@ def main():
         job = Job('H5P Uploader', H5PUploader().upload_from_s3, schedule)
     elif crawler == 'permission_updater':
         job = Job('Permission Updater', PermissionUpdater().run, schedule)
+    elif crawler == 'oeh_importer':
+        job = Job('OEH Importer', OehImporter().run, schedule)
     elif crawler.endswith('spider'):
         job = Job(
             f'Crawler {crawler}',
