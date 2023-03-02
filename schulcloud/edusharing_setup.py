@@ -89,11 +89,8 @@ def temporary_setup():
     file = open('schulcloud/es_users.json')
     obj = json.load(file)
     file.close()
-    json_users = obj['users']
     groups = obj['groups']
-    users = []
-    for json_user in json_users:
-        users.append(User(json_user[0], json_user[1], json_user[2], json_user[3]))
+    users = [User(user[0], user[1], user[2], user[3]) for user in obj['users']]
     EdusharingSetup().run(users, groups)
 
 
