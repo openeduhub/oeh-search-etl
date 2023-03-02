@@ -20,6 +20,7 @@ class Uploader:
                    5511102, 5511106, 5511123, 5511128, 5511138, 5511184, 5511356, 5521211, 5521227, 5521287, 5521289,
                    5521310, 5521344, 5521345, 5521348, 5521354, 5521366, 5521370, 5521405, 5521408, 5521411, 5521413,
                    5521415, 5521418, 5521427]
+    # ToDo: Delete after clarification of the new URL and test the target-link in the lern-store
     instance_url = "https://brandenburg.cloud/"
 
     def __init__(self):
@@ -61,8 +62,7 @@ class Uploader:
             keywords = ['FWU', title]
             license = "COPYRIGHT_LICENSE"
             publisher = 'FWU Institut für Film und Bild in Wissenschaft und Unterricht gemeinnützige GmbH'
-            # ToDo: Add the right URL, if the route of the fwu-service on schulcloud-server is constant!
-            target_url = f'{self.instance_url}api/v3/FWU/{key}'
+            target_url = f'{self.instance_url}api/v3/fwu/{key}'
 
             # Upload the metadata to Edu-Sharing
             es_folder = self.setup_destination_folder('FWU')
