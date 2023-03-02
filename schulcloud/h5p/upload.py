@@ -1,4 +1,3 @@
-
 import os
 import sys
 import uuid
@@ -13,7 +12,6 @@ import boto3
 from schulcloud import util
 from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException
 from schulcloud.h5p.metadata import MetadataFile, Metadata, Collection
-
 
 EXPECTED_ENV_VARS = [
     'EDU_SHARING_BASE_URL',
@@ -36,6 +34,10 @@ GROUPS_EXCEL_TO_ES = {
 
 def escape_filename(filename: str):
     return re.sub(r'[,;:\'="@$%/\\{}]', '_', filename)
+
+
+def create_replicationsourceid(name: str):
+    return hashlib.sha1(name.encode()).hexdigest()
 
 
 def generate_node_properties(
@@ -62,7 +64,7 @@ def generate_node_properties(
         "cm:edu_forcemetadataset": ["true"],
         "ccm:objecttype": ["MATERIAL"],
         "ccm:replicationsource": [folder_name],
-        "ccm:replicationsourceid": [hashlib.md5(replication_source_id.encode()).hexdigest()],
+        "ccm:replicationsourceid": [create_replicationsourceid(replication_source_id)],
         "ccm:replicationsourcehash": [date],
         "ccm:replicationsourceuuid": [str(uuid.uuid5(uuid.NAMESPACE_URL, replication_source_uuid))],
         "ccm:commonlicense_key": [license],  # TODO: test whether edusharing supports multiple licenses
@@ -73,7 +75,8 @@ def generate_node_properties(
         "cclom:general_language": ["de"],
         "cclom:general_keyword": keywords,
         "ccm:create_version": ["false"],
-        "ccm:lifecyclecontributer_publisherFN": [publisher]  # TODO: test whether edusharing supports multiple publishers
+        "ccm:lifecyclecontributer_publisherFN": [publisher]
+        # TODO: test whether edusharing supports multiple publishers
     }
     return properties
 
@@ -111,6 +114,18 @@ class Uploader:
         else:
             raise MetadataNotFoundError(zip)
         return metadata_file
+
+    def collection_extists(self, collection: Collection, zip_file: ZipFile):
+        for child in collection.children:
+            file = zip_file.open(child.filepath)
+            filename = os.path.basename(child.filepath)
+            name = os.path.splitext(filename)[0]
+            rep_source_id = create_replicationsourceid(name)
+            file.close()
+            node_exists = self.api.find_node_by_replication_source_id(rep_source_id, skip_exception=True)
+            if not node_exists:
+                return False
+        return True
 
     def setup_destination_folder(self, folder_name: str):
         sync_obj = self.api.get_sync_obj_folder()
@@ -150,7 +165,7 @@ class Uploader:
 
         return node.id, properties["ccm:replicationsourceuuid"][0]
 
-    def upload_collection(self, collection: Collection, zip_file: ZipFile, es_folder: Node):
+    def upload_collection(self, collection: Collection, zip_file: ZipFile, es_folder: Node, collection_node: Node):
         # save the replicationsourceuuid, nodeId and the collection of each h5p-file corresponding to this package
         children_replication_source_uuids = []
 
@@ -160,10 +175,13 @@ class Uploader:
 
         # TODO: test whether edusharing collections supports multiple publishers/licenses
         collection_properties = generate_node_properties(
-            collection.name, collection.name, next(iter(collection.publishers)), next(iter(collection.licenses)), keywords,
+            collection.name, collection.name, next(iter(collection.publishers)), next(iter(collection.licenses)),
+            keywords,
             es_folder.name, aggregation_level=2
         )
-        collection_node = self.api.get_or_create_node(es_folder.id, collection.name)
+        if not collection_node:
+            collection_node = self.api.get_or_create_node(es_folder.id, collection.name)
+
         for property, value in collection_properties.items():
             self.api.set_property(collection_node.id, property, value)
         # permissions
@@ -191,13 +209,12 @@ class Uploader:
         except MetadataNotFoundError as exc:
             print(f'No metadata file found in {exc.zip.filename}. Skipping.', file=sys.stderr)
             return
-
         es_folder = self.setup_destination_folder(es_folder_name)
 
         for collection in metadata_file.collections:
-
-            replicationsourceid = hashlib.sha1(collection.name.encode()).hexdigest()
+            replicationsourceid = create_replicationsourceid(collection.name)
             collection_node = None
+
             try:
                 collection_node = self.api.find_node_by_replication_source_id(replicationsourceid)
             except NotFoundException as err:
@@ -207,12 +224,16 @@ class Uploader:
                 # TODO: not sure if correct
                 print(f'Found multiple nodes for collection: {collection.name}', file=sys.stderr)
                 continue
-            if collection_node and last_modified:
-                # collection already has some content, so check timestamps
-                edu_timestamp = self.api.get_node_timestamp(collection_node)
-                if edu_timestamp > last_modified:
-                    continue
-            self.upload_collection(collection, zip_file, es_folder)
+            if collection_node:
+                if not self.collection_extists(collection, zip_file):
+                    pass
+                else:
+                    if last_modified:
+                        # collection already has some content, so check timestamps
+                        edu_timestamp = self.api.get_node_timestamp(collection_node)
+                        if edu_timestamp > last_modified:
+                            continue
+            self.upload_collection(collection, zip_file, es_folder, collection_node)
 
         for single_metadata in metadata_file.single_files:
             file = zip_file.open(single_metadata.filepath)
@@ -244,18 +265,14 @@ class Uploader:
                 continue
 
             self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER)
-
             zip_path = os.path.join(TEMP_FOLDER, s3_obj['Key'])
             zip_file = ZipFile(zip_path)
 
             last_modified = s3_obj['LastModified'].replace(tzinfo=None)
-
             self.upload_zip(zip_file, folder_name, last_modified)
-
+            print(f'Upload done: {zip_file}')
             zip_file.close()
             os.remove(zip_path)
-
-            print(f'Upload done: {zip_file}')
 
     def test_upload(self):
         sync = self.api.get_sync_obj_folder()

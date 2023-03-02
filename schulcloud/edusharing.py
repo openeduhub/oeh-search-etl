@@ -227,14 +227,15 @@ class EdusharingAPI:
                 return node
         raise NotFoundException(child_name)
 
-    def find_node_by_replication_source_id(self, replication_source_id: str) -> Node:
+    def find_node_by_replication_source_id(self, replication_source_id: str, skip_exception: Optional[bool] = False) -> Node:
         nodes = self.search_custom('ccm:replicationsourceid', replication_source_id, 2, 'FILES')
         if len(nodes) == 1:
             return nodes[0]
         elif len(nodes) > 1:
             raise FoundTooManyException(replication_source_id)
         else:
-            raise NotFoundException(replication_source_id)
+            if not skip_exception:
+                raise NotFoundException(replication_source_id)
 
     def create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file', properties: Optional[Dict] = None):
         url = f'/node/v1/nodes/-home-/{parent_id}/children'
