@@ -706,6 +706,7 @@ class LisumPipeline(BasicPipeline):
         # "600": "",              # ToDo: "Sport" is not available as a Lisum Rahmenlehrplan shorthand
         "660": "B-MB",          # Verkehrserziehung -> "Mobilitätsbildung und Verkehrserziehung"
         "700": "C-SOWI",        # Wirtschaftskunde -> "Sozialwissenschaft/Wirtschaftswissenschaft"
+        "900": "B-BCM",         # Medienbildung -> "Basiscurriculum Medienbildung"
         "12002": "C-Thea",      # Darstellendes Spiel, Schultheater -> Theater
         "20001": "C-EN",        # Englisch
         "20002": "C-FR",        # Französisch
@@ -759,7 +760,6 @@ class LisumPipeline(BasicPipeline):
         "open_activity": "",  # exists in 2 out of 60.000 items
         "broadcast": "audio",
         "demonstration": ["demonstration", "image"],  # "Veranschaulichung"
-        "text": "teaching_aids",  # "Arbeitsmaterial"
     }
 
     def process_item(self, item: BaseItem, spider: scrapy.Spider) -> Optional[scrapy.Item]:
