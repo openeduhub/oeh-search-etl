@@ -18,7 +18,7 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.2.4"  # last update: 2023-02-17
+    version = "0.2.5"  # last update: 2023-03-03
     custom_settings = settings.BaseSettings({
             # playwright cause of issues with thumbnails+text for serlo
             "WEB_TOOLS": WebEngine.Playwright
@@ -33,7 +33,7 @@ class SerloSpider(scrapy.Spider, LomBase):
         # A trainer or educator with administrative authority and responsibility.
         "general public": "other",
         # The public at large.
-        "mentor": "author",
+        "mentor": "counsellor",
         # Someone who advises, trains, supports, and/or guides.
         "peer tutor": ["learner", "other"],
         # The peer learner serving as tutor of another learner.
