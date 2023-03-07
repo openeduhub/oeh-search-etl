@@ -242,7 +242,7 @@ class LicenseItem(Item):
     properties. To make sure that licenses are properly recognized by edu-sharing, make sure to provide a valid
     'url'-string and if that's not possible, set a correct 'internal'-constant. (see: constants.py)
     """
-    author = Field()
+    author = Field(output_processor=JoinMultivalues())
     """An author freetext string. (Basically, how the author should be named in case this is a 'CC-BY'-license.
     Corresponding edu-sharing property: 'ccm:author_freetext'"""
     description = Field()
