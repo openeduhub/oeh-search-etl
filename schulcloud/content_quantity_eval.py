@@ -1,6 +1,8 @@
+import time
+import traceback
 
 from schulcloud.util import Environment
-from schulcloud.edusharing import EdusharingAPI, Node
+from schulcloud.edusharing import EdusharingAPI, Node, RequestErrorResponseException
 
 
 ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
@@ -32,8 +34,14 @@ class ContentQuantityEvaluation:
             'maxItems': '1',
             'filter': 'files'
         }
-        response = self.api.make_request('GET', url, params)
-        response.raise_for_status()
+        while True:
+            try:
+                response = self.api.make_request('GET', url, params)
+                break
+            except RequestErrorResponseException:
+                traceback.print_exc()
+                time.sleep(10)
+                continue
         return response.json()['pagination']['total']
 
     def run(self):
