@@ -61,7 +61,8 @@ class OehImporter(LomBase):
             for j in range(len(nodes)):
                 node = nodes[j]
                 self.log.debug(f'{datetime.datetime.now()} {i+j} / {self.total} :: {node["ccm:replicationsource"] if "ccm:replicationsource" in node else ""} :: {node["name"]}')
-                if node['name'].endswith('.mp4'):
+                ending = node['name'].rsplit('.', 1)[-1]
+                if ending in ('mp4', 'h5p'):
                     self.log.info('skipped')
                     continue
                 self.process_node(node)
@@ -109,7 +110,8 @@ class OehImporter(LomBase):
                     item = super(OehImporter, self).parse(response_copy)
                     self.send_to_pipeline(item)
             except ApiException as exc:
-                if exc.status == 503:
+                # sometimes edusharing will return 401 "admin rights required" for all bulk.find requests
+                if exc.status in (401, 503):
                     time.sleep(10)
                     print('retry')
                     continue
