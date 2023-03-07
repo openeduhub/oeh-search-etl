@@ -1,4 +1,3 @@
-import time
 import uuid
 import hashlib
 from typing import Optional, List
@@ -20,8 +19,6 @@ class Uploader:
                    5511102, 5511106, 5511123, 5511128, 5511138, 5511184, 5511356, 5521211, 5521227, 5521287, 5521289,
                    5521310, 5521344, 5521345, 5521348, 5521354, 5521366, 5521370, 5521405, 5521408, 5521411, 5521413,
                    5521415, 5521418, 5521427]
-    # ToDo: Delete after clarification of the new URL and test the target-link in the lern-store
-    instance_url = "https://brandenburg.cloud/"
 
     def __init__(self):
         self.api = EdusharingAPI(
@@ -62,7 +59,7 @@ class Uploader:
             keywords = ['FWU', title]
             license = "COPYRIGHT_LICENSE"
             publisher = 'FWU Institut für Film und Bild in Wissenschaft und Unterricht gemeinnützige GmbH'
-            target_url = f'{self.instance_url}api/v3/fwu/{key}'
+            target_url = f'/api/v3/fwu/{key}'
 
             # Upload the metadata to Edu-Sharing
             es_folder = self.setup_destination_folder('FWU')
@@ -81,11 +78,6 @@ class Uploader:
                     self.api.set_preview_thumbnail(node_id=node.id, filename=thumbnail_bytes, type='remote')
                 except:
                     raise RuntimeError(f'Error: Can not set thumbnail.')
-
-                # ToDo: Set permissions - Works, but will be done by permission script in production
-                time.sleep(2)
-                permitted_groups = ['Brandenburg-public']
-                self.api.set_permissions(node.id, permitted_groups, False)
 
                 print(f'Successfully upload file "{title}" (FWU-{index}) to Edu-Sharing.')
 
