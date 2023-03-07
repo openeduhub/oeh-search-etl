@@ -105,8 +105,12 @@ class LicenseMapper:
                 cc_zero = result_dict.get("CC_ZERO")
                 public_domain = result_dict.get("PDM")
                 if cc_zero:
+                    logging.debug(f"LicenseMapper: Fallback to 'license.internal' for '{license_string}' successful: "
+                                  f"CC_0")
                     return "CC_0"
                 if public_domain:
+                    logging.debug(f"Licensemapper: Fallback to 'license.internal' for '{license_string}' successful: "
+                                  f"Public Domain ")
                     return "PDM"
                 if cc_type:
                     cc_string_internal: str = f"CC_{result_dict.get('CC_TYPE')}".upper()
@@ -114,6 +118,8 @@ class LicenseMapper:
                         cc_string_internal = cc_string_internal.replace("-", "_")
                         cc_string_internal = cc_string_internal.replace(" ", "_")
                     if cc_string_internal in Constants.LICENSE_MAPPINGS_INTERNAL:
+                        logging.debug(f"LicenseMapper: Fallback to 'license.internal' for '{license_string}' successful: "
+                                      f"{cc_string_internal}")
                         return cc_string_internal
                     else:
                         logging.debug(
@@ -172,7 +178,7 @@ class LicenseMapper:
                 elif cc_type:
                     logging.debug(
                         f"LicenseMapper: Couldn't recognize a (valid) CC Version within {license_string} - "
-                        f"Trying fallback method..."
+                        f"Trying fallback method for 'license.internal' next..."
                     )
                     return None
         else:
