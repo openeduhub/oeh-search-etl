@@ -10,6 +10,7 @@ from schulcloud.util import Environment
 from schulcloud.h5p.upload import Uploader as H5PUploader
 from schulcloud.fwu.upload_fwu import Uploader as FWU_Uploader
 from schulcloud.permission_updater import PermissionUpdater
+from schulcloud.oeh_importer import OehImporter
 
 
 needed_env_vars = [
@@ -164,6 +165,8 @@ def main():
         job = Job('FWU Uploader', FWU_Uploader().upload, schedule)
     elif crawler == 'permission_updater':
         job = Job('Permission Updater', PermissionUpdater().run, schedule)
+    elif crawler == 'oeh_importer':
+        job = Job('OEH Importer', OehImporter().run, schedule)
     elif crawler.endswith('spider'):
         job = Job(
             f'Crawler {crawler}',
