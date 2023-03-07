@@ -26,7 +26,6 @@ class OEHSpider(EduSharingBase):
         base = EduSharingBase.getBase(self, response)
         return base
 
-
     def getLOMTechnical(self, response):
         technical = EduSharingBase.getLOMTechnical(self, response)
         if "ccm:wwwurl" in response.meta["item"]["properties"]:
@@ -73,7 +72,5 @@ class OEHSpider(EduSharingBase):
         permissions = LomBase.getPermissions(self, response)
 
         permissions.replace_value("public", False)
-        permissions.add_value("autoCreateGroups", True)
-        permissions.add_value("groups", ["public"])
 
         return permissions

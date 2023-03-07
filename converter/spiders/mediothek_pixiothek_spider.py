@@ -172,10 +172,10 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         element_dict = response.meta["item"]
         permissions.replace_value('public', False)
         if "oeffentlich" in element_dict and element_dict["oeffentlich"] == "0":  # private
-            permissions.add_value('groups', ['Thuringia-private'])
+            permissions.add_value('groups', ['Thuringia'])
             # permissions.add_value('mediacenters', [self.name])  # only 1 mediacenter.
         else:
-            permissions.add_value('groups', ['Thuringia-public'])
+            permissions.add_value('groups', ['public'])
 
         return permissions
 
