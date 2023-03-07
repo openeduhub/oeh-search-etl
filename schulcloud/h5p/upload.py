@@ -41,6 +41,10 @@ def escape_filename(filename: str):
 
 
 def create_replicationsourceid(name: str):
+    """
+    Return replicationsoureceID with SHA1 encryption.
+    @param name: Name of the replicationsource
+    """
     return hashlib.sha1(name.encode()).hexdigest()
 
 
@@ -140,6 +144,11 @@ class Uploader:
         return metadata_file
 
     def collection_extists(self, collection: Collection, zip_file: ZipFile):
+        """
+        Return true, if the collection exists already on Edu-Sharing.
+        @param collection: Node of collection
+        @param zip_file: File as zip.
+        """
         for child in collection.children:
             file = zip_file.open(child.filepath)
             filename = os.path.basename(child.filepath)
