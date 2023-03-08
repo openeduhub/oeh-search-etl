@@ -7,7 +7,8 @@ from schulcloud.edusharing import EdusharingAPI, NotFoundException
 from schulcloud.util import Environment
 
 
-ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
+ADMIN_GROUP = 'ALFRESCO_ADMINISTRATORS'
+ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD', 'SETUP_CONFIG_PATH']
 
 
 @dataclass
@@ -19,17 +20,10 @@ class User:
 
 
 class EdusharingSetup:
-    def __init__(self):
-        self.env = Environment(ENV_VARS, ask_for_missing=True)
-        self.api = EdusharingAPI(
-            self.env['EDU_SHARING_BASE_URL'],
-            self.env['EDU_SHARING_USERNAME'],
-            self.env['EDU_SHARING_PASSWORD'])
+    def __init__(self, es_url: str, user: str, password: str):
+        self.api = EdusharingAPI(es_url, user, password)
 
     def _add_metadata_sets(self):
-        """
-        Add required metadataSets MDS and MDS_OEH to new Edu-Sharing instance.
-        """
         xml_name = 'homeApplication.properties.xml'
         key, value = 'metadatasetsV2', 'mds,mds_oeh'
         properties = self.api.get_application_properties(xml_name)
@@ -38,12 +32,6 @@ class EdusharingSetup:
             self.api.set_application_properties(xml_name, properties)
 
     def _add_users_and_groups(self, users: List[User], groups: Set[str]):
-        """
-        Add all required users, groups and the relation between users and groups to new Edu-Sharing instance.
-        Requirement: All groups within "users" must also be within "groups"
-        @param users: List of Edu-Sharing Users
-        @param groups: Set of Edu-Sharing groups
-        """
         existing_usernames = [user['userName'] for user in self.api.get_users()]
 
         for user in users:
@@ -54,6 +42,12 @@ class EdusharingSetup:
                 print(f'User already exists: {user.name}')
 
         existing_groupnames = [group['groupName'] for group in self.api.get_groups()]
+
+        # handle admin group
+        existing_groupnames.append(ADMIN_GROUP)
+        for user in users:
+            if user.type == 'system' and ADMIN_GROUP not in user.groups:
+                user.groups.append(ADMIN_GROUP)
 
         for group in groups:
             if group not in existing_groupnames:
@@ -69,10 +63,6 @@ class EdusharingSetup:
                     self.api.group_add_user(group, user.name)
 
     def _upload_color_picker(self):
-        """
-        The color picker h5p content contains the color picker library needed for other h5p items, which will be
-        automatically installed by Edu-Sharing after upload.
-        """
         colorpicker_path = 'schulcloud/update_colorpicker.h5p'
         colorpicker_name = os.path.basename(colorpicker_path)
         try:
@@ -83,39 +73,34 @@ class EdusharingSetup:
             self.api.upload_content(node.id, colorpicker_name, file)
             file.close()
 
-    def run(self, users: List[User], groups: List[str]):
-        """
-        Run the MetadataSets, User & Groups and the colorpicker-update.
-        @param users: List of Edu-Sharing Users
-        @param groups: List of Edu-Sharing groups
-        """
-        groups = set(groups)
+    def run(self, users: List[User], other_groups: List[str]):
+        other_groups = set(other_groups)
         for user in users:
             for group in user.groups:
-                groups.add(group)
+                other_groups.add(group)
 
         self._add_metadata_sets()
-        self._add_users_and_groups(users, groups)
+        self._add_users_and_groups(users, other_groups)
         self._upload_color_picker()
 
 
-def temporary_setup():
-    file = open('schulcloud/es_users.json')
+def main():
+    env = Environment(ENV_VARS, ask_for_missing=False)
+
+    # look into es_users.example.json for how a config file should look like
+    file = open(env['SETUP_CONFIG_PATH'])
     obj = json.load(file)
     file.close()
     groups = obj['groups']
     users = [User(user[0], user[1], user[2], user[3]) for user in obj['users']]
-    EdusharingSetup().run(users, groups)
 
-
-def example():
-    # users and groups should be taken from 1password
-    users: List[User] = [
-        User('BrandenburgUser', 'test123', 'function', ['Brandenburg-public, Brandenburg-private'])
-    ]
-    other_groups = ['public']
-    EdusharingSetup().run(users, other_groups)
+    setup = EdusharingSetup(
+        env['EDU_SHARING_BASE_URL'],
+        env['EDU_SHARING_USERNAME'],
+        env['EDU_SHARING_PASSWORD']
+    )
+    setup.run(users, groups)
 
 
 if __name__ == '__main__':
-    temporary_setup()
+    main()

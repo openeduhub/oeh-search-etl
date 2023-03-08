@@ -1,6 +1,6 @@
 import time
 from datetime import datetime
-from typing import Dict, List, Literal, Optional, IO, Any
+from typing import Dict, List, Literal, Optional, IO, Any, Callable
 
 import requests
 import requests.auth
@@ -98,6 +98,27 @@ class EdusharingAPI:
                 continue
             return response
 
+    def get_all(self, url: str, params: Dict[str, str], callback: Callable, max_items: int, retry: int = 50, timeout: Optional[float] = None):
+        offset = 0
+        items = []
+        params['maxItems'] = str(max_items)
+        while True:
+            params['skipCount'] = str(offset)
+            response = self.make_request('GET', url, params, retry=retry, timeout=timeout)
+            if response.status_code == 200:
+                try:
+                    content = response.json()
+                    callback(items, content)
+                    offset += content['pagination']['count']
+                    total = content['pagination']['total']
+                except KeyError:
+                    raise RuntimeError(f'Could not parse response: {response.text}')
+                if offset >= total:
+                    break
+            else:
+                raise RequestErrorResponseException(response)
+        return items
+
     def get_application_properties(self, xml_file_name: str):
         """
         Return the properties of the application.
@@ -158,13 +179,8 @@ class EdusharingAPI:
         """
         url = f'/iam/v1/people/-home-'
         params = {'pattern': '*'}
-        response = self.make_request('GET', url, params=params)
-        if not response.status_code == 200:
-            raise RequestErrorResponseException(response)
-        content = response.json()
-        if not content['pagination']['count'] == content['pagination']['total']:
-            raise RequestErrorResponseException(response, 'Too many users')
-        return content['users']
+        users = self.get_all(url, params, lambda items, content: items.extend(content['users']), 20)
+        return users
 
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024 ** 2):
         """
@@ -209,13 +225,8 @@ class EdusharingAPI:
         @param username: Name of the User
         """
         url = f'/iam/v1/people/-home-/{username}/memberships'
-        response = self.make_request('GET', url)
-        if not 200 <= response.status_code < 300:
-            raise RequestErrorResponseException(response)
-        content = response.json()
-        if not content['pagination']['count'] == content['pagination']['total']:
-            raise RequestErrorResponseException(response, 'Too many groups')
-        return content['groups']
+        groups = self.get_all(url, {}, lambda items, content: items.extend(content['groups']), 50)
+        return groups
 
     def create_group(self, group_name: str):
         """
@@ -237,14 +248,9 @@ class EdusharingAPI:
         Returns the groups.
         """
         url = f'/iam/v1/groups/-home-/'
-        params = {'pattern': '*', 'maxItems': 1024}
-        response = self.make_request('GET', url, params=params)
-        if not response.status_code == 200:
-            raise RequestErrorResponseException(response)
-        response = response.json()
-        if not response['pagination']['count'] == response['pagination']['total']:
-            raise RequestErrorResponseException(response, 'Too many groups')
-        return response['groups']
+        params = {'pattern': '*'}
+        groups = self.get_all(url, params, lambda items, content: items.extend(content['groups']), 256)
+        return groups
 
     def group_add_user(self, group_name: str, user_name: str):
         """
@@ -266,30 +272,14 @@ class EdusharingAPI:
         @param type: Type of the children - all, file or folder
         """
         url = f'/node/v1/nodes/-home-/{node_id}/children'
-        params = {'maxItems': '200'}
+        params = {}
         if all_properties:
             params['propertyFilter'] = '-all-'
         if not type == 'all':
             if type not in ('files', 'folders'):
                 raise ValueError(f'Unknown node type: {type}')
             params['filter'] = type
-        offset = 0
-        children = []
-        while True:
-            params['skipCount'] = str(offset)
-            response = self.make_request('GET', url, params)
-            if response.status_code == 200:
-                content = response.json()
-                try:
-                    children += [Node(node) for node in content['nodes']]
-                    offset += content['pagination']['count']
-                    total = content['pagination']['total']
-                except KeyError:
-                    raise RuntimeError(f'Could not parse response: {response.text}')
-                if offset >= total:
-                    break
-            else:
-                raise RequestErrorResponseException(response)
+        children = self.get_all(url, params, lambda items, content: items.extend([Node(node) for node in content['nodes']]), 200)
         return children
 
     def find_node_by_name(self, parent_id: str, child_name: str) -> Node:

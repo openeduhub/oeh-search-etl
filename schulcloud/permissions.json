@@ -7,8 +7,9 @@
     },
     {
       "path": "SYNC_OBJ/merlin_spider",
+      "comment": "content in this folder has explicit permissions from crawler",
       "inherit": false,
-      "permitted_groups": ["LowerSaxony"]
+      "permitted_groups": []
     },
     {
       "path": "SYNC_OBJ/mediothek_pixiothek_spider",
