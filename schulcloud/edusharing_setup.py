@@ -7,6 +7,7 @@ from schulcloud.edusharing import EdusharingAPI, NotFoundException
 from schulcloud.util import Environment
 
 
+ADMIN_GROUP = 'ALFRESCO_ADMINISTRATORS'
 ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD', 'SETUP_CONFIG_PATH']
 
 
@@ -43,6 +44,12 @@ class EdusharingSetup:
                 print(f'User already exists: {user.name}')
 
         existing_groupnames = [group['groupName'] for group in self.api.get_groups()]
+
+        # handle admin group
+        existing_groupnames.append(ADMIN_GROUP)
+        for user in users:
+            if user.type == 'system' and ADMIN_GROUP not in user.groups:
+                user.groups.append(ADMIN_GROUP)
 
         for group in groups:
             if group not in existing_groupnames:
