@@ -29,11 +29,6 @@ class FWUSpider(CrawlSpider, LomBase):
     # name = 'fwu_spider'
     friendlyName = 'FWU'
     version = '0.1'
-    s3_url = env.get('S3_ENDPOINT_URL')
-    s3_access_key = env.get('S3_ACCESS_KEY')
-    s3_secret_key = env.get('S3_SECRET_KEY')
-    s3_bucket = env.get('S3_BUCKET_NAME')
-    download_delay = float(env.get('SODIX_DOWNLOAD_DELAY', default='0.5'))
     files_index = [5501191, 5501193, 5501202, 5501207, 5501211, 5501213, 5501219, 5501222, 5501224, 5501225, 5501234,
                    5501235, 5501238, 5501239, 5501245, 5501248, 5501252, 5501259, 5501267, 5501454, 5501458, 5501460,
                    5501472, 5501478, 5501588, 5501595, 5501597, 5501630, 5501638, 5501649, 5501655, 5501656, 5501657,
@@ -45,6 +40,11 @@ class FWUSpider(CrawlSpider, LomBase):
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
+        self.s3_url = env.get('S3_ENDPOINT_URL')
+        self.s3_access_key = env.get('S3_ACCESS_KEY')
+        self.s3_secret_key = env.get('S3_SECRET_KEY')
+        self.s3_bucket = env.get('S3_BUCKET_NAME')
+        self.download_delay = float(env.get('SODIX_DOWNLOAD_DELAY', default='0.5'))
 
     def start_requests(self):
         yield self.make_request()
