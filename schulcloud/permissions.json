@@ -4229,11 +4229,9 @@
     },
     {
       "path": "SYNC_OBJ/FWU",
-      "comment": "FWU",
       "inherit": false,
       "permitted_groups": [
-        "Brandenburg",
-        "Brandenburg-public"
+        "Brandenburg"
       ]
     }
   ]
