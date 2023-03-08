@@ -4,9 +4,8 @@ on:
   push:
     # branches:
     # - main
-    paths:
-      - 'charts'
-  workflow_dispatch:
+    #paths:
+    #  - 'charts'
 
 jobs:
   release:
