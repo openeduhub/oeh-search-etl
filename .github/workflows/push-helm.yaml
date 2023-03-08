@@ -1,0 +1,43 @@
+name: Push Helm
+on:
+  push:
+    # branches:
+    # - main
+
+jobs:
+  push-helm-chart:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Chart Checkout
+        uses: actions/checkout@v2
+      - name: Helm Installation
+        uses: azure/setup-helm@v1.1
+        with:
+          version: v3.7.0
+      - name: Helm Repository Checkout
+        uses: actions/checkout@v2
+        with:
+          repository: hpi-schul-cloud/helm-charts-registry
+          token: ${{ secrets.TOKEN_INVENTORY }}
+          fetch-depth: 0
+          persist-credentials: true
+          ref: main
+          path: helm-charts-registry
+      - name: Prepare Helm Chart
+        run:  |
+          helm package charts/edusharing-crawler -d helm-charts-registry
+          cd helm-charts-registry
+          if [ -d "automation/edusharing-crawler" ]; then rm -r automation/edusharing-crawler; fi
+          ls *.tgz |xargs -n1 tar -xzf
+          mv edusharing-crawler automation/edusharing-crawler
+      - name: Push Helm Chart
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN_INVENTORY }}
+        run: |
+          git config --global user.email "oeh-search-etl-gha@dbildungscloud.com"
+          git config --global user.name "oeh-search-etl-gha"
+          CHART_PACKAGE_NAME="edusharing-crawler"
+          cd helm-charts-registry/automation
+          git add "$CHART_PACKAGE_NAME"
+          git commit -m "$CHART_PACKAGE_NAME"
+          git push origin main

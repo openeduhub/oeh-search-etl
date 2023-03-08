@@ -1,0 +1,31 @@
+{{- $env := $.Values.env }}
+{{- if .env }}
+  {{- $env = concat $env .env }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "edusharing-crawler.name" . }}
+  labels:
+    {{- include "edusharing-crawler.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "edusharing-crawler.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edusharing-crawler.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name:  {{ include "edusharing-crawler.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with $env }}
+          env:
+            {{- toYaml . | nindent 16 }}
+        {{- end }}
