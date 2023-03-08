@@ -7,7 +7,7 @@ import boto3
 import converter.env as env
 from bs4 import BeautifulSoup
 
-from schulcloud.edusharing import EdusharingAPI
+from schulcloud.edusharing import EdusharingAPI, NotFoundException
 
 
 class Uploader:
@@ -67,7 +67,13 @@ class Uploader:
                                                   replication_source_id=title, hpi_searchable=True, license=license,
                                                   publisher=publisher, url=target_url)
 
-            if not self.api.file_exists_by_name(title):
+            node = None
+            try:
+                node = self.api.find_node_by_name(es_folder.id, title)
+            except NotFoundException:
+                pass
+
+            if not node:
                 node = self.api.get_or_create_node(es_folder.id, title, properties=properties)
 
                 for property, value in properties.items():
