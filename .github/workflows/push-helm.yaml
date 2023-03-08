@@ -1,43 +1,49 @@
-name: Push Helm
+name: Release Charts
+
 on:
   push:
     # branches:
     # - main
+    paths:
+      - 'charts'
+  workflow_dispatch:
 
 jobs:
-  push-helm-chart:
-    runs-on: ubuntu-20.04
+  release:
+    runs-on: ubuntu-latest
     steps:
-      - name: Chart Checkout
-        uses: actions/checkout@v2
-      - name: Helm Installation
-        uses: azure/setup-helm@v1.1
+      # https://github.com/actions/checkout 
+      - name: Checkout
+        uses: actions/checkout@v3.3.0
         with:
-          version: v3.7.0
-      - name: Helm Repository Checkout
-        uses: actions/checkout@v2
-        with:
-          repository: hpi-schul-cloud/helm-charts-registry
-          token: ${{ secrets.TOKEN_INVENTORY }}
           fetch-depth: 0
-          persist-credentials: true
-          ref: main
-          path: helm-charts-registry
-      - name: Prepare Helm Chart
-        run:  |
-          helm package charts/edusharing-crawler -d helm-charts-registry
-          cd helm-charts-registry
-          if [ -d "automation/edusharing-crawler" ]; then rm -r automation/edusharing-crawler; fi
-          ls *.tgz |xargs -n1 tar -xzf
-          mv edusharing-crawler automation/edusharing-crawler
-      - name: Push Helm Chart
-        env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN_INVENTORY }}
+
+      - name: Configure Git
         run: |
-          git config --global user.email "oeh-search-etl-gha@dbildungscloud.com"
-          git config --global user.name "oeh-search-etl-gha"
-          CHART_PACKAGE_NAME="edusharing-crawler"
-          cd helm-charts-registry/automation
-          git add "$CHART_PACKAGE_NAME"
-          git commit -m "$CHART_PACKAGE_NAME"
-          git push origin main
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      # 
+      # https://github.com/Azure/setup-helm
+      # Acceptable values for version are latest or any semantic version string like v2.16.7 Use this action in workflow to define which version of helm will be used.
+      #
+      - name: Install Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: 3.5.0 #renovate: datasource=github-releases depName=helm/helm
+
+      #- name: Add external Helm repos
+      #  run: helm repo add bitnami https://charts.bitnami.com/bitnami
+
+      # No chart dependencies to build. So left out here.
+
+      # https://github.com/helm/chart-releaser-action
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.2.1
+        with:
+          version: v1.2.1
+          charts_dir: charts
+          # config:
+          charts_repo_url: https://hpi-schul-cloud.github.io/helm-charts-registry
+        env:
+          CR_TOKEN: '${{ secrets.GITHUB_TOKEN }}'

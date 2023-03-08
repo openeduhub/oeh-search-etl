@@ -8,102 +8,14 @@ image:
 nameOverride: ""
 fullnameOverride: ""
 
-resources: {}
-  # limits:
-  #   cpu: 1000m
-  #   memory: 1024Mi
-  # requests:
-  #   cpu: 500m
-  #   memory: 512Mi
-
-# DO NOT FORGET TO SET UP SPLASH FOR CRAWLER TO WORK
-
-# ENVs depend on crawler, however these are always required:
-#   CRAWLER, SCHEDULE, LOG_LEVEL; EDU_SHARING_BASE_URL, EDU_SHARING_USERNAME, EDU_SHARING_PASSWORD
-env:
-- name: CRAWLER
-  value: hello_world
-- name: SCHEDULE
-  value: "*-*-13:30"
-- name: LOG_LEVEL
-  value: "INFO"
-# - name: EDU_SHARING_BASE_URL
-#   valueFrom:
-#     secretKeyRef:
-#       name: edusharing-secret
-#       key: url
-# - name: EDU_SHARING_USERNAME
-#   valueFrom:
-#     secretKeyRef:
-#       name: edusharing-secret
-#       key: username
-# - name: EDU_SHARING_PASSWORD
-#   valueFrom:
-#     secretKeyRef:
-#       name: edusharing-secret
-#       key: password
-
-# extra envs for:
-#    - mediothek_pixiothek-spider
-#    - merlin_spider
-#    - sodix_spider
-# env:
-# - name: SPLASH_URL
-#   value: splash_url
-# - name: DRY_RUN
-#   value: "False"
-# - name: SODIX_USER
-#   valueFrom:
-#     secretKeyRef:
-#       name: sodix_secret_name
-#       key: username
-# - name: SODIX_PASSWORD
-#   valueFrom:
-#     secretKeyRef:
-#       name: sodix_secret_name
-#       key: password
-
-# extra envs for:
-#    - oeh_spider
-# env:
-# - name: DRY_RUN
-#   value: "False"
-# - name: SPLASH_URL
-#   value: splash_url
-# - name: OEH_IMPORT_SOURCES
-#   value: "oeh,wirlernenonline_spider,serlo_spider,youtube_spider"
-# - name: SODIX_USER
-#   valueFrom:
-#     secretKeyRef:
-#       name: sodix_secret_name
-#       key: username
-# - name: SODIX_PASSWORD
-#   valueFrom:
-#     secretKeyRef:
-#       name: sodix_secret_name
-#       key: password
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+  requests:
+    cpu: 500m
+    memory: 512Mi
 
 
-# extra envs for:
-#    - permission_updater
-
-
-# extra envs for:
-#     - h5p_upload
-# env:
-# - name: S3_ACCESS_KEY
-#   valueFrom:
-#     secretKeyRef:
-#       name: s3-secret
-#       key: s3_access_key
-# - name: S3_SECRET_KEY
-#   valueFrom:
-#     secretKeyRef:
-#       name: s3-secret
-#       key: s3_access_secret
-# - name: S3_ENDPOINT_URL
-#   value: http://s3-enpoint/
-# - name: S3_BUCKET_NAME
-#   value: some-bucket-name
-# - name: S3_DOWNLOAD_DIRECTORY
-#   value: s3_download
+# -- Set environment variables for crawler
+env: {}
