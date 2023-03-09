@@ -45,4 +45,4 @@ jobs:
           # config:
           charts_repo_url: https://hpi-schul-cloud.github.io/helm-charts-registry
         env:
-          CR_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          CR_TOKEN: '${{ secrets.TOKEN_INVENTORY }}'
