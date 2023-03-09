@@ -1,0 +1,21 @@
+image:
+  repository: ghcr.io/hpi-schul-cloud/oeh-search-etl
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion.
+  # Tag anpassen
+  tag: "0.1.4"
+
+nameOverride: ""
+fullnameOverride: ""
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+
+# -- Set environment variables for crawler
+env: {}
