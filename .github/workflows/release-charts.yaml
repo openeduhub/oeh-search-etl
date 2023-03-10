@@ -1,4 +1,4 @@
-name: Push Charts to 
+name: Push Charts to helm-charts-registry
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
       # Acceptable values for version are latest or any semantic version string like v2.16.7 Use this action in workflow to define which version of helm will be used.
       #
       - name: Install Helm
-        uses: azure/setup-helm@v1
+        uses: azure/setup-helm@v3
         with:
           version: 3.5.0 #renovate: datasource=github-releases depName=helm/helm
 
