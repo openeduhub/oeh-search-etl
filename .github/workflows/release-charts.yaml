@@ -1,4 +1,4 @@
-name: Release Charts
+name: Push Charts to 
 
 on:
   push:
@@ -31,18 +31,37 @@ jobs:
         with:
           version: 3.5.0 #renovate: datasource=github-releases depName=helm/helm
 
-      #- name: Add external Helm repos
-      #  run: helm repo add bitnami https://charts.bitnami.com/bitnami
-
-      # No chart dependencies to build. So left out here.
-
-      # https://github.com/helm/chart-releaser-action
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.2.1
+      - name: Helm Repository Checkout
+        uses: actions/checkout@v2
         with:
-          version: v1.2.1
-          charts_dir: charts
-          # config:
-          charts_repo_url: https://hpi-schul-cloud.github.io/helm-charts-registry
+          repository: hpi-schul-cloud/helm-charts-registry
+          token: ${{ secrets.TOKEN_INVENTORY }}
+          fetch-depth: 0
+          persist-credentials: true
+          ref: main
+          path: helm-charts-registry
+      - name: Prepare Helm Chart
+        run:  |
+          # edusharing-crawler
+          helm package charts/edusharing-crawler -d helm-charts-registry
+          cd helm-charts-registry
+          if [ -d "automation/edusharing-crawler" ]; then rm -r automation/edusharing-crawler; fi
+          tar -xzf edusharing-crawler*.tgz
+          mv edusharing-crawler automation/edusharing-crawler
+          # edusharing-setup
+          helm package charts/edusharing-setup -d helm-charts-registry
+          cd helm-charts-registry
+          if [ -d "automation/edusharing-setup" ]; then rm -r automation/edusharing-setup; fi
+          tar -xzf edusharing-setup*.tgz
+          mv edusharing-setup automation/edusharing-setup
+      - name: Push Helm Chart
         env:
-          CR_TOKEN: '${{ secrets.TOKEN_INVENTORY }}'
+          GITHUB_TOKEN: ${{ secrets.TOKEN_INVENTORY }}
+        run: |
+          git config --global user.email "oeh-search-etl-gha@dbildungscloud.de"
+          git config --global user.name "oeh-search-etl-gha"
+          CHART_PACKAGE_NAMES="edusharing-crawler edusharing-setup"
+          cd helm-charts-registry/automation
+          git add $CHART_PACKAGE_NAMES
+          git commit -m $CHART_PACKAGE_NAMES
+          git push origin main
