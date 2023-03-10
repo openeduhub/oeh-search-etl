@@ -1,11 +1,13 @@
 import logging
 import re
+import urllib.parse
 
 import scrapy
 from scrapy.selector import Selector
 from scrapy.spiders import CrawlSpider
 
 from .base_classes import LomBase, JSONBase
+from ..web_tools import WebEngine, WebTools
 
 
 class TutorySpider(CrawlSpider, LomBase, JSONBase):
@@ -14,10 +16,16 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
     url = "https://www.tutory.de/"
     objectUrl = "https://www.tutory.de/bereitstellung/dokument/"
     baseUrl = "https://www.tutory.de/api/v1/share/"
-    version = "0.1.3"  # last update: 2022-03-07
-    custom_settings = {"AUTOTHROTTLE_ENABLED": True, "ROBOTSTXT_OBEY": False, "AUTOTHROTTLE_DEBUG": True}
+    version = "0.1.4"  # last update: 2022-03-11
+    custom_settings = {
+        "AUTOTHROTTLE_ENABLED": True,
+        "ROBOTSTXT_OBEY": False,
+        "AUTOTHROTTLE_DEBUG": True,
+        "WEB_TOOLS": WebEngine.Playwright,
+    }
 
     api_pagesize_limit = 5000
+
     # the old API pageSize of 999999 (which was used in 2021) doesn't work anymore and throws a 502 Error (Bad Gateway).
     # Setting the pageSize to 5000 appears to be a reasonable value with an API response time of 12-15s
 
@@ -105,25 +113,61 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
 
     def getLicense(self, response=None):
         license_loader = LomBase.getLicense(self, response)
+        if "user" in response.meta["item"]:
+            user_dict: dict = response.meta["item"]["user"]
+            if "publishName" in user_dict:
+                # the 'publishName'-field seems to indicate whether the username or the full name appears on top of a
+                # worksheet as author metadata.
+                publish_decision: str = user_dict["publishName"]
+                if publish_decision == "username":
+                    if "username" in user_dict:
+                        username: str = user_dict["username"]
+                        if username:
+                            license_loader.add_value("author", username)
+                elif publish_decision == "name":
+                    # ToDo: this information could also be used for lifecycle role 'author' in a future crawler update
+                    firstname = None
+                    lastname = None
+                    if "firstname" in user_dict:
+                        firstname = user_dict.get("firstname")
+                    if "lastname" in user_dict:
+                        lastname = user_dict.get("lastname")
+                    if firstname and lastname:
+                        full_name = f"{firstname} {lastname}"
+                        license_loader.add_value("author", full_name)
         return license_loader
 
     def getLOMGeneral(self, response=None):
         general = LomBase.getLOMGeneral(self, response)
         general.add_value("title", response.meta["item"]["name"])
+        item_description = None
         if "description" in response.meta["item"]:
-            general.add_value("description", response.meta["item"]["description"])
+            item_description = response.meta["item"]["description"]
+        meta_description = response.xpath("//meta[@property='description']/@content").get()
+        meta_og_description = response.xpath("//meta[@property='og:description']/@content").get()
+        if item_description:
+            general.add_value("description", item_description)
+        elif meta_description:
+            # 1st fallback: trying to parse a description string from the header
+            general.add_value("description", meta_description)
+        elif meta_og_description:
+            # 2nd fallback: <meta property="og:description">
+            general.add_value("description", meta_og_description)
         else:
-            html = self.getUrlData(response.url)["html"]
+            html = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)["html"]
             if html:
-                data = Selector(text=html).xpath('//ul[contains(@class,"worksheet-pages")]//text()').getall()
-                cutoff = 4
-                if len(data) > cutoff:
-                    for i in range(cutoff):
-                        del data[0]
-
-                text = " ".join(data)
-                text = text[:1000]
-                general.add_value("description", text)
+                # apparently, the human-readable text is nested within
+                # <div class="eduMark"> OR <div class="noEduMark"> elements
+                edumark_combined: list[str] = (
+                    Selector(text=html)
+                    .xpath("//div[contains(@class,'eduMark')]//text()|//div[contains(@class,'noEduMark')]//text()")
+                    .getall()
+                )
+                if edumark_combined:
+                    text_combined: str = " ".join(edumark_combined)
+                    text_combined = urllib.parse.unquote(text_combined)
+                    text_combined = f"{text_combined[:1000]} [...]"
+                    general.add_value("description", text_combined)
         return general
 
     def getLOMTechnical(self, response=None):
