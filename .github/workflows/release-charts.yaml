@@ -48,6 +48,7 @@ jobs:
           if [ -d "automation/edusharing-crawler" ]; then rm -r automation/edusharing-crawler; fi
           tar -xzf edusharing-crawler*.tgz
           mv edusharing-crawler automation/edusharing-crawler
+          cd ..
           # edusharing-setup
           helm package charts/edusharing-setup -d helm-charts-registry
           cd helm-charts-registry
