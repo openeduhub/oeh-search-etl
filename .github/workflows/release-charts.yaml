@@ -13,7 +13,7 @@ jobs:
     steps:
       # https://github.com/actions/checkout 
       - name: Checkout
-        uses: actions/checkout@v3.3.0
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -32,7 +32,7 @@ jobs:
           version: 3.5.0 #renovate: datasource=github-releases depName=helm/helm
 
       - name: Helm Repository Checkout
-        uses: actions/checkout@v3.3.0
+        uses: actions/checkout@v3
         with:
           repository: hpi-schul-cloud/helm-charts-registry
           token: ${{ secrets.TOKEN_INVENTORY }}
