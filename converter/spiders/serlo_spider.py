@@ -5,8 +5,17 @@ import requests
 import scrapy
 
 from converter.constants import Constants
-from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
+from converter.items import (
+    BaseItemLoader,
+    LomBaseItemloader,
+    LomGeneralItemloader,
+    LomTechnicalItemLoader,
+    LomLifecycleItemloader,
+    LomEducationalItemLoader,
+    ValuespaceItemLoader,
+    LicenseItemLoader,
+    ResponseItemLoader,
+)
 from converter.spiders.base_classes import LomBase
 from converter.web_tools import WebEngine, WebTools
 
@@ -80,11 +89,7 @@ class SerloSpider(scrapy.Spider, LomBase):
                         """
         }
         request = requests.post(
-            url=self.API_URL,
-            headers={
-                "Content-Type": "application/json"
-            },
-            json=graphql_metadata_query_body
+            url=self.API_URL, headers={"Content-Type": "application/json"}, json=graphql_metadata_query_body
         )
         return request.json()
 
@@ -92,12 +97,7 @@ class SerloSpider(scrapy.Spider, LomBase):
         for graphql_item in self.graphql_items:
             # logging.debug(f"{graphql_item}")
             item_url = graphql_item["id"]
-            yield scrapy.Request(url=item_url,
-                                 callback=self.parse,
-                                 cb_kwargs={
-                                     "graphql_item": graphql_item
-                                 }
-                                 )
+            yield scrapy.Request(url=item_url, callback=self.parse, cb_kwargs={"graphql_item": graphql_item})
 
     def getId(self, response=None, graphql_json=None) -> str:
         # The actual URL of a learning material is dynamic and can change at any given time
@@ -139,14 +139,14 @@ class SerloSpider(scrapy.Spider, LomBase):
         # # ALL possible keys for the different Item and ItemLoader-classes can be found inside converter/items.py
         # # TODO: fill "base"-keys with values for
         # #  - thumbnail          recommended
-        base.add_value('screenshot_bytes', screenshot_bytes)
-        base.add_value('sourceId', self.getId(response, graphql_json=graphql_json))
-        base.add_value('hash', self.getHash(response, graphql_json=graphql_json))
-        base.add_value('lastModified', graphql_json["dateModified"])
+        base.add_value("screenshot_bytes", screenshot_bytes)
+        base.add_value("sourceId", self.getId(response, graphql_json=graphql_json))
+        base.add_value("hash", self.getHash(response, graphql_json=graphql_json))
+        base.add_value("lastModified", graphql_json["dateModified"])
         # thumbnail_url: str = "This string should hold the thumbnail URL"
         # base.add_value('thumbnail', thumbnail_url)
         if "publisher" in json_ld:
-            base.add_value('publisher', json_ld["publisher"])
+            base.add_value("publisher", json_ld["publisher"])
 
         lom = LomBaseItemloader()
 
@@ -156,22 +156,22 @@ class SerloSpider(scrapy.Spider, LomBase):
         # #  - coverage                       optional
         # #  - structure                      optional
         # #  - aggregationLevel               optional
-        general.add_value('identifier', graphql_json["id"])
+        general.add_value("identifier", graphql_json["id"])
         title_1st_try: str = graphql_json["headline"]
         title_fallback: str = str()
         # not all materials carry a title in the GraphQL API, therefore we're trying to grab a valid title from
         # different sources (GraphQL > (DOM) json_ld > (DOM) header > (DOM) last breadcrumb label)
         if title_1st_try:
-            general.add_value('title', title_1st_try)
+            general.add_value("title", title_1st_try)
         elif not title_1st_try:
             title_2nd_try = json_ld["name"]
             if title_2nd_try:
-                general.add_value('title', title_2nd_try)
+                general.add_value("title", title_2nd_try)
                 title_fallback = title_2nd_try
             if not title_1st_try and not title_2nd_try:
                 title_from_header = response.xpath('//meta[@property="og:title"]/@content').get()
                 if title_from_header:
-                    general.add_value('title', title_from_header)
+                    general.add_value("title", title_from_header)
                     title_fallback = title_from_header
             if "lernen mit Serlo!" in title_fallback:
                 # We assume that Strings ending with "lernen mit Serlo!" are placeholders
@@ -187,7 +187,7 @@ class SerloSpider(scrapy.Spider, LomBase):
                                 if "label" in breadcrumbs[-1]:
                                     title_breadcrumb_last_label: str = breadcrumbs[-1]["label"]
                                     if title_breadcrumb_last_label:
-                                        general.replace_value('title', title_breadcrumb_last_label)
+                                        general.replace_value("title", title_breadcrumb_last_label)
         # not all GraphQL entries have a description either, therefore we try to grab that from different sources
         # (GraphQL > JSON-LD > DOM header)
         description_1st_try = str()
@@ -195,22 +195,22 @@ class SerloSpider(scrapy.Spider, LomBase):
         if "description" in graphql_json:
             description_1st_try: str = graphql_json["description"]
             if description_1st_try:
-                general.add_value('description', description_1st_try)
+                general.add_value("description", description_1st_try)
         if not description_1st_try and "description" in json_ld:
             # some json_ld containers don't have a description either
             description_2nd_try: str = json_ld["description"]
             if description_2nd_try:
-                general.add_value('description', description_2nd_try)
+                general.add_value("description", description_2nd_try)
         elif not description_1st_try and not description_2nd_try:
             description_from_header: str = response.xpath('//meta[@name="description"]/@content').get()
             if description_from_header:
-                general.add_value('description', description_from_header)
+                general.add_value("description", description_from_header)
         in_language: list = graphql_json["inLanguage"]
-        general.add_value('language', in_language)
+        general.add_value("language", in_language)
         # ToDo: keywords would be extremely useful, but aren't supplied by neither the API / JSON_LD nor the header
         # # once we've added all available values to the necessary keys in our LomGeneralItemLoader,
         # # we call the load_item()-method to return a (now filled) LomGeneralItem to the LomBaseItemLoader
-        lom.add_value('general', general.load_item())
+        lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
         # # TODO: fill "technical"-keys with values for
@@ -219,10 +219,10 @@ class SerloSpider(scrapy.Spider, LomBase):
         # #  - installationRemarks            optional
         # #  - otherPlatformRequirements      optional
         # #  - duration                       optional (only applies to audiovisual content like videos/podcasts)
-        technical.add_value('format', 'text/html')  # e.g. if the learning object is a web-page
-        technical.add_value('location', graphql_json["id"])  # we could also use response.url here
+        technical.add_value("format", "text/html")  # e.g. if the learning object is a web-page
+        technical.add_value("location", graphql_json["id"])  # we could also use response.url here
 
-        lom.add_value('technical', technical.load_item())
+        lom.add_value("technical", technical.load_item())
 
         lifecycle = LomLifecycleItemloader()
         # # TODO: fill "lifecycle"-keys with values for
@@ -231,16 +231,16 @@ class SerloSpider(scrapy.Spider, LomBase):
         # #  - lastName                       recommended
         # #  - uuid                           optional
         if "publisher" in json_ld:
-            lifecycle.add_value('organization', "Serlo Education e. V.")
-            lifecycle.add_value('role', 'publisher')  # supported roles: "author" / "editor" / "publisher"
+            lifecycle.add_value("organization", "Serlo Education e. V.")
+            lifecycle.add_value("role", "publisher")  # supported roles: "author" / "editor" / "publisher"
             # for available roles mapping, please take a look at converter/es_connector.py
-            lifecycle.add_value('url', json_ld["publisher"])
-            lifecycle.add_value('email', "de@serlo.org")
+            lifecycle.add_value("url", json_ld["publisher"])
+            lifecycle.add_value("email", "de@serlo.org")
             for language_item in in_language:
                 if language_item == "en":
-                    lifecycle.replace_value('email', "en@serlo.org")
-        lifecycle.add_value('date', graphql_json["dateCreated"])
-        lom.add_value('lifecycle', lifecycle.load_item())
+                    lifecycle.replace_value("email", "en@serlo.org")
+        lifecycle.add_value("date", graphql_json["dateCreated"])
+        lom.add_value("lifecycle", lifecycle.load_item())
 
         educational = LomEducationalItemLoader()
         # # TODO: fill "educational"-keys with values for
@@ -251,9 +251,9 @@ class SerloSpider(scrapy.Spider, LomBase):
         # #  - typicalAgeRange                optional
         # #  - difficulty                     optional
         # #  - typicalLearningTime            optional
-        educational.add_value('language', in_language)
+        educational.add_value("language", in_language)
 
-        lom.add_value('educational', educational.load_item())
+        lom.add_value("educational", educational.load_item())
 
         # classification = LomClassificationItemLoader()
         # # TODO: fill "classification"-keys with values for
@@ -264,10 +264,10 @@ class SerloSpider(scrapy.Spider, LomBase):
         # #  - keyword                        optional
         # lom.add_value('classification', classification.load_item())
 
-        base.add_value('lom', lom.load_item())
+        base.add_value("lom", lom.load_item())
 
         vs = ValuespaceItemLoader()
-        vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
+        vs.add_value("new_lrt", Constants.NEW_LRT_MATERIAL)
         # # for possible values, either consult https://vocabs.openeduhub.de
         # # or take a look at https://github.com/openeduhub/oeh-metadata-vocabs
         # # TODO: fill "valuespaces"-keys with values for
@@ -286,11 +286,11 @@ class SerloSpider(scrapy.Spider, LomBase):
             for audience_item in json_ld["audience"]:
                 edu_audience_role = audience_item["prefLabel"]["en"]
                 if edu_audience_role == "professional":
-                    vs.add_value('educationalContext', ["Further Education", "vocational education"])
+                    vs.add_value("educationalContext", ["Further Education", "vocational education"])
                 if edu_audience_role in self.EDU_AUDIENCE_ROLE_MAPPING.keys():
                     edu_audience_role = self.EDU_AUDIENCE_ROLE_MAPPING.get(edu_audience_role)
                 intended_end_user_roles.append(edu_audience_role)
-            vs.add_value('intendedEndUserRole', intended_end_user_roles)
+            vs.add_value("intendedEndUserRole", intended_end_user_roles)
             # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl)
 
         if "about" in json_ld and len(json_ld["about"]) != 0:
@@ -306,34 +306,34 @@ class SerloSpider(scrapy.Spider, LomBase):
                     discipline_en: str = list_item["prefLabel"]["en"]
                     disciplines.append(discipline_en)
             if len(disciplines) > 0:
-                vs.add_value('discipline', disciplines)
+                vs.add_value("discipline", disciplines)
                 # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/discipline.ttl)
             # if the json_ld doesn't hold a discipline value for us, we'll try to grab the discipline from the url path
         else:
             if "/mathe/" in response.url:
-                vs.add_value('discipline', "Mathematik")
+                vs.add_value("discipline", "Mathematik")
             if "/biologie/" in response.url:
-                vs.add_value('discipline', "Biologie")
+                vs.add_value("discipline", "Biologie")
             if "/chemie/" in response.url:
-                vs.add_value('discipline', "Chemie")
+                vs.add_value("discipline", "Chemie")
             if "/nachhaltigkeit/" in response.url:
-                vs.add_value('discipline', "Nachhaltigkeit")
+                vs.add_value("discipline", "Nachhaltigkeit")
             if "/informatik/" in response.url:
-                vs.add_value('discipline', "Informatik")
-        vs.add_value('containsAdvertisement', 'No')
+                vs.add_value("discipline", "Informatik")
+        vs.add_value("containsAdvertisement", "No")
         # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/containsAdvertisement.ttl)
         # serlo doesn't want to distract learners with ads, therefore we can set it by default to 'no'
         if graphql_json["isAccessibleForFree"] is True:
             # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/price.ttl)
-            vs.add_value('price', 'no')
+            vs.add_value("price", "no")
         elif graphql_json["isAccessibleForFree"] is False:
             # only set the price to "kostenpflichtig" if it's explicitly stated, otherwise we'll leave it empty
-            vs.add_value('price', 'yes')
+            vs.add_value("price", "yes")
         if graphql_json["learningResourceType"]:
             # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/learningResourceType.ttl)
-            vs.add_value('learningResourceType', graphql_json["learningResourceType"])
+            vs.add_value("learningResourceType", graphql_json["learningResourceType"])
 
-        base.add_value('valuespaces', vs.load_item())
+        base.add_value("valuespaces", vs.load_item())
 
         lic = LicenseItemLoader()
         # # TODO: fill "license"-keys with values for
@@ -341,18 +341,18 @@ class SerloSpider(scrapy.Spider, LomBase):
         # #  - expirationDate                 optional (for content that expires, e.g. ÖR-Mediatheken)
         license_url = graphql_json["license"]["id"]
         if license_url:
-            lic.add_value('url', license_url)
-        base.add_value('license', lic.load_item())
+            lic.add_value("url", license_url)
+        base.add_value("license", lic.load_item())
 
         permissions = super().getPermissions(response)
-        base.add_value('permissions', permissions.load_item())
+        base.add_value("permissions", permissions.load_item())
 
         response_loader = ResponseItemLoader()
-        response_loader.replace_value('headers', response.headers)
-        response_loader.replace_value('html', html_body)
-        response_loader.replace_value('status', response.status)
-        response_loader.replace_value('text', html_text)
-        response_loader.replace_value('url', self.getUri(response))
-        base.add_value('response', response_loader.load_item())
+        response_loader.replace_value("headers", response.headers)
+        response_loader.replace_value("html", html_body)
+        response_loader.replace_value("status", response.status)
+        response_loader.replace_value("text", html_text)
+        response_loader.replace_value("url", self.getUri(response))
+        base.add_value("response", response_loader.load_item())
 
         yield base.load_item()
