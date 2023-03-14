@@ -815,6 +815,8 @@ class LisumPipeline(BasicPipeline):
                                               f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback...")
                         match discipline_eaf_code:
                             # catching edge-cases where OEH 'discipline'-vocab-keys don't line up with eafsys.txt values
+                            case "320":
+                                discipline_eafcodes.add("32002")  # Informatik
                             case "20090":
                                 discipline_eafcodes.add("20080")  # Esperanto
                             case "oeh04010":
