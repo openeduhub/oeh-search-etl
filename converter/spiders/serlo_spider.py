@@ -3,7 +3,6 @@ import json
 
 import requests
 import scrapy
-from scrapy import settings
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
@@ -18,11 +17,11 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.2.5"  # last update: 2023-03-03
-    custom_settings = settings.BaseSettings({
-            # playwright cause of issues with thumbnails+text for serlo
-            "WEB_TOOLS": WebEngine.Playwright
-        }, 'spider')
+    version = "0.2.6"  # last update: 2023-03-14
+    custom_settings = {
+        # Using Playwright because of Splash-issues with thumbnails+text for Serlo
+        "WEB_TOOLS": WebEngine.Playwright
+    }
 
     graphql_items = list()
     # Mapping from EducationalAudienceRole (LRMI) to IntendedEndUserRole(LOM), see:
@@ -40,14 +39,11 @@ class SerloSpider(scrapy.Spider, LomBase):
         "professional": "other",
         # Someone already practicing a profession; an industry partner, or professional development trainer.
         "student": "learner",
-        # "parent": "parent",  # no mapping needed
-        # "teacher": "teacher"  # no mapping needed
     }
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
         self.graphql_items = self.fetch_all_graphql_pages()
-        # logging.debug(f"Gathered {len(self.graphql_items)} items from the GraphQL API")
 
     def fetch_all_graphql_pages(self):
         all_entities = list()
@@ -162,18 +158,36 @@ class SerloSpider(scrapy.Spider, LomBase):
         # #  - aggregationLevel               optional
         general.add_value('identifier', graphql_json["id"])
         title_1st_try: str = graphql_json["headline"]
+        title_fallback: str = str()
         # not all materials carry a title in the GraphQL API, therefore we're trying to grab a valid title from
-        # different sources (GraphQL > json_ld > header)
+        # different sources (GraphQL > (DOM) json_ld > (DOM) header > (DOM) last breadcrumb label)
         if title_1st_try:
             general.add_value('title', title_1st_try)
         elif not title_1st_try:
             title_2nd_try = json_ld["name"]
             if title_2nd_try:
                 general.add_value('title', title_2nd_try)
+                title_fallback = title_2nd_try
             if not title_1st_try and not title_2nd_try:
                 title_from_header = response.xpath('//meta[@property="og:title"]/@content').get()
                 if title_from_header:
                     general.add_value('title', title_from_header)
+                    title_fallback = title_from_header
+            if "lernen mit Serlo!" in title_fallback:
+                # We assume that Strings ending with "lernen mit Serlo!" are placeholders
+                # e.g. "Mathe Aufgabe - lernen mit Serlo!" occurs over 2700 times as a title
+                # therefore we try to grab the last breadcrumb label and use it as a more specific fallback
+                page_data_json: str = response.xpath("//script[@id='__NEXT_DATA__']/text()").get()
+                if page_data_json:
+                    page_data_json: dict = json.loads(page_data_json)
+                    if page_data_json:
+                        if "breadcrumbsData" in page_data_json["props"]["pageProps"]["pageData"]:
+                            breadcrumbs: list = page_data_json["props"]["pageProps"]["pageData"]["breadcrumbsData"]
+                            if breadcrumbs:
+                                if "label" in breadcrumbs[-1]:
+                                    title_breadcrumb_last_label: str = breadcrumbs[-1]["label"]
+                                    if title_breadcrumb_last_label:
+                                        general.replace_value('title', title_breadcrumb_last_label)
         # not all GraphQL entries have a description either, therefore we try to grab that from different sources
         # (GraphQL > JSON-LD > DOM header)
         description_1st_try = str()
