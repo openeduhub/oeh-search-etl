@@ -425,6 +425,7 @@ class EduSharing:
             "discipline": "ccm:taxonid",
             "educationalContext": "ccm:educationalcontext",
             "fskRating": "ccm:fskRating",
+            "hochschulfaechersystematik": "ccm:oeh_taxonid_university",
             "intendedEndUserRole": "ccm:educationalintendedenduserrole",
             "learningResourceType": "ccm:educationallearningresourcetype",
             "new_lrt": "ccm:oeh_lrt",

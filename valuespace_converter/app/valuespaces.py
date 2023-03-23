@@ -1,24 +1,35 @@
 import string
 
 import requests
-import json
+
 
 class Valuespaces:
-    idsVocabs = ['intendedEndUserRole', 'discipline', 'educationalContext', 'learningResourceType',
-                 'sourceContentType', 'toolCategory', 'conditionsOfAccess', 'oer', 'new_lrt']
+    idsVocabs = ['conditionsOfAccess', 'discipline', 'educationalContext',
+                 'intendedEndUserRole', 'learningResourceType', 'new_lrt', 'oer', 'sourceContentType', 'toolCategory']
     idsW3ID = ['containsAdvertisement', 'price', 'accessibilitySummary', 'dataProtectionConformity', 'fskRating']
+    ids_workaround = ['hochschulfaechersystematik']
+    # ToDo: move workaround to 'idsVocabs'-list as soon as the vocab itself is fixed
     data = {}
+
     def __init__(self):
-        urls = []
+        vocab_list: list[dict] = []
+        # one singular dictionary in the vocab list will typically look like this:
+        # {'key': 'discipline', 'url': 'https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/discipline/index.json'}
         for v in self.idsVocabs:
-            urls.append({'key': v, 'url': 'https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/' + v + '/index.json'})
+            vocab_list.append(
+                {'key': v, 'url': 'https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/' + v + '/index.json'})
         for v in self.idsW3ID:
-            urls.append({'key': v, 'url': 'http://w3id.org/openeduhub/vocabs/' + v + '/index.json'})
-        for url in urls:
-            #try:
-            r = requests.get(url['url'])
-            self.data[url['key']] = self.flatten(r.json()['hasTopConcept'])
-            #except:
+            vocab_list.append({'key': v, 'url': 'http://w3id.org/openeduhub/vocabs/' + v + '/index.json'})
+        for v in self.ids_workaround:
+            vocab_list.append(
+                {'key': v,
+                 'url': f"https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/{v}/scheme.json"}
+            )
+        for vocab_name in vocab_list:
+            # try:
+            r = requests.get(vocab_name['url'])
+            self.data[vocab_name['key']] = self.flatten(r.json()['hasTopConcept'])
+            # except:
             #    self.valuespaces[v] = {}
 
     def flatten(self, tree: []):
@@ -29,7 +40,7 @@ class Valuespaces:
         return result
 
     @staticmethod
-    def findKey(valuespaceId: string, id: string, valuespace = None):
+    def findKey(valuespaceId: string, id: string, valuespace=None):
         if not valuespace:
             valuespace = Valuespaces.data[valuespaceId]
         for key in valuespace:
@@ -40,7 +51,6 @@ class Valuespaces:
                 if found:
                     return found
         return None
-
 
     def initTree(self, tree):
         for t in tree:
