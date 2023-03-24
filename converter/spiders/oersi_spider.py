@@ -35,7 +35,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.0.5"  # last update: 2023-03-24
+    version = "0.0.6"  # last update: 2023-03-24
     allowed_domains = "oersi.org"
     custom_settings = {
         "CONCURRENT_REQUESTS": 32,
@@ -55,7 +55,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     # the provider-filter at https://oersi.org/resources/ shows you which String values can be used as a provider-name
     # ToDo: regularly check if new providers need to be added to the list below (and insert/sort them alphabetically!)
     ELASTIC_PROVIDERS_TO_CRAWL: list = [
-        "BC Campus",
+        # "BC Campus",  # ToDo: BC Campus website cannot be crawled at the moment, needs further investigation
         "detmoldMusicTools",
         "digiLL",
         "DuEPublico",
@@ -424,19 +424,37 @@ class OersiSpider(scrapy.Spider, LomBase):
         """
         Collects metadata from OERSI's "provider"-field and stores it within a LomLifecycleItemLoader.
         """
-        # each provider-item has 3 fields:
-        # - 'id'    (= URL of the Metadata provider, e.g. 'https://openmusic.academy')
-        # - 'name'  (= human readable name, e.g. "Open Music Academy")
-        # - 'type'  (= String 'Service' in 100% of cases)
+        # mainEntityofPage structure -> 'id' is the only REQUIRED field, all other fields are OPTIONAL:
+        # 'id'              (= URL of the Metadata Landing Page)
+        # 'dateCreated'     (= creation date of the metadata)
+        # 'dateModified'    (= last modified date of the metadata)
+        # 'provider':
+        #   - 'id'            (= URL of the Metadata provider, e.g. 'https://openmusic.academy')
+        #   - 'name'          (= human readable name, e.g. "Open Music Academy")
+        #   - 'type'          (= String 'Service' in 100% of cases)
         provider_dict: dict = oersi_main_entity_of_page_item.get("provider")
         if "name" in provider_dict:
             lifecycle_metadata_provider = LomLifecycleItemloader()
             lifecycle_metadata_provider.add_value("role", "metadata_provider")
-            metadata_provider_name: str = oersi_main_entity_of_page_item.get("provider").get("name")
+            metadata_provider_name: str = provider_dict.get("name")
             lifecycle_metadata_provider.add_value("organization", metadata_provider_name)
-            if "id" in provider_dict:
+            if "id" in oersi_main_entity_of_page_item:
                 # unique URL to the landing-page of the metadata, e.g.: "id"-value for a typical
                 # 'Open Music Academy'-item looks like: "https://openmusic.academy/docs/26vG1SR17Zqf5LXpVLULqb"
+                maeop_id_url: str = oersi_main_entity_of_page_item["id"]
+                if maeop_id_url:
+                    lifecycle_metadata_provider.add_value("url", maeop_id_url)
+            if "dateCreated" in oersi_main_entity_of_page_item:
+                maeop_date_created: str = oersi_main_entity_of_page_item["dateCreated"]
+                if maeop_date_created:
+                    lifecycle_metadata_provider.add_value("date", maeop_date_created)
+            elif "dateModified" in oersi_main_entity_of_page_item:
+                # if no creation date of the metadata is available, we use dateModified as a fallback (if available)
+                maeop_date_modified: str = oersi_main_entity_of_page_item["dateModified"]
+                if maeop_date_modified:
+                    lifecycle_metadata_provider.add_value("date", maeop_date_modified)
+            if "id" in provider_dict:
+                # the 'provider.id' URL will always point to a more generic URL
                 metadata_provider_url: str = oersi_main_entity_of_page_item.get("provider").get("id")
                 lifecycle_metadata_provider.add_value("url", metadata_provider_url)
             lom_base_item_loader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
