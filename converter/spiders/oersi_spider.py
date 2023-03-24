@@ -35,7 +35,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.0.4"  # last update: 2023-03-23
+    version = "0.0.5"  # last update: 2023-03-24
     allowed_domains = "oersi.org"
     custom_settings = {
         "CONCURRENT_REQUESTS": 32,
@@ -55,42 +55,42 @@ class OersiSpider(scrapy.Spider, LomBase):
     # the provider-filter at https://oersi.org/resources/ shows you which String values can be used as a provider-name
     # ToDo: regularly check if new providers need to be added to the list below (and insert/sort them alphabetically!)
     ELASTIC_PROVIDERS_TO_CRAWL: list = [
-        # "BC Campus",
-        # "detmoldMusicTools",
-        # "digiLL",
-        # "DuEPublico",
-        # "eaDNURT",
-        # "eCampusOntario",
-        # "eGov-Campus",
-        # "Finnish Library of Open Educational Resources",
-        # "GitHub",
-        # "GitLab",
-        # "Helmholtz Codebase",
-        # "HessenHub",
-        # "HHU Mediathek",
-        # "HOOU",
-        # "iMoox",
-        # "KI Campus",
-        # "MIT OpenCourseWare",
-        # "OER Portal Uni Graz",
-        # "oncampus",
-        # "Open Music Academy",
-        # "Open Textbook Library",
-        # "Opencast Universität Osnabrück",
-        # "openHPI",
-        # "OpenLearnWare",
-        # "OpenRub",
+        "BC Campus",
+        "detmoldMusicTools",
+        "digiLL",
+        "DuEPublico",
+        "eaDNURT",
+        "eCampusOntario",
+        "eGov-Campus",
+        "Finnish Library of Open Educational Resources",
+        "GitHub",
+        "GitLab",
+        "Helmholtz Codebase",
+        "HessenHub",
+        "HHU Mediathek",
+        "HOOU",
+        "iMoox",
+        "KI Campus",
+        "MIT OpenCourseWare",
+        "OER Portal Uni Graz",
+        "oncampus",
+        "Open Music Academy",
+        "Open Textbook Library",
+        "Opencast Universität Osnabrück",
+        "openHPI",
+        "OpenLearnWare",
+        "OpenRub",
         "ORCA.nrw",
-        # "Phaidra Uni Wien",
-        # "RWTH Aachen GitLab",
-        # "TIB AV-Portal",
-        # "TU Delft OpenCourseWare",
-        # "twillo",
-        # "Universität Innsbruck OER Repositorium",
-        # "VCRP",
-        # "vhb",
-        # "Virtual Linguistics Campus",
-        # "ZOERR",
+        "Phaidra Uni Wien",
+        "RWTH Aachen GitLab",
+        "TIB AV-Portal",
+        "TU Delft OpenCourseWare",
+        "twillo",
+        "Universität Innsbruck OER Repositorium",
+        "VCRP",
+        "vhb",
+        "Virtual Linguistics Campus",
+        "ZOERR",
     ]
     ELASTIC_ITEMS_ALL = list()
 
@@ -321,13 +321,15 @@ class OersiSpider(scrapy.Spider, LomBase):
                     if "id" in affiliation_item:
                         # the affiliation.id is always a reference to GND, Wikidata or ROR
                         affiliation_url = affiliation_item.get("id")
+                        # ToDo: fix edge-case where both the 'creator' and their affiliation have an "id"
+                        #  -> save as URL multi-value?
                         lifecycle_author.add_value("url", affiliation_url)
                 if creator_item.get("type") == "Person":
                     lifecycle_author.add_value("role", "author")
                     author_name: str = creator_item.get("name")
                     # ToDo: 'honorificPrefix' yields dirty values which need to be cleaned up first and need to be
                     #  checked for edge-cases before we can gather data from this field
-                    # examples from metadataprovider 'ORCA.nrw':
+                    # examples from metadata-provider 'ORCA.nrw':
                     #   "Dr.",
                     #   "Prof.",
                     #   "http://hbz-nrw.de/regal#academicDegree/unkown",
@@ -403,8 +405,8 @@ class OersiSpider(scrapy.Spider, LomBase):
                     # the 'affiliation.type' is always 'Organization'
                     affiliation_dict: dict = contributor_item["affiliation"]
                     # if the dictionary exists, it might contain the following fields:
-                    #   - id (= URL to GND / ROR / Wikidata)
-                    #   - name (= human readable String)
+                    #   - id        (= URL to GND / ROR / Wikidata)
+                    #   - name      (= human readable String)
                     if affiliation_dict:
                         if "id" in affiliation_dict:
                             affiliation_id_url: str = affiliation_dict["id"]
@@ -439,8 +441,9 @@ class OersiSpider(scrapy.Spider, LomBase):
                 lifecycle_metadata_provider.add_value("url", metadata_provider_url)
             lom_base_item_loader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
 
-    def get_lifecycle_publisher(self, lom_base_item_loader: LomBaseItemloader, elastic_item_source: dict,
-                                date_published: Optional[str] = None):
+    def get_lifecycle_publisher(
+        self, lom_base_item_loader: LomBaseItemloader, elastic_item_source: dict, date_published: Optional[str] = None
+    ):
         """
         Collects metadata from OERSI's "publisher"-field and stores it within a LomLifecycleItemLoader.
         """
@@ -570,6 +573,7 @@ class OersiSpider(scrapy.Spider, LomBase):
 
         base.add_value("sourceId", self.getId(response, elastic_item=elastic_item))
         base.add_value("hash", self.getHash(response, elastic_item_source=elastic_item))
+        thumbnail_url = str()
         if "image" in elastic_item_source:
             thumbnail_url = elastic_item_source.get("image")  # thumbnail
             if thumbnail_url:
@@ -628,8 +632,9 @@ class OersiSpider(scrapy.Spider, LomBase):
             author_list=authors,
         )
 
-        self.get_lifecycle_publisher(lom_base_item_loader=lom, elastic_item_source=elastic_item_source,
-                                     date_published=date_published)
+        self.get_lifecycle_publisher(
+            lom_base_item_loader=lom, elastic_item_source=elastic_item_source, date_published=date_published
+        )
 
         # ToDo: 'sourceOrganization' doesn't appear in OMA results, but will be available for other providers
         #   each item can have multiple 'soureOrganization' dictionaries attached to it, which typically look like
@@ -799,8 +804,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                 license_mapper = LicenseMapper()
                 license_url_mapped = license_mapper.get_license_url(license_string=license_url)
                 if license_url_mapped:
-                # ToDo: from some providers (e.g. twillo) license URLs end with "deed.DE", confirm if licenses get
-                #  properly recognized in edu-sharing
                     license_loader.add_value("url", license_url_mapped)
         if authors:
             license_loader.add_value("author", authors)
@@ -821,9 +824,10 @@ class OersiSpider(scrapy.Spider, LomBase):
             response_loader.add_value("cookies", url_data["cookies"])
         if "har" in url_data:
             response_loader.add_value("har", url_data["har"])
-        if "screenshot_bytes" in url_data:
-            # ToDo: control which thumbnail is used, depending on the metadata-provider?
-            # -> metadata-provider 'Open Music Academy' serves generic thumbnails, which is why a screenshot of the
+        if not thumbnail_url and "screenshot_bytes" in url_data:
+            # if a thumbnail was provided, use that first - otherwise try to use Playwright website screenshot
+            # ToDo: optional feature - control which thumbnail is used, depending on the metadata-provider?
+            #  metadata-provider 'Open Music Academy' serves generic thumbnails, which is why a screenshot of the
             #  website will always be more interesting to users than the same generic image across ~650 materials
             base.add_value("screenshot_bytes", url_data["screenshot_bytes"])
         response_loader.add_value("headers", response.headers)
