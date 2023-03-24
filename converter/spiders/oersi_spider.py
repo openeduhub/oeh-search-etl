@@ -35,7 +35,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.0.6"  # last update: 2023-03-24
+    version = "0.0.7"  # last update: 2023-03-24
     allowed_domains = "oersi.org"
     custom_settings = {
         "CONCURRENT_REQUESTS": 32,
@@ -62,7 +62,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         "eaDNURT",
         "eCampusOntario",
         "eGov-Campus",
-        "Finnish Library of Open Educational Resources",
+        # "Finnish Library of Open Educational Resources",  # ToDo: URLs of this metadata-provider cannot be resolved
         "GitHub",
         "GitLab",
         "Helmholtz Codebase",
@@ -101,6 +101,15 @@ class OersiSpider(scrapy.Spider, LomBase):
         "script": "6a15628c-0e59-43e3-9fc5-9a7f7fa261c4",  # "Skript, Handout und Handreichung"
         "sheet_music": "f7e92628-4132-4985-bcf5-93c285e300a8",  # "Noten"
         "textbook": "a5897142-bf57-4cd0-bcd9-7d0f1932e87a",  # "Lehrbuch und Grundlagenwerk (auch E-Book)"
+    }
+    MAPPING_AUDIENCE_TO_INTENDED_END_USER_ROLE = {
+        # Mapping from https://www.dublincore.org/vocabs/educationalAudienceRole.ttl
+        # to https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl
+        "administrator": "manager",
+        # "generalPublic": "",  # ToDo: find mapping
+        "mentor": "counsellor",
+        # "peerTutor": "",  # ToDo: find mapping
+        # "professional": "",  # ToDo: find mapping
     }
 
     def __init__(self, **kwargs):
@@ -209,11 +218,11 @@ class OersiSpider(scrapy.Spider, LomBase):
                         )
                 if "hits" in current_page_json_response:
                     total_count = current_page_json_response.get("hits").get("total").get("value")
-                    logging.info(f"Expecting {total_count} items for {provider_name}")
+                    logging.debug(f"Expecting {total_count} items for the current API Pagination of {provider_name}")
                 if "hits" in current_page_json_response.get("hits"):
                     provider_items: list = current_page_json_response.get("hits").get("hits")
                     if provider_items:
-                        logging.info(f"The provider_items list has {len(provider_items)} entries")
+                        logging.debug(f"The provider_items list has {len(provider_items)} entries")
                         all_items.extend(provider_items)
                         last_entry: dict = provider_items[-1]
                         # ToDo: pagination documentation
@@ -228,7 +237,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                 break
                     else:
                         logging.info(
-                            f"reached the end of the ElasticSearch results for {provider_name} // "
+                            f"reached the end of the ElasticSearch results for '{provider_name}' // "
                             f"Total amount of items collected (across all metadata-providers): {len(all_items)}"
                         )
                         break
@@ -500,7 +509,6 @@ class OersiSpider(scrapy.Spider, LomBase):
         """
         if "id" in person_dictionary:
             author_uuid_or_url = person_dictionary.get("id")
-            # ToDo: If this "lazy" approach yields messy results, RegEx differentiate between uuids and URLs
             if (
                 "orcid.org" in author_uuid_or_url
                 or "dnb.de" in author_uuid_or_url
@@ -548,7 +556,6 @@ class OersiSpider(scrapy.Spider, LomBase):
         # ToDo: The following keys DON'T EXIST (yet?) in the OERSI ElasticSearch API,
         #   but could appear in the future as possible metadata fields according to the AMB metadata draft:
         #  - assesses
-        #  - audience               (might be suitable for "valuespaces.intendedEndUserRole")
         #  - competencyRequired
         #  - duration               (for audio/video: will be suitable for "technical.location")
         #  - educationalLevel       (might be suitable for 'valuespaces.educationalContext')
@@ -571,9 +578,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                     # the first provider_name is used for saving individual items to edu-sharing sub-folders
                     # via 'base.origin' later
                 for maeop_item in main_entity_of_page:
-                    # ToDo: according to the AMB spec, there could be a 'dateCreated'-field and 'dateModified'-field
-                    #   appearing in the future. Regularly check the API if it was implemented (this could be used for
-                    #   'lifecycle.date')
                     # a random sample showed that there can be multiple "mainEntityOfPage"-objects
                     # this only occurred once within 55438 items in the API, but might happen more often in the future
                     if "provider" in maeop_item:
@@ -628,6 +632,7 @@ class OersiSpider(scrapy.Spider, LomBase):
             identifier_url: str = elastic_item_source.get("id")  # this URL is REQUIRED and should always be available
             # see https://dini-ag-kim.github.io/amb/draft/#id
             if identifier_url:
+                general.replace_value("identifier", identifier_url)
                 technical.add_value("location", identifier_url)
                 if identifier_url != response.url:
                     # the identifier_url should be more stable/robust than the (resolved) response.url in the long term,
@@ -812,6 +817,41 @@ class OersiSpider(scrapy.Spider, LomBase):
                 #         about_preflabel_de: str = about_item["prefLabel"]["de"]
                 #     if "en" in about_item:
                 #         about_preflabel_en: str = about_item["prefLabel"]["en"]
+
+        vs.add_value("educationalContext", "hochschule")
+        # according to https://oersi.org/resources/pages/en/about/ all Materials indexed by OERSI are in the context of
+        # higher education
+        # ToDo: remove this hard-coded educationalContext value as soon as OERSI provides metadata for this field
+
+        if "audience" in elastic_item_source:
+            # "audience" is an OPTIONAL field in OERSI and is currently only provided for materials from
+            # the "Finnish Library of Open Educational Resources"
+            audience_dicts: list[dict] = elastic_item_source["audience"]
+            # one "audience"-dictionary might look like this:
+            # {
+            # 			"prefLabel": {
+            # 				"de": "Lehrer",
+            # 				"fi": "Opettaja",
+            # 				"uk": "вчитель",
+            # 				"en": "teacher",
+            # 				"fr": "enseignant",
+            # 				"da": "lærer",
+            # 				"es": "profesor",
+            # 				"nl": "onderwijzer"
+            # 			},
+            # 			"id": "http://purl.org/dcx/lrmi-vocabs/educationalAudienceRole/teacher"
+            # 		},
+            if audience_dicts:
+                for audience in audience_dicts:
+                    # ToDo: we could use prefLabel values of "de" or "en" as fallbacks in the future (if necessary)
+                    if "id" in audience:
+                        audience_id_url: str = audience["id"]
+                        if audience_id_url:
+                            audience_key: str = audience_id_url.split("/")[-1]
+                            if audience_key:
+                                if audience_key in self.MAPPING_AUDIENCE_TO_INTENDED_END_USER_ROLE:
+                                    audience_key = self.MAPPING_AUDIENCE_TO_INTENDED_END_USER_ROLE.get(audience_key)
+                                vs.add_value("intendedEndUserRole", audience_key)
 
         base.add_value("valuespaces", vs.load_item())
 
