@@ -31,6 +31,12 @@ class TestLicenseMapper:
                 None,
             ),
             ("Public Domain", Constants.LICENSE_PDM),
+            ("https://creativecommons.org/licenses/by-nc-nd/3.0/deed.DE", Constants.LICENSE_CC_BY_NC_ND_30),
+            ("https://creativecommons.org/licenses/by-nc-nd/2.0/deed.CA", Constants.LICENSE_CC_BY_NC_ND_20),
+            ("https://creativecommons.org/licenses/by-sa/4.0/deed.es_ES", Constants.LICENSE_CC_BY_SA_40),
+            # ToDo: Apache / BSD / GNU GPL licenses can't be mapped at the moment
+            ("https://www.gnu.org/licenses/gpl-3.0", None),
+            ("https://opensource.org/licenses/MIT", None),
         ],
     )
     def test_get_license_url(self, test_input, expected_result):

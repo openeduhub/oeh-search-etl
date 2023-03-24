@@ -105,12 +105,15 @@ class LicenseMapper:
                 cc_zero = result_dict.get("CC_ZERO")
                 public_domain = result_dict.get("PDM")
                 if cc_zero:
-                    logging.debug(f"LicenseMapper: Fallback to 'license.internal' for '{license_string}' successful: "
-                                  f"CC_0")
+                    logging.debug(
+                        f"LicenseMapper: Fallback to 'license.internal' for '{license_string}' successful: " f"CC_0"
+                    )
                     return "CC_0"
                 if public_domain:
-                    logging.debug(f"Licensemapper: Fallback to 'license.internal' for '{license_string}' successful: "
-                                  f"Public Domain ")
+                    logging.debug(
+                        f"Licensemapper: Fallback to 'license.internal' for '{license_string}' successful: "
+                        f"Public Domain "
+                    )
                     return "PDM"
                 if cc_type:
                     cc_string_internal: str = f"CC_{result_dict.get('CC_TYPE')}".upper()
@@ -118,8 +121,10 @@ class LicenseMapper:
                         cc_string_internal = cc_string_internal.replace("-", "_")
                         cc_string_internal = cc_string_internal.replace(" ", "_")
                     if cc_string_internal in Constants.LICENSE_MAPPINGS_INTERNAL:
-                        logging.debug(f"LicenseMapper: Fallback to 'license.internal' for '{license_string}' successful: "
-                                      f"{cc_string_internal}")
+                        logging.debug(
+                            f"LicenseMapper: Fallback to 'license.internal' for '{license_string}' successful: "
+                            f"{cc_string_internal}"
+                        )
                         return cc_string_internal
                     else:
                         logging.debug(
@@ -138,12 +143,19 @@ class LicenseMapper:
         # ToDo (refactor): check string validity first? - warn otherwise
         license_string_original: str = license_string
         if self.identify_if_string_contains_url_pattern(license_string_original):
-            license_url_candidate = license_string_original
-            logging.info(f"LicenseMapper: {license_url_candidate} was recognized as a URL")
+            license_url_candidate = license_string_original.lower()
+            logging.debug(f"LicenseMapper: The string '{license_url_candidate}' was recognized as a URL.")
             if "http://" in license_url_candidate:
                 license_url_candidate = license_url_candidate.replace("http://", "https://")
-            if license_url_candidate.endswith("deed.de"):
-                license_url_candidate = license_url_candidate[: -len("deed.de")]
+            if "deed" in license_url_candidate:
+                # licenses with a deed suffix could appear in two variations, e.g.:
+                # - "deed.de" / "deed.CA" (2-char language code)
+                # - "deed.es_ES" (4-char language code)
+                regex_deed = re.compile(r"deed\.\w{2}(_?\w{2})?")
+                regex_deed_hit = regex_deed.search(license_url_candidate)
+                if regex_deed_hit:
+                    deed_hit = regex_deed_hit.group()
+                    license_url_candidate = license_url_candidate[: -len(deed_hit)]
             if license_url_candidate.endswith("/de/"):
                 license_url_candidate = license_url_candidate[: -len("de/")]
             for valid_license_url in Constants.VALID_LICENSE_URLS:
