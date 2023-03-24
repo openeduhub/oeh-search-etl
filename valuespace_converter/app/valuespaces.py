@@ -4,11 +4,9 @@ import requests
 
 
 class Valuespaces:
-    idsVocabs = ['conditionsOfAccess', 'discipline', 'educationalContext',
+    idsVocabs = ['conditionsOfAccess', 'discipline', 'educationalContext', 'hochschulfaechersystematik',
                  'intendedEndUserRole', 'learningResourceType', 'new_lrt', 'oer', 'sourceContentType', 'toolCategory']
     idsW3ID = ['containsAdvertisement', 'price', 'accessibilitySummary', 'dataProtectionConformity', 'fskRating']
-    ids_workaround = ['hochschulfaechersystematik']
-    # ToDo: move workaround to 'idsVocabs'-list as soon as the vocab itself is fixed
     data = {}
 
     def __init__(self):
@@ -20,11 +18,6 @@ class Valuespaces:
                 {'key': v, 'url': 'https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/' + v + '/index.json'})
         for v in self.idsW3ID:
             vocab_list.append({'key': v, 'url': 'http://w3id.org/openeduhub/vocabs/' + v + '/index.json'})
-        for v in self.ids_workaround:
-            vocab_list.append(
-                {'key': v,
-                 'url': f"https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/{v}/scheme.json"}
-            )
         for vocab_name in vocab_list:
             # try:
             r = requests.get(vocab_name['url'])
