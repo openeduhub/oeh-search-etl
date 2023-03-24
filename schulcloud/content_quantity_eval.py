@@ -1,3 +1,4 @@
+import datetime
 import time
 import traceback
 
@@ -35,7 +36,7 @@ class ContentQuantityEvaluation:
         }
         while True:
             try:
-                print(f'get content count of {folder.name}')
+                print(f'{datetime.datetime.now()} get content count of {folder.name}')
                 response = self.api.make_request('GET', url, params, retry=0)
                 print(f'--> {response.status_code}')
                 break
@@ -46,9 +47,12 @@ class ContentQuantityEvaluation:
             time.sleep(10)
         response.raise_for_status()
         content = response.json()
-        return content['pagination']['total']
+        count = content['pagination']['total']
+        print('Count:', count)
+        return count
 
     def run(self):
+        print('Results are printed when done or stopped.')
         sync_obj = self.api.get_sync_obj_folder()
         self.gather_folders_recursively(sync_obj)
 
@@ -58,7 +62,6 @@ class ContentQuantityEvaluation:
                 max_count = -1
                 while True:
                     count = self.get_folder_content_count(folder)
-                    print(folder.name, count)
                     print()
                     if count == max_count:
                         break
