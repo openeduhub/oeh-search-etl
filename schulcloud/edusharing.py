@@ -403,6 +403,7 @@ class RequestFailedException(Exception):
 
 class RequestErrorResponseException(RequestFailedException):
     def __init__(self, response: requests.Response, context_hint: str = ''):
+        self.response = response
         msg = f'Request failed: {context_hint}; {response.status_code} {response.reason}: {response.text}'
         super(RequestErrorResponseException, self).__init__(msg)
 
