@@ -218,6 +218,8 @@ class ValuespaceItem(Item):
     """Corresponding edu-sharing property: 'ccm:educationalcontext'"""
     fskRating = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: 'ccm:fskRating'"""
+    hochschulfaechersystematik = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:oeh_taxonid_university"""
     intendedEndUserRole = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: 'ccm:intendedEndUserRole'"""
     learningResourceType = Field(output_processor=JoinMultivalues())

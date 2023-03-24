@@ -78,9 +78,9 @@ class WebTools:
         async with async_playwright() as p:
             browser = await p.chromium.connect_over_cdp(endpoint_url=env.get("PLAYWRIGHT_WS_ENDPOINT"))
             page = await browser.new_page()
-            await page.goto(url, wait_until="networkidle", timeout=90000)
-            # waits for page to fully load (= no network traffic for 500ms),
-            # maximum timeout: 90s
+            await page.goto(url, wait_until="domcontentloaded", timeout=90000)
+            # waits for a website to fire the DOMContentLoaded event or for a timeout of 90s
+            # since waiting for 'networkidle' seems to cause timeouts
             content = await page.content()
             screenshot_bytes = await page.screenshot()
             # ToDo: HAR / text / cookies

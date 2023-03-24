@@ -20,6 +20,7 @@ from converter.items import (
     ResponseItemLoader,
 )
 from converter.spiders.base_classes import LomBase
+from converter.util.license_mapper import LicenseMapper
 from converter.web_tools import WebEngine, WebTools
 
 
@@ -34,7 +35,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.0.3"   # last update: 2022-11-08
+    version = "0.0.7"  # last update: 2023-03-24
     allowed_domains = "oersi.org"
     custom_settings = {
         "CONCURRENT_REQUESTS": 32,
@@ -46,47 +47,69 @@ class OersiSpider(scrapy.Spider, LomBase):
 
     ELASTIC_PARAMETER_KEEP_ALIVE: str = "1m"
     # for reference: https://www.elastic.co/guide/en/elasticsearch/reference/current/api-conventions.html#time-units
-    ELASTIC_PARAMETER_REQUEST_SIZE: int = 1000  # maximum: 10.000, but responses for bigger request sizes take significantly longer
+    ELASTIC_PARAMETER_REQUEST_SIZE: int = (
+        1000  # maximum: 10.000, but responses for bigger request sizes take significantly longer
+    )
 
     ELASTIC_PIT_ID: dict = dict()
     # the provider-filter at https://oersi.org/resources/ shows you which String values can be used as a provider-name
     # ToDo: regularly check if new providers need to be added to the list below (and insert/sort them alphabetically!)
     ELASTIC_PROVIDERS_TO_CRAWL: list = [
-        # "detmoldMusicTools",
-        # "digiLL",
-        # "DuEPublico",
-        # "eaDNURT",
-        # "eGov-Campus",
-        # "HessenHub",
-        # "HHU Mediathek",
-        # "HOOU",
-        # "iMoox",
-        # "KI Campus",
-        # "oncampus",
-        # "openHPI",
-        # "OpenLearnWare",
-        "Open Music Academy"
-        # "OpenRub",
-        # "ORCA.nrw",
-        # "RWTH Aachen GitLab",
-        # "twillo",
-        # "TIB AV-Portal",
-        # "TU Delft OpenCourseWare",
-        # "vhb",
-        # "Virtual Linguistics Campus",
-        # "ZOERR"
+        # "BC Campus",  # ToDo: BC Campus website cannot be crawled at the moment, needs further investigation
+        "detmoldMusicTools",
+        "digiLL",
+        "DuEPublico",
+        "eaDNURT",
+        "eCampusOntario",
+        "eGov-Campus",
+        # "Finnish Library of Open Educational Resources",  # ToDo: URLs of this metadata-provider cannot be resolved
+        "GitHub",
+        "GitLab",
+        "Helmholtz Codebase",
+        "HessenHub",
+        "HHU Mediathek",
+        "HOOU",
+        "iMoox",
+        "KI Campus",
+        "MIT OpenCourseWare",
+        "OER Portal Uni Graz",
+        "oncampus",
+        "Open Music Academy",
+        "Open Textbook Library",
+        "Opencast Universität Osnabrück",
+        "openHPI",
+        "OpenLearnWare",
+        "OpenRub",
+        "ORCA.nrw",
+        "Phaidra Uni Wien",
+        "RWTH Aachen GitLab",
+        "TIB AV-Portal",
+        "TU Delft OpenCourseWare",
+        "twillo",
+        "Universität Innsbruck OER Repositorium",
+        "VCRP",
+        "vhb",
+        "Virtual Linguistics Campus",
+        "ZOERR",
     ]
-    # ToDo: DO NOT activate other providers until 'Hochschulfaechersystematik'-values are possible within edu-sharing!
     ELASTIC_ITEMS_ALL = list()
 
     MAPPING_HCRT_TO_NEW_LRT = {
         "diagram": "f7228fb5-105d-4313-afea-66dd59b1b6f8",  # "Graph, Diagramm und Charts"
         "portal": "d8c3ef03-b3ab-4a5e-bcc9-5a546fefa2e9",  # "Webseite und Portal (stabil)"
         "questionnaire": "d31a5b68-611f-4015-8be9-56bd5eb44c64",  # "Fragebogen und Umfragen"
-        "reference_work": "c022c920-c236-4234-bae1-e264a3e2bdf6",  # "Nachschlagewerk und Glossar"
         "script": "6a15628c-0e59-43e3-9fc5-9a7f7fa261c4",  # "Skript, Handout und Handreichung"
         "sheet_music": "f7e92628-4132-4985-bcf5-93c285e300a8",  # "Noten"
         "textbook": "a5897142-bf57-4cd0-bcd9-7d0f1932e87a",  # "Lehrbuch und Grundlagenwerk (auch E-Book)"
+    }
+    MAPPING_AUDIENCE_TO_INTENDED_END_USER_ROLE = {
+        # Mapping from https://www.dublincore.org/vocabs/educationalAudienceRole.ttl
+        # to https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl
+        "administrator": "manager",
+        # "generalPublic": "",  # ToDo: find mapping
+        "mentor": "counsellor",
+        # "peerTutor": "",  # ToDo: find mapping
+        # "professional": "",  # ToDo: find mapping
     }
 
     def __init__(self, **kwargs):
@@ -99,20 +122,14 @@ class OersiSpider(scrapy.Spider, LomBase):
         # after all items have been collected, delete the ElasticSearch PIT
         json_response = self.elastic_pit_delete()
         if json_response:
-            logging.info(
-                f"ElasticSearch API response (upon PIT delete): {json_response}"
-            )
+            logging.info(f"ElasticSearch API response (upon PIT delete): {json_response}")
 
     def start_requests(self):
         for elastic_item in self.ELASTIC_ITEMS_ALL:
-            main_entity_of_page: list[dict] = elastic_item.get("_source").get(
-                "mainEntityOfPage"
-            )
+            main_entity_of_page: list[dict] = elastic_item.get("_source").get("mainEntityOfPage")
             if main_entity_of_page:
                 item_url = main_entity_of_page[0].get("id")
-                yield scrapy.Request(
-                    url=item_url, cb_kwargs={"elastic_item": elastic_item}
-                )
+                yield scrapy.Request(url=item_url, cb_kwargs={"elastic_item": elastic_item})
 
     def elastic_pit_create(self) -> dict:
         """
@@ -154,9 +171,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         if search_after is None:
             payload = {
                 "size": self.ELASTIC_PARAMETER_REQUEST_SIZE,
-                "query": {
-                    "match": {"mainEntityOfPage.provider.name": f"{provider_name}"}
-                },
+                "query": {"match": {"mainEntityOfPage.provider.name": f"{provider_name}"}},
                 "pit": {
                     "id": self.ELASTIC_PIT_ID.get("id"),
                     "keep_alive": self.ELASTIC_PARAMETER_KEEP_ALIVE,
@@ -167,9 +182,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         else:
             payload = {
                 "size": self.ELASTIC_PARAMETER_REQUEST_SIZE,
-                "query": {
-                    "match": {"mainEntityOfPage.provider.name": f"{provider_name}"}
-                },
+                "query": {"match": {"mainEntityOfPage.provider.name": f"{provider_name}"}},
                 "pit": {
                     "id": self.ELASTIC_PIT_ID.get("id"),
                     "keep_alive": self.ELASTIC_PARAMETER_KEEP_ALIVE,
@@ -197,36 +210,26 @@ class OersiSpider(scrapy.Spider, LomBase):
                     provider_name=provider_name, search_after=pagination_parameter
                 )
                 if "pit_id" in current_page_json_response:
-                    if current_page_json_response.get(
-                        "pit_id"
-                    ) != self.ELASTIC_PIT_ID.get("id"):
+                    if current_page_json_response.get("pit_id") != self.ELASTIC_PIT_ID.get("id"):
                         self.ELASTIC_PIT_ID = current_page_json_response.get("pit_id")
                         logging.info(
                             f"ElasticSearch: pit_id changed between queries, using the new pit_id "
                             f"{current_page_json_response.get('pit_id')} for subsequent queries."
                         )
                 if "hits" in current_page_json_response:
-                    total_count = (
-                        current_page_json_response.get("hits").get("total").get("value")
-                    )
-                    logging.info(f"Expecting {total_count} items for {provider_name}")
+                    total_count = current_page_json_response.get("hits").get("total").get("value")
+                    logging.debug(f"Expecting {total_count} items for the current API Pagination of {provider_name}")
                 if "hits" in current_page_json_response.get("hits"):
-                    provider_items: list = current_page_json_response.get("hits").get(
-                        "hits"
-                    )
+                    provider_items: list = current_page_json_response.get("hits").get("hits")
                     if provider_items:
-                        logging.info(
-                            f"The provider_items list has {len(provider_items)} entries"
-                        )
+                        logging.debug(f"The provider_items list has {len(provider_items)} entries")
                         all_items.extend(provider_items)
                         last_entry: dict = provider_items[-1]
                         # ToDo: pagination documentation
                         if "sort" in last_entry:
                             last_sort_result: list = last_entry.get("sort")
                             if last_sort_result:
-                                logging.info(
-                                    f"The last_sort_result is {last_sort_result}"
-                                )
+                                logging.info(f"The last_sort_result is {last_sort_result}")
                                 has_next_page = True
                                 pagination_parameter = last_sort_result
                             else:
@@ -234,8 +237,8 @@ class OersiSpider(scrapy.Spider, LomBase):
                                 break
                     else:
                         logging.info(
-                            f"reached the end of the ElasticSearch results for {provider_name} // "
-                            f"Total amount of items collected: {len(all_items)}"
+                            f"reached the end of the ElasticSearch results for '{provider_name}' // "
+                            f"Total amount of items collected (across all metadata-providers): {len(all_items)}"
                         )
                         break
         return all_items
@@ -247,7 +250,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         """
         return elastic_item["_id"]
 
-    def getHash(self, response=None, elastic_item: dict = dict) -> str:
+    def getHash(self, response=None, elastic_item_source: dict = dict) -> str:
         """
         Creates a hash-value by combining a date + the crawler version number within a string.
         Since OERSI's date-fields are not always available, this method has several fallbacks:
@@ -255,8 +258,12 @@ class OersiSpider(scrapy.Spider, LomBase):
         2) OERSI "dateCreated"-field
         3) if neither of the above are available: combine the current datetime + crawler version
         """
-        date_published: str = elastic_item["_source"]["datePublished"]
-        date_created: str = elastic_item["_source"]["dateCreated"]
+        date_published = str()
+        date_created = str()
+        if "datePublished" in elastic_item_source:
+            date_published: str = elastic_item_source["datePublished"]
+        if "dateCreated" in elastic_item_source:
+            date_created: str = elastic_item_source["dateCreated"]
         if date_published:
             hash_temp: str = f"{date_published}{self.version}"
         elif date_created:
@@ -279,16 +286,10 @@ class OersiSpider(scrapy.Spider, LomBase):
                 logging.info(f"matching requested id: {self.remoteId}")
                 return True
             return False
-        db = EduSharing().findItem(
-            self.getId(response, elastic_item=elastic_item), self
-        )
-        changed = db is None or db[1] != self.getHash(
-            response, elastic_item=elastic_item
-        )
+        db = EduSharing().findItem(self.getId(response, elastic_item=elastic_item), self)
+        changed = db is None or db[1] != self.getHash(response, elastic_item_source=elastic_item["_source"])
         if not changed:
-            logging.info(
-                f"Item {self.getId(response, elastic_item=elastic_item)} (uuid: {db[0]}) has not changed"
-            )
+            logging.info(f"Item {self.getId(response, elastic_item=elastic_item)} (uuid: {db[0]}) has not changed")
         return changed
 
     def get_lifecycle_author(
@@ -321,21 +322,32 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lifecycle_author.add_value("date", date_created)
                 if "affiliation" in creator_item:
                     affiliation_item = creator_item.get("affiliation")
-                    # ToDo: affiliation.type (e.g. Organization)
+                    # affiliation.type is always "Organization" according to
+                    # https://dini-ag-kim.github.io/amb/draft/schemas/affiliation.json
                     if "name" in affiliation_item:
                         affiliation_name = affiliation_item.get("name")
                         lifecycle_author.add_value("organization", affiliation_name)
                     if "id" in affiliation_item:
+                        # the affiliation.id is always a reference to GND, Wikidata or ROR
                         affiliation_url = affiliation_item.get("id")
+                        # ToDo: fix edge-case where both the 'creator' and their affiliation have an "id"
+                        #  -> save as URL multi-value?
                         lifecycle_author.add_value("url", affiliation_url)
                 if creator_item.get("type") == "Person":
-                    lifecycle_author.add_value(
-                        "role", "author"
-                    )  # supported roles: "author" / "editor" / "publisher"
+                    lifecycle_author.add_value("role", "author")
                     author_name: str = creator_item.get("name")
-                    authors.append(
-                        author_name
-                    )  # this string is going to be used in the license field "author"
+                    # ToDo: 'honorificPrefix' yields dirty values which need to be cleaned up first and need to be
+                    #  checked for edge-cases before we can gather data from this field
+                    # examples from metadata-provider 'ORCA.nrw':
+                    #   "Dr.",
+                    #   "Prof.",
+                    #   "http://hbz-nrw.de/regal#academicDegree/unkown",
+                    #   "unknown",
+                    # if "honorificPrefix" in creator_item:
+                    #     honorific_prefix = creator_item["honorificPrefix"]
+                    #     if honorific_prefix:
+                    #         author_name = f"{honorific_prefix} {author_name}"
+                    authors.append(author_name)  # this string is going to be used in the license field "author"
                     self.split_names_if_possible_and_add_to_lifecycle(
                         name_string=author_name, lifecycle_item_loader=lifecycle_author
                     )
@@ -343,18 +355,12 @@ class OersiSpider(scrapy.Spider, LomBase):
                         person_dictionary=creator_item,
                         lifecycle_item_loader=lifecycle_author,
                     )
-                    lom_base_item_loader.add_value(
-                        "lifecycle", lifecycle_author.load_item()
-                    )
+                    lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
                 elif creator_item.get("type") == "Organization":
                     creator_organization_name = creator_item.get("name")
                     lifecycle_author.add_value("role", "author")
-                    lifecycle_author.add_value(
-                        "organization", creator_organization_name
-                    )
-                    lom_base_item_loader.add_value(
-                        "lifecycle", lifecycle_author.load_item()
-                    )
+                    lifecycle_author.add_value("organization", creator_organization_name)
+                    lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
         return authors
 
     def get_lifecycle_contributor(
@@ -375,6 +381,11 @@ class OersiSpider(scrapy.Spider, LomBase):
                 lifecycle_contributor.add_value("role", "unknown")
                 contributor_name: str = contributor_item.get("name")
                 if contributor_name:
+                    # ToDo: activate honorificPrefix in a later version (when having solved the problem for 'creator')
+                    # if "honorificPrefix" in contributor_item:
+                    #     honorific_prefix: str = contributor_item["honorificPrefix"]
+                    #     if honorific_prefix:
+                    #         contributor_name = f"{honorific_prefix} {contributor_name}"
                     if author_list:
                         if contributor_name in author_list:
                             # OMA lists one author, but also lists the same person as a "contributor",
@@ -389,9 +400,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                             lifecycle_item_loader=lifecycle_contributor,
                         )
                     elif contributor_item.get("type") == "Organization":
-                        lifecycle_contributor.add_value(
-                            "organization", contributor_name
-                        )
+                        lifecycle_contributor.add_value("organization", contributor_name)
                 if "id" in contributor_item:
                     # id points to a URI reference of ORCID, GND, WikiData or ROR
                     # (while this isn't necessary for OMA items yet (as they have no 'id'-field), it will be necessary
@@ -401,51 +410,66 @@ class OersiSpider(scrapy.Spider, LomBase):
                         lifecycle_item_loader=lifecycle_contributor,
                     )
                 if "affiliation" in contributor_item:
-                    # ToDo: in future versions of the crawler, this field needs to be handled
-                    # (the 'affiliation'-field currently ONLY appears in items from provider "ORCA.nrw")
-                    #  - affiliation
-                    #   - id
-                    #   - name
-                    #   - type
-                    pass
-                lom_base_item_loader.add_value(
-                    "lifecycle", lifecycle_contributor.load_item()
-                )
+                    # the 'affiliation'-field currently ONLY appears in items from provider "ORCA.nrw"
+                    # the 'affiliation.type' is always 'Organization'
+                    affiliation_dict: dict = contributor_item["affiliation"]
+                    # if the dictionary exists, it might contain the following fields:
+                    #   - id        (= URL to GND / ROR / Wikidata)
+                    #   - name      (= human readable String)
+                    if affiliation_dict:
+                        if "id" in affiliation_dict:
+                            affiliation_id_url: str = affiliation_dict["id"]
+                            if affiliation_id_url:
+                                lifecycle_contributor.add_value("url", affiliation_id_url)
+                        if "name" in affiliation_dict:
+                            affiliation_name: str = affiliation_dict["name"]
+                            if affiliation_name:
+                                lifecycle_contributor.add_value("organization", affiliation_name)
+
+                lom_base_item_loader.add_value("lifecycle", lifecycle_contributor.load_item())
 
     @staticmethod
-    def get_lifecycle_metadata_provider(
-        lom_base_item_loader: LomBaseItemloader, oersi_main_entity_of_page_item: dict
-    ):
+    def get_lifecycle_metadata_provider(lom_base_item_loader: LomBaseItemloader, oersi_main_entity_of_page_item: dict):
         """
         Collects metadata from OERSI's "provider"-field and stores it within a LomLifecycleItemLoader.
         """
-        # each provider-item has 3 fields:
-        # - 'id'    (= URL of the Metadata provider, e.g. 'https://openmusic.academy')
-        # - 'name'  (= human readable name, e.g. "Open Music Academy")
-        # - 'type'  (= String 'Service' in 100% of cases)
+        # mainEntityofPage structure -> 'id' is the only REQUIRED field, all other fields are OPTIONAL:
+        # 'id'              (= URL of the Metadata Landing Page)
+        # 'dateCreated'     (= creation date of the metadata)
+        # 'dateModified'    (= last modified date of the metadata)
+        # 'provider':
+        #   - 'id'            (= URL of the Metadata provider, e.g. 'https://openmusic.academy')
+        #   - 'name'          (= human readable name, e.g. "Open Music Academy")
+        #   - 'type'          (= String 'Service' in 100% of cases)
         provider_dict: dict = oersi_main_entity_of_page_item.get("provider")
         if "name" in provider_dict:
             lifecycle_metadata_provider = LomLifecycleItemloader()
             lifecycle_metadata_provider.add_value("role", "metadata_provider")
-            metadata_provider_name: str = oersi_main_entity_of_page_item.get(
-                "provider"
-            ).get("name")
-            lifecycle_metadata_provider.add_value(
-                "organization", metadata_provider_name
-            )
-            if "id" in provider_dict:
+            metadata_provider_name: str = provider_dict.get("name")
+            lifecycle_metadata_provider.add_value("organization", metadata_provider_name)
+            if "id" in oersi_main_entity_of_page_item:
                 # unique URL to the landing-page of the metadata, e.g.: "id"-value for a typical
                 # 'Open Music Academy'-item looks like: "https://openmusic.academy/docs/26vG1SR17Zqf5LXpVLULqb"
-                metadata_provider_url: str = oersi_main_entity_of_page_item.get(
-                    "provider"
-                ).get("id")
+                maeop_id_url: str = oersi_main_entity_of_page_item["id"]
+                if maeop_id_url:
+                    lifecycle_metadata_provider.add_value("url", maeop_id_url)
+            if "dateCreated" in oersi_main_entity_of_page_item:
+                maeop_date_created: str = oersi_main_entity_of_page_item["dateCreated"]
+                if maeop_date_created:
+                    lifecycle_metadata_provider.add_value("date", maeop_date_created)
+            elif "dateModified" in oersi_main_entity_of_page_item:
+                # if no creation date of the metadata is available, we use dateModified as a fallback (if available)
+                maeop_date_modified: str = oersi_main_entity_of_page_item["dateModified"]
+                if maeop_date_modified:
+                    lifecycle_metadata_provider.add_value("date", maeop_date_modified)
+            if "id" in provider_dict:
+                # the 'provider.id' URL will always point to a more generic URL
+                metadata_provider_url: str = oersi_main_entity_of_page_item.get("provider").get("id")
                 lifecycle_metadata_provider.add_value("url", metadata_provider_url)
-            lom_base_item_loader.add_value(
-                "lifecycle", lifecycle_metadata_provider.load_item()
-            )
+            lom_base_item_loader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
 
     def get_lifecycle_publisher(
-        self, lom_base_item_loader: LomBaseItemloader, elastic_item_source: dict
+        self, lom_base_item_loader: LomBaseItemloader, elastic_item_source: dict, date_published: Optional[str] = None
     ):
         """
         Collects metadata from OERSI's "publisher"-field and stores it within a LomLifecycleItemLoader.
@@ -470,9 +494,9 @@ class OersiSpider(scrapy.Spider, LomBase):
                         publisher_url = publisher_item.get("id")
                         if publisher_url:
                             lifecycle_publisher.add_value("url", publisher_url)
-                    lom_base_item_loader.add_value(
-                        "lifecycle", lifecycle_publisher.load_item()
-                    )
+                    if date_published:
+                        lifecycle_publisher.add_value("date", date_published)
+                    lom_base_item_loader.add_value("lifecycle", lifecycle_publisher.load_item())
 
     @staticmethod
     def lifecycle_save_oersi_identifier_to_url_or_uuid(
@@ -485,7 +509,6 @@ class OersiSpider(scrapy.Spider, LomBase):
         """
         if "id" in person_dictionary:
             author_uuid_or_url = person_dictionary.get("id")
-            # ToDo: If this "lazy" approach yields messy results, RegEx differentiate between uuids and URLs
             if (
                 "orcid.org" in author_uuid_or_url
                 or "dnb.de" in author_uuid_or_url
@@ -497,9 +520,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                 lifecycle_item_loader.add_value("uuid", author_uuid_or_url)
 
     @staticmethod
-    def split_names_if_possible_and_add_to_lifecycle(
-        name_string: str, lifecycle_item_loader: LomLifecycleItemloader
-    ):
+    def split_names_if_possible_and_add_to_lifecycle(name_string: str, lifecycle_item_loader: LomLifecycleItemloader):
         """
         Splits a string containing a person's name - if there's a whitespace within that string -
         into two parts: first_name and last_name.
@@ -520,15 +541,11 @@ class OersiSpider(scrapy.Spider, LomBase):
         # _source is the original JSON body passed for the document at index time
         # see: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
         if self.shouldImport(response) is False:
-            logging.debug(
-                "Skipping entry {} because shouldImport() returned false".format(
-                    str(self.getId(response))
-                )
-            )
+            logging.debug("Skipping entry {} because shouldImport() returned false".format(str(self.getId(response))))
             return None
         if (
             self.getId(response=response, elastic_item=elastic_item) is not None
-            and self.getHash(response=response, elastic_item=elastic_item) is not None
+            and self.getHash(response=response, elastic_item_source=elastic_item_source) is not None
         ):
             if not self.hasChanged(response, elastic_item=elastic_item):
                 return None
@@ -538,9 +555,7 @@ class OersiSpider(scrapy.Spider, LomBase):
 
         # ToDo: The following keys DON'T EXIST (yet?) in the OERSI ElasticSearch API,
         #   but could appear in the future as possible metadata fields according to the AMB metadata draft:
-        #  - affiliation            (OERSI uses their own 'sourceOrganization'-field instead)
         #  - assesses
-        #  - audience               (might be suitable for "valuespaces.intendedEndUserRole")
         #  - competencyRequired
         #  - duration               (for audio/video: will be suitable for "technical.location")
         #  - educationalLevel       (might be suitable for 'valuespaces.educationalContext')
@@ -556,20 +571,13 @@ class OersiSpider(scrapy.Spider, LomBase):
 
         provider_name = str()
         if "mainEntityOfPage" in elastic_item_source:
-            main_entity_of_page: list[dict] = elastic_item_source.get(
-                "mainEntityOfPage"
-            )
+            main_entity_of_page: list[dict] = elastic_item_source.get("mainEntityOfPage")
             if main_entity_of_page:
                 if "provider" in main_entity_of_page[0]:
-                    provider_name: str = (
-                        main_entity_of_page[0].get("provider").get("name")
-                    )
+                    provider_name: str = main_entity_of_page[0].get("provider").get("name")
                     # the first provider_name is used for saving individual items to edu-sharing sub-folders
                     # via 'base.origin' later
                 for maeop_item in main_entity_of_page:
-                    # ToDo: according to the AMB spec, there could be a 'dateCreated'-field and 'dateModified'-field
-                    #   appearing in the future. Regularly check the API if it was implemented (this could be used for
-                    #   'lifecycle.date')
                     # a random sample showed that there can be multiple "mainEntityOfPage"-objects
                     # this only occurred once within 55438 items in the API, but might happen more often in the future
                     if "provider" in maeop_item:
@@ -577,23 +585,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                             lom_base_item_loader=lom,
                             oersi_main_entity_of_page_item=maeop_item,
                         )
-
-        # if "about" in elastic_item_source:
-        #     about = elastic_item_source.get("about")
-        #     # about is OPTIONAL
-        #     for about_item in about:
-        #         # ToDo: disciplines are available as a list (according to the 'Hochschulfaechersystematik')
-        #         #  - 'de'-field: human-readable German String
-        #         #  - 'id'-field: URL of the entry (e.g. "https://w3id.org/kim/hochschulfaechersystematik/n78")
-        #         pass
-        #     # see: https://dini-ag-kim.github.io/amb/draft/#about
-        #     # ToDo: DISCIPLINES!
-        #     #  - prefLabel
-        #     #   - de: German description (Schulfach / Studienfach)
-        #     #   - en: English ...
-        #     #   - uk: Ukrainian ...
-        #     #   - etc. (depending on the provider, several more languages + descriptions are listed)
-        #     #  - id
 
         date_created = str()
         if "dateCreated" in elastic_item_source:
@@ -603,7 +594,8 @@ class OersiSpider(scrapy.Spider, LomBase):
             date_published: str = elastic_item_source.get("datePublished")
 
         base.add_value("sourceId", self.getId(response, elastic_item=elastic_item))
-        base.add_value("hash", self.getHash(response, elastic_item=elastic_item))
+        base.add_value("hash", self.getHash(response, elastic_item_source=elastic_item))
+        thumbnail_url = str()
         if "image" in elastic_item_source:
             thumbnail_url = elastic_item_source.get("image")  # thumbnail
             if thumbnail_url:
@@ -635,18 +627,18 @@ class OersiSpider(scrapy.Spider, LomBase):
         lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
+        identifier_url: str = str()
         if "id" in elastic_item_source:
-            identifier_url: str = elastic_item_source.get(
-                "id"
-            )  # this URL is REQUIRED and should always be available
+            identifier_url: str = elastic_item_source.get("id")  # this URL is REQUIRED and should always be available
             # see https://dini-ag-kim.github.io/amb/draft/#id
             if identifier_url:
+                general.replace_value("identifier", identifier_url)
+                technical.add_value("location", identifier_url)
                 if identifier_url != response.url:
-                    technical.add_value("location", identifier_url)
                     # the identifier_url should be more stable/robust than the (resolved) response.url in the long term,
-                    # so we will save both
+                    # so we will save both URLs in case the resolved URL is different
                     technical.add_value("location", response.url)
-        else:
+        elif not identifier_url:
             technical.add_value("location", response.url)
         lom.add_value("technical", technical.load_item())
 
@@ -664,7 +656,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         )
 
         self.get_lifecycle_publisher(
-            lom_base_item_loader=lom, elastic_item_source=elastic_item_source
+            lom_base_item_loader=lom, elastic_item_source=elastic_item_source, date_published=date_published
         )
 
         # ToDo: 'sourceOrganization' doesn't appear in OMA results, but will be available for other providers
@@ -702,9 +694,6 @@ class OersiSpider(scrapy.Spider, LomBase):
         base.add_value("lom", lom.load_item())
 
         vs = ValuespaceItemLoader()
-        vs.add_value("discipline", "420")  # Musik
-        # ToDo: remove this hardcoded value in the future! (oersi_spider v0.0.1 is hardcoded for 'Open Music Academy')
-        # ToDo: future versions of the crawler need to use 'Hochschulfaechersystematik'-values!
         vs.add_value("new_lrt", Constants.NEW_LRT_MATERIAL)
         is_accessible_for_free: bool = elastic_item_source.get("isAccessibleForFree")
         if is_accessible_for_free:
@@ -722,15 +711,13 @@ class OersiSpider(scrapy.Spider, LomBase):
                 if "/conditionsOfAccess/" in conditions_of_access_id:
                     conditions_of_access_value = conditions_of_access_id.split("/")[-1]
                     if conditions_of_access_value:
-                        vs.add_value('conditionsOfAccess', conditions_of_access_value)
+                        vs.add_value("conditionsOfAccess", conditions_of_access_value)
 
         hcrt_types = dict()
         oeh_lrt_types = dict()
         learning_resource_types = list()
         if "learningResourceType" in elastic_item_source:
-            learning_resource_types: list[dict] = elastic_item_source.get(
-                "learningResourceType"
-            )
+            learning_resource_types: list[dict] = elastic_item_source.get("learningResourceType")
             # see: https://dini-ag-kim.github.io/amb/draft/#learningresourcetype - a typical LRT-dict looks like this:
             # 		{
             # 			"prefLabel": {
@@ -775,15 +762,107 @@ class OersiSpider(scrapy.Spider, LomBase):
         if oeh_lrt_types:
             vs.add_value("learningResourceType", list(oeh_lrt_types.keys()))
 
+        if "about" in elastic_item_source:
+            about: list[dict] = elastic_item_source.get("about")
+            # see: https://dini-ag-kim.github.io/amb/draft/#about
+            # "about" is an OPTIONAL field.
+            # The equivalent edu-sharing field will be "ccm:oeh_taxonid_university".
+            # each about-field is a list of dictionaries. Here's an example from Open Music Academy:
+            # [
+            # 		{
+            # 			"prefLabel": {
+            # 				"de": "Musik, Musikwissenschaft",
+            # 				"uk": "Музика, музикознавство",
+            # 				"en": "Music, Musicology"
+            # 			},
+            # 			"id": "https://w3id.org/kim/hochschulfaechersystematik/n78"
+            # 		},
+            # 		{
+            # 			"prefLabel": {
+            # 				"de": "Kunst, Kunstwissenschaft",
+            # 				"uk": "Мистецтво, мистецтвознавство",
+            # 				"en": "Art, Art Theory"
+            # 			},
+            # 			"id": "https://w3id.org/kim/hochschulfaechersystematik/n9"
+            # 		}
+            # 	],
+            for about_item in about:
+                if "id" in about_item:
+                    about_id: str = about_item.get("id")
+                    # According to the AMB spec, the 'id'-field: can either contain a URL from the
+                    # "Destatis-Systematik der Fächergrppen, Studienbereiche und Studienfächer"
+                    # (= hochschulfaechersystematik)
+                    # e.g.: "https://w3id.org/kim/hochschulfaechersystematik/n78")
+                    # or alternatively "Schulfächer" (e.g. http://w3id.org/kim/schulfaecher/)
+                    if about_id:
+                        # ToDo: at the moment OERSI exclusively provides university URL values,
+                        #  but might start providing "schulfaecher"-URLs as well in the future (-> mapping
+                        #  to 'discipline' will be necessary)
+                        if about_id.startswith("https://w3id.org/kim/hochschulfaechersystematik/"):
+                            about_id_key = about_id.split("/")[-1]
+                            if about_id_key:
+                                vs.add_value("hochschulfaechersystematik", about_id_key)
+                        else:
+                            logging.debug(
+                                f"The value of OERSI 'about.id' was not recognized during mapping to "
+                                f"valuespaces 'hochschulfaechersystematik': {about_id} ."
+                            )
+                # if "prefLabel" in about_item:
+                #     # ToDo: the 'prefLabel'-strings might be used as fallback values in the future
+                #     # Hochschulfächer are available as a list of prefLabel strings in several languages (according to
+                #     # the 'Hochschulfaechersystematik')
+                #     # - 'de'-field: human-readable German string
+                #     # - 'en'-field: human-readable English string
+                #     if "de" in about_item:
+                #         about_preflabel_de: str = about_item["prefLabel"]["de"]
+                #     if "en" in about_item:
+                #         about_preflabel_en: str = about_item["prefLabel"]["en"]
+
+        vs.add_value("educationalContext", "hochschule")
+        # according to https://oersi.org/resources/pages/en/about/ all Materials indexed by OERSI are in the context of
+        # higher education
+        # ToDo: remove this hard-coded educationalContext value as soon as OERSI provides metadata for this field
+
+        if "audience" in elastic_item_source:
+            # "audience" is an OPTIONAL field in OERSI and is currently only provided for materials from
+            # the "Finnish Library of Open Educational Resources"
+            audience_dicts: list[dict] = elastic_item_source["audience"]
+            # one "audience"-dictionary might look like this:
+            # {
+            # 			"prefLabel": {
+            # 				"de": "Lehrer",
+            # 				"fi": "Opettaja",
+            # 				"uk": "вчитель",
+            # 				"en": "teacher",
+            # 				"fr": "enseignant",
+            # 				"da": "lærer",
+            # 				"es": "profesor",
+            # 				"nl": "onderwijzer"
+            # 			},
+            # 			"id": "http://purl.org/dcx/lrmi-vocabs/educationalAudienceRole/teacher"
+            # 		},
+            if audience_dicts:
+                for audience in audience_dicts:
+                    # ToDo: we could use prefLabel values of "de" or "en" as fallbacks in the future (if necessary)
+                    if "id" in audience:
+                        audience_id_url: str = audience["id"]
+                        if audience_id_url:
+                            audience_key: str = audience_id_url.split("/")[-1]
+                            if audience_key:
+                                if audience_key in self.MAPPING_AUDIENCE_TO_INTENDED_END_USER_ROLE:
+                                    audience_key = self.MAPPING_AUDIENCE_TO_INTENDED_END_USER_ROLE.get(audience_key)
+                                vs.add_value("intendedEndUserRole", audience_key)
+
         base.add_value("valuespaces", vs.load_item())
 
         license_loader = LicenseItemLoader()
         if "license" in elastic_item_source:
             license_url: str = elastic_item_source.get("license").get("id")
             if license_url:
-                # ToDo: from some providers (e.g. twillo) license URLs end with "deed.de", confirm if licenses get
-                #  properly recognized in edu-sharing
-                license_loader.add_value("url", license_url)
+                license_mapper = LicenseMapper()
+                license_url_mapped = license_mapper.get_license_url(license_string=license_url)
+                if license_url_mapped:
+                    license_loader.add_value("url", license_url_mapped)
         if authors:
             license_loader.add_value("author", authors)
         # noinspection DuplicatedCode
@@ -793,13 +872,8 @@ class OersiSpider(scrapy.Spider, LomBase):
         base.add_value("permissions", permissions.load_item())
 
         response_loader = ResponseItemLoader(response=response)
-        # for future maintenance, during debugging the following problems occurred one day,
-        # but disappeared the next day:
-        #  - OMA URLs cause HTTP Error 400 in Splash
         response_loader.add_value("status", response.status)
-        url_data = WebTools.getUrlData(
-            url=response.url, engine=WebEngine.Playwright
-        )
+        url_data = WebTools.getUrlData(url=response.url, engine=WebEngine.Playwright)
         if "html" in url_data:
             response_loader.add_value("html", url_data["html"])
         if "text" in url_data:
@@ -808,9 +882,10 @@ class OersiSpider(scrapy.Spider, LomBase):
             response_loader.add_value("cookies", url_data["cookies"])
         if "har" in url_data:
             response_loader.add_value("har", url_data["har"])
-        if "screenshot_bytes" in url_data:
-            # ToDo: optional thumbnail feature (toggleable via a list?)
-            # -> OMA serves generic thumbnails, which is why a screenshot of the
+        if not thumbnail_url and "screenshot_bytes" in url_data:
+            # if a thumbnail was provided, use that first - otherwise try to use Playwright website screenshot
+            # ToDo: optional feature - control which thumbnail is used, depending on the metadata-provider?
+            #  metadata-provider 'Open Music Academy' serves generic thumbnails, which is why a screenshot of the
             #  website will always be more interesting to users than the same generic image across ~650 materials
             base.add_value("screenshot_bytes", url_data["screenshot_bytes"])
         response_loader.add_value("headers", response.headers)
