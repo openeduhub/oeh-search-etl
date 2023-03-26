@@ -48,7 +48,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     ELASTIC_PARAMETER_KEEP_ALIVE: str = "1m"
     # for reference: https://www.elastic.co/guide/en/elasticsearch/reference/current/api-conventions.html#time-units
     ELASTIC_PARAMETER_REQUEST_SIZE: int = (
-        1000  # maximum: 10.000, but responses for bigger request sizes take significantly longer
+        5000  # maximum: 10.000, but responses for bigger request sizes take significantly longer
     )
 
     ELASTIC_PIT_ID: dict = dict()
