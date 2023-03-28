@@ -384,6 +384,7 @@ class EduSharing:
                 # convert to a vcard string
                 firstName = person["firstName"] if "firstName" in person else ""
                 lastName = person["lastName"] if "lastName" in person else ""
+                title: str = person["title"] if "title" in person else ""
                 organization = (
                     person["organization"] if "organization" in person else ""
                 )
@@ -399,6 +400,8 @@ class EduSharing:
                     if organization
                     else (firstName + " " + lastName).strip()
                 )
+                if title:
+                    vcard.add("title").value = title
                 if date:
                     vcard.add("X-ES-LOM-CONTRIBUTE-DATE").value = date.isoformat()
                     if person["role"].lower() == 'publisher':
