@@ -72,17 +72,20 @@ class LomLifecycleItem(Item):
 
     The role 'unknown' is used for contributors in an unknown capacity ("Mitarbeiter").
     """
-    role = Field()
+    date = Field()
+    """The (publication) date of a contribution. Date values will be automatically transformed/parsed.
+    Corresponding edu-sharing property: 'ccm:published_date'"""
+    email = Field()
     firstName = Field()
     lastName = Field()
     organization = Field()
-    email = Field()
+    role = Field()
+    title = Field()
+    """The (academic) title of a person. String value will be prefixed to '(title) firstName lastName' and written into
+    the vCard-field 'TITLE'.
+    """
     url = Field()
     uuid = Field()
-    date = Field()
-    """The (publication) date of a contribution. Date values will be automatically transformed/parsed.
-    Corresponding edu-sharing property: 'ccm:published_date'
-    """
 
 
 class LomTechnicalItem(Item):

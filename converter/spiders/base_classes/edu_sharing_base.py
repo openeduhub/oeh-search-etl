@@ -193,6 +193,10 @@ class EduSharingBase(Spider, LomBase):
             lifecycle.add_value("role", role)
             lifecycle.add_value("firstName", given)
             lifecycle.add_value("lastName", family)
+        # ToDo: test the 'title'-field before activating it
+        # if hasattr(vcard, "title"):
+        #     title: str = vcard.title.value
+        #     lifecycle.add_value("title", title)
         if hasattr(vcard, "email"):
             # ToDo: recognize multiple emails
             vcard_email: str = vcard.email.value
