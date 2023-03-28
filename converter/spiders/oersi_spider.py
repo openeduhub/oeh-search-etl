@@ -35,7 +35,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.0.7"  # last update: 2023-03-24
+    version = "0.0.8"  # last update: 2023-03-28
     allowed_domains = "oersi.org"
     custom_settings = {
         "CONCURRENT_REQUESTS": 32,
@@ -336,18 +336,19 @@ class OersiSpider(scrapy.Spider, LomBase):
                 if creator_item.get("type") == "Person":
                     lifecycle_author.add_value("role", "author")
                     author_name: str = creator_item.get("name")
-                    # ToDo: 'honorificPrefix' yields dirty values which need to be cleaned up first and need to be
-                    #  checked for edge-cases before we can gather data from this field
-                    # examples from metadata-provider 'ORCA.nrw':
-                    #   "Dr.",
-                    #   "Prof.",
-                    #   "http://hbz-nrw.de/regal#academicDegree/unkown",
-                    #   "unknown",
-                    # if "honorificPrefix" in creator_item:
-                    #     honorific_prefix = creator_item["honorificPrefix"]
-                    #     if honorific_prefix:
-                    #         author_name = f"{honorific_prefix} {author_name}"
-                    authors.append(author_name)  # this string is going to be used in the license field "author"
+                    academic_title: str = str()
+                    if "honorificPrefix" in creator_item:
+                        # the 'honorificPrefix'-field is described in the 'creator'-json-scheme:
+                        # https://dini-ag-kim.github.io/amb/draft/schemas/creator.json
+                        honorific_prefix = creator_item["honorificPrefix"]
+                        if honorific_prefix:
+                            academic_title = self.validate_academic_title_string(honorific_prefix)
+                            if academic_title:
+                                lifecycle_author.add_value("title", academic_title)
+                                author_name_prefixed_with_academic_title = f"{academic_title} {author_name}"
+                                authors.append(author_name_prefixed_with_academic_title)
+                    if not academic_title:
+                        authors.append(author_name)  # this string is going to be used in the license field "author"
                     self.split_names_if_possible_and_add_to_lifecycle(
                         name_string=author_name, lifecycle_item_loader=lifecycle_author
                     )
@@ -362,6 +363,23 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lifecycle_author.add_value("organization", creator_organization_name)
                     lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
         return authors
+
+    @staticmethod
+    def validate_academic_title_string(honorific_prefix: str) -> str:
+        """
+        Some metadata-providers provide weird values for the 'honorificPrefix'-attribute within a "creator"- or
+        "contributor"-item. This method checks for known edge-cases and drops the string if necessary.
+        See: https://dini-ag-kim.github.io/amb/draft/#dfn-creator
+        Check for truthiness after using this method! If a known edge-case was detected, it will return an empty string.
+        """
+        # Typical edge-cases for the 'honorificPrefix'-field that have been noticed so far:
+        #   ORCA.nrw: "http://hbz-nrw.de/regal#academicDegree/unkown", "unknown",
+        #   Open Textbook Library: single backticks
+        if "unknown" in honorific_prefix or "unkown" in honorific_prefix or len(honorific_prefix) == 1:
+            logging.debug(f"'honorificPrefix'-validation: The string {honorific_prefix} was recognized as an invalid "
+                          f"edge-case value. Deleting string...")
+            honorific_prefix = ""
+        return honorific_prefix.strip()
 
     def get_lifecycle_contributor(
         self,
@@ -381,18 +399,21 @@ class OersiSpider(scrapy.Spider, LomBase):
                 lifecycle_contributor.add_value("role", "unknown")
                 contributor_name: str = contributor_item.get("name")
                 if contributor_name:
-                    # ToDo: activate honorificPrefix in a later version (when having solved the problem for 'creator')
-                    # if "honorificPrefix" in contributor_item:
-                    #     honorific_prefix: str = contributor_item["honorificPrefix"]
-                    #     if honorific_prefix:
-                    #         contributor_name = f"{honorific_prefix} {contributor_name}"
+                    if "honorificPrefix" in contributor_item:
+                        honorific_prefix: str = contributor_item["honorificPrefix"]
+                        if honorific_prefix:
+                            academic_title: str = self.validate_academic_title_string(honorific_prefix)
+                            if academic_title:
+                                lifecycle_contributor.add_value("title", academic_title)
+                                # contributor_name_prefixed_with_academic_title = f"{academic_title} {contributor_name}"
                     if author_list:
-                        if contributor_name in author_list:
-                            # OMA lists one author, but also lists the same person as a "contributor",
-                            # therefore causing the same person to appear both as author and unknown contributor in
-                            continue
-                    # removing trailing whitespaces before further processing of the string
+                        for author_string in author_list:
+                            if contributor_name in author_string:
+                                # OMA lists one author, but also lists the same person as a "contributor",
+                                # therefore causing the same person to appear both as author and unknown contributor
+                                continue
                     contributor_name = contributor_name.strip()
+                    # removing trailing whitespaces before further processing of the string
                 if "type" in contributor_item:
                     if contributor_item.get("type") == "Person":
                         self.split_names_if_possible_and_add_to_lifecycle(
@@ -658,28 +679,6 @@ class OersiSpider(scrapy.Spider, LomBase):
         self.get_lifecycle_publisher(
             lom_base_item_loader=lom, elastic_item_source=elastic_item_source, date_published=date_published
         )
-
-        # ToDo: 'sourceOrganization' doesn't appear in OMA results, but will be available for other providers
-        #   each item can have multiple 'soureOrganization' dictionaries attached to it, which typically look like
-        # {
-        #         "type": "Organization",
-        #         "name": "Universität Innsbruck"
-        #  }
-        # if "sourceOrganization" in elastic_item_source:
-        #     # attention: the "sourceOrganization"-field is not part of the AMB draft
-        #     # see: https://github.com/dini-ag-kim/amb/issues/110
-        #     # it is used by OERSI to express affiliation to an organization (instead of the AMB 'affiliation'-field)
-        #     lifecycle_org = LomLifecycleItemloader()
-        #     source_organizations: list = elastic_item_source.get('sourceOrganization')
-        #     for source_org_item in source_organizations:
-        #         if "id" in source_org_item:
-        #             source_org_url = source_org_item.get('id')
-        #             lifecycle_org.add_value('url', source_org_url)
-        #         if "name" in source_org_item:
-        #             source_org_name = source_org_item.get('name')
-        #             lifecycle_org.add_value('organization', source_org_name)
-        #         # source_org_type = source_org_item.get('type')  # e.g.: "Organization", "CollegeOrUniversity" etc.
-        #     lom.add_value('lifecycle', lifecycle_org.load_item())
 
         educational = LomEducationalItemLoader()
         if in_languages:
