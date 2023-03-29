@@ -52,6 +52,8 @@ class EdusharingAPI:
         }
 
     def __init__(self, base_url: str, username: str = '', password: str = ''):
+        if not base_url.endswith('/'):
+            base_url += '/'
         self.base_url = base_url + 'rest'
         self.username = username
         self.password = password
