@@ -111,7 +111,7 @@ class OehImporter(LomBase):
                     self.send_to_pipeline(item)
             except ApiException as exc:
                 # sometimes edusharing will return 401 "admin rights required" for all bulk.find requests
-                if exc.status in (401, 503):
+                if exc.status in (401, 503, 504):
                     time.sleep(10)
                     print('retry')
                     continue
