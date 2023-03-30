@@ -1,3 +1,4 @@
+import mimetypes
 import sys
 import os
 from typing import List
@@ -19,6 +20,13 @@ s3_cli bucket list [ARGS] (List all buckets)
 s3_cli bucket create <NAME> [ARGS] (Create a bucket)
 s3_cli bucket delete <NAME> [ARGS] (Delete a bucket)
 '''
+
+
+def get_object_type(object_key: str):
+    if mimetypes.guess_type(object_key)[0] is not None:
+        return mimetypes.guess_type(object_key)[0]
+    else:
+        return "application/octet-stream"
 
 
 class CLI:
@@ -146,8 +154,9 @@ class CLI:
         progress_bar = tqdm.tqdm(total=total_size, unit='B', unit_scale=True, unit_divisor=1024)
         for file in objects:
             progress_bar.set_description(file)
-            self.client.upload_file(Bucket=bucket_name, Filename=file, Key=os.path.basename(file),
-                                    Callback=lambda n: progress_bar.update(n))
+            file_key = os.path.basename(file)
+            self.client.upload_file(Bucket=bucket_name, Filename=file, Key=file_key,
+                                    Callback=lambda n: progress_bar.update(n), ContentType=get_object_type(file_key))
         progress_bar.close()
 
     def upload_directory(self, bucket_name, root_path):
@@ -172,6 +181,7 @@ class CLI:
 
             for file in files:
                 # Extract the last direction name of the root_path with subdirections for the S3-key
+                root_path = root_path.replace("\\", "/")
                 if len(path) > len(root_path):
                     head_root, tail_root = os.path.splitdrive(root_path)
                     filename_sanitize_root = os.path.basename(tail_root)
@@ -182,10 +192,12 @@ class CLI:
                     filename_sanitize = os.path.basename(tail_root)
 
                 progress_bar.set_description(file)
+                file_key = filename_sanitize + '/' + file
                 self.client.upload_file(Filename=os.path.join(path, file),
                                         Bucket=bucket_name,
-                                        Key=filename_sanitize + '/' + file,
-                                        Callback=lambda n: progress_bar.update(n))
+                                        Key=file_key,
+                                        Callback=lambda n: progress_bar.update(n),
+                                        ExtraArgs={'ContentType': get_object_type(file_key)})
             progress_bar.close()
 
         print(f'Sucessfully upload {file_counter} files from {root_path} to bucket {bucket_name}.')
@@ -332,7 +344,7 @@ def main():
     elif command == 'upload':
         cli.upload_objects(bucket, rest)
     elif command == 'upload_directory':
-        cli.upload_directory(bucket, rest)
+        cli.upload_directory(bucket, rest[0])
     elif command == 'download':
         dir = '.' if len(rest) == 1 else 'downloaded'
         cli.download_objects(dir, bucket, rest)
