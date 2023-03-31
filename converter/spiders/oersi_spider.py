@@ -35,7 +35,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.0.8"  # last update: 2023-03-28
+    version = "0.0.9"  # last update: 2023-03-31
     allowed_domains = "oersi.org"
     custom_settings = {
         "CONCURRENT_REQUESTS": 32,
@@ -328,11 +328,11 @@ class OersiSpider(scrapy.Spider, LomBase):
                         affiliation_name = affiliation_item.get("name")
                         lifecycle_author.add_value("organization", affiliation_name)
                     if "id" in affiliation_item:
-                        # the affiliation.id is always a reference to GND, Wikidata or ROR
-                        affiliation_url = affiliation_item.get("id")
-                        # ToDo: fix edge-case where both the 'creator' and their affiliation have an "id"
-                        #  -> save as URL multi-value?
-                        lifecycle_author.add_value("url", affiliation_url)
+                        # according to the AMB spec, the affiliation.id should always be a reference to
+                        # GND, Wikidata or ROR
+                        self.lifecycle_determine_type_of_identifier_and_save_uri(
+                            affiliation_item, lifecycle_item_loader=lifecycle_author
+                        )
                 if creator_item.get("type") == "Person":
                     lifecycle_author.add_value("role", "author")
                     author_name: str = creator_item.get("name")
@@ -352,15 +352,33 @@ class OersiSpider(scrapy.Spider, LomBase):
                     self.split_names_if_possible_and_add_to_lifecycle(
                         name_string=author_name, lifecycle_item_loader=lifecycle_author
                     )
-                    self.lifecycle_save_oersi_identifier_to_url_or_uuid(
-                        person_dictionary=creator_item,
+                    self.lifecycle_determine_type_of_identifier_and_save_uri(
+                        item_dictionary=creator_item,
                         lifecycle_item_loader=lifecycle_author,
                     )
                     lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
                 elif creator_item.get("type") == "Organization":
+                    # ToDo: find a solution for edge-case where "creator" is an organization which itself is affiliated
+                    #  to an organization, e.g.:
+                    # [
+                    # 		{
+                    # 			"affiliation": {
+                    # 				"name": "RWTH Aachen",
+                    # 				"id": "https://ror.org/04xfq0f34",
+                    # 				"type": "Organization"
+                    # 			},
+                    # 			"name": "OMB+-Konsortium",
+                    # 			"type": "Organization"
+                    # 		}
+                    # 	],
+                    # the vCard standard 4.0 provides a "RELATED"-property which could be suitable for this edge-case,
+                    # but both edu-sharing and the currently used "vobject"-package only support vCard standard v3.0
+                    # see: https://www.rfc-editor.org/rfc/rfc6350.html#section-6.6.6
                     creator_organization_name = creator_item.get("name")
                     lifecycle_author.add_value("role", "author")
                     lifecycle_author.add_value("organization", creator_organization_name)
+                    self.lifecycle_determine_type_of_identifier_and_save_uri(item_dictionary=creator_item,
+                                                                             lifecycle_item_loader=lifecycle_author)
                     lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
         return authors
 
@@ -376,8 +394,10 @@ class OersiSpider(scrapy.Spider, LomBase):
         #   ORCA.nrw: "http://hbz-nrw.de/regal#academicDegree/unkown", "unknown",
         #   Open Textbook Library: single backticks
         if "unknown" in honorific_prefix or "unkown" in honorific_prefix or len(honorific_prefix) == 1:
-            logging.debug(f"'honorificPrefix'-validation: The string {honorific_prefix} was recognized as an invalid "
-                          f"edge-case value. Deleting string...")
+            logging.debug(
+                f"'honorificPrefix'-validation: The string {honorific_prefix} was recognized as an invalid "
+                f"edge-case value. Deleting string..."
+            )
             honorific_prefix = ""
         return honorific_prefix.strip()
 
@@ -426,8 +446,8 @@ class OersiSpider(scrapy.Spider, LomBase):
                     # id points to a URI reference of ORCID, GND, WikiData or ROR
                     # (while this isn't necessary for OMA items yet (as they have no 'id'-field), it will be necessary
                     # for other metadata providers once we extend the crawler)
-                    self.lifecycle_save_oersi_identifier_to_url_or_uuid(
-                        person_dictionary=contributor_item,
+                    self.lifecycle_determine_type_of_identifier_and_save_uri(
+                        item_dictionary=contributor_item,
                         lifecycle_item_loader=lifecycle_contributor,
                     )
                 if "affiliation" in contributor_item:
@@ -436,12 +456,12 @@ class OersiSpider(scrapy.Spider, LomBase):
                     affiliation_dict: dict = contributor_item["affiliation"]
                     # if the dictionary exists, it might contain the following fields:
                     #   - id        (= URL to GND / ROR / Wikidata)
-                    #   - name      (= human readable String)
+                    #   - name      (= string containing the name of the affiliated organization)
                     if affiliation_dict:
                         if "id" in affiliation_dict:
-                            affiliation_id_url: str = affiliation_dict["id"]
-                            if affiliation_id_url:
-                                lifecycle_contributor.add_value("url", affiliation_id_url)
+                            self.lifecycle_determine_type_of_identifier_and_save_uri(
+                                item_dictionary=affiliation_dict, lifecycle_item_loader=lifecycle_contributor
+                            )
                         if "name" in affiliation_dict:
                             affiliation_name: str = affiliation_dict["name"]
                             if affiliation_name:
@@ -520,25 +540,38 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lom_base_item_loader.add_value("lifecycle", lifecycle_publisher.load_item())
 
     @staticmethod
-    def lifecycle_save_oersi_identifier_to_url_or_uuid(
-        person_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
+    def lifecycle_determine_type_of_identifier_and_save_uri(
+        item_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
     ):
         """
-        OERSI's author 'id'-field delivers both URLs and uuids in the same field. Since edu-sharing expects URLs and
-        uuids to be saved in separate fields, this method checks if the 'id'-field is available at all, and if it is,
-        determines if the string should be saved to the 'url' or 'uuid'-field of LomLifecycleItemLoader.
+        OERSI's "creator"/"contributor"/"affiliation" items might contain an 'id'-field which (optionally) provides
+        URI-identifiers that reference GND / ORCID / Wikidata / ROR.
+        This method checks if the 'id'-field is available at all, and if it is, determines if the string should be
+        saved to an identifier-specific field of LomLifecycleItemLoader.
+        If the URI string of "id" could not be recognized, it will save the value to 'lifecycle.url' as a fallback.
         """
-        if "id" in person_dictionary:
-            author_uuid_or_url = person_dictionary.get("id")
+        if "id" in item_dictionary:
+            uri_string: str = item_dictionary.get("id")
             if (
-                "orcid.org" in author_uuid_or_url
-                or "dnb.de" in author_uuid_or_url
-                or "wikidata.org" in author_uuid_or_url
-                or "ror.org" in author_uuid_or_url
+                "orcid.org" in uri_string
+                or "/gnd/" in uri_string
+                or "wikidata.org" in uri_string
+                or "ror.org" in uri_string
             ):
-                lifecycle_item_loader.add_value("url", author_uuid_or_url)
+                if "/gnd/" in uri_string:
+                    lifecycle_item_loader.add_value("id_gnd", uri_string)
+                if "orcid.org" in uri_string:
+                    lifecycle_item_loader.add_value("id_orcid", uri_string)
+                if "ror.org" in uri_string:
+                    lifecycle_item_loader.add_value("id_ror", uri_string)
+                if "wikidata.org" in uri_string:
+                    lifecycle_item_loader.add_value("id_wikidata", uri_string)
             else:
-                lifecycle_item_loader.add_value("uuid", author_uuid_or_url)
+                logging.info(
+                    f"The URI identifier '{uri_string}' was not recognized. "
+                    f"Fallback: Saving its value to 'lifecycle.url'."
+                )
+                # lifecycle_item_loader.add_value("url", uri_string)
 
     @staticmethod
     def split_names_if_possible_and_add_to_lifecycle(name_string: str, lifecycle_item_loader: LomLifecycleItemloader):
@@ -794,9 +827,9 @@ class OersiSpider(scrapy.Spider, LomBase):
                     # e.g.: "https://w3id.org/kim/hochschulfaechersystematik/n78")
                     # or alternatively "Schulfächer" (e.g. http://w3id.org/kim/schulfaecher/)
                     if about_id:
-                        # ToDo: at the moment OERSI exclusively provides university URL values,
-                        #  but might start providing "schulfaecher"-URLs as well in the future (-> mapping
-                        #  to 'discipline' will be necessary)
+                        # at the moment OERSI exclusively provides university-specific URL values,
+                        # but might start providing "schulfaecher"-URLs as well in the future (-> mapping
+                        # to 'discipline' will be necessary)
                         if about_id.startswith("https://w3id.org/kim/hochschulfaechersystematik/"):
                             about_id_key = about_id.split("/")[-1]
                             if about_id_key:

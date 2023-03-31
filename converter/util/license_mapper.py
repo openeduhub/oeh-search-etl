@@ -156,6 +156,10 @@ class LicenseMapper:
                 if regex_deed_hit:
                     deed_hit = regex_deed_hit.group()
                     license_url_candidate = license_url_candidate[: -len(deed_hit)]
+            # ToDo: while it (thankfully) hasn't happened yet, we have to assume that URLs ending in "/fr/" or "/es"
+            #  could be problematic as well. Therefore: refactor the if-checks for "/de/" and "/de" asap
+            if license_url_candidate.endswith("/de"):
+                license_url_candidate = license_url_candidate[: -len("de")]
             if license_url_candidate.endswith("/de/"):
                 license_url_candidate = license_url_candidate[: -len("de/")]
             for valid_license_url in Constants.VALID_LICENSE_URLS:

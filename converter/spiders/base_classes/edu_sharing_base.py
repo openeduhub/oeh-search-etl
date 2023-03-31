@@ -197,6 +197,15 @@ class EduSharingBase(Spider, LomBase):
         # if hasattr(vcard, "title"):
         #     title: str = vcard.title.value
         #     lifecycle.add_value("title", title)
+        # ToDo: implement identifiers (GND / ORCID / ROR / Wikidata)
+        # if hasattr(vcard, "x-gnd-uri"):
+        #     pass
+        # if hasattr(vcard, "x-orcid"):
+        #     pass
+        # if hasattr(vcard, "x-ror"):
+        #     pass
+        # if hasattr(vcard, "x-wikidata"):
+        #     pass
         if hasattr(vcard, "email"):
             # ToDo: recognize multiple emails
             vcard_email: str = vcard.email.value

@@ -391,6 +391,10 @@ class EduSharing:
                 url = person["url"] if "url" in person else ""
                 email = person["email"] if "email" in person else ""
                 date = person["date"] if "date" in person else None
+                id_gnd: str = person["id_gnd"] if "id_gnd" in person else ""
+                id_orcid: str = person["id_orcid"] if "id_orcid" in person else ""
+                id_ror: str = person["id_ror"] if "id_ror"  in person else ""
+                id_wikidata: str = person["id_wikidata"] if "id_wikidata" in person else ""
                 vcard = vobject.vCard()
                 vcard.add("n").value = vobject.vcard.Name(
                     family=lastName, given=firstName
@@ -400,6 +404,14 @@ class EduSharing:
                     if organization
                     else (firstName + " " + lastName).strip()
                 )
+                if id_gnd:
+                    vcard.add("X-GND-URI").value = id_gnd
+                if id_orcid:
+                    vcard.add("X-ORCID").value = id_orcid
+                if id_ror:
+                    vcard.add("X-ROR").value = id_ror
+                if id_wikidata:
+                    vcard.add("X-Wikidata").value = id_wikidata
                 if title:
                     vcard.add("title").value = title
                 if date:

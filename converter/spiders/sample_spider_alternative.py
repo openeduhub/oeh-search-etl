@@ -133,6 +133,11 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - organization                   optional
         #  - email                          optional
         #  - uuid                           optional
+        #  - title                          optional (academic title)
+        #  - id_gnd                         optional (expected: URI)
+        #  - id_orcid                       optional (expected: URI)
+        #  - id_ror                         optional (expected: URI)
+        #  - id_wikidata                    optional (expected: URI)
         lifecycle.add_value('role', 'author')
         # supported roles:
         #   "author" / "editor" / "publisher" / "metadata_contributor" / "metadata_provider" / "unknown"

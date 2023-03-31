@@ -86,6 +86,19 @@ class LomLifecycleItem(Item):
     """
     url = Field()
     uuid = Field()
+    id_gnd = Field()
+    """The GND identifier (URI) of a PERSON, e.g. "https://d-nb.info/gnd/<identifier>". 
+    Values will be written into the vCard namespace 'X-GND-URI'."""
+    id_orcid = Field()
+    """The ORCID identifier (URI) of a PERSON, e.g. "https://orcid.org/<identifier>". 
+    Values will be written into the vCard namespace 'X-ORCID'."""
+    id_ror = Field()
+    """The ROR identifier (URI) of an ORGANIZATION, e.g. "https://ror.org/<identifier>".
+    Values will be written into the vCard namespace 'X-ROR'."""
+    id_wikidata = Field()
+    """The Wikidata identifier (URI) of an ORGANIZATION, e.g. "https://www.wikidata.org/wiki/<identifier>". 
+    Values will be written into the vCard namespace 'X-Wikidata'."""
+
 
 
 class LomTechnicalItem(Item):
