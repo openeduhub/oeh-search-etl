@@ -158,10 +158,18 @@ class LicenseMapper:
                     license_url_candidate = license_url_candidate[: -len(deed_hit)]
             # ToDo: while it (thankfully) hasn't happened yet, we have to assume that URLs ending in "/fr/" or "/es"
             #  could be problematic as well. Therefore: refactor the if-checks for "/de/" and "/de" asap
-            if license_url_candidate.endswith("/de"):
-                license_url_candidate = license_url_candidate[: -len("de")]
-            if license_url_candidate.endswith("/de/"):
-                license_url_candidate = license_url_candidate[: -len("de/")]
+            url_ending_in_two_char_language_code_regex = re.compile(r"/([a-z]{2}/?)$")
+            # RegEx pattern for handling URLs that end in "/de", "/de/", "/fr", "/es/" etc.
+            two_char_language_code_hit = url_ending_in_two_char_language_code_regex.search(license_url_candidate)
+            if two_char_language_code_hit:
+                # checks if the URL pattern ends in "/de", "/de/" or any other type of 2-char language code, e.g.:
+                # http://creativecommons.org/licenses/by/3.0/de or https://creativecommons.org/licenses/by/3.0/es/
+                # and only keeps the part of the string that can be recognized by the pipeline
+                url_language_code_trail: str = two_char_language_code_hit.group()
+                if url_language_code_trail:
+                    # the url_language_code_trail will typically look like "/de/" or "/de", but we only want to cut off
+                    # the 2-char language code and its trailing slash, but keep the first slash intact
+                    license_url_candidate = license_url_candidate[: -len(url_language_code_trail) +1]
             for valid_license_url in Constants.VALID_LICENSE_URLS:
                 if license_url_candidate in valid_license_url:
                     return valid_license_url

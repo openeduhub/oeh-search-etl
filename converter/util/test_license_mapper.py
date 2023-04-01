@@ -38,6 +38,8 @@ class TestLicenseMapper:
             ("https://www.gnu.org/licenses/gpl-3.0", None),
             ("https://opensource.org/licenses/MIT", None),
             ("http://creativecommons.org/licenses/by/3.0/de", Constants.LICENSE_CC_BY_30),
+            ("https://creativecommons.org/licenses/by/3.0/es/", Constants.LICENSE_CC_BY_30),
+            ("https://creativecommons.org/licenses/by/3.0/fr", Constants.LICENSE_CC_BY_30),
         ],
     )
     def test_get_license_url(self, test_input, expected_result):
