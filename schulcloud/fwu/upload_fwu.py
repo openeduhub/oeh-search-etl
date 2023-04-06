@@ -69,7 +69,7 @@ class Uploader:
 
             node = None
             try:
-                node = self.api.find_node_by_name(es_folder.id, title)
+                node = self.api.find_node_by_replication_source_id(properties["ccm:replicationsourceid"][0])
             except NotFoundException:
                 pass
 
