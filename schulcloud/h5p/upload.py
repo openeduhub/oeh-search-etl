@@ -300,7 +300,6 @@ class Uploader:
         """
         Upload zip-file from AWS S3 bucket to Edu-sharing folder.
         """
-        excludes = ['FWURAW']
 
         s3_objects = self.downloader.get_object_list()
         total_size = 0
@@ -308,18 +307,11 @@ class Uploader:
             total_size += s3_obj['Size']
 
         for s3_obj in s3_objects:
-            if '/' not in s3_obj['Key']:
-                print(f'{s3_obj["Key"]} is not within a folder will therefore be ignored', file=sys.stderr)
-                continue
             if not s3_obj['Key'].endswith('.zip'):
                 print(f'Skipping {s3_obj["Key"]}, not a zip file.', file=sys.stderr)
                 continue
 
             folder_name = s3_obj['Key'].split('/')[0]
-
-            if folder_name in excludes:
-                print(f'Skipping {s3_obj["Key"]} because it\'s excluded')
-                continue
 
             self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER)
             zip_path = os.path.join(TEMP_FOLDER, s3_obj['Key'])
