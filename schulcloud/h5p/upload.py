@@ -115,7 +115,7 @@ class Uploader:
             raise MetadataNotFoundError(zip)
         return metadata_file
 
-    def collection_extists(self, collection: Collection, zip_file: ZipFile):
+    def collection_exists(self, collection: Collection, zip_file: ZipFile):
         for child in collection.children:
             file = zip_file.open(child.filepath)
             filename = os.path.basename(child.filepath)
@@ -225,7 +225,7 @@ class Uploader:
                 print(f'Found multiple nodes for collection: {collection.name}', file=sys.stderr)
                 continue
             if collection_node:
-                if not self.collection_extists(collection, zip_file):
+                if not self.collection_exists(collection, zip_file):
                     pass
                 else:
                     if last_modified:
