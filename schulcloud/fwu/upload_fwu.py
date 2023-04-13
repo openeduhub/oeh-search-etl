@@ -81,7 +81,7 @@ class Uploader:
 
                 # Set thumbnail
                 try:
-                    self.api.set_preview_thumbnail(node_id=node.id, filename=thumbnail_bytes, type='remote')
+                    self.api.set_preview_thumbnail(node.id, thumbnail_bytes, type='remote')
                 except:
                     raise RuntimeError(f'Error: Can not set thumbnail.')
 

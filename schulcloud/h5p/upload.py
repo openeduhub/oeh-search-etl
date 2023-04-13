@@ -249,7 +249,7 @@ class Uploader:
 
         # TODO: set thumbnail of first item or have other solution for non-h5p collections
         if collection.children[0].filepath.endswith('h5p'):
-            self.api.set_preview_thumbnail(node_id=collection_node.id, filename=H5P_THUMBNAIL_PATH)
+            self.api.set_preview_thumbnail(collection_node.id, H5P_THUMBNAIL_PATH)
 
     def upload_zip(self, zip_file: ZipFile, es_folder_name: str, last_modified: Optional[datetime] = None):
         """
