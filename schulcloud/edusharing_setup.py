@@ -32,8 +32,6 @@ class EdusharingSetup:
             self.api.set_application_properties(xml_name, properties)
 
     def _add_users_and_groups(self, users: List[User], groups: Set[str]):
-        # requirement: all groups within "users" must also be within "groups"
-
         existing_usernames = [user['userName'] for user in self.api.get_users()]
 
         for user in users:
@@ -65,8 +63,6 @@ class EdusharingSetup:
                     self.api.group_add_user(group, user.name)
 
     def _upload_color_picker(self):
-        # the color picker h5p content contains the color picker library needed for other h5p items
-        # which will be installed after upload
         colorpicker_path = 'schulcloud/update_colorpicker.h5p'
         colorpicker_name = os.path.basename(colorpicker_path)
         try:

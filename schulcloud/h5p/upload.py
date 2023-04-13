@@ -33,10 +33,18 @@ GROUPS_EXCEL_TO_ES = {
 
 
 def escape_filename(filename: str):
+    """
+    Return filename with escaped characters.
+    @param filename: Name of the file
+    """
     return re.sub(r'[,;:\'="@$%/\\{}]', '_', filename)
 
 
 def create_replicationsourceid(name: str):
+    """
+    Return replicationsoureceID with SHA1 encryption.
+    @param name: Name of the replicationsource
+    """
     return hashlib.sha1(name.encode()).hexdigest()
 
 
@@ -51,6 +59,19 @@ def generate_node_properties(
         replication_source_uuid: Optional[str] = None,
         aggregation_level: int = 1,
         hpi_searchable: bool = True):
+    """
+    Return the node properties corresponding to mds_oeh metadataset.
+    @param title: Title of the node
+    @param name: Name of the node
+    @param publisher: Publisher of the node
+    @param license: License for the node
+    @param keywords: Keywords of the node
+    @param folder_name: Name of the replication source
+    @param replication_source_id: Replication source ID of the node
+    @param replication_source_uuid: Replication source UUID of the node
+    @param aggregation_level: Aggregation level of the node
+    @param hpi_searchable: 1 is equal to 'isSearchable', 0 is equal to 'notSearchable'
+    """
     if not replication_source_id:
         replication_source_id = name
     if not replication_source_uuid:
@@ -98,6 +119,10 @@ class Uploader:
 
     @staticmethod
     def get_permitted_groups(permissions: List[str]):
+        """
+        Return permitted groups from Excelsheet, which matching with the list.
+        @param permissions: List of known permissions
+        """
         if 'ALLE' in permissions:
             return list(GROUPS_EXCEL_TO_ES.values())
         else:
@@ -105,7 +130,10 @@ class Uploader:
 
     @staticmethod
     def get_metadata_file(zip: ZipFile):
-        # get excel_sheet data
+        """
+        Return metadata from Excelsheet.
+        @param zip: Zip file
+        """
         for excel_filename in zip.namelist():
             if excel_filename.endswith(".xlsx"):
                 excel_file = zip.open(excel_filename)
@@ -116,6 +144,11 @@ class Uploader:
         return metadata_file
 
     def collection_exists(self, collection: Collection, zip_file: ZipFile):
+        """
+        Return true, if the collection exists already on Edu-Sharing.
+        @param collection: Node of collection
+        @param zip_file: File as zip.
+        """
         for child in collection.children:
             file = zip_file.open(child.filepath)
             filename = os.path.basename(child.filepath)
@@ -128,12 +161,23 @@ class Uploader:
         return True
 
     def setup_destination_folder(self, folder_name: str):
+        """
+        Create the destination folder for the upload inside the sync_obj folder, if the folder doesn't exist.
+        @param folder_name: Name of the folder
+        """
         sync_obj = self.api.get_sync_obj_folder()
         destination_folder = self.api.get_or_create_node(sync_obj.id, folder_name, type='folder')
         return destination_folder
 
     def upload_file(self, folder: Node, metadata: Metadata, file: Optional[IO[bytes]] = None, searchable: bool = True):
-        # get h5p file, add metadata, upload and after all add permissions
+        """
+        Get the H5P-file and add the metadata from the excelsheet. Then upload the H5P-file with metadata and add
+        the permission.
+        @param folder: Basic node for the upload
+        @param metadata: Metadata for the Node
+        @param file: H5P-file to upload
+        @param searchable: Boolean, if the node should be searchable in the 'Schulcloud-Verbund Software'
+        """
         filename = os.path.basename(metadata.filepath)
         name = os.path.splitext(filename)[0]
         keywords = [metadata.title, metadata.publisher] + metadata.keywords
@@ -161,14 +205,19 @@ class Uploader:
         self.api.set_permissions(node.id, permitted_groups, False)
 
         if filename.endswith('h5p'):
-            self.api.set_preview_thumbnail(node_id=node.id, filename=H5P_THUMBNAIL_PATH)
+            self.api.set_preview_thumbnail(node.id, H5P_THUMBNAIL_PATH)
 
         return node.id, properties["ccm:replicationsourceuuid"][0]
 
     def upload_collection(self, collection: Collection, zip_file: ZipFile, es_folder: Node, collection_node: Node):
-        # save the replicationsourceuuid, nodeId and the collection of each h5p-file corresponding to this package
+        """
+        Summarize related H5P-files to an educational collection.
+        @param collection: Collection of H5P-files
+        @param zip_file: File as zip
+        @param es_folder: Folder on Edu-Sharing to upload to
+        @param collection_node: Node of collection
+        """
         children_replication_source_uuids = []
-
         keywords = [collection.name]
         keywords.extend(collection.keywords)
         keywords.extend(collection.publishers)
@@ -176,8 +225,7 @@ class Uploader:
         # TODO: test whether edusharing collections supports multiple publishers/licenses
         collection_properties = generate_node_properties(
             collection.name, collection.name, next(iter(collection.publishers)), next(iter(collection.licenses)),
-            keywords,
-            es_folder.name, aggregation_level=2
+            keywords, es_folder.name, aggregation_level=2
         )
         if not collection_node:
             collection_node = self.api.get_or_create_node(es_folder.id, collection.name)
@@ -204,6 +252,12 @@ class Uploader:
             self.api.set_preview_thumbnail(node_id=collection_node.id, filename=H5P_THUMBNAIL_PATH)
 
     def upload_zip(self, zip_file: ZipFile, es_folder_name: str, last_modified: Optional[datetime] = None):
+        """
+        Upload zip-file to Edu-sharing folder.
+        @param zip_file: File as zip
+        @param es_folder_name: Folder on Edu-Sharing to upload to
+        @param last_modified: Optional timestamp
+        """
         try:
             metadata_file = self.get_metadata_file(zip_file)
         except MetadataNotFoundError as exc:
@@ -243,7 +297,9 @@ class Uploader:
         metadata_file.close()
 
     def upload_from_s3(self):
-        excludes = ['FWURAW']
+        """
+        Upload zip-file from AWS S3 bucket to Edu-sharing folder.
+        """
 
         s3_objects = self.downloader.get_object_list()
         total_size = 0
@@ -251,18 +307,11 @@ class Uploader:
             total_size += s3_obj['Size']
 
         for s3_obj in s3_objects:
-            if '/' not in s3_obj['Key']:
-                print(f'{s3_obj["Key"]} is not within a folder will therefore be ignored', file=sys.stderr)
-                continue
             if not s3_obj['Key'].endswith('.zip'):
                 print(f'Skipping {s3_obj["Key"]}, not a zip file.', file=sys.stderr)
                 continue
 
             folder_name = s3_obj['Key'].split('/')[0]
-
-            if folder_name in excludes:
-                print(f'Skipping {s3_obj["Key"]} because it\'s excluded')
-                continue
 
             self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER)
             zip_path = os.path.join(TEMP_FOLDER, s3_obj['Key'])
@@ -275,6 +324,9 @@ class Uploader:
             os.remove(zip_path)
 
     def test_upload(self):
+        """
+        Test the local upload to Edu-Sharing.
+        """
         sync = self.api.get_sync_obj_folder()
         h5p = self.api.get_or_create_node(sync.id, 'h5p', type='folder')
         nodes = self.api.get_children(h5p.id)
@@ -303,6 +355,9 @@ class S3Downloader:
         self.bucket_name = bucket_name
 
     def check_bucket_exists(self) -> None:
+        """
+        Check, if the bucket exists on AWS S3.
+        """
         response = self.client.list_buckets()
         for bucket in response['Buckets']:
             if bucket['Name'] == self.bucket_name:
@@ -311,6 +366,9 @@ class S3Downloader:
             raise RuntimeError(f'Bucket {self.bucket_name} does not exist')
 
     def get_object_list(self) -> List[Dict]:
+        """
+        Return max. 1000 objects from the AWS S3 bucket.
+        """
         self.check_bucket_exists()
         response = self.client.list_objects_v2(Bucket=self.bucket_name)
         objs = response['Contents']
@@ -323,6 +381,12 @@ class S3Downloader:
         return objs
 
     def download_object(self, object_key: str, dir_path: str, callback: Optional[Callable] = None):
+        """
+        Download all objects from the AWS S3 bucket to a local directory.
+        @param object_key: The key from the AWS S3 object
+        @param dir_path: Path to the directory to download to
+        @param callback: Optional callback for the download
+        """
         file_path = os.path.join(dir_path, object_key)
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))

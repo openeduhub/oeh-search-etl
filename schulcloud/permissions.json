@@ -4220,6 +4220,13 @@
       "comment": "WetterKontor GmbH",
       "inherit": false,
       "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/FWU",
+      "inherit": false,
+      "permitted_groups": [
+        "Brandenburg"
+      ]
     }
   ]
 }

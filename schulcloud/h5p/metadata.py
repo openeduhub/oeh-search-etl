@@ -32,6 +32,10 @@ class Collection:
         self.children: List[Metadata] = []
 
     def add_child(self, child: Metadata):
+        """
+        Add children nodes to Metadata.
+        @param child: Metadata from children nodes
+        """
         self.children.append(child)
         self.publishers.add(child.publisher)
         self.keywords.update(child.keywords)
@@ -62,11 +66,17 @@ class MetadataFile:
         self._parse()
 
     def close(self):
+        """
+        Close the excel-sheet.
+        """
         self.workbook.close()
         if not isinstance(self._file, str):
             self._file.close()
 
     def _validate_sheet(self):
+        """
+        Validate, if all required metadata is available in the excel-sheet
+        """
         # Check required fields
         required_fields = [self.COLUMN.TITLE, self.COLUMN.FILENAME, self.COLUMN.PERMISSION]
         for row in range(1, self.o_sheet.max_row + 1):
@@ -97,6 +107,9 @@ class MetadataFile:
                                        f'are not matching! ({first_permission} != {permission})')
 
     def _parse(self):
+        """
+        Parse the metadata from excel-sheet into metadata for Edu-Sharing nodes.
+        """
         for row in range(1, self.o_sheet.max_row + 1):
             order_raw: Optional[Union[int, str]] = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
             order = str(order_raw) if order_raw else ''
@@ -124,6 +137,10 @@ class MetadataFile:
                 self.single_files.append(Metadata(filepath, title, publisher, keywords, order, permissions, license=license))
 
     def _fill_zeros(self, order: str):
+        """
+        Fill zeros for ascending order.
+        @param order: Stringified number of order
+        """
         max_length = len(str(self.o_sheet.max_row))
         zero = (max_length - len(order)) * '0'
         return zero + order

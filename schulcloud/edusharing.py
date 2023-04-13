@@ -31,6 +31,11 @@ class Node:
 class EdusharingAPI:
     @staticmethod
     def _craft_permission_body(groups: List[str], inheritance: bool):
+        """
+        Generate permission-body for request.
+        @param groups: List of permitted groups
+        @param inheritance: Boolean, if inheritance is wanted or not
+        """
         permissions = []
         for group in groups:
             permission = {
@@ -67,6 +72,17 @@ class EdusharingAPI:
                      params: Optional[Dict[str, Any]] = None, json_data: Optional[Dict] = None,
                      files: Optional[Dict] = None, stream: bool = False, retry: int = 50,
                      timeout: Optional[float] = None):
+        """
+        Request method for the Edu-Sharing API.
+        @param method: HTTP-method (GET, POST, PUT, DELETE)
+        @param url: API URL for the request
+        @param params: Additional params
+        @param json_data: Request body as JSON
+        @param files: Files for upload
+        @param stream: Stream for upload
+        @param retry: Number of retries, if the request failed
+        @param timeout: Time between a retry
+        """
         url = f'{self.base_url}{url}'
         headers = {'Accept': 'application/json'}
         i = -1
@@ -112,15 +128,31 @@ class EdusharingAPI:
         return items
 
     def get_application_properties(self, xml_file_name: str):
+        """
+        Return the properties of the application.
+        @param xml_file_name: Name of the XML-file
+        """
         url = f'/admin/v1/applications/{xml_file_name}'
         response = self.make_request('GET', url)
         return response.json()
 
     def set_application_properties(self, xml_file_name: str, values: Dict[str, str]):
+        """
+        Set the properties of the application.
+        @param xml_file_name: Name of the XML-file
+        @param values: Values for the properties
+        """
         url = f'/admin/v1/applications/{xml_file_name}'
         response = self.make_request('PUT', url, json_data=values)
 
     def upload_content(self, node_id: str, filename: str, file: IO[bytes], mimetype: str = ''):
+        """
+        Upload local file into node.
+        @param node_id: ID of the node
+        @param filename: Name of the local file
+        @param file: File as binary files
+        @param mimetype: Filetype
+        """
         url = f'/node/v1/nodes/-home-/{node_id}/content'
         params = {'versionComment': 'MAIN_FILE_UPLOAD', 'mimetype': mimetype}
         files = {
@@ -129,6 +161,10 @@ class EdusharingAPI:
         response = self.make_request('POST', url, params=params, files=files, stream=True)
 
     def get_user(self, name: str = None):
+        """
+        Return User by name.
+        @param name: Name of the User
+        """
         if name is None:
             name = '-me-'
         url = f'/iam/v1/people/-home-/{name}'
@@ -138,12 +174,22 @@ class EdusharingAPI:
         return response.json()
 
     def get_users(self):
+        """
+        Get Users from -home- Repository.
+        """
         url = f'/iam/v1/people/-home-'
         params = {'pattern': '*'}
         users = self.get_all('GET', url, params, lambda items, content: items.extend(content['users']), 20)
         return users
 
     def create_user(self, username: str, password: str, type: Literal['function', 'system'], quota: int = 1024 ** 2):
+        """
+        Creates a User.
+        @param username: Name for the User
+        @param password: Password for the User
+        @param type: Function or System account
+        @param quota: Maximum of the download/upload size
+        """
         url = f'/iam/v1/people/-home-/{username}'
         params = {'password': password}
         body = {
@@ -168,16 +214,28 @@ class EdusharingAPI:
         response = self.make_request('PUT', url, params=params)
 
     def delete_user(self, name: str):
+        """
+        Deletes a User.
+        @param name: Name of the User
+        """
         url = f'/iam/v1/people/-home-/{name}'
         params = {'force': 'true'}
         response = self.make_request('DELETE', url, params=params)
 
     def user_get_groups(self, username: str):
+        """
+        Return the groups, the User belongs to.
+        @param username: Name of the User
+        """
         url = f'/iam/v1/people/-home-/{username}/memberships'
         groups = self.get_all('GET', url, {}, lambda items, content: items.extend(content['groups']), 50)
         return groups
 
     def create_group(self, group_name: str):
+        """
+        Creates a group.
+        @param group_name: Name of the group
+        """
         url = f'/iam/v1/groups/-home-/{group_name}'
         body = {
             'displayName': group_name,
@@ -187,16 +245,31 @@ class EdusharingAPI:
         response = self.make_request('POST', url, json_data=body)
 
     def get_groups(self):
+        """
+        Returns the groups.
+        """
         url = f'/iam/v1/groups/-home-/'
         params = {'pattern': '*'}
         groups = self.get_all('GET', url, params, lambda items, content: items.extend(content['groups']), 256)
         return groups
 
     def group_add_user(self, group_name: str, user_name: str):
+        """
+        Add a User to a group.
+        @param group_name: Name of the group
+        @param user_name: Name of the User
+        """
         url = f'/iam/v1/groups/-home-/GROUP_{group_name}/members/{user_name}'
         self.make_request('PUT', url)
 
-    def get_children(self, node_id: str, all_properties: bool = False, type: Literal['all', 'folders', 'files'] = 'all', start: int = 0, count: int = 0) -> List[Node]:
+    def get_children(self, node_id: str, all_properties: bool = False,
+                     type: Literal['all', 'folders', 'files'] = 'all', start: int = 0, count: int = 0) -> List[Node]:
+        """
+        Returns children of node.
+        @param node_id: ID of the parent node
+        @param all_properties: Boolean, if all properties as search criteria
+        @param type: Type of the children - all, file or folder
+        """
         url = f'/node/v1/nodes/-home-/{node_id}/children'
         params = {}
         if all_properties:
@@ -214,6 +287,11 @@ class EdusharingAPI:
             return [Node(node) for node in response.json()['nodes']]
 
     def find_node_by_name(self, parent_id: str, child_name: str, type: Literal['all', 'files', 'folders'] = 'all') -> Node:
+        """
+        Returns node by name.
+        @param parent_id: ID of the parent node
+        @param child_name: Name of the child node corresponding to the parent ID
+        """
         nodes = self.get_children(parent_id, type=type)
         for node in nodes:
             if node.name == child_name:
@@ -221,6 +299,10 @@ class EdusharingAPI:
         raise NotFoundException(child_name)
 
     def find_node_by_replication_source_id(self, replication_source_id: str, skip_exception: Optional[bool] = False) -> Node:
+        """
+        Returns a node by replication source ID.
+        @param replication_source_id: Replication Source ID of node
+        """
         nodes = self.search_custom('ccm:replicationsourceid', replication_source_id, content_type='FILES')
         if len(nodes) == 1:
             return nodes[0]
@@ -230,7 +312,15 @@ class EdusharingAPI:
             if not skip_exception:
                 raise NotFoundException(replication_source_id)
 
-    def create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file', properties: Optional[Dict] = None):
+    def create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file',
+                    properties: Optional[Dict] = None):
+        """
+        Creates a node with properties.
+        @param parent_id: ID of the parent node
+        @param name: Name for the node
+        @param type: Type of the node - file or folder
+        @param properties: Properties for the Node [Optional]
+        """
         url = f'/node/v1/nodes/-home-/{parent_id}/children'
         params = {
             'type': 'ccm:io' if type == 'file' else 'cm:folder',
@@ -250,6 +340,14 @@ class EdusharingAPI:
 
     def sync_node(self, group: str, properties: Dict, match: List[str], type: str = 'ccm:io',
                   group_by: Optional[str] = None):
+        """
+        Synchronize a node by group params.
+        @param group: Group param
+        @param properties: Properties for synchronization
+        @param match: Matching param
+        @param type: Type of the synchronization
+        @param group_by: Grouped by the param
+        """
         url = f'/bulk/v1/sync/{group}'
         params = {
             'type': type,
@@ -262,15 +360,31 @@ class EdusharingAPI:
         return Node(response.json()['node'])
 
     def delete_node(self, node_id: str):
+        """
+        Delete a node by ID.
+        @param node_id: Id of the node
+        """
         url = f'/node/v1/nodes/-home-/{node_id}'
         self.make_request('DELETE', url)
 
     def get_sync_obj_folder(self):
+        """
+        Returns sync_obj folder of Edu-Sharing.
+        """
         return self.get_or_create_node('-userhome-', 'SYNC_OBJ', type='folder')
 
     def file_exists(self, parent_id: str, name: str):
         # TODO: should only search within specific parent node, not global search
         return len(self.search_custom('cm:name', name, content_type='FILES')) > 0
+
+    def file_exists_by_name(self, name: str):
+        """
+        Returns boolean, if the file exists.
+        @param name: Name of the file
+        """
+        # TODO: replace with find_node_by_name?
+        name = name.replace(" ", "_")
+        return len(self.search_custom('name', name, content_type='FILES')) > 0
 
     def search_ngsearch(self, criteria: list[dict[str, str]], content_type: Optional[Literal['FOLDERS', 'FILES']] = None, all_properties: bool = False):
         url = f'/search/v1/queries/-home-/mds_oeh/ngsearch/'
@@ -289,6 +403,10 @@ class EdusharingAPI:
         return nodes
 
     def search_schulcloud(self, query: str):
+        """
+        Explicit 'Schulcloud-Verbund-Software' search query to get nodes.
+        @param query: Searchword for the elasticsearch request
+        """
         url = f'/search/v1/queries/-home-/mds_oeh/ngsearch/'
         params = {
             'contentType': 'FILES',
@@ -308,6 +426,13 @@ class EdusharingAPI:
         return nodes
 
     def search_custom(self, property: str, value: str, content_type: Optional[Literal['FOLDERS', 'FILES']] = None, all_properties: bool = False):
+        """
+        Custom search query to get nodes.
+        @param property: Property as search criterion
+        @param value: Value as search criterion
+        @param max_items: Number of returning nodes
+        @param content_type: Search for file or folder
+        """
         url = f'/search/v1/custom/-home-'
         params = {
             'combineMode': 'AND',
@@ -318,10 +443,15 @@ class EdusharingAPI:
             params['contentType'] = content_type
         if all_properties:
             params['propertyFilter'] = '-all-'
-        nodes = self.get_all('GET', url, params, lambda items, content: items.extend([Node(node) for node in content['nodes']]), 100)
+        nodes = self.get_all('GET', url, params,
+                             lambda items, content: items.extend([Node(node) for node in content['nodes']]), 100)
         return nodes
 
     def get_permissions(self, node_id: str):
+        """
+        Returns the permissions of the node.
+        @param node_id: ID of the node
+        """
         url = f'/node/v1/nodes/-home-/{node_id}/permissions'
         response = self.make_request('GET', url)
         return response.json()['permissions']
@@ -337,25 +467,53 @@ class EdusharingAPI:
         return groups, permissions['localPermissions']['inherited']
 
     def set_permissions(self, node_id: str, groups: List[str], inheritance: bool) -> None:
+        """
+        Set the permissions for the node.
+        @param node_id: ID of the node
+        @param groups: List of the authorized groups for instances
+        @param inheritance: Inheritance True or False
+        """
         url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
-        response = self.make_request('POST', url, json_data=self._craft_permission_body(groups, inheritance), timeout=8)
+        permission_body = self._craft_permission_body(groups, inheritance)
+        response = self.make_request('POST', url, json_data=permission_body, timeout=8)
 
     def get_metadata(self, node_id: str):
+        """
+        Returns the metadata of the node.
+        @param node_id: ID of the node
+        """
         url = f'/node/v1/nodes/-home-/{node_id}/metadata'
         response = self.make_request('GET', url)
         return response.json()
 
     def change_metadata(self, node_id: str, properties: Dict[str, List[str]]):
+        """
+        Change the metadata of the node.
+        @param node_id: ID of the node
+        @param properties: Dictionary of the properties to change
+        """
         url = f'/node/v1/nodes/-home-/{node_id}/metadata'
         params = {'versionComment': 'METADATA_UPDATE'}
         self.make_request('POST', url, params=params, json_data=properties)
 
     def get_node_timestamp(self, node):
+        """
+        Returns timestamp of the node.
+        @param node: The node for getting timestamp
+        """
         meta = self.get_metadata(node.id)
         timestamp_str = str(meta["node"]["createdAt"]).replace("Z", "")
         return datetime.fromisoformat(timestamp_str)
 
-    def get_or_create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file', properties: Optional[Dict] = None):
+    def get_or_create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file',
+                           properties: Optional[Dict] = None):
+        """
+        Try to get the node by name. If the node doesn't exist, the method creates a new node with the given name.
+        @param parent_id: ID of the parent node
+        @param name: Name of the node
+        @param type: Declare if the node is a file or a folder - default: file
+        @param properties: Change the metadata of the node by the given properties
+        """
         try:
             folder = self.find_node_by_name(parent_id, name)
             if properties:
@@ -365,7 +523,12 @@ class EdusharingAPI:
         return folder
 
     def set_property(self, node_id: str, property: str, value: Optional[List[str]]):
-        # /node/v1/nodes/{repository}/{node}/property
+        """
+        Sets new property/value pair accordingly to metadataset 'mds_oeh'.
+        @param node_id: ID of node
+        @param property: Property of the metadataset 'mds_oeh'
+        @param property: Value's of the property
+        """
         url = f'/node/v1/nodes/-home-/{node_id}/property'
         params = {'property': property}
         if value is not None:
@@ -376,6 +539,7 @@ class EdusharingAPI:
         """
         Sets collection relation to its children. Reverse operation is also needed for all children.
         @param children_uuids: replication source uuids of ALL children
+        @param node_id: ID of node
         """
         # frontend relies on exact syntax, no double quotes (as in json) allowed
         value = f"{{kind': 'hasparts', 'resource': {{'identifier': {str(children_uuids)}}}}}"
@@ -386,19 +550,33 @@ class EdusharingAPI:
         """
         Sets node's relation to its collection. Reverse operation is needed for collection.
         @param parent_uuid: replication source uuid of parent
+        @param node_id: ID of node
         """
         # frontend relies on exact syntax, no double quotes (as in json) allowed
         value = f"{{'kind': 'ispartof', 'resource': {{'identifier': ['{parent_uuid}']}}}}"
         for property in 'ccm:lom_relation', 'ccm:hpi_lom_relation':
             self.set_property(node_id, property, [value])
 
-    def set_preview_thumbnail(self, node_id: str, filename: str):
-        url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
-        files = {'image': (filename, open(filename, 'rb'))}
-        response = self.make_request('POST', url, files=files, stream=True)
-        if not response.status_code == 200:
-            raise RequestErrorResponseException(response, node_id)
-        files['image'][1].close()
+    def set_preview_thumbnail(self, node_id: str, file_path_or_url: str, type: Literal['local', 'remote'] = 'local'):
+        """
+        Sets node's preview thumbnail.
+        @param node_id: ID of node
+        @param filename: Name of the file
+        @param type: 'local' for local images, 'remote' for S3-binary-images
+        """
+        if type == 'local':
+            url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
+            files = {'image': (file_path_or_url, open(file_path_or_url, 'rb'))}
+            response = self.make_request('POST', url, files=files, stream=True)
+            if not response.status_code == 200:
+                raise RequestErrorResponseException(response, node_id)
+            files['image'][1].close()
+        if type == 'remote':
+            url = f'/node/v1/nodes/-home-/{node_id}/preview?mimetype=image'
+            files = {'image': file_path_or_url}
+            response = self.make_request('POST', url, files=files, stream=True)
+            if not response.status_code == 200:
+                raise RequestFailedException(response, node_id)
 
 
 class RequestFailedException(Exception):
