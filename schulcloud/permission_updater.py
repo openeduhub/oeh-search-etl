@@ -47,13 +47,20 @@ class PermissionUpdater:
         permissions = json.load(file)['permissions']
         file.close()
         for permission in permissions:
-            print()
-            print(permission['path'])
+            print('Check', permission['path'])
             try:
                 node = self.get_node_by_path(permission['path'])
-                self.api.set_permissions(node.id, permission['permitted_groups'], permission['inherit'])
+                current_groups, inherited = self.api.get_permissions_groups(node.id)
+                current_groups.sort()
+                new_groups: list[str] = permission['permitted_groups']
+                new_groups.sort()
+                if not (current_groups == new_groups and inherited == permission['inherit']):
+                    self.api.set_permissions(node.id, permission['permitted_groups'], permission['inherit'])
+                    print('Changed.')
             except PathNotFoundException:
                 print(f'Warning: Could not find {permission["path"]}', file=sys.stderr)
+            except KeyboardInterrupt:
+                break
             except:
                 print(f'Error: Could not set permission for {permission["path"]}', file=sys.stderr)
                 traceback.print_exc()
