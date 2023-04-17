@@ -10,6 +10,6 @@ COPY requirements.txt .
 RUN python3.9 -m pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-COPY .env.docker .env
+COPY ./schulcloud/edusharing_setup.py ./edusharing_setup.py
 
-CMD [ "bash", "-c", "python3.9 run.py" ]
+CMD [ "bash", "-c", "python3.9 edusharing_setup.py" ]

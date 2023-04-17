@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "edusharing-setup.name" . }}-job
+  labels:
+    {{- include "edusharing-setup.labels" . | nindent 4 }}
+spec:
+  template:
+    spec:
+      containers:
+      - name: {{ include "edusharing-setup.name" . }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        {{- with .Values.env }}
+        env:
+          {{- toYaml . | nindent 16 }}
+        {{- end }}
+        {{- with .volumeMounts }}
+        volumeMounts:
+          {{- toYaml .  nindent 16 }}
+        {{- end }}
+      restartPolicy: {{ .Values.restartPolicy }}
+      backoffLimit: {{ .Values.backoffLimit }}
+      {{- with .volumes }}
+      volumes:
+        {{- toYaml . | nindent 14 }}
+      {{- end }}
+    

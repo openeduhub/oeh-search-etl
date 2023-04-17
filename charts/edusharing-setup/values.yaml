@@ -16,6 +16,8 @@ resources:
     cpu: 500m
     memory: 512Mi
 
+volumes: {}
+volumeMounts: {}
 
 # -- Set environment variables for crawler
 env: {}
