@@ -27,4 +27,3 @@ spec:
       volumes:
         {{- toYaml . | nindent 14 }}
       {{- end }}
-    
