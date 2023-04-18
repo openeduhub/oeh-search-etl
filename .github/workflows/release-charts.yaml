@@ -3,8 +3,8 @@ name: Push Charts to helm-charts-registry
 on:
   push:
     tags:
-      - edusharing-crawler-*
-      - edusharing-setup-*
+      - 'edusharing-crawler-*'
+      - 'edusharing-setup-*'
     # branches:
     # - main
     #paths:
