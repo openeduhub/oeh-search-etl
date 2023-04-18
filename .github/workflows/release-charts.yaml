@@ -64,5 +64,5 @@ jobs:
           CHART_PACKAGE_NAMES="edusharing-crawler edusharing-setup"
           cd helm-charts-registry/automation
           git add $CHART_PACKAGE_NAMES
-          git commit -m $CHART_PACKAGE_NAMES
+          git commit -m "$CHART_PACKAGE_NAMES"
           git push origin main
