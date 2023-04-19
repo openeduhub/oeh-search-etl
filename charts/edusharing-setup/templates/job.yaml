@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
       - name: {{ include "edusharing-setup.name" . }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.image.repository }}:{{ tpl .Values.image.tag . }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         resources:
           {{- toYaml .Values.resources | nindent 12 }}

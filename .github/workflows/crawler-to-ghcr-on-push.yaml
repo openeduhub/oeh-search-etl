@@ -1,0 +1,27 @@
+---
+name: oeh-search-etl Docker image on push to GHCR
+on:
+  push:
+    tags:
+      - 'edusharing-crawler-*'
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_push:
+    uses: hpi-schul-cloud/infra-tools/.github/workflows/build-and-push.yaml@master
+    permissions:
+      packages: write
+    with:
+      registry: ghcr.io
+      image: ${{ github.repository_owner }}/oeh-search-etl
+      tag: ${{ github.ref_name }}
+
+  trivy_image_scan:
+    uses: hpi-schul-cloud/infra-tools/.github/workflows/trivy-scan.yaml@master
+    permissions:
+      actions: read
+      security-events: write
+    with:
+      image-ref: ${{ github.repository_owner }}/oeh-search-etl:${{ github.ref_name }}
