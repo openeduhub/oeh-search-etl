@@ -21,6 +21,8 @@ class Uploader:
                    5521415, 5521418, 5521427]
 
     def __init__(self):
+        if env.get('EDU_SHARING_USERNAME') != 'crawleruser':
+            raise ValueException(env.get('EDU_SHARING_USERNAME'))
         self.api = EdusharingAPI(
             env.get('EDU_SHARING_BASE_URL'),
             env.get('EDU_SHARING_USERNAME'),
@@ -261,6 +263,12 @@ def generate_node_properties(
         "ccm:wwwurl": [url]
     }
     return properties
+
+
+class ValueException(Exception):
+    def __init__(self, name: str):
+        super(ValueException, self).__init__(f'Wrong Edu-Sharing user found for crawling: "{name}". Use "crawleruser" '
+                                             f'instead.')
 
 
 if __name__ == '__main__':

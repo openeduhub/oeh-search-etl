@@ -106,6 +106,8 @@ class Uploader:
     def __init__(self):
         self.env = util.Environment(EXPECTED_ENV_VARS, ask_for_missing=False)
 
+        if self.env['EDU_SHARING_USERNAME'] != 'crawleruser':
+            raise ValueException(self.env['EDU_SHARING_USERNAME'])
         self.api = EdusharingAPI(
             self.env['EDU_SHARING_BASE_URL'],
             self.env['EDU_SHARING_USERNAME'],
@@ -311,7 +313,7 @@ class Uploader:
                 print(f'Skipping {s3_obj["Key"]}, not a zip file.', file=sys.stderr)
                 continue
 
-            folder_name = s3_obj['Key'].split('/')[0]
+            folder_name = "H5P"
 
             self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER)
             zip_path = os.path.join(TEMP_FOLDER, s3_obj['Key'])
@@ -402,6 +404,12 @@ class MetadataNotFoundError(Exception):
     def __init__(self, zip: ZipFile):
         self.zip = zip
         super(MetadataNotFoundError, self).__init__('Could not find excel file with metadata')
+
+
+class ValueException(Exception):
+    def __init__(self, name: str):
+        super(ValueException, self).__init__(f'Wrong Edu-Sharing user found for crawling: "{name}". Use "crawleruser" '
+                                             f'instead.')
 
 
 if __name__ == '__main__':
