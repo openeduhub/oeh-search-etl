@@ -5,14 +5,12 @@ on:
     tags:
       - 'edusharing-crawler-*'
 
-permissions:
-  contents: read
-
 jobs:
   build_and_push:
     uses: hpi-schul-cloud/infra-tools/.github/workflows/build-and-push.yaml@master
     permissions:
       packages: write
+      contents: read
     with:
       registry: ghcr.io
       image: ${{ github.repository_owner }}/oeh-search-etl
@@ -21,6 +19,7 @@ jobs:
   trivy_image_scan:
     uses: hpi-schul-cloud/infra-tools/.github/workflows/trivy-scan.yaml@master
     permissions:
+      contents: read
       actions: read
       security-events: write
     with:
