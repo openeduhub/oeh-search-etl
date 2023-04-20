@@ -9,14 +9,14 @@ jobs:
   pre_build:
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.tag.outputs.tag }}
+      tag: ${{ steps.tag.outputs.version }}
       prefix: ${{ steps.tag.outputs.prefix }}
     steps:
       - name: Filter Tag name
         uses: olegtarasov/get-tag@v2.1
         id: tag
         with:
-          tagRegex: "(?<prefix>.+)-(?<tag>[0-9]+.[0-9]+.[0-9]+)"
+          tagRegex: "(?<prefix>.+-)(?<version>[0-9]+.[0-9]+.[0-9]+)"
   build_and_push:
     needs: pre_build
     uses: hpi-schul-cloud/infra-tools/.github/workflows/build-and-push.yaml@OPS-4421-automate-edusharing
