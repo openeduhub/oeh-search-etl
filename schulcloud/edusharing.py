@@ -314,7 +314,7 @@ class EdusharingAPI:
         }
         if properties:
             data.update(properties)
-        response = self.make_request('POST', url, params=params, json_data=data)
+        response = self.make_request('POST', url, params=params, json_data=data, retry=0)
         return Node(response.json()['node'])
 
     def sync_node(self, group: str, properties: Dict, match: List[str], type: str = 'ccm:io',
