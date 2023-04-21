@@ -284,8 +284,7 @@ class Uploader:
                 else:
                     if last_modified:
                         # collection already has some content, so check timestamps
-                        edu_timestamp = self.api.get_node_timestamp(collection_node)
-                        if edu_timestamp > last_modified:
+                        if collection_node.created_at > last_modified:
                             continue
             self.upload_collection(collection, zip_file, es_folder, collection_node)
 
