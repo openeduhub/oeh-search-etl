@@ -18,5 +18,7 @@ resources:
 volumes: {}
 volumeMounts: {}
 
-# -- Set environment variables for crawler
+restartPolicy: OnFailure
+backoffLimit: 3
+
 env: {}
