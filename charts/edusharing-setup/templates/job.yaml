@@ -17,12 +17,12 @@ spec:
         env:
           {{- toYaml . | nindent 16 }}
         {{- end }}
-        {{- with .volumeMounts }}
+        {{- with .Values.volumeMounts }}
         volumeMounts:
           {{- toYaml .  nindent 16 }}
         {{- end }}
       restartPolicy: {{ .Values.restartPolicy }}
-      {{- with .volumes }}
+      {{- with .Values.volumes }}
       volumes:
         {{- toYaml . | nindent 14 }}
       {{- end }}
