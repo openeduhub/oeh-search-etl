@@ -19,6 +19,6 @@ volumes: {}
 volumeMounts: {}
 
 restartPolicy: OnFailure
-backoffLimit: 3
+backoffLimit: 6
 
 env: {}
