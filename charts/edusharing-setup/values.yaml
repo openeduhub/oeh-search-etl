@@ -18,7 +18,6 @@ resources:
 volumes: {}
 volumeMounts: {}
 
-restartPolicy: OnFailure
 backoffLimit: 6
 
 env: {}

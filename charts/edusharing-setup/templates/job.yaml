@@ -21,9 +21,8 @@ spec:
         volumeMounts:
           {{- toYaml .  nindent 16 }}
         {{- end }}
-      restartPolicy: {{ .Values.restartPolicy }}
-      backoffLimit: {{ .Values.backoffLimit }}
       {{- with .volumes }}
       volumes:
         {{- toYaml . | nindent 14 }}
       {{- end }}
+  backoffLimit: {{ .Values.backoffLimit }}
