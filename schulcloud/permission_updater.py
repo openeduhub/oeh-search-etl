@@ -10,7 +10,6 @@ from schulcloud.util import Environment
 ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD']
 
 
-
 class PermissionUpdater:
     def __init__(self):
         self.env = Environment(env_vars=ENV_VARS)
@@ -63,13 +62,13 @@ class PermissionUpdater:
                 new_groups: list[str] = permission['permitted_groups']
                 new_groups.sort()
                 if not (current_groups == new_groups and inherited == permission['inherit']):
+                    print(f'Change {current_groups} -> {new_groups}')
                     self.api.set_permissions(node.id, permission['permitted_groups'], permission['inherit'])
-                    print('Changed.')
             except PathNotFoundException:
                 print(f'Warning: Could not find {permission["path"]}', file=sys.stderr)
             except KeyboardInterrupt:
                 break
-            except:
+            except Exception:
                 print(f'Error: Could not set permission for {permission["path"]}', file=sys.stderr)
                 traceback.print_exc()
 
