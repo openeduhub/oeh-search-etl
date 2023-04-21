@@ -39,4 +39,4 @@ jobs:
       actions: read
       security-events: write
     with:
-      image-ref: ${{ github.repository_owner }}/oeh-search-etl:${{ github.ref_name }}
+      image-ref: ghcr.io/${{ github.repository_owner }}/oeh-search-etl:${{ github.ref_name }}
