@@ -154,6 +154,7 @@ class Uploader:
         string = string.replace('Ü', 'Ue')
         string = string.replace('\'', '')
         string = string.replace(':', ' -')
+        string = string.replace('.', '')
 
         return string
 
