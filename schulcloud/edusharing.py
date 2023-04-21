@@ -12,8 +12,10 @@ class Node:
     def __init__(self, obj: Dict):
         try:
             self.id: str = obj['ref']['id']
+            self.parent_id: Optional[str] = obj['parent']['id'] if obj['parent'] else None
             self.name: str = obj['name']
             self.size: Optional[int] = int(obj['size']) if obj['size'] else None
+            self.created_at: datetime = datetime.fromisoformat(obj['createdAt'].replace('Z', ''))
             self.is_directory: bool = obj['isDirectory']
         except KeyError:
             raise RuntimeError(f'Could not parse node object: {obj}')
@@ -25,38 +27,11 @@ class Node:
         return False
 
     def __repr__(self):
-        return f'Node<{self.id}, {self.name}, is_dir={self.is_directory}>'
+        postfix = '/' if self.is_directory else ''
+        return f'Node<{self.name}{postfix}>'
 
 
 class EdusharingAPI:
-    @staticmethod
-    def _craft_permission_body(groups: List[str], inheritance: bool):
-        """
-        Generate permission-body for request.
-        @param groups: List of permitted groups
-        @param inheritance: Boolean, if inheritance is wanted or not
-        """
-        permissions = []
-        for group in groups:
-            permission = {
-                'editable': True,
-                'authority': {
-                    'authorityName': f'GROUP_{group}',
-                    'authorityType': 'GROUP'
-                },
-                'group': {
-                    'displayName': group
-                },
-                'permissions': ['Consumer']
-            }
-
-            permissions.append(permission)
-
-        return {
-            'inherited': inheritance,
-            'permissions': permissions
-        }
-
     def __init__(self, base_url: str, username: str = '', password: str = ''):
         if not base_url.endswith('/'):
             base_url += '/'
@@ -89,6 +64,7 @@ class EdusharingAPI:
         while True:
             i += 1
             if self.debug_enabled:
+                print()
                 print(method, url, params, json_data)
             try:
                 response = self.session.request(method, url, params=params, headers=headers,
@@ -102,6 +78,9 @@ class EdusharingAPI:
                         raise RequestTimeoutException()
                     else:
                         raise ConnectionErrorException()
+            if self.debug_enabled:
+                print(f'    --> {response.status_code} {response.text}')
+                print()
             if 500 <= response.status_code < 600 and i < retry:
                 time.sleep(i // 2)
                 continue
@@ -473,18 +452,33 @@ class EdusharingAPI:
         @param groups: List of the authorized groups for instances
         @param inheritance: Inheritance True or False
         """
-        url = f'/node/v1/nodes/-home-/{node_id}/permissions?sendMail=false&sendCopy=false'
-        permission_body = self._craft_permission_body(groups, inheritance)
-        response = self.make_request('POST', url, json_data=permission_body, timeout=8)
+        url = f'/node/v1/nodes/-home-/{node_id}/permissions'
+        params = {
+            'mailtext': '',
+            'sendMail': 'false',
+            'sendCopy': 'false'
+        }
+        body = {
+            'inherited': inheritance,
+            'permissions': [
+                {
+                    'authority': {
+                        'authorityName': f'GROUP_{group}',
+                        'authorityType': 'GROUP'
+                    },
+                    'permissions': ['Consumer']
+                } for group in groups
+            ]
+        }
+        response = self.make_request('POST', url, params=params, json_data=body, timeout=60)
 
-    def get_metadata(self, node_id: str):
+    def get_node(self, node_id: str):
         """
         Returns the metadata of the node.
         @param node_id: ID of the node
         """
         url = f'/node/v1/nodes/-home-/{node_id}/metadata'
-        response = self.make_request('GET', url)
-        return response.json()
+        return Node(self.make_request('GET', url).json()['node'])
 
     def change_metadata(self, node_id: str, properties: Dict[str, List[str]]):
         """
@@ -495,15 +489,6 @@ class EdusharingAPI:
         url = f'/node/v1/nodes/-home-/{node_id}/metadata'
         params = {'versionComment': 'METADATA_UPDATE'}
         self.make_request('POST', url, params=params, json_data=properties)
-
-    def get_node_timestamp(self, node):
-        """
-        Returns timestamp of the node.
-        @param node: The node for getting timestamp
-        """
-        meta = self.get_metadata(node.id)
-        timestamp_str = str(meta["node"]["createdAt"]).replace("Z", "")
-        return datetime.fromisoformat(timestamp_str)
 
     def get_or_create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file',
                            properties: Optional[Dict] = None):
