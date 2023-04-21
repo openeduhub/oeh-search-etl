@@ -294,7 +294,6 @@ class Uploader:
                 continue
             if collection_node:
                 collection_status = self.collection_status(collection, zip_file)
-                print(f'Status: {collection_status} in Collection: {collection.name}')
                 if collection_status == "missing":
                     pass
                 if collection_status == "exists":
