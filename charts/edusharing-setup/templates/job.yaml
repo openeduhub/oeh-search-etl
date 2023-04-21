@@ -15,15 +15,15 @@ spec:
           {{- toYaml .Values.resources | nindent 12 }}
         {{- with .Values.env }}
         env:
-          {{- toYaml . | nindent 16 }}
+          {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- with .Values.volumeMounts }}
         volumeMounts:
-          {{- toYaml .  nindent 16 }}
+          {{- toYaml . | nindent 10 }}
         {{- end }}
       restartPolicy: {{ .Values.restartPolicy }}
       {{- with .Values.volumes }}
       volumes:
-        {{- toYaml . | nindent 14 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
   backoffLimit: {{ .Values.backoffLimit }}
