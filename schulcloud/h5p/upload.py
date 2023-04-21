@@ -106,6 +106,8 @@ class Uploader:
     def __init__(self):
         self.env = util.Environment(EXPECTED_ENV_VARS, ask_for_missing=False)
 
+        if self.env['EDU_SHARING_USERNAME'] != 'crawleruser':
+            raise ValueException(self.env['EDU_SHARING_USERNAME'])
         self.api = EdusharingAPI(
             self.env['EDU_SHARING_BASE_URL'],
             self.env['EDU_SHARING_USERNAME'],
@@ -143,12 +145,15 @@ class Uploader:
             raise MetadataNotFoundError(zip)
         return metadata_file
 
-    def collection_exists(self, collection: Collection, zip_file: ZipFile):
+    def collection_status(self, collection: Collection, zip_file: ZipFile):
         """
-        Return true, if the collection exists already on Edu-Sharing.
+        Return exists, if the collection exists already on Edu-Sharing.
+        Return missing, if the collection doesn't exist on Edu-Sharing.
+        Return broken, if the collection exists partially on Edu-Sharing.
         @param collection: Node of collection
         @param zip_file: File as zip.
         """
+        uploaded_nodes = 0
         for child in collection.children:
             file = zip_file.open(child.filepath)
             filename = os.path.basename(child.filepath)
@@ -157,8 +162,18 @@ class Uploader:
             file.close()
             node_exists = self.api.find_node_by_replication_source_id(rep_source_id, skip_exception=True)
             if not node_exists:
-                return False
-        return True
+                if uploaded_nodes == 0:
+                    return "missing"
+                else:
+                    return "broken"
+            else:
+                uploaded_nodes = uploaded_nodes + 1
+        return "exists"
+
+    def get_collection_owned(self, collection_node_id):
+        collection_metadata = self.api.get_metadata(collection_node_id)
+        collection_owner = collection_metadata['node']['owner']['firstName']
+        return collection_owner
 
     def setup_destination_folder(self, folder_name: str):
         """
@@ -275,17 +290,29 @@ class Uploader:
                 # just upload
                 pass
             except FoundTooManyException as err:
-                # TODO: not sure if correct
                 print(f'Found multiple nodes for collection: {collection.name}', file=sys.stderr)
                 continue
             if collection_node:
-                if not self.collection_exists(collection, zip_file):
+                collection_status = self.collection_status(collection, zip_file)
+                if collection_status == "missing":
                     pass
-                else:
-                    if last_modified:
-                        # collection already has some content, so check timestamps
-                        if collection_node.created_at > last_modified:
-                            continue
+                if collection_status == "exists":
+                    collection_owner = self.get_collection_owned(collection_node.id)
+                    if collection_owner != self.api.username:
+                        raise RuntimeError(f'Collection {collection.name} exists already and is owned by: {collection_owner}')
+                    else:
+                        if last_modified:
+                            # collection already has some content, so check timestamps
+                            if collection_node.created_at > last_modified:
+                                print(
+                                    f'Collection {collection.name} already exists and is owned by {collection_owner}.')
+                                continue
+                if collection_status == "broken":
+                    collection_owner = self.get_collection_owned(collection_node.id)
+                    if collection_owner != self.api.username:
+                        raise RuntimeError(
+                            f'Collection {collection.name} is partially uploaded by: {collection_owner}')
+
             self.upload_collection(collection, zip_file, es_folder, collection_node)
 
         for single_metadata in metadata_file.single_files:
@@ -310,7 +337,7 @@ class Uploader:
                 print(f'Skipping {s3_obj["Key"]}, not a zip file.', file=sys.stderr)
                 continue
 
-            folder_name = s3_obj['Key'].split('/')[0]
+            folder_name = "H5P"
 
             self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER)
             zip_path = os.path.join(TEMP_FOLDER, s3_obj['Key'])
@@ -401,6 +428,12 @@ class MetadataNotFoundError(Exception):
     def __init__(self, zip: ZipFile):
         self.zip = zip
         super(MetadataNotFoundError, self).__init__('Could not find excel file with metadata')
+
+
+class ValueException(Exception):
+    def __init__(self, name: str):
+        super(ValueException, self).__init__(f'Wrong Edu-Sharing user found for crawling: "{name}". Use "crawleruser" '
+                                             f'instead.')
 
 
 if __name__ == '__main__':
