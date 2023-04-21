@@ -5,6 +5,7 @@ from typing import Optional
 import requests
 import scrapy
 
+from converter import env
 from converter.constants import Constants
 from converter.es_connector import EduSharing
 from converter.items import (
@@ -20,6 +21,7 @@ from converter.items import (
     ResponseItemLoader,
 )
 from converter.spiders.base_classes import LomBase
+from converter.util.edu_sharing_precheck import EduSharingPreCheck
 from converter.util.license_mapper import LicenseMapper
 from converter.web_tools import WebEngine, WebTools
 
@@ -35,7 +37,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.0.9"  # last update: 2023-03-31
+    version = "0.1.0"  # last update: 2023-04-21
     allowed_domains = "oersi.org"
     custom_settings = {
         "CONCURRENT_REQUESTS": 32,
@@ -125,11 +127,31 @@ class OersiSpider(scrapy.Spider, LomBase):
             logging.info(f"ElasticSearch API response (upon PIT delete): {json_response}")
 
     def start_requests(self):
-        for elastic_item in self.ELASTIC_ITEMS_ALL:
-            main_entity_of_page: list[dict] = elastic_item.get("_source").get("mainEntityOfPage")
-            if main_entity_of_page:
-                item_url = main_entity_of_page[0].get("id")
-                yield scrapy.Request(url=item_url, cb_kwargs={"elastic_item": elastic_item})
+        continue_from_previous_crawl = env.get_bool("CONTINUE_CRAWL", True, False)
+        # checking if a previously aborted crawl should be completed (by skipping updates of previously collected items)
+        if continue_from_previous_crawl:
+            es_id_collector = EduSharingPreCheck()
+            previously_crawled_replication_source_ids: list[str] = es_id_collector.get_replication_source_id_list()
+            for elastic_item in self.ELASTIC_ITEMS_ALL:
+                elastic_item_identifier: str = elastic_item["_id"]
+                if elastic_item_identifier in previously_crawled_replication_source_ids:
+                    logging.debug(f"Found Elastic item '_id': {elastic_item_identifier} within previously crawled "
+                                  f"results in the edu-sharing repository. Skipping item because '.env'-setting "
+                                  f"'CONTINUE_CRAWL' is enabled.")
+                    continue
+                else:
+                    yield from self.yield_request_and_parse_item(elastic_item)
+        else:
+            for elastic_item in self.ELASTIC_ITEMS_ALL:
+                yield from self.yield_request_and_parse_item(elastic_item)
+
+    @staticmethod
+    def yield_request_and_parse_item(elastic_item) -> scrapy.Request:
+        main_entity_of_page: list[dict] = elastic_item.get("_source").get("mainEntityOfPage")
+        if main_entity_of_page:
+            item_url = main_entity_of_page[0].get("id")
+            # by omitting the callback parameter, individual requests are yielded to the parse-method
+            yield scrapy.Request(url=item_url, cb_kwargs={"elastic_item": elastic_item})
 
     def elastic_pit_create(self) -> dict:
         """
