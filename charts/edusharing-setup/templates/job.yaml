@@ -21,6 +21,7 @@ spec:
         volumeMounts:
           {{- toYaml .  nindent 16 }}
         {{- end }}
+      restartPolicy: {{ .Values.restartPolicy }}
       {{- with .volumes }}
       volumes:
         {{- toYaml . | nindent 14 }}
