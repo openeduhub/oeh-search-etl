@@ -153,6 +153,7 @@ class Uploader:
         string = string.replace('Ö', 'Oe')
         string = string.replace('Ü', 'Ue')
         string = string.replace('\'', '')
+        string = string.replace(':', ' -')
 
         return string
 
