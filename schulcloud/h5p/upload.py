@@ -171,7 +171,7 @@ class Uploader:
         return "exists"
 
     def get_collection_owned(self, collection_node_id):
-        collection_metadata = self.api.get_metadata(collection_node_id)
+        collection_metadata = self.api.get_node(collection_node_id)
         collection_owner = collection_metadata['node']['owner']['firstName']
         return collection_owner
 
