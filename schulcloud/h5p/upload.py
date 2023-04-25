@@ -9,6 +9,7 @@ from zipfile import ZipFile
 
 import boto3
 
+from botocore.config import Config
 from schulcloud import util
 from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException
 from schulcloud.h5p.metadata import MetadataFile, Metadata, Collection
@@ -374,12 +375,16 @@ class Uploader:
 class S3Downloader:
     def __init__(self, url: str, key: str, secret: str, bucket_name: str, region: str):
         self.env = util.Environment(EXPECTED_ENV_VARS, ask_for_missing=False)
+        s3_client_config = Config(
+            region_name=region,
+            tcp_keepalive=True
+        )
         self.client = boto3.client(
             's3',
             endpoint_url=url,
             aws_access_key_id=key,
             aws_secret_access_key=secret,
-            region_name=region
+            config=s3_client_config
         )
         self.bucket_name = bucket_name
 
