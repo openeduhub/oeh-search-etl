@@ -352,6 +352,8 @@ class Uploader:
             zip_file.close()
             os.remove(zip_path)
 
+        print(f'Finished uploading H5P learning contents.')
+
     def test_upload(self):
         """
         Test the local upload to Edu-Sharing.
