@@ -20,7 +20,7 @@ jobs:
           tagRegex: "(?<prefix>.+)-(?<version>[0-9]+.[0-9]+.[0-9]+)"
   build_and_push:
     needs: pre_build
-    uses: hpi-schul-cloud/infra-tools/.github/workflows/build-and-push.yaml@OPS-4421-automate-edusharing
+    uses: hpi-schul-cloud/infra-tools/.github/workflows/build-and-push.yaml@master
     permissions:
       packages: write
       contents: read
