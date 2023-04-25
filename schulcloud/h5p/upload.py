@@ -20,7 +20,8 @@ EXPECTED_ENV_VARS = [
     'S3_ENDPOINT_URL',
     'S3_ACCESS_KEY',
     'S3_SECRET_KEY',
-    'S3_BUCKET_NAME'
+    'S3_BUCKET_NAME',
+    'S3_REGION'
 ]
 TEMP_FOLDER = 'temp'
 H5P_THUMBNAIL_PATH = 'schulcloud/h5p/H5Pthumbnail.png'
@@ -116,7 +117,8 @@ class Uploader:
             self.env['S3_ENDPOINT_URL'],
             self.env['S3_ACCESS_KEY'],
             self.env['S3_SECRET_KEY'],
-            self.env['S3_BUCKET_NAME']
+            self.env['S3_BUCKET_NAME'],
+            self.env['S3_REGION']
         )
 
     @staticmethod
@@ -370,13 +372,14 @@ class Uploader:
 
 
 class S3Downloader:
-    def __init__(self, url: str, key: str, secret: str, bucket_name: str):
+    def __init__(self, url: str, key: str, secret: str, bucket_name: str, region: str):
         self.env = util.Environment(EXPECTED_ENV_VARS, ask_for_missing=False)
         self.client = boto3.client(
             's3',
             endpoint_url=url,
             aws_access_key_id=key,
             aws_secret_access_key=secret,
+            region_name=region
         )
         self.bucket_name = bucket_name
 
