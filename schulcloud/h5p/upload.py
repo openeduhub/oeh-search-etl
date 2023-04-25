@@ -37,7 +37,7 @@ def escape_filename(filename: str):
     Return filename with escaped characters.
     @param filename: Name of the file
     """
-    return re.sub(r'[,;:\'="@$%/\\{}]', '_', filename)
+    return re.sub(r'[,;:\'="@$?%/\\{}]', '_', filename)
 
 
 def create_replicationsourceid(name: str):
