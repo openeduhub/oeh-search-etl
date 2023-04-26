@@ -10,6 +10,7 @@ from zipfile import ZipFile
 import boto3
 
 from botocore.config import Config
+from botocore.exceptions import ResponseStreamingError
 from schulcloud import util
 from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException
 from schulcloud.h5p.metadata import MetadataFile, Metadata, Collection
@@ -302,7 +303,8 @@ class Uploader:
                 if collection_status == "exists":
                     collection_owner = self.get_collection_owned(collection_node.id)
                     if collection_owner != self.api.username:
-                        raise RuntimeError(f'Collection {collection.name} exists already and is owned by: {collection_owner}')
+                        raise RuntimeError(
+                            f'Collection {collection.name} exists already and is owned by: {collection_owner}')
                     else:
                         if last_modified:
                             # collection already has some content, so check timestamps
@@ -325,6 +327,19 @@ class Uploader:
 
         metadata_file.close()
 
+    def retry_function(self, function, max_retries: int):
+        retries = 0
+        while retries < max_retries:
+            try:
+                return function
+            except ResponseStreamingError as error:
+                if retries == max_retries - 1:
+                    raise error
+                else:
+                    print(f'retry: {retries} for {function}')
+                    retries = retries + 1
+                    continue
+
     def upload_from_s3(self):
         """
         Upload zip-file from AWS S3 bucket to Edu-sharing folder.
@@ -341,8 +356,8 @@ class Uploader:
                 continue
 
             folder_name = "H5P"
+            self.retry_function(self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER), 10)
 
-            self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER)
             zip_path = os.path.join(TEMP_FOLDER, s3_obj['Key'])
             zip_file = ZipFile(zip_path)
 
