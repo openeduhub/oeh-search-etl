@@ -379,7 +379,11 @@ class S3Downloader:
         self.env = util.Environment(EXPECTED_ENV_VARS, ask_for_missing=False)
         s3_client_config = Config(
             region_name=region,
-            tcp_keepalive=True
+            tcp_keepalive=True,
+            retries={
+                'max_attempts': 10,
+                'mode': 'standard'
+            }
         )
         self.client = boto3.client(
             's3',
