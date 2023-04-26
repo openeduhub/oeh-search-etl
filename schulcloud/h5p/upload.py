@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import uuid
 import re
 import hashlib
@@ -342,9 +343,6 @@ class Uploader:
                     print(f'retry: {retries} for {function}')
                     retries = retries + 1
 
-    def upload_test_s3(self):
-        self.retry_function(self.upload_from_s3(), 10)
-
     def upload_from_s3(self):
         """
         Upload zip-file from AWS S3 bucket to Edu-sharing folder.
@@ -361,7 +359,7 @@ class Uploader:
                 continue
 
             folder_name = "H5P"
-            self.retry_function(self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER), 10)
+            self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER)
 
             zip_path = os.path.join(TEMP_FOLDER, s3_obj['Key'])
             zip_file = ZipFile(zip_path)
@@ -450,6 +448,7 @@ class S3Downloader:
         file_path = os.path.join(dir_path, object_key)
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
+        time.sleep(5)
         self.client.download_file(
             Bucket=self.bucket_name,
             Key=object_key,
@@ -471,4 +470,4 @@ class ValueException(Exception):
 
 
 if __name__ == '__main__':
-    Uploader().upload_test_s3()
+    Uploader().upload_from_s3()
