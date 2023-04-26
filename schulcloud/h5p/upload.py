@@ -382,7 +382,7 @@ class S3Downloader:
             tcp_keepalive=True,
             retries={
                 'max_attempts': 10,
-                'mode': 'standard'
+                'mode': 'adaptive'
             }
         )
         self.client = boto3.client(
