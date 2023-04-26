@@ -455,7 +455,6 @@ class S3Downloader:
                 Callback=callback
             ), 10)
 
-
     def retry_function(self, function, max_retries: int):
         retries = 0
         while retries < max_retries:
@@ -469,6 +468,7 @@ class S3Downloader:
                 else:
                     print(f'retry: {retries} for {function}')
                     retries = retries + 1
+
 
 class MetadataNotFoundError(Exception):
     def __init__(self, zip: ZipFile):
