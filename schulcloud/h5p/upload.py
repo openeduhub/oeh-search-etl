@@ -468,6 +468,9 @@ class S3Downloader:
                 else:
                     print(f'retry: {retries} for {function}')
                     retries = retries + 1
+            except Exception as error:
+                print(f'error2')
+                raise error
 
 
 class MetadataNotFoundError(Exception):
