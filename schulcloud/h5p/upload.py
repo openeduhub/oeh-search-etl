@@ -334,7 +334,7 @@ class Uploader:
             try:
                 print('>>>>try')
                 return function
-            except (ResponseStreamingError, ConnectionError, ProtocolError) as error:
+            except (ResponseStreamingError, ConnectionResetError, ProtocolError) as error:
                 if retries == max_retries - 1:
                     print(f'>>>>>error')
                     raise error
