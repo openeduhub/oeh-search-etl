@@ -471,4 +471,4 @@ class ValueException(Exception):
 
 
 if __name__ == '__main__':
-    Uploader().upload_from_s3()
+    Uploader().upload_test_s3()
