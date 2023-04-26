@@ -338,7 +338,6 @@ class Uploader:
                 else:
                     print(f'retry: {retries} for {function}')
                     retries = retries + 1
-                    continue
 
     def upload_from_s3(self):
         """
