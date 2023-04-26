@@ -342,6 +342,9 @@ class Uploader:
                     print(f'retry: {retries} for {function}')
                     retries = retries + 1
 
+    def upload_test_s3(self):
+        self.retry_function(self.upload_from_s3(), 10)
+
     def upload_from_s3(self):
         """
         Upload zip-file from AWS S3 bucket to Edu-sharing folder.
