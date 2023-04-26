@@ -448,7 +448,7 @@ class S3Downloader:
         file_path = os.path.join(dir_path, object_key)
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
-        time.sleep(5)
+        time.sleep(30)
         self.client.download_file(
             Bucket=self.bucket_name,
             Key=object_key,
