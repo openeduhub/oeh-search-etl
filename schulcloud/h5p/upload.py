@@ -11,6 +11,7 @@ import boto3
 
 from botocore.config import Config
 from botocore.exceptions import ResponseStreamingError
+from urllib3.exceptions import ProtocolError
 from schulcloud import util
 from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException
 from schulcloud.h5p.metadata import MetadataFile, Metadata, Collection
@@ -331,9 +332,11 @@ class Uploader:
         retries = 0
         while retries < max_retries:
             try:
+                print('>>>>try')
                 return function
-            except ResponseStreamingError as error:
+            except (ResponseStreamingError, ConnectionError, ProtocolError) as error:
                 if retries == max_retries - 1:
+                    print(f'>>>>>error')
                     raise error
                 else:
                     print(f'retry: {retries} for {function}')
