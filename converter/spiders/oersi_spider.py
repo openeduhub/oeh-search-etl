@@ -1,5 +1,6 @@
 import datetime
 import logging
+import random
 from typing import Optional
 
 import requests
@@ -37,13 +38,13 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.1"  # last update: 2023-04-27
+    version = "0.1.2"  # last update: 2023-04-27
     allowed_domains = "oersi.org"
     custom_settings = {
-        "CONCURRENT_REQUESTS": 32,
+        "CONCURRENT_REQUESTS": 48,
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 3,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 6,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
@@ -73,7 +74,9 @@ class OersiSpider(scrapy.Spider, LomBase):
         "HOOU",
         "iMoox",
         "KI Campus",
+        "langSci Press",  # new provider as of 2023-04-27
         "MIT OpenCourseWare",
+        "OEPMS",  # new provider as of 2023-04-27
         "OER Portal Uni Graz",
         "oncampus",
         "Open Music Academy",
@@ -127,6 +130,8 @@ class OersiSpider(scrapy.Spider, LomBase):
             logging.info(f"ElasticSearch API response (upon PIT delete): {json_response}")
 
     def start_requests(self):
+        random.shuffle(self.ELASTIC_ITEMS_ALL)  # shuffling the list of ElasticSearch items to improve concurrency and
+        # distribute the load between several target domains.
         continue_from_previous_crawl = env.get_bool("CONTINUE_CRAWL", True, False)
         # checking if a previously aborted crawl should be completed (by skipping updates of previously collected items)
         if continue_from_previous_crawl:
@@ -142,18 +147,34 @@ class OersiSpider(scrapy.Spider, LomBase):
                     )
                     continue
                 else:
-                    yield from self.yield_request_and_parse_item(elastic_item)
+                    yield from self.check_item_and_yield_to_parse_method(elastic_item)
         else:
             for elastic_item in self.ELASTIC_ITEMS_ALL:
-                yield from self.yield_request_and_parse_item(elastic_item)
+                yield from self.check_item_and_yield_to_parse_method(elastic_item)
 
-    @staticmethod
-    def yield_request_and_parse_item(elastic_item) -> scrapy.Request:
-        main_entity_of_page: list[dict] = elastic_item.get("_source").get("mainEntityOfPage")
-        if main_entity_of_page:
-            item_url = main_entity_of_page[0].get("id")
-            # by omitting the callback parameter, individual requests are yielded to the parse-method
+    def check_item_and_yield_to_parse_method(self, elastic_item: dict) -> scrapy.Request | None:
+        """
+        Checks if the item already exists in the edu-sharing repository and yields a Request to the parse()-method.
+        If the item already exists, it will be updated (if its hash has changed).
+        Otherwise, creates a new item in the edu-sharing repository.
+        """
+        item_url: str = elastic_item["_source"]["id"]
+        if item_url:
             # ToDo: findItem needs to happen here -> replicationsourceuuid
+            if self.shouldImport(None) is False:
+                logging.debug(
+                    "Skipping entry {} because shouldImport() returned false".format(
+                        str(self.getId(response=None, elastic_item=elastic_item))
+                    )
+                )
+                return None
+            if (
+                self.getId(response=None, elastic_item=elastic_item) is not None
+                and self.getHash(response=None, elastic_item_source=elastic_item["_source"]) is not None
+            ):
+                if not self.hasChanged(None, elastic_item=elastic_item):
+                    return None
+            # by omitting the callback parameter, individual requests are yielded to the parse-method
             yield scrapy.Request(url=item_url, cb_kwargs={"elastic_item": elastic_item})
 
     def elastic_pit_create(self) -> dict:
@@ -297,12 +318,22 @@ class OersiSpider(scrapy.Spider, LomBase):
             hash_temp: str = f"{datetime.datetime.now().isoformat()}{self.version}"
         return hash_temp
 
+    @staticmethod
+    def get_uuid(elastic_item: dict):
+        """
+        Builds a UUID from the to-be-parsed target URL and returns it.
+        """
+        # The "getUUID"-method of LomBase couldn't be cleanly overridden because at the point of time when we do this
+        # check, there is no response available yet.
+        item_url: str = elastic_item["_source"]["id"]
+        return EduSharing.buildUUID(item_url)
+
     def hasChanged(self, response=None, elastic_item: dict = dict) -> bool:
         elastic_item = elastic_item
         if self.forceUpdate:
             return True
         if self.uuid:
-            if self.getUUID(response) == self.uuid:
+            if self.get_uuid(elastic_item=elastic_item) == self.uuid:
                 logging.info(f"matching requested id: {self.uuid}")
                 return True
             return False
@@ -666,15 +697,6 @@ class OersiSpider(scrapy.Spider, LomBase):
         elastic_item_source: dict = elastic_item.get("_source")
         # _source is the original JSON body passed for the document at index time
         # see: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
-        if self.shouldImport(response) is False:
-            logging.debug("Skipping entry {} because shouldImport() returned false".format(str(self.getId(response))))
-            return None
-        if (
-            self.getId(response=response, elastic_item=elastic_item) is not None
-            and self.getHash(response=response, elastic_item_source=elastic_item_source) is not None
-        ):
-            if not self.hasChanged(response, elastic_item=elastic_item):
-                return None
 
         # ToDo: look at these (sometimes available) properties later:
         #  - encoding (see: https://dini-ag-kim.github.io/amb/draft/#encoding - OPTIONAL field)
@@ -720,7 +742,7 @@ class OersiSpider(scrapy.Spider, LomBase):
             date_published: str = elastic_item_source.get("datePublished")
 
         base.add_value("sourceId", self.getId(response, elastic_item=elastic_item))
-        base.add_value("hash", self.getHash(response, elastic_item_source=elastic_item))
+        base.add_value("hash", self.getHash(response, elastic_item_source=elastic_item_source))
         thumbnail_url = str()
         if "image" in elastic_item_source:
             thumbnail_url = elastic_item_source.get("image")  # thumbnail
