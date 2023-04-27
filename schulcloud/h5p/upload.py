@@ -441,9 +441,10 @@ class S3Downloader:
                 Filename=file_path,
                 Callback=callback
             )
-        except Exception as error:
-            print(f'Got Error: ')
-            raise error
+        except BaseException as error:
+            print(f'Got Error: {type(error)}')
+            print(f'Type ResponseStreamingError: {type(error) is ResponseStreamingError}')
+            raise
 
     def retry_function(self, function, max_retries: int):
         retries = 0
