@@ -329,20 +329,6 @@ class Uploader:
 
         metadata_file.close()
 
-    def retry_function(self, function, max_retries: int):
-        retries = 0
-        while retries < max_retries:
-            try:
-                print('>>>>try')
-                return function
-            except (ResponseStreamingError, ConnectionResetError, ProtocolError) as error:
-                if retries == max_retries - 1:
-                    print(f'>>>>>error')
-                    raise error
-                else:
-                    print(f'retry: {retries} for {function}')
-                    retries = retries + 1
-
     def upload_from_s3(self):
         """
         Upload zip-file from AWS S3 bucket to Edu-sharing folder.
@@ -448,12 +434,16 @@ class S3Downloader:
         file_path = os.path.join(dir_path, object_key)
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
-            self.retry_function(self.client.download_file(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Filename=file_path,
-                Callback=callback
-            ), 10)
+            try:
+                self.client.download_file(
+                    Bucket=self.bucket_name,
+                    Key=object_key,
+                    Filename=file_path,
+                    Callback=callback
+                )
+            except Exception as error:
+                print(f'Got Error: ')
+                raise error
 
     def retry_function(self, function, max_retries: int):
         retries = 0
