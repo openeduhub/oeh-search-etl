@@ -434,12 +434,16 @@ class S3Downloader:
         file_path = os.path.join(dir_path, object_key)
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
-        self.client.download_file(
-            Bucket=self.bucket_name,
-            Key=object_key,
-            Filename=file_path,
-            Callback=callback
-        )
+        try:
+            self.client.download_file(
+                Bucket=self.bucket_name,
+                Key=object_key,
+                Filename=file_path,
+                Callback=callback
+            )
+        except Exception as error:
+            print(f'Got Error: ')
+            raise error
 
     def retry_function(self, function, max_retries: int):
         retries = 0
