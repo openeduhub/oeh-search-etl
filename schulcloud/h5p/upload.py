@@ -434,33 +434,33 @@ class S3Downloader:
         file_path = os.path.join(dir_path, object_key)
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
-        try:
-            self.client.download_file(
+        self.retry_function(self.client.download_file(
                 Bucket=self.bucket_name,
                 Key=object_key,
                 Filename=file_path,
                 Callback=callback
-            )
-        except BaseException as error:
-            print(f'Got Error: {type(error)}')
-            print(f'Type ResponseStreamingError: {type(error) is ResponseStreamingError}')
-            raise
+            ), 10)
 
-    def retry_function(self, function, max_retries: int):
+    @staticmethod
+    def retry_function(function, max_retries: int):
         retries = 0
         while retries < max_retries:
             print(f'>>>>try1 {function}')
             try:
                 print(f'>>>>try2 {function}')
                 return function
-            # except (ResponseStreamingError, ConnectionResetError, ProtocolError) as error:
-            except Exception as error:
+            except (ResponseStreamingError, ConnectionResetError, ProtocolError) as error:
+                print(f'Got Error1: {type(error)}')
                 if retries == max_retries - 1:
                     print(f'>>>>>error')
                     raise error
                 else:
                     print(f'retry: {retries} for {function}')
                     retries = retries + 1
+            except BaseException as error:
+                print(f'Got Error2: {type(error)}')
+                print(f'Errortype is ResponseStreamingError: {type(error) is ResponseStreamingError}')
+                raise error
 
 
 class MetadataNotFoundError(Exception):
