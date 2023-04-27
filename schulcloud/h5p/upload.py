@@ -442,23 +442,24 @@ class S3Downloader:
     def retry_function(function, params: Dict, max_retries: int):
         retries = 0
         while retries < max_retries:
-            print(f'>>>>try1 {function}')
             try:
-                print(f'>>>>try2 {function}')
                 function(**params)
                 break
             except (ResponseStreamingError, ConnectionResetError, ProtocolError) as error:
-                print(f'Got Error1: {type(error)}')
+                print(f'>>>>>>Got Error1: {type(error)}')
                 if retries == max_retries - 1:
-                    print(f'>>>>>error')
+                    raise error
+                else:
+                    print(f'>>>>>>retry: {retries} for {function}')
+                    retries = retries + 1
+            except BaseException as error:
+                print(f'>>>>>>Got Error2: {type(error)}')
+                print(f'>>>>>>Errortype is ResponseStreamingError: {type(error) is ResponseStreamingError}')
+                if retries == max_retries - 1:
                     raise error
                 else:
                     print(f'retry: {retries} for {function}')
                     retries = retries + 1
-            except BaseException as error:
-                print(f'Got Error2: {type(error)}')
-                print(f'Errortype is ResponseStreamingError: {type(error) is ResponseStreamingError}')
-                raise error
 
 
 class MetadataNotFoundError(Exception):
