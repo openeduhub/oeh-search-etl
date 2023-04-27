@@ -446,6 +446,7 @@ class S3Downloader:
             try:
                 print(f'>>>>try2 {function}')
                 function(**params)
+                break
             except (ResponseStreamingError, ConnectionResetError, ProtocolError) as error:
                 print(f'Got Error1: {type(error)}')
                 if retries == max_retries - 1:
