@@ -341,7 +341,7 @@ class EdusharingAPI:
     def delete_node(self, node_id: str):
         """
         Delete a node by ID.
-        @param node_id: Id of the node
+        @param node_id: ID of the node
         """
         url = f'/node/v1/nodes/-home-/{node_id}'
         self.make_request('DELETE', url)
