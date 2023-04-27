@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import traceback
 import uuid
 import re
 import hashlib
@@ -446,20 +447,19 @@ class S3Downloader:
                 function(**params)
                 break
             except (ResponseStreamingError, ConnectionResetError, ProtocolError) as error:
-                print(f'>>>>>>Got Error1: {type(error)}')
+                traceback.print_exc()
                 if retries == max_retries - 1:
                     raise error
                 else:
-                    print(f'>>>>>>retry: {retries} for {function}')
                     retries = retries + 1
+                    print(f'Retry: {retries} for {function}')
             except BaseException as error:
-                print(f'>>>>>>Got Error2: {type(error)}')
-                print(f'>>>>>>Errortype is ResponseStreamingError: {type(error) is ResponseStreamingError}')
+                traceback.print_exc()
                 if retries == max_retries - 1:
                     raise error
                 else:
-                    print(f'retry: {retries} for {function}')
                     retries = retries + 1
+                    print(f'Retry: {retries} for {function}')
 
 
 class MetadataNotFoundError(Exception):
