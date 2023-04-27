@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from datetime import datetime
 from typing import Dict, List, Literal, Optional, IO, Any, Callable
@@ -15,7 +16,7 @@ class Node:
             self.parent_id: Optional[str] = obj['parent']['id'] if obj['parent'] else None
             self.name: str = obj['name']
             self.size: Optional[int] = int(obj['size']) if obj['size'] else None
-            self.created_at: datetime = datetime.fromisoformat(obj['createdAt'].replace('Z', ''))
+            self.created_at: Optional[datetime] = datetime.fromisoformat(obj['createdAt'].replace('Z', '')) if 'createdAt' in obj else None
             self.is_directory: bool = obj['isDirectory']
         except KeyError:
             raise RuntimeError(f'Could not parse node object: {obj}')
@@ -32,6 +33,10 @@ class Node:
 
 
 class EdusharingAPI:
+    @staticmethod
+    def sanatize_node_name(name: str):
+        return re.sub('[^a-zA-Z0-9_ ]', '_', name)
+
     def __init__(self, base_url: str, username: str = '', password: str = ''):
         if not base_url.endswith('/'):
             base_url += '/'
@@ -46,7 +51,7 @@ class EdusharingAPI:
     def make_request(self, method: Literal['GET', 'PUT', 'POST', 'DELETE'], url: str,
                      params: Optional[Dict[str, Any]] = None, json_data: Optional[Dict] = None,
                      files: Optional[Dict] = None, stream: bool = False, retry: int = 50,
-                     timeout: Optional[float] = None):
+                     timeout: Optional[float] = None) -> requests.Response:
         """
         Request method for the Edu-Sharing API.
         @param method: HTTP-method (GET, POST, PUT, DELETE)
@@ -88,7 +93,7 @@ class EdusharingAPI:
                 raise RequestErrorResponseException(response)
             return response
 
-    def get_all(self, method: Literal['GET', 'POST'], url: str, params: Dict[str, str], callback: Callable, max_items: int, json_data: Optional[dict] = None, retry: int = 50, timeout: Optional[float] = None):
+    def get_all(self, method: Literal['GET', 'POST'], url: str, params: Dict[str, str], callback: Callable, max_items: int, json_data: Optional[dict] = None, retry: int = 50, timeout: Optional[float] = None) -> list:
         offset = 0
         items = []
         params['maxItems'] = str(max_items)
@@ -106,7 +111,7 @@ class EdusharingAPI:
                 break
         return items
 
-    def get_application_properties(self, xml_file_name: str):
+    def get_application_properties(self, xml_file_name: str) -> dict:
         """
         Return the properties of the application.
         @param xml_file_name: Name of the XML-file
@@ -139,7 +144,7 @@ class EdusharingAPI:
         }
         response = self.make_request('POST', url, params=params, files=files, stream=True)
 
-    def get_user(self, name: str = None):
+    def get_user(self, name: str = None) -> dict:
         """
         Return User by name.
         @param name: Name of the User
@@ -152,7 +157,7 @@ class EdusharingAPI:
             raise NotFoundException(name)
         return response.json()
 
-    def get_users(self):
+    def get_users(self) -> list[dict]:
         """
         Get Users from -home- Repository.
         """
@@ -277,7 +282,7 @@ class EdusharingAPI:
                 return node
         raise NotFoundException(child_name)
 
-    def find_node_by_replication_source_id(self, replication_source_id: str, skip_exception: Optional[bool] = False) -> Node:
+    def find_node_by_replication_source_id(self, replication_source_id: str, skip_exception: bool = False) -> Node:
         """
         Returns a node by replication source ID.
         @param replication_source_id: Replication Source ID of node
@@ -291,8 +296,23 @@ class EdusharingAPI:
             if not skip_exception:
                 raise NotFoundException(replication_source_id)
 
+    def find_node_by_replication_source_uuid(self, replication_source_uuid: str, skip_exception: bool = False) -> Node:
+        criteria = [
+            {'property': 'ngsearchword', 'values': ['']},
+            {'property': 'ccm:replicationsourceuuid', 'values': [replication_source_uuid]}
+        ]
+        nodes = self.search_ngsearch(criteria, all_properties=True)
+        #nodes = self.search_custom('ccm:replicationsourceuuid', replication_source_uuid, content_type='FILES')
+        if len(nodes) == 1:
+            return nodes[0]
+        elif len(nodes) > 1:
+            raise FoundTooManyException(replication_source_uuid)
+        else:
+            if not skip_exception:
+                raise NotFoundException(replication_source_uuid)
+
     def create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file',
-                    properties: Optional[Dict] = None):
+                    properties: Optional[Dict] = None) -> Node:
         """
         Creates a node with properties.
         @param parent_id: ID of the parent node
@@ -300,6 +320,9 @@ class EdusharingAPI:
         @param type: Type of the node - file or folder
         @param properties: Properties for the Node [Optional]
         """
+        if self.sanatize_node_name(name) != name:
+            raise ValueError('Node name cannot contain special characters')
+
         url = f'/node/v1/nodes/-home-/{parent_id}/children'
         params = {
             'type': 'ccm:io' if type == 'file' else 'cm:folder',
@@ -318,7 +341,7 @@ class EdusharingAPI:
         return Node(response.json()['node'])
 
     def sync_node(self, group: str, properties: Dict, match: List[str], type: str = 'ccm:io',
-                  group_by: Optional[str] = None):
+                  group_by: Optional[str] = None, keep_version: bool = False) -> Node:
         """
         Synchronize a node by group params.
         @param group: Group param
@@ -330,7 +353,7 @@ class EdusharingAPI:
         url = f'/bulk/v1/sync/{group}'
         params = {
             'type': type,
-            'resetVersion': 'false',
+            'resetVersion': str(not keep_version).lower(),
             'match': match
         }
         if group_by is not None:
@@ -346,7 +369,7 @@ class EdusharingAPI:
         url = f'/node/v1/nodes/-home-/{node_id}'
         self.make_request('DELETE', url)
 
-    def get_sync_obj_folder(self):
+    def get_sync_obj_folder(self) -> Node:
         """
         Returns sync_obj folder of Edu-Sharing.
         """
@@ -365,10 +388,12 @@ class EdusharingAPI:
         name = name.replace(" ", "_")
         return len(self.search_custom('name', name, content_type='FILES')) > 0
 
-    def search_ngsearch(self, criteria: list[dict[str, str]], content_type: Optional[Literal['FOLDERS', 'FILES']] = None, all_properties: bool = False):
+    def search_ngsearch(self, criteria: list[dict[str, str]], content_type: Optional[Literal['FOLDERS', 'FILES']] = None,
+                        all_properties: bool = False) -> list[Node]:
         url = f'/search/v1/queries/-home-/mds_oeh/ngsearch/'
         params = {
-             'sortProperties': 'score'
+             'sortProperties': 'score',
+             'sortAscending': 'false'
         }
         if content_type:
             params['contentType'] = content_type
@@ -386,25 +411,14 @@ class EdusharingAPI:
         Explicit 'Schulcloud-Verbund-Software' search query to get nodes.
         @param query: Searchword for the elasticsearch request
         """
-        url = f'/search/v1/queries/-home-/mds_oeh/ngsearch/'
-        params = {
-            'contentType': 'FILES',
-            'sortProperties': 'score',
-            'sortAscending': 'false',
-            'propertyFilter': '-all-',
-        }
-        body = {
-            "criteria": [
-                {"property": "ccm:hpi_searchable", "values": ["1"]},
-                {"property": "ngsearchword", "values": [query]}
-            ],
-            "facets": ["cclom:general_keyword"]
-        }
+        criteria = [
+            {"property": "ccm:hpi_searchable", "values": ["1"]},
+            {"property": "ngsearchword", "values": [query]}
+        ]
+        return self.search_ngsearch(criteria, content_type='FILES', all_properties=True)
 
-        nodes = self.get_all('POST', url, params, lambda items, content: items.extend([Node(node) for node in content['nodes']]), 100, json_data=body)
-        return nodes
-
-    def search_custom(self, property: str, value: str, content_type: Optional[Literal['FOLDERS', 'FILES']] = None, all_properties: bool = False):
+    def search_custom(self, property: str, value: str, content_type: Optional[Literal['FOLDERS', 'FILES']] = None,
+                      all_properties: bool = False) -> list[Node]:
         """
         Custom search query to get nodes.
         @param property: Property as search criterion
@@ -445,7 +459,7 @@ class EdusharingAPI:
             groups.append(auth_name.replace('GROUP_', '', 1))
         return groups, permissions['localPermissions']['inherited']
 
-    def set_permissions(self, node_id: str, groups: List[str], inheritance: bool) -> None:
+    def set_permissions(self, node_id: str, groups: List[str], inheritance: bool):
         """
         Set the permissions for the node.
         @param node_id: ID of the node
@@ -478,7 +492,12 @@ class EdusharingAPI:
         @param node_id: ID of the node
         """
         url = f'/node/v1/nodes/-home-/{node_id}/metadata'
-        return Node(self.make_request('GET', url).json()['node'])
+        try:
+            return Node(self.make_request('GET', url).json()['node'])
+        except RequestErrorResponseException as exc:
+            if exc.response.status_code == 404:
+                raise NotFoundException(node_id)
+            raise
 
     def change_metadata(self, node_id: str, properties: Dict[str, List[str]]):
         """
@@ -491,7 +510,7 @@ class EdusharingAPI:
         self.make_request('POST', url, params=params, json_data=properties)
 
     def get_or_create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file',
-                           properties: Optional[Dict] = None):
+                           properties: Optional[Dict] = None) -> Node:
         """
         Try to get the node by name. If the node doesn't exist, the method creates a new node with the given name.
         @param parent_id: ID of the parent node
