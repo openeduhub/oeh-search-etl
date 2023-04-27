@@ -434,21 +434,18 @@ class S3Downloader:
         file_path = os.path.join(dir_path, object_key)
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
-        self.retry_function(self.client.download_file(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Filename=file_path,
-                Callback=callback
-            ), 10)
+        self.retry_function(self.client.download_file,
+                            {"Bucket": self.bucket_name, "Key": object_key, "Filename": file_path, "Callback": callback
+                             }, 10)
 
     @staticmethod
-    def retry_function(function, max_retries: int):
+    def retry_function(function, params: Dict, max_retries: int):
         retries = 0
         while retries < max_retries:
             print(f'>>>>try1 {function}')
             try:
                 print(f'>>>>try2 {function}')
-                return function
+                function(**params)
             except (ResponseStreamingError, ConnectionResetError, ProtocolError) as error:
                 print(f'Got Error1: {type(error)}')
                 if retries == max_retries - 1:
