@@ -1,5 +1,7 @@
 import os
 import sys
+import time
+import traceback
 import uuid
 import re
 import hashlib
@@ -9,6 +11,9 @@ from zipfile import ZipFile
 
 import boto3
 
+from botocore.config import Config
+from botocore.exceptions import ResponseStreamingError
+from urllib3.exceptions import ProtocolError
 from schulcloud import util
 from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException
 from schulcloud.h5p.metadata import MetadataFile, Metadata, Collection
@@ -20,7 +25,8 @@ EXPECTED_ENV_VARS = [
     'S3_ENDPOINT_URL',
     'S3_ACCESS_KEY',
     'S3_SECRET_KEY',
-    'S3_BUCKET_NAME'
+    'S3_BUCKET_NAME',
+    'S3_REGION'
 ]
 TEMP_FOLDER = 'temp'
 H5P_THUMBNAIL_PATH = 'schulcloud/h5p/H5Pthumbnail.png'
@@ -37,7 +43,7 @@ def escape_filename(filename: str):
     Return filename with escaped characters.
     @param filename: Name of the file
     """
-    return re.sub(r'[,;:\'="@$%/\\{}]', '_', filename)
+    return re.sub(r'[,;:\'="@$?%/\\{}]', '_', filename)
 
 
 def create_replicationsourceid(name: str):
@@ -116,7 +122,8 @@ class Uploader:
             self.env['S3_ENDPOINT_URL'],
             self.env['S3_ACCESS_KEY'],
             self.env['S3_SECRET_KEY'],
-            self.env['S3_BUCKET_NAME']
+            self.env['S3_BUCKET_NAME'],
+            self.env['S3_REGION']
         )
 
     @staticmethod
@@ -171,8 +178,8 @@ class Uploader:
         return "exists"
 
     def get_collection_owned(self, collection_node_id):
-        collection_metadata = self.api.get_metadata(collection_node_id)
-        collection_owner = collection_metadata['node']['owner']['firstName']
+        collection_node = self.api.get_node(collection_node_id)
+        collection_owner = collection_node.obj['owner']['firstName']
         return collection_owner
 
     def setup_destination_folder(self, folder_name: str):
@@ -299,7 +306,8 @@ class Uploader:
                 if collection_status == "exists":
                     collection_owner = self.get_collection_owned(collection_node.id)
                     if collection_owner != self.api.username:
-                        raise RuntimeError(f'Collection {collection.name} exists already and is owned by: {collection_owner}')
+                        raise RuntimeError(
+                            f'Collection {collection.name} exists already and is owned by: {collection_owner}')
                     else:
                         if last_modified:
                             # collection already has some content, so check timestamps
@@ -338,8 +346,8 @@ class Uploader:
                 continue
 
             folder_name = "H5P"
-
             self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER)
+
             zip_path = os.path.join(TEMP_FOLDER, s3_obj['Key'])
             zip_file = ZipFile(zip_path)
 
@@ -348,6 +356,8 @@ class Uploader:
             print(f'Upload done: {zip_file}')
             zip_file.close()
             os.remove(zip_path)
+
+        print(f'Finished uploading H5P learning contents.')
 
     def test_upload(self):
         """
@@ -370,13 +380,22 @@ class Uploader:
 
 
 class S3Downloader:
-    def __init__(self, url: str, key: str, secret: str, bucket_name: str):
+    def __init__(self, url: str, key: str, secret: str, bucket_name: str, region: str):
         self.env = util.Environment(EXPECTED_ENV_VARS, ask_for_missing=False)
+        s3_client_config = Config(
+            region_name=region,
+            tcp_keepalive=True,
+            retries={
+                'max_attempts': 10,
+                'mode': 'adaptive'
+            }
+        )
         self.client = boto3.client(
             's3',
             endpoint_url=url,
             aws_access_key_id=key,
             aws_secret_access_key=secret,
+            config=s3_client_config
         )
         self.bucket_name = bucket_name
 
@@ -416,12 +435,31 @@ class S3Downloader:
         file_path = os.path.join(dir_path, object_key)
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
-        self.client.download_file(
-            Bucket=self.bucket_name,
-            Key=object_key,
-            Filename=file_path,
-            Callback=callback
-        )
+        self.retry_function(self.client.download_file,
+                            {"Bucket": self.bucket_name, "Key": object_key, "Filename": file_path, "Callback": callback
+                             }, 10)
+
+    @staticmethod
+    def retry_function(function, params: Dict, max_retries: int):
+        retries = 0
+        while retries < max_retries:
+            try:
+                function(**params)
+                break
+            except (ResponseStreamingError, ConnectionResetError, ProtocolError) as error:
+                traceback.print_exc()
+                if retries == max_retries - 1:
+                    raise error
+                else:
+                    retries = retries + 1
+                    print(f'Retry: {retries} for {function}')
+            except BaseException as error:
+                traceback.print_exc()
+                if retries == max_retries - 1:
+                    raise error
+                else:
+                    retries = retries + 1
+                    print(f'Retry: {retries} for {function}')
 
 
 class MetadataNotFoundError(Exception):
