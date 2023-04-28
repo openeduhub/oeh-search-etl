@@ -177,7 +177,6 @@ class Uploader:
             else:
                 uploaded_nodes = uploaded_nodes + 1
         es_children = self.get_es_collection_children(collection_node)
-        print(f'Längen children vs es_children: {len(collection.children)} = {len(es_children)}')
         if len(collection.children) < len(es_children):
             return "too_many"
         return "exists"
@@ -209,12 +208,10 @@ class Uploader:
             delete_child = True
             for child in collection.children:
                 if es_child_node.name == child.filepath:
-                    print(f'too_many Childs: {es_child_node.name} und {child.filepath}')
-                    print(f'do not delete {es_child_node.name}')
                     delete_child = False
                     break
             if delete_child:
-                print(f'delete: {es_child_node.name}')
+                print(f'Update Collection {collection.name}. Delete children: {es_child_node.name}')
                 self.api.delete_node(es_child_node.id)
 
     def setup_destination_folder(self, folder_name: str):
