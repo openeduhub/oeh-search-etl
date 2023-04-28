@@ -490,15 +490,8 @@ class S3Downloader:
                 else:
                     retries = retries + 1
                     print(f'Retry: {retries} for {function}')
-            except KeyboardInterrupt as error:
-                raise error
             except BaseException as error:
-                traceback.print_exc()
-                if retries == max_retries - 1:
-                    raise error
-                else:
-                    retries = retries + 1
-                    print(f'Retry: {retries} for {function}')
+                raise error
 
 
 class MetadataNotFoundError(Exception):
