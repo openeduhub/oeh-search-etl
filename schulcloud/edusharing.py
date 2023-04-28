@@ -480,6 +480,14 @@ class EdusharingAPI:
         url = f'/node/v1/nodes/-home-/{node_id}/metadata'
         return Node(self.make_request('GET', url).json()['node'])
 
+    def get_collection(self, node_id: str):
+        """
+        Returns the metadata of the collection node.
+        @param node_id: ID of the collection node.
+        """
+        url = f'/collection/v1/collections/-home-/{node_id}'
+        return Node(self.make_request('GET', url).json()['collection'])
+
     def change_metadata(self, node_id: str, properties: Dict[str, List[str]]):
         """
         Change the metadata of the node.
