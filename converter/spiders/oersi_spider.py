@@ -38,7 +38,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.2"  # last update: 2023-04-27
+    version = "0.1.3"  # last update: 2023-04-28
     allowed_domains = "oersi.org"
     custom_settings = {
         "CONCURRENT_REQUESTS": 48,
@@ -161,7 +161,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         item_url: str = elastic_item["_source"]["id"]
         if item_url:
             # ToDo: findItem needs to happen here -> replicationsourceuuid
-            if self.shouldImport(None) is False:
+            if self.shouldImport(response=None) is False:
                 logging.debug(
                     "Skipping entry {} because shouldImport() returned false".format(
                         str(self.getId(response=None, elastic_item=elastic_item))
@@ -211,6 +211,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     def elastic_query_provider_metadata(self, provider_name, search_after=None):
         """
         Queries OERSI's ElasticSearch API for a metadata from a specific provider.
+
         See: https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#paginate-search-results
         """
         url = "https://oersi.org/resources/api-internal/search/_search"
@@ -362,7 +363,7 @@ class OersiSpider(scrapy.Spider, LomBase):
 
         :param lom_base_item_loader: LomBaseItemLoader where the collected metadata should be saved to
         :param elastic_item_source: the '_source'-field of the currently parsed OERSI elastic item
-        :param organization_fallback: a temporary set of strings of all affiliation 'name'-values
+        :param organization_fallback: a temporary set of strings containing all affiliation 'name'-values
         :param date_created: OERSI 'dateCreated' value (if available)
         :param date_published: OERSI 'datePublished' value (if available)
         :returns: list[str] - list of authors (names) for later usage in the LicenseItemLoader
@@ -378,20 +379,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lifecycle_author.add_value("date", date_published)
                 elif date_created:
                     lifecycle_author.add_value("date", date_created)
-                if "affiliation" in creator_item:
-                    affiliation_item = creator_item.get("affiliation")
-                    # affiliation.type is always "Organization" according to
-                    # https://dini-ag-kim.github.io/amb/draft/schemas/affiliation.json
-                    if "name" in affiliation_item:
-                        affiliation_name = affiliation_item.get("name")
-                        lifecycle_author.add_value("organization", affiliation_name)
-                        organization_fallback.add(affiliation_name)
-                    if "id" in affiliation_item:
-                        # according to the AMB spec, the affiliation.id should always be a reference to
-                        # GND, Wikidata or ROR
-                        self.lifecycle_determine_type_of_identifier_and_save_uri(
-                            affiliation_item, lifecycle_item_loader=lifecycle_author
-                        )
                 if creator_item.get("type") == "Person":
                     lifecycle_author.add_value("role", "author")
                     author_name: str = creator_item.get("name")
@@ -417,22 +404,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                     )
                     lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
                 elif creator_item.get("type") == "Organization":
-                    # ToDo: find a solution for edge-case where "creator" is an organization which itself is affiliated
-                    #  to an organization, e.g.:
-                    # [
-                    # 		{
-                    # 			"affiliation": {
-                    # 				"name": "RWTH Aachen",
-                    # 				"id": "https://ror.org/04xfq0f34",
-                    # 				"type": "Organization"
-                    # 			},
-                    # 			"name": "OMB+-Konsortium",
-                    # 			"type": "Organization"
-                    # 		}
-                    # 	],
-                    # the vCard standard 4.0 provides a "RELATED"-property which could be suitable for this edge-case,
-                    # but both edu-sharing and the currently used "vobject"-package only support vCard standard v3.0
-                    # see: https://www.rfc-editor.org/rfc/rfc6350.html#section-6.6.6
                     creator_organization_name = creator_item.get("name")
                     lifecycle_author.add_value("role", "author")
                     lifecycle_author.add_value("organization", creator_organization_name)
@@ -440,7 +411,65 @@ class OersiSpider(scrapy.Spider, LomBase):
                         item_dictionary=creator_item, lifecycle_item_loader=lifecycle_author
                     )
                     lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
+                if "affiliation" in creator_item:
+                    affiliation_item = creator_item.get("affiliation")
+                    self.get_affiliation_and_save_to_lifecycle(
+                        affiliation_dict=affiliation_item,
+                        lom_base_item_loader=lom_base_item_loader,
+                        organization_fallback=organization_fallback,
+                        lifecycle_role="author",
+                    )
         return authors
+
+    def get_affiliation_and_save_to_lifecycle(
+        self,
+        affiliation_dict: dict,
+        lom_base_item_loader: LomBaseItemloader,
+        organization_fallback: set[str],
+        lifecycle_role: str,
+    ):
+        """
+        Retrieves metadata from OERSI's "affiliation"-field (which is typically found within a "creator"- or
+        "contributor"-item) and tries to save it within a new LOM Lifecycle Item.
+
+        See: https://dini-ag-kim.github.io/amb/draft/#affiliation
+        """
+        # affiliation.type is always "Organization" according to
+        # see: https://dini-ag-kim.github.io/amb/draft/schemas/affiliation.json // example dict:
+        # [
+        # 		{
+        # 			"affiliation": {
+        # 				"name": "RWTH Aachen",
+        # 				"id": "https://ror.org/04xfq0f34",
+        # 				"type": "Organization"
+        # 			},
+        # 			"name": "OMB+-Konsortium",
+        # 			"type": "Organization"
+        # 		}
+        # 	],
+        # the vCard standard 4.0 provides a "RELATED"-property which could be suitable for this edge-case,
+        # but both edu-sharing and the currently used "vobject"-package only support vCard standard v3.0
+        # (for future reference:
+        # vCard v3: https://datatracker.ietf.org/doc/html/rfc2426
+        # vCard v4: https://www.rfc-editor.org/rfc/rfc6350.html#section-6.6.6 )
+        if "name" in affiliation_dict:
+            affiliation_name = affiliation_dict.get("name")
+            lifecycle_affiliated_org = LomLifecycleItemloader()
+            if affiliation_name:
+                if affiliation_name not in organization_fallback:
+                    # checking to make sure we don't add the same organization several times to the same role
+                    # (e.g. 5 different authors could be affiliated to the same university, but we most definitely don't
+                    # want to have the organization entry 5 times)
+                    lifecycle_affiliated_org.add_value("role", lifecycle_role)
+                    lifecycle_affiliated_org.add_value("organization", affiliation_name)
+                    organization_fallback.add(affiliation_name)
+                if "id" in affiliation_dict:
+                    # according to the AMB spec, the affiliation.id is OPTIONAL, but should always be a
+                    # reference to GND, Wikidata or ROR
+                    self.lifecycle_determine_type_of_identifier_and_save_uri(
+                        affiliation_dict, lifecycle_item_loader=lifecycle_affiliated_org
+                    )
+                lom_base_item_loader.add_value("lifecycle", lifecycle_affiliated_org.load_item())
 
     @staticmethod
     def validate_academic_title_string(honorific_prefix: str) -> str:
@@ -518,16 +547,12 @@ class OersiSpider(scrapy.Spider, LomBase):
                     # if the dictionary exists, it might contain the following fields:
                     #   - id        (= URL to GND / ROR / Wikidata)
                     #   - name      (= string containing the name of the affiliated organization)
-                    if affiliation_dict:
-                        if "id" in affiliation_dict:
-                            self.lifecycle_determine_type_of_identifier_and_save_uri(
-                                item_dictionary=affiliation_dict, lifecycle_item_loader=lifecycle_contributor
-                            )
-                        if "name" in affiliation_dict:
-                            affiliation_name: str = affiliation_dict["name"]
-                            if affiliation_name:
-                                lifecycle_contributor.add_value("organization", affiliation_name)
-                                organization_fallback.add(affiliation_name)
+                    self.get_affiliation_and_save_to_lifecycle(
+                        affiliation_dict=affiliation_dict,
+                        lom_base_item_loader=lom_base_item_loader,
+                        organization_fallback=organization_fallback,
+                        lifecycle_role="unknown",
+                    )
                 lom_base_item_loader.add_value("lifecycle", lifecycle_contributor.load_item())
 
     @staticmethod
@@ -791,6 +816,10 @@ class OersiSpider(scrapy.Spider, LomBase):
         lom.add_value("technical", technical.load_item())
 
         organizations_from_affiliation_fields: set[str] = set()
+        # this (temporary) set of strings is used to make a decision for OERSI's "sourceOrganization" field:
+        # we only store metadata about organizations from this field if an organization didn't appear previously in
+        # an "affiliation" field of a "creator" or "contributor". If we didn't do this check, we would have duplicate
+        # entries for organizations in our lifecycle items.
 
         authors = self.get_lifecycle_author(
             lom_base_item_loader=lom,
@@ -1000,8 +1029,9 @@ class OersiSpider(scrapy.Spider, LomBase):
                 license_url_mapped = license_mapper.get_license_url(license_string=license_url)
                 if license_url_mapped:
                     license_loader.add_value("url", license_url_mapped)
-        if authors:
-            license_loader.add_value("author", authors)
+        # if authors:
+        #     # ToDo: confirm if this workaround is still necessary/desired for future crawler versions
+        #     license_loader.add_value("author", authors)
         # noinspection DuplicatedCode
         base.add_value("license", license_loader.load_item())
 
