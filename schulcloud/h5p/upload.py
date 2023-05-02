@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 import traceback
 import uuid
 import re
@@ -152,11 +151,12 @@ class Uploader:
             raise MetadataNotFoundError(zip)
         return metadata_file
 
-    def collection_status(self, collection: Collection, zip_file: ZipFile):
+    def collection_status(self, collection: Collection, zip_file: ZipFile, collection_node: Node):
         """
         Return exists, if the collection exists already on Edu-Sharing.
         Return missing, if the collection doesn't exist on Edu-Sharing.
         Return broken, if the collection exists partially on Edu-Sharing.
+        Return too_many, if the collection has too many children on Edu-Sharing.
         @param collection: Node of collection
         @param zip_file: File as zip.
         """
@@ -175,12 +175,43 @@ class Uploader:
                     return "broken"
             else:
                 uploaded_nodes = uploaded_nodes + 1
+        es_children = self.get_es_collection_children(collection_node)
+        if len(collection.children) < len(es_children):
+            return "too_many"
         return "exists"
 
     def get_collection_owned(self, collection_node_id):
         collection_node = self.api.get_node(collection_node_id)
         collection_owner = collection_node.obj['owner']['firstName']
         return collection_owner
+
+    def get_es_collection_children(self, collection_node):
+        es_children = self.api.get_collection(collection_node.id)
+        es_children = es_children.obj['properties']['ccm:lom_relation']
+        es_children = str(es_children)
+        start_index = es_children[1:].find('[') + 2
+        end_index = es_children.find(']')
+        es_children = es_children[start_index:end_index]
+        es_children = es_children.replace(" ", "")
+        es_children = es_children.replace("\'", "")
+        es_children = es_children.split(",")
+        return es_children
+
+    def delete_too_many_children(self, collection_node: Node, collection: Collection):
+        es_children = self.get_es_collection_children(collection_node)
+        for es_child in es_children:
+            es_child_node = self.api.search_custom('ccm:replicationsourceuuid', es_child)
+            if len(es_child_node) > 1:
+                raise FoundTooManyException
+            es_child_node = es_child_node[0]
+            delete_child = True
+            for child in collection.children:
+                if es_child_node.name == child.filepath:
+                    delete_child = False
+                    break
+            if delete_child:
+                print(f'Update Collection {collection.name}. Delete children: {es_child_node.name}')
+                self.api.delete_node(es_child_node.id)
 
     def setup_destination_folder(self, folder_name: str):
         """
@@ -300,7 +331,7 @@ class Uploader:
                 print(f'Found multiple nodes for collection: {collection.name}', file=sys.stderr)
                 continue
             if collection_node:
-                collection_status = self.collection_status(collection, zip_file)
+                collection_status = self.collection_status(collection, zip_file, collection_node)
                 if collection_status == "missing":
                     pass
                 if collection_status == "exists":
@@ -320,6 +351,8 @@ class Uploader:
                     if collection_owner != self.api.username:
                         raise RuntimeError(
                             f'Collection {collection.name} is partially uploaded by: {collection_owner}')
+                if collection_status == "too_many":
+                    self.delete_too_many_children(collection_node, collection)
 
             self.upload_collection(collection, zip_file, es_folder, collection_node)
 
@@ -457,12 +490,7 @@ class S3Downloader:
                     retries = retries + 1
                     print(f'Retry: {retries} for {function}')
             except BaseException as error:
-                traceback.print_exc()
-                if retries == max_retries - 1:
-                    raise error
-                else:
-                    retries = retries + 1
-                    print(f'Retry: {retries} for {function}')
+                raise error
 
 
 class MetadataNotFoundError(Exception):

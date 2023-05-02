@@ -364,7 +364,7 @@ class EdusharingAPI:
     def delete_node(self, node_id: str):
         """
         Delete a node by ID.
-        @param node_id: Id of the node
+        @param node_id: ID of the node
         """
         url = f'/node/v1/nodes/-home-/{node_id}'
         self.make_request('DELETE', url)
@@ -498,6 +498,14 @@ class EdusharingAPI:
             if exc.response.status_code == 404:
                 raise NotFoundException(node_id)
             raise
+
+    def get_collection(self, node_id: str):
+        """
+        Returns the metadata of the collection node.
+        @param node_id: ID of the collection node.
+        """
+        url = f'/collection/v1/collections/-home-/{node_id}'
+        return Node(self.make_request('GET', url).json()['collection'])
 
     def change_metadata(self, node_id: str, properties: Dict[str, List[str]]):
         """
