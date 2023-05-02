@@ -486,12 +486,15 @@ class EdusharingAPI:
         }
         response = self.make_request('POST', url, params=params, json_data=body, timeout=60)
 
-    def get_node(self, node_id: str):
+    def get_node(self, node_id: str, all_properties: bool = False):
         """
         Returns the metadata of the node.
         @param node_id: ID of the node
         """
         url = f'/node/v1/nodes/-home-/{node_id}/metadata'
+        params = {}
+        if all_properties:
+            params['propertyFilter'] = '-all-'
         try:
             return Node(self.make_request('GET', url).json()['node'])
         except RequestErrorResponseException as exc:
