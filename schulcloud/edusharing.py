@@ -496,7 +496,7 @@ class EdusharingAPI:
         if all_properties:
             params['propertyFilter'] = '-all-'
         try:
-            return Node(self.make_request('GET', url).json()['node'])
+            return Node(self.make_request('GET', url, params=params).json()['node'])
         except RequestErrorResponseException as exc:
             if exc.response.status_code == 404:
                 raise NotFoundException(node_id)
