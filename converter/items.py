@@ -66,8 +66,8 @@ class LomLifecycleItem(Item):
     - 'ccm:lifecyclecontributer_publisher'              ('role'-value = 'publisher')
     - 'ccm:lifecyclecontributer_author'                 ('role'-value = 'author')
     - 'ccm:lifecyclecontributer_editor'                 ('role'-value = 'editor')
-    - 'ccm:lifecyclecontributer_metadata_creator'       ('role'-value = 'metadata_creator')
-    - 'ccm:lifecyclecontributer_metadata_provider'      ('role'-value = 'metadata_provider')
+    - 'ccm:metadatacontributer_creator'                 ('role'-value = 'metadata_creator')
+    - 'ccm:metadatacontributer_provider'                ('role'-value = 'metadata_provider')
     - 'ccm:lifecyclecontributer_unknown'                ('role'-value = 'unknown')
 
     The role 'unknown' is used for contributors in an unknown capacity ("Mitarbeiter").

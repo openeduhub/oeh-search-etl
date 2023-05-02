@@ -1,5 +1,6 @@
 import datetime
 import logging
+import random
 from typing import Optional
 
 import requests
@@ -37,13 +38,13 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.0"  # last update: 2023-04-21
+    version = "0.1.4"  # last update: 2023-05-02
     allowed_domains = "oersi.org"
     custom_settings = {
-        "CONCURRENT_REQUESTS": 32,
+        "CONCURRENT_REQUESTS": 48,
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 3,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 6,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
@@ -73,7 +74,9 @@ class OersiSpider(scrapy.Spider, LomBase):
         "HOOU",
         "iMoox",
         "KI Campus",
+        "langSci Press",  # new provider as of 2023-04-27
         "MIT OpenCourseWare",
+        "OEPMS",  # new provider as of 2023-04-27
         "OER Portal Uni Graz",
         "oncampus",
         "Open Music Academy",
@@ -115,7 +118,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     }
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        LomBase.__init__(self, **kwargs)
         # Fetching a "point in time"-id for the subsequent ElasticSearch queries
         self.ELASTIC_PIT_ID = self.elastic_pit_get_id(self.elastic_pit_create())
         # querying the ElasticSearch API for metadata-sets of specific providers, this allows us to control which
@@ -127,6 +130,8 @@ class OersiSpider(scrapy.Spider, LomBase):
             logging.info(f"ElasticSearch API response (upon PIT delete): {json_response}")
 
     def start_requests(self):
+        random.shuffle(self.ELASTIC_ITEMS_ALL)  # shuffling the list of ElasticSearch items to improve concurrency and
+        # distribute the load between several target domains.
         continue_from_previous_crawl = env.get_bool("CONTINUE_CRAWL", True, False)
         # checking if a previously aborted crawl should be completed (by skipping updates of previously collected items)
         if continue_from_previous_crawl:
@@ -135,21 +140,39 @@ class OersiSpider(scrapy.Spider, LomBase):
             for elastic_item in self.ELASTIC_ITEMS_ALL:
                 elastic_item_identifier: str = elastic_item["_id"]
                 if elastic_item_identifier in previously_crawled_replication_source_ids:
-                    logging.debug(f"Found Elastic item '_id': {elastic_item_identifier} within previously crawled "
-                                  f"results in the edu-sharing repository. Skipping item because '.env'-setting "
-                                  f"'CONTINUE_CRAWL' is enabled.")
+                    logging.debug(
+                        f"Found Elastic item '_id': {elastic_item_identifier} within previously crawled "
+                        f"results in the edu-sharing repository. Skipping item because '.env'-setting "
+                        f"'CONTINUE_CRAWL' is enabled."
+                    )
                     continue
                 else:
-                    yield from self.yield_request_and_parse_item(elastic_item)
+                    yield from self.check_item_and_yield_to_parse_method(elastic_item)
         else:
             for elastic_item in self.ELASTIC_ITEMS_ALL:
-                yield from self.yield_request_and_parse_item(elastic_item)
+                yield from self.check_item_and_yield_to_parse_method(elastic_item)
 
-    @staticmethod
-    def yield_request_and_parse_item(elastic_item) -> scrapy.Request:
-        main_entity_of_page: list[dict] = elastic_item.get("_source").get("mainEntityOfPage")
-        if main_entity_of_page:
-            item_url = main_entity_of_page[0].get("id")
+    def check_item_and_yield_to_parse_method(self, elastic_item: dict) -> scrapy.Request | None:
+        """
+        Checks if the item already exists in the edu-sharing repository and yields a Request to the parse()-method.
+        If the item already exists, it will be updated (if its hash has changed).
+        Otherwise, creates a new item in the edu-sharing repository.
+        """
+        item_url: str = self.get_item_url(elastic_item)
+        if item_url:
+            if self.shouldImport(response=None) is False:
+                logging.debug(
+                    "Skipping entry {} because shouldImport() returned false".format(
+                        str(self.getId(response=None, elastic_item=elastic_item))
+                    )
+                )
+                return None
+            if (
+                self.getId(response=None, elastic_item=elastic_item) is not None
+                and self.getHash(response=None, elastic_item_source=elastic_item["_source"]) is not None
+            ):
+                if not self.hasChanged(None, elastic_item=elastic_item):
+                    return None
             # by omitting the callback parameter, individual requests are yielded to the parse-method
             yield scrapy.Request(url=item_url, cb_kwargs={"elastic_item": elastic_item})
 
@@ -187,6 +210,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     def elastic_query_provider_metadata(self, provider_name, search_after=None):
         """
         Queries OERSI's ElasticSearch API for a metadata from a specific provider.
+
         See: https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#paginate-search-results
         """
         url = "https://oersi.org/resources/api-internal/search/_search"
@@ -294,12 +318,42 @@ class OersiSpider(scrapy.Spider, LomBase):
             hash_temp: str = f"{datetime.datetime.now().isoformat()}{self.version}"
         return hash_temp
 
+    @staticmethod
+    def get_uuid(elastic_item: dict):
+        """
+        Builds a UUID string from the to-be-parsed target URL and returns it.
+        """
+        # The "getUUID"-method of LomBase couldn't be cleanly overridden because at the point of time when we do this
+        # check, there is no "Response"-object available yet.
+        item_url = OersiSpider.get_item_url(elastic_item=elastic_item)
+        return EduSharing.buildUUID(item_url)
+
+    @staticmethod
+    def get_item_url(elastic_item) -> str:
+        """
+        Tries to gather the to-be-parsed URL from OERSI's 'MainEntityOfPage'-field and if that field is not available,
+        falls back to the '_source.id'-field. Returns an URL-string.
+        """
+        main_entity_of_page: list[dict] = elastic_item["_source"]["mainEntityOfPage"]
+        if main_entity_of_page:
+            item_url: str = main_entity_of_page[0]["id"]
+            # "id" is a REQUIRED sub-field of MainEntityOfPage and will always contain more stable URLs than
+            # '_source.id'
+            return item_url
+        else:
+            item_url: str = elastic_item["_source"]["id"]
+            logging.debug(
+                f"get_uuid fallback activated: The field 'MainEntityOfPage.id' for '{elastic_item['_id']}' was not "
+                f"available. Using fallback value '_source.id': {item_url} instead."
+            )
+            return item_url
+
     def hasChanged(self, response=None, elastic_item: dict = dict) -> bool:
         elastic_item = elastic_item
         if self.forceUpdate:
             return True
         if self.uuid:
-            if self.getUUID(response) == self.uuid:
+            if self.get_uuid(elastic_item=elastic_item) == self.uuid:
                 logging.info(f"matching requested id: {self.uuid}")
                 return True
             return False
@@ -318,6 +372,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         self,
         lom_base_item_loader: LomBaseItemloader,
         elastic_item_source: dict,
+        organization_fallback: set[str],
         date_created: Optional[str] = None,
         date_published: Optional[str] = None,
     ):
@@ -327,6 +382,7 @@ class OersiSpider(scrapy.Spider, LomBase):
 
         :param lom_base_item_loader: LomBaseItemLoader where the collected metadata should be saved to
         :param elastic_item_source: the '_source'-field of the currently parsed OERSI elastic item
+        :param organization_fallback: a temporary set of strings containing all affiliation 'name'-values
         :param date_created: OERSI 'dateCreated' value (if available)
         :param date_published: OERSI 'datePublished' value (if available)
         :returns: list[str] - list of authors (names) for later usage in the LicenseItemLoader
@@ -342,19 +398,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lifecycle_author.add_value("date", date_published)
                 elif date_created:
                     lifecycle_author.add_value("date", date_created)
-                if "affiliation" in creator_item:
-                    affiliation_item = creator_item.get("affiliation")
-                    # affiliation.type is always "Organization" according to
-                    # https://dini-ag-kim.github.io/amb/draft/schemas/affiliation.json
-                    if "name" in affiliation_item:
-                        affiliation_name = affiliation_item.get("name")
-                        lifecycle_author.add_value("organization", affiliation_name)
-                    if "id" in affiliation_item:
-                        # according to the AMB spec, the affiliation.id should always be a reference to
-                        # GND, Wikidata or ROR
-                        self.lifecycle_determine_type_of_identifier_and_save_uri(
-                            affiliation_item, lifecycle_item_loader=lifecycle_author
-                        )
                 if creator_item.get("type") == "Person":
                     lifecycle_author.add_value("role", "author")
                     author_name: str = creator_item.get("name")
@@ -380,29 +423,72 @@ class OersiSpider(scrapy.Spider, LomBase):
                     )
                     lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
                 elif creator_item.get("type") == "Organization":
-                    # ToDo: find a solution for edge-case where "creator" is an organization which itself is affiliated
-                    #  to an organization, e.g.:
-                    # [
-                    # 		{
-                    # 			"affiliation": {
-                    # 				"name": "RWTH Aachen",
-                    # 				"id": "https://ror.org/04xfq0f34",
-                    # 				"type": "Organization"
-                    # 			},
-                    # 			"name": "OMB+-Konsortium",
-                    # 			"type": "Organization"
-                    # 		}
-                    # 	],
-                    # the vCard standard 4.0 provides a "RELATED"-property which could be suitable for this edge-case,
-                    # but both edu-sharing and the currently used "vobject"-package only support vCard standard v3.0
-                    # see: https://www.rfc-editor.org/rfc/rfc6350.html#section-6.6.6
                     creator_organization_name = creator_item.get("name")
                     lifecycle_author.add_value("role", "author")
                     lifecycle_author.add_value("organization", creator_organization_name)
-                    self.lifecycle_determine_type_of_identifier_and_save_uri(item_dictionary=creator_item,
-                                                                             lifecycle_item_loader=lifecycle_author)
+                    self.lifecycle_determine_type_of_identifier_and_save_uri(
+                        item_dictionary=creator_item, lifecycle_item_loader=lifecycle_author
+                    )
                     lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
+                if "affiliation" in creator_item:
+                    affiliation_item = creator_item.get("affiliation")
+                    self.get_affiliation_and_save_to_lifecycle(
+                        affiliation_dict=affiliation_item,
+                        lom_base_item_loader=lom_base_item_loader,
+                        organization_fallback=organization_fallback,
+                        lifecycle_role="author",
+                    )
         return authors
+
+    def get_affiliation_and_save_to_lifecycle(
+        self,
+        affiliation_dict: dict,
+        lom_base_item_loader: LomBaseItemloader,
+        organization_fallback: set[str],
+        lifecycle_role: str,
+    ):
+        """
+        Retrieves metadata from OERSI's "affiliation"-field (which is typically found within a "creator"- or
+        "contributor"-item) and tries to save it within a new LOM Lifecycle Item.
+
+        See: https://dini-ag-kim.github.io/amb/draft/#affiliation
+        """
+        # affiliation.type is always "Organization" according to
+        # see: https://dini-ag-kim.github.io/amb/draft/schemas/affiliation.json // example dict:
+        # [
+        # 		{
+        # 			"affiliation": {
+        # 				"name": "RWTH Aachen",
+        # 				"id": "https://ror.org/04xfq0f34",
+        # 				"type": "Organization"
+        # 			},
+        # 			"name": "OMB+-Konsortium",
+        # 			"type": "Organization"
+        # 		}
+        # 	],
+        # the vCard standard 4.0 provides a "RELATED"-property which could be suitable for this edge-case,
+        # but both edu-sharing and the currently used "vobject"-package only support vCard standard v3.0
+        # (for future reference:
+        # vCard v3: https://datatracker.ietf.org/doc/html/rfc2426
+        # vCard v4: https://www.rfc-editor.org/rfc/rfc6350.html#section-6.6.6 )
+        if "name" in affiliation_dict:
+            affiliation_name = affiliation_dict.get("name")
+            lifecycle_affiliated_org = LomLifecycleItemloader()
+            if affiliation_name:
+                if affiliation_name not in organization_fallback:
+                    # checking to make sure we don't add the same organization several times to the same role
+                    # (e.g. 5 different authors could be affiliated to the same university, but we most definitely don't
+                    # want to have the organization entry 5 times)
+                    lifecycle_affiliated_org.add_value("role", lifecycle_role)
+                    lifecycle_affiliated_org.add_value("organization", affiliation_name)
+                    organization_fallback.add(affiliation_name)
+                if "id" in affiliation_dict:
+                    # according to the AMB spec, the affiliation.id is OPTIONAL, but should always be a
+                    # reference to GND, Wikidata or ROR
+                    self.lifecycle_determine_type_of_identifier_and_save_uri(
+                        affiliation_dict, lifecycle_item_loader=lifecycle_affiliated_org
+                    )
+                lom_base_item_loader.add_value("lifecycle", lifecycle_affiliated_org.load_item())
 
     @staticmethod
     def validate_academic_title_string(honorific_prefix: str) -> str:
@@ -427,6 +513,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         self,
         lom_base_item_loader: LomBaseItemloader,
         elastic_item_source: dict,
+        organization_fallback: set[str],
         author_list: Optional[list[str]] = None,
     ):
         """
@@ -479,16 +566,12 @@ class OersiSpider(scrapy.Spider, LomBase):
                     # if the dictionary exists, it might contain the following fields:
                     #   - id        (= URL to GND / ROR / Wikidata)
                     #   - name      (= string containing the name of the affiliated organization)
-                    if affiliation_dict:
-                        if "id" in affiliation_dict:
-                            self.lifecycle_determine_type_of_identifier_and_save_uri(
-                                item_dictionary=affiliation_dict, lifecycle_item_loader=lifecycle_contributor
-                            )
-                        if "name" in affiliation_dict:
-                            affiliation_name: str = affiliation_dict["name"]
-                            if affiliation_name:
-                                lifecycle_contributor.add_value("organization", affiliation_name)
-
+                    self.get_affiliation_and_save_to_lifecycle(
+                        affiliation_dict=affiliation_dict,
+                        lom_base_item_loader=lom_base_item_loader,
+                        organization_fallback=organization_fallback,
+                        lifecycle_role="unknown",
+                    )
                 lom_base_item_loader.add_value("lifecycle", lifecycle_contributor.load_item())
 
     @staticmethod
@@ -561,6 +644,48 @@ class OersiSpider(scrapy.Spider, LomBase):
                         lifecycle_publisher.add_value("date", date_published)
                     lom_base_item_loader.add_value("lifecycle", lifecycle_publisher.load_item())
 
+    def get_lifecycle_organization_from_source_organization_fallback(
+        self, elastic_item_source: dict, lom_item_loader: LomBaseItemloader, organization_fallback: set[str]
+    ):
+        # ATTENTION: the "sourceOrganization"-field is not part of the AMB draft, therefore this method is currently
+        # used a fallback, so we don't lose any useful metadata (even if that metadata is not part of the AMB spec).
+        # see: https://github.com/dini-ag-kim/amb/issues/110
+        # 'sourceOrganization' is an OERSI-specific (undocumented) field: it is used by OERSI to express an affiliation
+        # to an organization (which is normally covered by the AMB 'affiliation'-field).
+        # it appears to be implemented in two distinct ways:
+        #  1) For metadata providers which use the "affiliation"-field within "creator" or "contributor", the
+        #   'sourceOrganization'-field does not contain any useful (additional) data. It's basically a set of all
+        #   "affiliation"-values (without any duplicate entries). -> In this case we SKIP it completely!
+        #  2) For metadata-providers which DON'T provide any "affiliation"-values, the 'sourceOrganization'-field will
+        #   contain metadata about organizations without being attached to a person. (Therefore it can only be
+        #   interpreted as lifecycle role 'unknown' (= contributor in unknown capacity).
+        # ToDo: periodically confirm if this fallback is still necessary (check the OERSI API / AMB spec!)
+        source_organizations: list = elastic_item_source.get("sourceOrganization")
+        for source_org_item in source_organizations:
+            if "name" in source_org_item:
+                source_org_name = source_org_item.get("name")
+                if source_org_name in organization_fallback:
+                    # if the 'sourceOrganization' name is already in our organization list, skip this loop
+                    continue
+                lifecycle_org = LomLifecycleItemloader()
+                lifecycle_org.add_value("role", "unknown")
+                lifecycle_org.add_value("organization", source_org_name)
+                if "id" in source_org_item:
+                    # the "id"-field is used completely different between metadata-providers:
+                    # for some providers ("HOOU") it contains just the URL to their website (= not a real identifier),
+                    # but other metadata-providers provide an actual identifier (e.g. to ror.org) within this field.
+                    # Therefore, we're checking which type of URI it is first before saving it to a specific field
+                    self.lifecycle_determine_type_of_identifier_and_save_uri(
+                        item_dictionary=source_org_item, lifecycle_item_loader=lifecycle_org
+                    )
+                # ToDo: sometimes there are more possible fields within a 'sourceOrganization', e.g.:
+                #  - image  (-> ?)
+                #  - logo   (-> ?)
+                if "url" in source_org_item:
+                    org_url: str = source_org_item.get("url")
+                    lifecycle_org.add_value("url", org_url)
+                lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
+
     @staticmethod
     def lifecycle_determine_type_of_identifier_and_save_uri(
         item_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
@@ -600,7 +725,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         """
         Splits a string containing a person's name - if there's a whitespace within that string -
         into two parts: first_name and last_name.
-        Afterwards saves the split-up values to their respective 'lifecycle'-fields or saves the string as a whole.
+        Afterward saves the split values to their respective 'lifecycle'-fields or saves the string as a whole.
         """
         if " " in name_string:
             name_parts = name_string.split(maxsplit=1)
@@ -616,15 +741,6 @@ class OersiSpider(scrapy.Spider, LomBase):
         elastic_item_source: dict = elastic_item.get("_source")
         # _source is the original JSON body passed for the document at index time
         # see: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
-        if self.shouldImport(response) is False:
-            logging.debug("Skipping entry {} because shouldImport() returned false".format(str(self.getId(response))))
-            return None
-        if (
-            self.getId(response=response, elastic_item=elastic_item) is not None
-            and self.getHash(response=response, elastic_item_source=elastic_item_source) is not None
-        ):
-            if not self.hasChanged(response, elastic_item=elastic_item):
-                return None
 
         # ToDo: look at these (sometimes available) properties later:
         #  - encoding (see: https://dini-ag-kim.github.io/amb/draft/#encoding - OPTIONAL field)
@@ -670,7 +786,7 @@ class OersiSpider(scrapy.Spider, LomBase):
             date_published: str = elastic_item_source.get("datePublished")
 
         base.add_value("sourceId", self.getId(response, elastic_item=elastic_item))
-        base.add_value("hash", self.getHash(response, elastic_item_source=elastic_item))
+        base.add_value("hash", self.getHash(response, elastic_item_source=elastic_item_source))
         thumbnail_url = str()
         if "image" in elastic_item_source:
             thumbnail_url = elastic_item_source.get("image")  # thumbnail
@@ -711,29 +827,44 @@ class OersiSpider(scrapy.Spider, LomBase):
                 general.replace_value("identifier", identifier_url)
                 technical.add_value("location", identifier_url)
                 if identifier_url != response.url:
-                    # the identifier_url should be more stable/robust than the (resolved) response.url in the long term,
+                    # the identifier_url should be more stable/robust than the (resolved) response.url in the long run,
                     # so we will save both URLs in case the resolved URL is different
                     technical.add_value("location", response.url)
         elif not identifier_url:
             technical.add_value("location", response.url)
         lom.add_value("technical", technical.load_item())
 
+        organizations_from_affiliation_fields: set[str] = set()
+        # this (temporary) set of strings is used to make a decision for OERSI's "sourceOrganization" field:
+        # we only store metadata about organizations from this field if an organization didn't appear previously in
+        # an "affiliation" field of a "creator" or "contributor". If we didn't do this check, we would have duplicate
+        # entries for organizations in our lifecycle items.
+
         authors = self.get_lifecycle_author(
             lom_base_item_loader=lom,
             elastic_item_source=elastic_item_source,
             date_created=date_created,
             date_published=date_published,
+            organization_fallback=organizations_from_affiliation_fields,
         )
 
         self.get_lifecycle_contributor(
             lom_base_item_loader=lom,
             elastic_item_source=elastic_item_source,
+            organization_fallback=organizations_from_affiliation_fields,
             author_list=authors,
         )
 
         self.get_lifecycle_publisher(
             lom_base_item_loader=lom, elastic_item_source=elastic_item_source, date_published=date_published
         )
+
+        if "sourceOrganization" in elastic_item_source:
+            self.get_lifecycle_organization_from_source_organization_fallback(
+                elastic_item_source=elastic_item_source,
+                lom_item_loader=lom,
+                organization_fallback=organizations_from_affiliation_fields,
+            )
 
         educational = LomEducationalItemLoader()
         if in_languages:
@@ -917,8 +1048,9 @@ class OersiSpider(scrapy.Spider, LomBase):
                 license_url_mapped = license_mapper.get_license_url(license_string=license_url)
                 if license_url_mapped:
                     license_loader.add_value("url", license_url_mapped)
-        if authors:
-            license_loader.add_value("author", authors)
+        # if authors:
+        #     # ToDo: confirm if this workaround is still necessary/desired for future crawler versions
+        #     license_loader.add_value("author", authors)
         # noinspection DuplicatedCode
         base.add_value("license", license_loader.load_item())
 
@@ -926,6 +1058,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         base.add_value("permissions", permissions.load_item())
 
         response_loader = ResponseItemLoader(response=response)
+        # ToDo: skip the scrapy.Request altogether? (-> would be a huge time benefit)
         response_loader.add_value("status", response.status)
         url_data = WebTools.getUrlData(url=response.url, engine=WebEngine.Playwright)
         if "html" in url_data:

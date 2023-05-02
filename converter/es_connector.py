@@ -393,7 +393,7 @@ class EduSharing:
                 date = person["date"] if "date" in person else None
                 id_gnd: str = person["id_gnd"] if "id_gnd" in person else ""
                 id_orcid: str = person["id_orcid"] if "id_orcid" in person else ""
-                id_ror: str = person["id_ror"] if "id_ror"  in person else ""
+                id_ror: str = person["id_ror"] if "id_ror" in person else ""
                 id_wikidata: str = person["id_wikidata"] if "id_wikidata" in person else ""
                 vcard = vobject.vCard()
                 vcard.add("n").value = vobject.vcard.Name(
@@ -423,14 +423,20 @@ class EduSharing:
                     # fix a bug of split org values
                     vcard.org.behavior = VCardBehavior.defaultBehavior
                     vcard.org.value = organization
-                vcard.add("url").value = url
+                if url:
+                    vcard.add("url")
+                    vcard.url.value = url
                 if email:
                     vcard.add("EMAIL;TYPE=PREF,INTERNET").value = email
                 if mapping in spaces:
                     # checking if a vcard already exists for this role: if so, extend the list
-                    spaces[mapping].append(vcard.serialize())
+                    spaces[mapping].append(vcard.serialize(lineLength=10000))
+                    # default of "lineLength" is 75, which is too short for longer URLs. We're intentionally setting an
+                    # absurdly long lineLength, so we don't run into the problem where vCARD attributes like 'url' would
+                    # get split up with a '\r\n '-string inbetween, which would cause broken URLs in the final vCard
+                    # string and therefore broken links in the edu-sharing front-end
                 else:
-                    spaces[mapping] = [vcard.serialize()]
+                    spaces[mapping] = [vcard.serialize(lineLength=10000)]
 
         valuespaceMapping = {
             "accessibilitySummary": "ccm:accessibilitySummary",
