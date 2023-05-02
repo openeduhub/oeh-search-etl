@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import traceback
@@ -180,22 +181,23 @@ class Uploader:
             return "too_many"
         return "exists"
 
-    def get_collection_owned(self, collection_node_id):
+    def get_collection_owned(self, collection_node_id: str):
         collection_node = self.api.get_node(collection_node_id)
         collection_owner = collection_node.obj['owner']['firstName']
         return collection_owner
 
-    def get_es_collection_children(self, collection_node):
-        es_children = self.api.get_collection(collection_node.id)
-        es_children = es_children.obj['properties']['ccm:lom_relation']
-        es_children = str(es_children)
-        start_index = es_children[1:].find('[') + 2
-        end_index = es_children.find(']')
-        es_children = es_children[start_index:end_index]
-        es_children = es_children.replace(" ", "")
-        es_children = es_children.replace("\'", "")
-        es_children = es_children.split(",")
-        return es_children
+    def get_es_collection_children(self, collection: Node):
+        if not collection.obj['properties']:
+            collection = self.api.get_node(collection.id, all_properties=True)
+        for relation_str in collection.obj['properties']['ccm:lom_relation']:
+            relation_str: str
+            if relation_str[1] not in ('\'', '"'):
+                # fix bug "{kind': ...}"
+                relation_str = relation_str[0] + '"' + relation_str[1:]
+            relation_str = relation_str.replace('\'', '"')
+            relation = json.loads(relation_str)
+            if relation['kind'] == 'hasparts':
+                return relation['resource']['identifier']
 
     def delete_too_many_children(self, collection_node: Node, collection: Collection):
         es_children = self.get_es_collection_children(collection_node)
