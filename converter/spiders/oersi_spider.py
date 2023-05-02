@@ -38,7 +38,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.3"  # last update: 2023-04-28
+    version = "0.1.4"  # last update: 2023-05-02
     allowed_domains = "oersi.org"
     custom_settings = {
         "CONCURRENT_REQUESTS": 48,
@@ -118,7 +118,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     }
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        LomBase.__init__(self, **kwargs)
         # Fetching a "point in time"-id for the subsequent ElasticSearch queries
         self.ELASTIC_PIT_ID = self.elastic_pit_get_id(self.elastic_pit_create())
         # querying the ElasticSearch API for metadata-sets of specific providers, this allows us to control which
@@ -158,9 +158,8 @@ class OersiSpider(scrapy.Spider, LomBase):
         If the item already exists, it will be updated (if its hash has changed).
         Otherwise, creates a new item in the edu-sharing repository.
         """
-        item_url: str = elastic_item["_source"]["id"]
+        item_url: str = self.get_item_url(elastic_item)
         if item_url:
-            # ToDo: findItem needs to happen here -> replicationsourceuuid
             if self.shouldImport(response=None) is False:
                 logging.debug(
                     "Skipping entry {} because shouldImport() returned false".format(
@@ -322,12 +321,32 @@ class OersiSpider(scrapy.Spider, LomBase):
     @staticmethod
     def get_uuid(elastic_item: dict):
         """
-        Builds a UUID from the to-be-parsed target URL and returns it.
+        Builds a UUID string from the to-be-parsed target URL and returns it.
         """
         # The "getUUID"-method of LomBase couldn't be cleanly overridden because at the point of time when we do this
-        # check, there is no response available yet.
-        item_url: str = elastic_item["_source"]["id"]
+        # check, there is no "Response"-object available yet.
+        item_url = OersiSpider.get_item_url(elastic_item=elastic_item)
         return EduSharing.buildUUID(item_url)
+
+    @staticmethod
+    def get_item_url(elastic_item) -> str:
+        """
+        Tries to gather the to-be-parsed URL from OERSI's 'MainEntityOfPage'-field and if that field is not available,
+        falls back to the '_source.id'-field. Returns an URL-string.
+        """
+        main_entity_of_page: list[dict] = elastic_item["_source"]["mainEntityOfPage"]
+        if main_entity_of_page:
+            item_url: str = main_entity_of_page[0]["id"]
+            # "id" is a REQUIRED sub-field of MainEntityOfPage and will always contain more stable URLs than
+            # '_source.id'
+            return item_url
+        else:
+            item_url: str = elastic_item["_source"]["id"]
+            logging.debug(
+                f"get_uuid fallback activated: The field 'MainEntityOfPage.id' for '{elastic_item['_id']}' was not "
+                f"available. Using fallback value '_source.id': {item_url} instead."
+            )
+            return item_url
 
     def hasChanged(self, response=None, elastic_item: dict = dict) -> bool:
         elastic_item = elastic_item
@@ -808,7 +827,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                 general.replace_value("identifier", identifier_url)
                 technical.add_value("location", identifier_url)
                 if identifier_url != response.url:
-                    # the identifier_url should be more stable/robust than the (resolved) response.url in the long term,
+                    # the identifier_url should be more stable/robust than the (resolved) response.url in the long run,
                     # so we will save both URLs in case the resolved URL is different
                     technical.add_value("location", response.url)
         elif not identifier_url:
