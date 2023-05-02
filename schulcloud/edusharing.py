@@ -270,7 +270,7 @@ class EdusharingAPI:
             response = self.make_request('GET', url, params=params)
             return [Node(node) for node in response.json()['nodes']]
 
-    def find_node_by_name(self, parent_id: str, child_name: str, type: Literal['all', 'files', 'folders'] = 'all') -> Node:
+    def find_node_by_name(self, parent_id: str, child_name: str, type: Literal['all', 'files', 'folders'] = 'all') -> Optional[Node]:
         """
         Returns node by name.
         @param parent_id: ID of the parent node
@@ -280,7 +280,7 @@ class EdusharingAPI:
         for node in nodes:
             if node.name == child_name:
                 return node
-        raise NotFoundException(child_name)
+        return None
 
     def find_node_by_replication_source_id(self, replication_source_id: str, skip_exception: bool = False) -> Node:
         """
@@ -518,11 +518,11 @@ class EdusharingAPI:
         @param type: Declare if the node is a file or a folder - default: file
         @param properties: Change the metadata of the node by the given properties
         """
-        try:
-            folder = self.find_node_by_name(parent_id, name)
+        folder = self.find_node_by_name(parent_id, name)
+        if folder:
             if properties:
                 self.change_metadata(folder.id, properties)
-        except NotFoundException:
+        else:
             folder = self.create_node(parent_id, name, type=type, properties=properties)
         return folder
 

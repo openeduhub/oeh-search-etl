@@ -191,7 +191,7 @@ class Uploader:
         destination_folder = self.api.get_or_create_node(sync_obj.id, folder_name, type='folder')
         return destination_folder
 
-    def upload_file(self, folder: Node, metadata: Metadata, file: Optional[IO[bytes]] = None, searchable: bool = True):
+    def upload_file(self, folder: Node, filename: str, metadata: Metadata, file: Optional[IO[bytes]] = None, searchable: bool = True):
         """
         Get the H5P-file and add the metadata from the excelsheet. Then upload the H5P-file with metadata and add
         the permission.
@@ -200,8 +200,7 @@ class Uploader:
         @param file: H5P-file to upload
         @param searchable: Boolean, if the node should be searchable in the 'Schulcloud-Verbund Software'
         """
-        filename = os.path.basename(metadata.filepath)
-        name = os.path.splitext(filename)[0]
+        name = os.path.splitext(os.path.basename(metadata.filepath))[0]
         keywords = [metadata.title, metadata.publisher] + metadata.keywords
         if metadata.collection is not None:
             keywords.append(metadata.collection.name)
@@ -262,7 +261,8 @@ class Uploader:
 
         for child in collection.children:
             file = zip_file.open(child.filepath)
-            node_id, rep_source_uuid = self.upload_file(es_folder, child, file=file, searchable=False)
+            filename = os.path.basename(child.filepath)
+            node_id, rep_source_uuid = self.upload_file(es_folder, filename, child, file=file, searchable=False)
             file.close()
             children_replication_source_uuids.append(rep_source_uuid)
             self.api.set_collection_parent(node_id, collection_properties['ccm:replicationsourceuuid'][0])
@@ -324,8 +324,11 @@ class Uploader:
             self.upload_collection(collection, zip_file, es_folder, collection_node)
 
         for single_metadata in metadata_file.single_files:
+            filename = os.path.basename(single_metadata.filepath)
+            if self.api.find_node_by_name(es_folder.id, filename):
+                continue
             file = zip_file.open(single_metadata.filepath)
-            self.upload_file(es_folder, single_metadata, file=file)
+            self.upload_file(es_folder, filename, single_metadata, file=file)
             file.close()
 
         metadata_file.close()

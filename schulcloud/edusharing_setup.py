@@ -65,9 +65,7 @@ class EdusharingSetup:
     def _upload_color_picker(self):
         colorpicker_path = 'schulcloud/update_colorpicker.h5p'
         colorpicker_name = os.path.basename(colorpicker_path)
-        try:
-            self.api.find_node_by_name('-userhome-', colorpicker_name)
-        except NotFoundException:
+        if not self.api.find_node_by_name('-userhome-', colorpicker_name):
             node = self.api.create_node('-userhome-', colorpicker_name)
             file = open(colorpicker_path, 'rb')
             self.api.upload_content(node.id, colorpicker_name, file)
