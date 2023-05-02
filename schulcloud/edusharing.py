@@ -16,7 +16,7 @@ class Node:
             self.parent_id: Optional[str] = obj['parent']['id'] if obj['parent'] else None
             self.name: str = obj['name']
             self.size: Optional[int] = int(obj['size']) if obj['size'] else None
-            self.created_at: Optional[datetime] = datetime.fromisoformat(obj['createdAt'].replace('Z', '')) if obj['createdAt'] else None
+            self.created_at: Optional[datetime] = datetime.fromisoformat(obj['createdAt'].replace('Z', '')) if 'createdAt' in obj and obj['createdAt'] else None
             self.is_directory: bool = obj['isDirectory']
         except KeyError:
             raise RuntimeError(f'Could not parse node object: {obj}')
