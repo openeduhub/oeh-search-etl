@@ -160,6 +160,11 @@ class Uploader:
         string = string.replace('!', '_')
         string = string.replace('/', '_')
         string = string.replace('-', '_')
+        string = string.replace(',', '_')
+        string = string.replace('–', '_')
+        string = string.replace('(', '_')
+        string = string.replace(')', '_')
+        string = string.replace('&amp;', '_')
 
         return string
 
