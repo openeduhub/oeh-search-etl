@@ -53,21 +53,22 @@ class Uploader:
             key = str(index) + '/index.html'
             response = self.downloader.read_object(key)
 
-            title = self.get_data(response, 'pname')
-            title = self.sanitize_string(title)
+            title_raw = self.get_data(response, 'pname')
+            title = self.sanitize_string(title_raw)
             description = self.get_data(response, 'ptext')
             thumbnail_key = self.get_data(response, 'player_outer')
             thumbnail_bytes = self.downloader.read_object(str(index) + '/' + thumbnail_key)
-            keywords = ['FWU', title]
+            keywords = ['FWU', title_raw]
             license = "COPYRIGHT_LICENSE"
             publisher = 'FWU Institut für Film und Bild in Wissenschaft und Unterricht gemeinnützige GmbH'
             target_url = f'/api/v3/fwu/{key}'
 
             # Upload the metadata to Edu-Sharing
             es_folder = self.setup_destination_folder('FWU')
-            properties = generate_node_properties(title=title, description=description, keywords=keywords,
-                                                  replication_source_id=title, hpi_searchable=True, license=license,
-                                                  publisher=publisher, url=target_url)
+            print(f'title: {title_raw} {title}')
+            properties = generate_node_properties(name=title, title=title_raw, description=description,
+                                                  keywords=keywords, replication_source_id=title, hpi_searchable=True,
+                                                  license=license, publisher=publisher, url=target_url)
 
             node = None
             try:
@@ -152,11 +153,13 @@ class Uploader:
         string = string.replace('Ä', 'Ae')
         string = string.replace('Ö', 'Oe')
         string = string.replace('Ü', 'Ue')
-        string = string.replace('\'', '')
-        string = string.replace(':', ' -')
-        string = string.replace('.', '')
-        string = string.replace('?', '')
-        string = string.replace('/', '-')
+        string = string.replace('\'', '_')
+        string = string.replace(':', '_')
+        string = string.replace('.', '_')
+        string = string.replace('?', '_')
+        string = string.replace('!', '_')
+        string = string.replace('/', '_')
+        string = string.replace('-', '_')
 
         return string
 
@@ -215,6 +218,7 @@ class S3Downloader:
 
 
 def generate_node_properties(
+        name: str,
         title: str,
         description: str,
         publisher: str,
@@ -246,7 +250,7 @@ def generate_node_properties(
         license = "CUSTOM"
     date = str(datetime.now())
     properties = {
-        "cm:name": [title],
+        "cm:name": [name],
         "cm:edu_metadataset": ["mds_oeh"],
         "cm:edu_forcemetadataset": ["true"],
         "ccm:objecttype": ["MATERIAL"],
