@@ -65,7 +65,6 @@ class Uploader:
 
             # Upload the metadata to Edu-Sharing
             es_folder = self.setup_destination_folder('FWU')
-            print(f'title: {title_raw} {title}')
             properties = generate_node_properties(name=title, title=title_raw, description=description,
                                                   keywords=keywords, replication_source_id=title, hpi_searchable=True,
                                                   license=license, publisher=publisher, url=target_url)
