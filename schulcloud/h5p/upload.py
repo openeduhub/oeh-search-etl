@@ -43,7 +43,7 @@ def escape_filename(filename: str):
     Return filename with escaped characters.
     @param filename: Name of the file
     """
-    return re.sub(r'[,;:\'="@$?%/\\{}]', '_', filename)
+    return re.sub(r'[,;:\'="@$?%/\\{}!#$^&*()–+|.<>~\[\]-]', '_', filename)
 
 
 def create_replicationsourceid(name: str):
@@ -362,6 +362,7 @@ class Uploader:
         for single_metadata in metadata_file.single_files:
             filename = os.path.basename(single_metadata.filepath)
             if self.api.find_node_by_name(es_folder.id, filename):
+                print(f'H5P Content {single_metadata.title} already exists.')
                 continue
             file = zip_file.open(single_metadata.filepath)
             self.upload_file(es_folder, filename, single_metadata, file=file)
