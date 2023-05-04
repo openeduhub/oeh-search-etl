@@ -43,6 +43,13 @@ def escape_filename(filename: str):
     Return filename with escaped characters.
     @param filename: Name of the file
     """
+    filename = filename.replace('ä', 'ae')
+    filename = filename.replace('ö', 'oe')
+    filename = filename.replace('ü', 'ue')
+    filename = filename.replace('ß', 'ss')
+    filename = filename.replace('Ä', 'Ae')
+    filename = filename.replace('Ö', 'Oe')
+    filename = filename.replace('Ü', 'Ue')
     return re.sub(r'[,;:\'="@$?%/\\{}!#$^&*()–+|.<>~\[\]-]', '_', filename)
 
 
