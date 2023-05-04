@@ -301,6 +301,7 @@ class Uploader:
             self.api.set_collection_parent(node_id, collection_properties['ccm:replicationsourceuuid'][0])
 
         self.api.set_collection_children(collection_node.id, children_replication_source_uuids)
+        print(f'Upload done: {zip_file}')
 
         # TODO: set thumbnail of first item or have other solution for non-h5p collections
         if collection.children[0].filepath.endswith('h5p'):
@@ -391,7 +392,6 @@ class Uploader:
 
             last_modified = s3_obj['LastModified'].replace(tzinfo=None)
             self.upload_zip(zip_file, folder_name, last_modified)
-            print(f'Upload done: {zip_file}')
             zip_file.close()
             os.remove(zip_path)
 
