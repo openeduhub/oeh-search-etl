@@ -246,7 +246,7 @@ class Uploader:
         properties = generate_node_properties(metadata.title, filename, metadata.publisher, metadata.license, keywords,
                                               folder.name, replication_source_id=name, hpi_searchable=searchable)
 
-        node = self.api.get_or_create_node(folder.id, filename)
+        node = self.api.get_or_create_node(folder.id, escape_filename(filename))
 
         self.api.upload_content(node.id, filename, file)
         if self_opened_file:
@@ -282,7 +282,7 @@ class Uploader:
             keywords, es_folder.name, aggregation_level=2
         )
         if not collection_node:
-            collection_node = self.api.get_or_create_node(es_folder.id, collection.name)
+            collection_node = self.api.get_or_create_node(es_folder.id, escape_filename(collection.name))
 
         for property, value in collection_properties.items():
             self.api.set_property(collection_node.id, property, value)
