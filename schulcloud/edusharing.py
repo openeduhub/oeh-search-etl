@@ -321,7 +321,7 @@ class EdusharingAPI:
         @param properties: Properties for the Node [Optional]
         """
         if self.sanatize_node_name(name) != name:
-            raise ValueError('Node name cannot contain special characters')
+            raise ValueError(f'Node name cannot contain special characters: {name}')
 
         url = f'/node/v1/nodes/-home-/{parent_id}/children'
         params = {
