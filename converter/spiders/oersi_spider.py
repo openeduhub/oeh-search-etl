@@ -32,19 +32,19 @@ class OersiSpider(scrapy.Spider, LomBase):
     Crawls OERSI.org for metadata from different OER providers.
 
     You can control which metadata provider should be crawled by commenting/uncommenting their name within the
-    ELASTIC_PROVIDERS_TO_CRAWL list.
+    ELASTIC_PROVIDERS_TO_CRAWL list. Alternatively, you can set the optional '.env'-variable 'OERSI_METADATA_PROVIDER'
+    to control which provider should be crawled individually.
     """
 
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.4"  # last update: 2023-05-02
+    version = "0.1.5"  # last update: 2023-05-05
     allowed_domains = "oersi.org"
     custom_settings = {
-        "CONCURRENT_REQUESTS": 48,
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 6,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 2,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
@@ -74,7 +74,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         "HOOU",
         "iMoox",
         "KI Campus",
-        "langSci Press",  # new provider as of 2023-04-27
+        # "langSci Press",  # new provider as of 2023-04-27 - disappeared on 2023-05-04
         "MIT OpenCourseWare",
         "OEPMS",  # new provider as of 2023-04-27
         "OER Portal Uni Graz",
@@ -135,6 +135,8 @@ class OersiSpider(scrapy.Spider, LomBase):
         continue_from_previous_crawl = env.get_bool("CONTINUE_CRAWL", True, False)
         # checking if a previously aborted crawl should be completed (by skipping updates of previously collected items)
         if continue_from_previous_crawl:
+            # ToDo: for time-stable results this feature needs to be reworked: uuids need to be used to keep consistent
+            #  results across longer crawling processes
             es_id_collector = EduSharingPreCheck()
             previously_crawled_replication_source_ids: list[str] = es_id_collector.get_replication_source_id_list()
             for elastic_item in self.ELASTIC_ITEMS_ALL:
@@ -248,6 +250,21 @@ class OersiSpider(scrapy.Spider, LomBase):
         https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#search-after
         """
         all_items: list = list()
+        # the OERSI_METADATA_PROVIDER '.env'-variable controls which metadata-provider should be crawled:
+        # e.g. set: OERSI_METADATA_PROVIDER="eGov-Campus" within your .env file if you only want to crawl items from
+        # 'eGov-Campus'. Since this string is used within ElasticSearch queries as a parameter, it needs to be
+        # 1:1 identical to the metadata-provider string values on OERSI.org.
+        provider_target_from_env: str = env.get(key="OERSI_METADATA_PROVIDER", allow_null=True, default=None)
+        if provider_target_from_env:
+            logging.info(f"Recognized OERSI_METADATA_PROVIDER .env setting. Value: {provider_target_from_env}")
+            self.ELASTIC_PROVIDERS_TO_CRAWL = [provider_target_from_env]
+            if ";" in provider_target_from_env:
+                provider_list: list[str] = provider_target_from_env.split(";")
+                logging.info(
+                    f"Recognized multiple providers within OERSI_METADATA_PROVIDER .env setting:" f"{provider_list}"
+                )
+                self.ELASTIC_PROVIDERS_TO_CRAWL = provider_list
+
         has_next_page = True
         for provider_name in self.ELASTIC_PROVIDERS_TO_CRAWL:
             pagination_parameter = None
@@ -424,6 +441,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
                 elif creator_item.get("type") == "Organization":
                     creator_organization_name = creator_item.get("name")
+                    organization_fallback.add(creator_organization_name)
                     lifecycle_author.add_value("role", "author")
                     lifecycle_author.add_value("organization", creator_organization_name)
                     self.lifecycle_determine_type_of_identifier_and_save_uri(
@@ -551,6 +569,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                         )
                     elif contributor_item.get("type") == "Organization":
                         lifecycle_contributor.add_value("organization", contributor_name)
+                        organization_fallback.add(contributor_name)
                 if "id" in contributor_item:
                     # id points to a URI reference of ORCID, GND, WikiData or ROR
                     # (while this isn't necessary for OMA items yet (as they have no 'id'-field), it will be necessary
