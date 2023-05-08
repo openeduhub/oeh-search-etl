@@ -1,6 +1,6 @@
 wheel==0.40.0
 image
-requests==2.29.0
+requests==2.30.0
 scrapy-splash==0.9.0
 dateparser==1.1.8
 isodate==0.6.1
@@ -11,7 +11,7 @@ python-dotenv==1.0.0
 Scrapy==2.8.0
 vobject==0.9.6.1
 xmltodict==0.13.0
-overrides==7.3.1
+overrides==3.1.0
 jmespath~=1.0.1
 flake8==6.0.0
 pytest==7.3.1
@@ -22,9 +22,9 @@ itemloaders==1.1.0
 Pillow==9.5.0
 itemadapter==0.8.0
 six~=1.16.0
-certifi==2022.12.7
-urllib3==2.0.1
+certifi==2023.5.7
+urllib3==2.0.2
 tqdm==4.65.0
-boto3==1.26.124
+boto3==1.26.129
 openpyxl==3.1.2
 beautifulsoup4==4.12.2
