@@ -1,3 +1,4 @@
+import abc
 import json
 import os
 import sys
@@ -43,7 +44,7 @@ def escape_filename(filename: str):
     Return filename with escaped characters.
     @param filename: Name of the file
     """
-    return re.sub(r'[,;:\'="@$?%/\\{}]', '_', filename)
+    return re.sub('[^a-zA-Z0-9_ ]', '_', filename)
 
 
 def create_replicationsourceid(name: str):
@@ -108,6 +109,32 @@ def generate_node_properties(
     return properties
 
 
+class FileProvider(abc.ABC):
+    def open(self, filepath: str) -> IO[bytes]:
+        pass
+
+
+class ZipFileProvider(FileProvider):
+    def __init__(self, zip_path: str):
+        self.zip = ZipFile(zip_path)
+
+    def open(self, filepath: str) -> IO[bytes]:
+        return self.zip.open(filepath)
+
+
+class S3FileProvider(FileProvider):
+    def __init__(self, s3_downloader: 'S3Downloader', path_prefix: str):
+        self.s3_downloader = s3_downloader
+        self.prefix = path_prefix
+
+    def open(self, filepath: str) -> IO[bytes]:
+        self.s3_downloader.download_object(os.path.join(self.prefix, filepath), TEMP_FOLDER)
+        temp_path = os.path.join(TEMP_FOLDER, self.prefix, filepath)
+        file = open(temp_path, 'rb')
+        os.remove(temp_path)  # TODO: what about windows?
+        return file
+
+
 class Uploader:
     def __init__(self):
         self.env = util.Environment(EXPECTED_ENV_VARS, ask_for_missing=False)
@@ -127,6 +154,27 @@ class Uploader:
         )
 
     @staticmethod
+    def get_last_modified(s3_objects, metadata_file: MetadataFile, s3_dir: str):
+        last_modified = datetime(2000, 1, 1)
+        files = []
+        for collection in metadata_file.collections:
+            for metadata in collection.children:
+                files.append(metadata.filepath)
+        for metadata in metadata_file.single_files:
+            files.append(metadata.filepath)
+        for file in files:
+            path = os.path.join(s3_dir, file)
+            for s3_obj in s3_objects:
+                if s3_obj['Key'] == path:
+                    modified = s3_obj['LastModified'].replace(tzinfo=None)
+                    if modified > last_modified:
+                        last_modified = modified
+                    break
+            else:
+                raise RuntimeError(f'{path} not found on S3')
+        return last_modified
+
+    @staticmethod
     def get_permitted_groups(permissions: List[str]):
         """
         Return permitted groups from Excelsheet, which matching with the list.
@@ -137,22 +185,7 @@ class Uploader:
         else:
             return [GROUPS_EXCEL_TO_ES[group] for group in permissions]
 
-    @staticmethod
-    def get_metadata_file(zip: ZipFile):
-        """
-        Return metadata from Excelsheet.
-        @param zip: Zip file
-        """
-        for excel_filename in zip.namelist():
-            if excel_filename.endswith(".xlsx"):
-                excel_file = zip.open(excel_filename)
-                metadata_file = MetadataFile(excel_file)
-                break
-        else:
-            raise MetadataNotFoundError(zip)
-        return metadata_file
-
-    def collection_status(self, collection: Collection, zip_file: ZipFile, collection_node: Node):
+    def collection_status(self, collection: Collection, collection_node: Node):
         """
         Return exists, if the collection exists already on Edu-Sharing.
         Return missing, if the collection doesn't exist on Edu-Sharing.
@@ -163,11 +196,9 @@ class Uploader:
         """
         uploaded_nodes = 0
         for child in collection.children:
-            file = zip_file.open(child.filepath)
             filename = os.path.basename(child.filepath)
             name = os.path.splitext(filename)[0]
             rep_source_id = create_replicationsourceid(name)
-            file.close()
             node_exists = self.api.find_node_by_replication_source_id(rep_source_id, skip_exception=True)
             if not node_exists:
                 if uploaded_nodes == 0:
@@ -246,7 +277,7 @@ class Uploader:
         properties = generate_node_properties(metadata.title, filename, metadata.publisher, metadata.license, keywords,
                                               folder.name, replication_source_id=name, hpi_searchable=searchable)
 
-        node = self.api.get_or_create_node(folder.id, filename)
+        node = self.api.get_or_create_node(folder.id, escape_filename(filename))
 
         self.api.upload_content(node.id, filename, file)
         if self_opened_file:
@@ -263,7 +294,7 @@ class Uploader:
 
         return node.id, properties["ccm:replicationsourceuuid"][0]
 
-    def upload_collection(self, collection: Collection, zip_file: ZipFile, es_folder: Node, collection_node: Node):
+    def upload_collection(self, collection: Collection, file_provider: FileProvider, es_folder: Node, collection_node: Node):
         """
         Summarize related H5P-files to an educational collection.
         @param collection: Collection of H5P-files
@@ -282,7 +313,7 @@ class Uploader:
             keywords, es_folder.name, aggregation_level=2
         )
         if not collection_node:
-            collection_node = self.api.get_or_create_node(es_folder.id, collection.name)
+            collection_node = self.api.get_or_create_node(es_folder.id, escape_filename(collection.name))
 
         for property, value in collection_properties.items():
             self.api.set_property(collection_node.id, property, value)
@@ -293,7 +324,7 @@ class Uploader:
         # TODO: make option to ignore timestamps for (partially) failed uploads etc.
 
         for child in collection.children:
-            file = zip_file.open(child.filepath)
+            file = file_provider.open(child.filepath)
             filename = os.path.basename(child.filepath)
             node_id, rep_source_uuid = self.upload_file(es_folder, filename, child, file=file, searchable=False)
             file.close()
@@ -306,18 +337,10 @@ class Uploader:
         if collection.children[0].filepath.endswith('h5p'):
             self.api.set_preview_thumbnail(collection_node.id, H5P_THUMBNAIL_PATH)
 
-    def upload_zip(self, zip_file: ZipFile, es_folder_name: str, last_modified: Optional[datetime] = None):
+    def upload_folder(self, file_provider: FileProvider, metadata_file: MetadataFile, es_folder_name: str, last_modified: Optional[datetime] = None):
         """
-        Upload zip-file to Edu-sharing folder.
-        @param zip_file: File as zip
-        @param es_folder_name: Folder on Edu-Sharing to upload to
-        @param last_modified: Optional timestamp
+        Upload one folder with one metadata description to edusharing
         """
-        try:
-            metadata_file = self.get_metadata_file(zip_file)
-        except MetadataNotFoundError as exc:
-            print(f'No metadata file found in {exc.zip.filename}. Skipping.', file=sys.stderr)
-            return
         es_folder = self.setup_destination_folder(es_folder_name)
 
         for collection in metadata_file.collections:
@@ -333,7 +356,7 @@ class Uploader:
                 print(f'Found multiple nodes for collection: {collection.name}', file=sys.stderr)
                 continue
             if collection_node:
-                collection_status = self.collection_status(collection, zip_file, collection_node)
+                collection_status = self.collection_status(collection, collection_node)
                 if collection_status == "missing":
                     pass
                 if collection_status == "exists":
@@ -356,65 +379,42 @@ class Uploader:
                 if collection_status == "too_many":
                     self.delete_too_many_children(collection_node, collection)
 
-            self.upload_collection(collection, zip_file, es_folder, collection_node)
+            self.upload_collection(collection, file_provider, es_folder, collection_node)
 
         for single_metadata in metadata_file.single_files:
             filename = os.path.basename(single_metadata.filepath)
-            if self.api.find_node_by_name(es_folder.id, filename):
+            existing_node = self.api.find_node_by_replication_source_id(escape_filename(filename), skip_exception=True)
+            if existing_node and existing_node.created_at > last_modified:
+                print(f'File {filename} already exists')
                 continue
-            file = zip_file.open(single_metadata.filepath)
+            file = file_provider.open(single_metadata.filepath)
             self.upload_file(es_folder, filename, single_metadata, file=file)
             file.close()
 
-        metadata_file.close()
-
     def upload_from_s3(self):
-        """
-        Upload zip-file from AWS S3 bucket to Edu-sharing folder.
-        """
+        folder_name = 'H5P'
+
+        folders = []
 
         s3_objects = self.downloader.get_object_list()
-        total_size = 0
-        for s3_obj in s3_objects:
-            total_size += s3_obj['Size']
 
-        for s3_obj in s3_objects:
-            if not s3_obj['Key'].endswith('.zip'):
-                print(f'Skipping {s3_obj["Key"]}, not a zip file.', file=sys.stderr)
-                continue
+        for obj in s3_objects:
+            if obj['Key'].endswith('.xlsx'):
+                s3_folder = os.path.dirname(obj['Key'])
 
-            folder_name = "H5P"
-            self.downloader.download_object(s3_obj['Key'], TEMP_FOLDER)
+                self.downloader.download_object(obj['Key'], TEMP_FOLDER)
+                metadata_path = os.path.join(TEMP_FOLDER, obj['Key'])
+                metadata_file = MetadataFile(metadata_path)
+                os.remove(metadata_path)
 
-            zip_path = os.path.join(TEMP_FOLDER, s3_obj['Key'])
-            zip_file = ZipFile(zip_path)
+                last_modified = self.get_last_modified(s3_objects, metadata_file, s3_folder)
+                file_provider = S3FileProvider(self.downloader, s3_folder)
+                folders.append((metadata_file, s3_folder, file_provider, last_modified))
 
-            last_modified = s3_obj['LastModified'].replace(tzinfo=None)
-            self.upload_zip(zip_file, folder_name, last_modified)
-            print(f'Upload done: {zip_file}')
-            zip_file.close()
-            os.remove(zip_path)
-
-        print(f'Finished uploading H5P learning contents.')
-
-    def test_upload(self):
-        """
-        Test the local upload to Edu-Sharing.
-        """
-        sync = self.api.get_sync_obj_folder()
-        h5p = self.api.get_or_create_node(sync.id, 'h5p', type='folder')
-        nodes = self.api.get_children(h5p.id)
-        for node in nodes:
-            if node.name.startswith('mags4') or node.name.startswith('Mathematik'):
-                self.api.delete_node(node.id)
-
-        zip_file = ZipFile('schulcloud/h5p/Mathe_GS_4_Vol_2.zip')
-        self.upload_zip(zip_file, 'h5p')
-
-        nodes = self.api.get_children(h5p.id)
-        permissions = self.get_permitted_groups(['ALLE'])
-        for node in nodes:
-            self.api.set_permissions(node.id, permissions, False)
+        for metadata_file, s3_folder, file_provider, last_modified in folders:
+            print(f'Uploading {s3_folder}...')
+            self.upload_folder(file_provider, metadata_file, folder_name, last_modified=last_modified)
+        print(f'Done uploading folders from S3.')
 
 
 class S3Downloader:
