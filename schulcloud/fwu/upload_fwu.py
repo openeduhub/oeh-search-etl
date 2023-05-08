@@ -7,7 +7,7 @@ import boto3
 import converter.env as env
 from bs4 import BeautifulSoup
 
-from schulcloud.edusharing import EdusharingAPI, NotFoundException
+from schulcloud.edusharing import EdusharingAPI, NotFoundException, sanitize_node_name
 
 
 class Uploader:
@@ -54,7 +54,7 @@ class Uploader:
             response = self.downloader.read_object(key)
 
             title = self.get_data(response, 'pname')
-            title = self.sanitize_string(title)
+            name = sanitize_node_name(title)
             description = self.get_data(response, 'ptext')
             thumbnail_key = self.get_data(response, 'player_outer')
             thumbnail_bytes = self.downloader.read_object(str(index) + '/' + thumbnail_key)
@@ -65,9 +65,8 @@ class Uploader:
 
             # Upload the metadata to Edu-Sharing
             es_folder = self.setup_destination_folder('FWU')
-            properties = generate_node_properties(title=title, description=description, keywords=keywords,
-                                                  replication_source_id=title, hpi_searchable=True, license=license,
-                                                  publisher=publisher, url=target_url)
+            properties = generate_node_properties(name, title, description, publisher, license, keywords, url=target_url,
+                                                  replication_source_id=title, hpi_searchable=True)
 
             node = None
             try:
@@ -140,26 +139,6 @@ class Uploader:
         if result is None or result == "" or result == " ":
             raise RuntimeError(f'{data_definition} not found in class "{class_name}"')
 
-    def sanitize_string(self, string: str):
-        """
-        Replace german umlauts and single quotes.
-        @param string: String to sanitize
-        """
-        string = string.replace('ä', 'ae')
-        string = string.replace('ö', 'oe')
-        string = string.replace('ü', 'ue')
-        string = string.replace('ß', 'ss')
-        string = string.replace('Ä', 'Ae')
-        string = string.replace('Ö', 'Oe')
-        string = string.replace('Ü', 'Ue')
-        string = string.replace('\'', '')
-        string = string.replace(':', ' -')
-        string = string.replace('.', '')
-        string = string.replace('?', '')
-        string = string.replace('/', '-')
-
-        return string
-
 
 class S3Downloader:
     def __init__(self, url: str, access_key: str, secret_key: str, bucket_name: str):
@@ -215,6 +194,7 @@ class S3Downloader:
 
 
 def generate_node_properties(
+        name: str,
         title: str,
         description: str,
         publisher: str,
@@ -246,7 +226,7 @@ def generate_node_properties(
         license = "CUSTOM"
     date = str(datetime.now())
     properties = {
-        "cm:name": [title],
+        "cm:name": [name],
         "cm:edu_metadataset": ["mds_oeh"],
         "cm:edu_forcemetadataset": ["true"],
         "ccm:objecttype": ["MATERIAL"],

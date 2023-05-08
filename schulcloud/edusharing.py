@@ -8,6 +8,21 @@ import requests
 import requests.auth
 
 
+def sanitize_node_name(name: str):
+    replacements = [
+        ('ä', 'ae'),
+        ('ö', 'oe'),
+        ('ü', 'ue'),
+        ('ß', 'ss'),
+        ('Ä', 'Ae'),
+        ('Ö', 'Oe'),
+        ('Ü', 'Ue')
+    ]
+    for old, new in replacements:
+        name = name.replace(old, new)
+    return re.sub('[^a-zA-Z0-9_ ]', '_', name)
+
+
 class Node:
 
     def __init__(self, obj: Dict):
@@ -33,9 +48,6 @@ class Node:
 
 
 class EdusharingAPI:
-    @staticmethod
-    def sanitize_node_name(name: str):
-        return re.sub('[^a-zA-Z0-9_ ]', '_', name)
 
     def __init__(self, base_url: str, username: str = '', password: str = ''):
         if not base_url.endswith('/'):
@@ -320,7 +332,7 @@ class EdusharingAPI:
         @param type: Type of the node - file or folder
         @param properties: Properties for the Node [Optional]
         """
-        if self.sanitize_node_name(name) != name:
+        if sanitize_node_name(name) != name:
             raise ValueError(f'Node name cannot contain special characters: {name}')
 
         url = f'/node/v1/nodes/-home-/{parent_id}/children'

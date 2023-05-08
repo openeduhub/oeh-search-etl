@@ -4,7 +4,6 @@ import os
 import sys
 import traceback
 import uuid
-import re
 import hashlib
 from typing import Optional, List, IO, Callable, Dict
 from datetime import datetime
@@ -16,7 +15,7 @@ from botocore.config import Config
 from botocore.exceptions import ResponseStreamingError
 from urllib3.exceptions import ProtocolError
 from schulcloud import util
-from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException
+from schulcloud.edusharing import EdusharingAPI, Node, NotFoundException, FoundTooManyException, sanitize_node_name
 from schulcloud.h5p.metadata import MetadataFile, Metadata, Collection
 
 EXPECTED_ENV_VARS = [
@@ -37,14 +36,6 @@ GROUPS_EXCEL_TO_ES = {
     'BRB': 'Brandenburg-public',
     'NDS': 'LowerSaxony-public'
 }
-
-
-def escape_filename(filename: str):
-    """
-    Return filename with escaped characters.
-    @param filename: Name of the file
-    """
-    return re.sub('[^a-zA-Z0-9_ ]', '_', filename)
 
 
 def create_replicationsourceid(name: str):
@@ -87,7 +78,7 @@ def generate_node_properties(
         license = "CUSTOM"
     date = str(datetime.now())
     properties = {
-        "cm:name": [escape_filename(name)],
+        "cm:name": [sanitize_node_name(name)],
         "cm:edu_metadataset": ["mds_oeh"],
         "cm:edu_forcemetadataset": ["true"],
         "ccm:objecttype": ["MATERIAL"],
@@ -191,8 +182,8 @@ class Uploader:
         Return missing, if the collection doesn't exist on Edu-Sharing.
         Return broken, if the collection exists partially on Edu-Sharing.
         Return too_many, if the collection has too many children on Edu-Sharing.
-        @param collection: Node of collection
-        @param zip_file: File as zip.
+        @param collection: Collection metadata
+        @param collection_node: Node of collection
         """
         uploaded_nodes = 0
         for child in collection.children:
@@ -277,7 +268,7 @@ class Uploader:
         properties = generate_node_properties(metadata.title, filename, metadata.publisher, metadata.license, keywords,
                                               folder.name, replication_source_id=name, hpi_searchable=searchable)
 
-        node = self.api.get_or_create_node(folder.id, escape_filename(filename))
+        node = self.api.get_or_create_node(folder.id, sanitize_node_name(filename))
 
         self.api.upload_content(node.id, filename, file)
         if self_opened_file:
@@ -298,7 +289,7 @@ class Uploader:
         """
         Summarize related H5P-files to an educational collection.
         @param collection: Collection of H5P-files
-        @param zip_file: File as zip
+        @param file_provider: FileProvider that provides files on demand
         @param es_folder: Folder on Edu-Sharing to upload to
         @param collection_node: Node of collection
         """
@@ -313,7 +304,7 @@ class Uploader:
             keywords, es_folder.name, aggregation_level=2
         )
         if not collection_node:
-            collection_node = self.api.get_or_create_node(es_folder.id, escape_filename(collection.name))
+            collection_node = self.api.get_or_create_node(es_folder.id, sanitize_node_name(collection.name))
 
         for property, value in collection_properties.items():
             self.api.set_property(collection_node.id, property, value)
@@ -332,6 +323,7 @@ class Uploader:
             self.api.set_collection_parent(node_id, collection_properties['ccm:replicationsourceuuid'][0])
 
         self.api.set_collection_children(collection_node.id, children_replication_source_uuids)
+        print(f'Upload done: {collection.name}')
 
         # TODO: set thumbnail of first item or have other solution for non-h5p collections
         if collection.children[0].filepath.endswith('h5p'):
@@ -383,7 +375,7 @@ class Uploader:
 
         for single_metadata in metadata_file.single_files:
             filename = os.path.basename(single_metadata.filepath)
-            existing_node = self.api.find_node_by_replication_source_id(escape_filename(filename), skip_exception=True)
+            existing_node = self.api.find_node_by_replication_source_id(sanitize_node_name(filename), skip_exception=True)
             if existing_node and existing_node.created_at > last_modified:
                 print(f'File {filename} already exists')
                 continue
