@@ -23,7 +23,7 @@ Pillow==9.5.0
 itemadapter==0.8.0
 six~=1.16.0
 certifi==2023.5.7
-urllib3==2.0.2
+urllib3
 tqdm==4.65.0
 boto3==1.26.129
 openpyxl==3.1.2
