@@ -147,6 +147,7 @@ class Job:
                     continue
 
                 self.run()
+                break
 
     def run(self):
         self.function()
