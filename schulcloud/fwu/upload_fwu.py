@@ -41,7 +41,7 @@ class Uploader:
         @param folder_name: Name of the folder
         """
         sync_obj = self.api.get_sync_obj_folder()
-        destination_folder = self.api.get_or_create_node(sync_obj.id, folder_name, type='folder')
+        destination_folder = self.api.get_or_create_node(sync_obj.id, sanitize_node_name(folder_name), type='folder')
         return destination_folder
 
     def upload(self):
