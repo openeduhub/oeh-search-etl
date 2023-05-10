@@ -75,7 +75,7 @@ class Uploader:
                 pass
 
             if not node:
-                node = self.api.get_or_create_node(es_folder.id, title, properties=properties)
+                node = self.api.get_or_create_node(es_folder.id, name, properties=properties)
 
                 for property, value in properties.items():
                     self.api.set_property(node.id, property, value)
