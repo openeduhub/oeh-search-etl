@@ -44,7 +44,8 @@ class OersiSpider(scrapy.Spider, LomBase):
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 2,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 20,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 4,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
@@ -402,7 +403,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         :param organization_fallback: a temporary set of strings containing all affiliation 'name'-values
         :param date_created: OERSI 'dateCreated' value (if available)
         :param date_published: OERSI 'datePublished' value (if available)
-        :returns: list[str] - list of authors (names) for later usage in the LicenseItemLoader
+        :returns: list[str] - list of authors (author names will be used for "contributor"-duplicate-mitigation)
         """
         authors: list[str] = list()
         if "creator" in elastic_item_source:
@@ -1067,9 +1068,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                 license_url_mapped = license_mapper.get_license_url(license_string=license_url)
                 if license_url_mapped:
                     license_loader.add_value("url", license_url_mapped)
-        # if authors:
-        #     # ToDo: confirm if this workaround is still necessary/desired for future crawler versions
-        #     license_loader.add_value("author", authors)
         # noinspection DuplicatedCode
         base.add_value("license", license_loader.load_item())
 
