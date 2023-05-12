@@ -26,7 +26,7 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.2.6"  # last update: 2023-03-14
+    version = "0.2.7"  # last update: 2023-05-12
     custom_settings = {
         # Using Playwright because of Splash-issues with thumbnails+text for Serlo
         "WEB_TOOLS": WebEngine.Playwright
@@ -157,18 +157,22 @@ class SerloSpider(scrapy.Spider, LomBase):
         # #  - structure                      optional
         # #  - aggregationLevel               optional
         general.add_value("identifier", graphql_json["id"])
-        title_1st_try: str = graphql_json["headline"]
+        title_1st_try: str = graphql_json["name"]
         title_fallback: str = str()
         # not all materials carry a title in the GraphQL API, therefore we're trying to grab a valid title from
         # different sources (GraphQL > (DOM) json_ld > (DOM) header > (DOM) last breadcrumb label)
         if title_1st_try:
             general.add_value("title", title_1st_try)
         elif not title_1st_try:
-            title_2nd_try = json_ld["name"]
+            title_2nd_try = graphql_json["headline"]
+            title_3rd_try = json_ld["name"]
             if title_2nd_try:
                 general.add_value("title", title_2nd_try)
                 title_fallback = title_2nd_try
-            if not title_1st_try and not title_2nd_try:
+            elif title_3rd_try:
+                general.add_value("title", title_3rd_try)
+                title_fallback = title_3rd_try
+            if not title_1st_try and not title_2nd_try and not title_3rd_try:
                 title_from_header = response.xpath('//meta[@property="og:title"]/@content').get()
                 if title_from_header:
                     general.add_value("title", title_from_header)
