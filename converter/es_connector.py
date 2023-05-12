@@ -83,11 +83,9 @@ class ESApiClient(ApiClient):
                 ESApiClient.lastRequestTime = time.time()
                 return attr(*args, **kwargs)
 
-
             return newfunc
         else:
             return attr
-
 
 
 class EduSharing:
@@ -96,7 +94,7 @@ class EduSharing:
         MediaCenter = 2
 
     cookie: str = None
-    resetVersion: bool = False
+    resetVersion: bool = True
     apiClient: ESApiClient
     bulkApi: BULKV1Api
     iamApi: IAMV1Api
@@ -129,6 +127,7 @@ class EduSharing:
                 group=spider.name,
                 group_by=groupBy,
                 reset_version=EduSharing.resetVersion,
+                _request_timeout=30  # prevents crawlers from hanging
             )
         except ApiException as e:
             jsonError = json.loads(e.body)
@@ -571,7 +570,14 @@ class EduSharing:
         )
         isAdmin = json.loads(auth.text)["isAdmin"]
         if isAdmin:
-            EduSharing.cookie = auth.headers["SET-COOKIE"].split(";")[0]
+            cookies: List[str] = auth.headers["SET-COOKIE"].split(',')
+            for cookie in cookies:
+                cookie = cookie.strip()
+                if cookie.startswith('JSESSIONID'):
+                    EduSharing.cookie = cookie.split(';')[0]
+                    break
+            else:
+                raise Exception('Could not find session id')
         return auth
     def initApiClient(self):
         if EduSharing.cookie == None:

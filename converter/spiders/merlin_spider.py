@@ -262,7 +262,6 @@ class MerlinSpider(CrawlSpider, LomBase):
         element_dict = response.meta["item"]
 
         permissions.replace_value("public", False)
-        permissions.add_value("autoCreateGroups", True)
 
         groups = []
 
@@ -273,15 +272,11 @@ class MerlinSpider(CrawlSpider, LomBase):
         if len(county_ids) == 1 and str(county_ids[0]) == public_county:
             # Add to state-wide public group.
             # groups.append("state-LowerSaxony-public")
-            groups.append("LowerSaxony-public")
+            groups.append("LowerSaxony")
 
             # Add 1 group per County-code, which in this case is just "100" (3100).
             groups.extend(county_ids)
         else:
-            # Add to state-wide private/licensed group.
-            # groups.append("state-LowerSaxony-licensed")
-            groups.append("LowerSaxony-private")
-
             # If County code 100 (country-wide) is included in the list, remove it.
             if public_county in county_ids:
                 county_ids.remove(public_county)

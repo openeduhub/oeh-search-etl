@@ -38,8 +38,13 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             callback=self.parse,
         )
 
-    def parse(self, response: scrapy.http.Response):
-        elements = json.loads(response.body_as_unicode())
+    def parse(self, response: scrapy.http.TextResponse, **kwargs):
+        data = self.getUrlData(response.url)
+        response.meta["rendered_data"] = data
+        # as of Scrapy 2.2 the JSON of a TextResponse can be loaded like this,
+        # see: https://doc.scrapy.org/en/latest/topics/request-response.html#scrapy.http.TextResponse.json
+        elements = response.json()
+
         prepared_elements = [self.prepare_element(element_dict) for element_dict in elements]
 
         collection_elements = self.prepare_collections(prepared_elements)
@@ -60,7 +65,6 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
             # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
             LomBase.parse(self, copyResponse)
-
 
     def getId(self, response):
         # Element response as a Python dict.
@@ -151,7 +155,6 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
         return technical
 
-
     def getPermissions(self, response):
         """
         Licensing information is controlled via the 'oeffentlich' flag. When it is '1' it is available to the public,
@@ -167,13 +170,12 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         element_dict = response.meta["item"]
         permissions.replace_value('public', False)
         if "oeffentlich" in element_dict and element_dict["oeffentlich"] == "0":  # private
-            permissions.add_value('groups', ['Thuringia-private'])
+            permissions.add_value('groups', ['Thuringia'])
             # permissions.add_value('mediacenters', [self.name])  # only 1 mediacenter.
         else:
             permissions.add_value('groups', ['Thuringia-public'])
 
         return permissions
-
 
     def getLOMRelation(self, response=None) -> LomRelationItemLoader:
         """

@@ -61,9 +61,6 @@ class SodixSpider(CrawlSpider, LomBase):
     version = '0.1'
     urlLogin = 'https://api.sodix.de/gql/auth/login'
     urlRequest = 'https://api.sodix.de/gql/graphql'
-    user = env.get('SODIX_USER')
-    password = env.get('SODIX_PASSWORD')
-    download_delay = float(env.get('SODIX_DOWNLOAD_DELAY', default='0.5'))  # don't stress sodix image server
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -72,6 +69,11 @@ class SodixSpider(CrawlSpider, LomBase):
         self.start_time = 0.0
         self.item_pos = 0
         self.item_count = 0
+
+        # env vars shouldn't be initializers of class vars, else every single spider will require them
+        self.user = env.get('SODIX_USER')
+        self.password = env.get('SODIX_PASSWORD')
+        self.download_delay = float(env.get('SODIX_DOWNLOAD_DELAY', default='0.5'))  # don't stress sodix image server
 
     def start_requests(self):
         self.start_time = time.time()
@@ -260,8 +262,7 @@ class SodixSpider(CrawlSpider, LomBase):
     def getPermissions(self, response):
         permissions = LomBase.getPermissions(self, response)
 
-        permissions.add_value('autoCreateGroups', True)
-        permissions.add_value('groups', ['public'])
+        permissions.replace_value("public", False)
 
         return permissions
 

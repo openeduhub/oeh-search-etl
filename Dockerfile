@@ -1,11 +1,15 @@
-FROM python:3.9.1-slim-buster
+FROM python:3.9-slim-buster
 
-ENV CRAWLER wirlernenonline_spider 
+ENV TZ="Europe/Berlin"
 
-WORKDIR /
+RUN apt-get install ca-certificates
 
-COPY . . 
-RUN pip3 install -r requirements.txt
+WORKDIR /oeh-search-etl
 
+COPY requirements.txt .
+RUN python3.9 -m pip install --no-cache-dir -r requirements.txt
 
-CMD scrapy crawl "$CRAWLER"
+COPY . .
+COPY .env.docker .env
+
+CMD [ "bash", "-c", "python3.9 run.py" ]

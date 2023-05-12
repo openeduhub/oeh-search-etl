@@ -3,6 +3,7 @@ import sys
 from dotenv import load_dotenv
 from typing import NoReturn
 
+
 load_dotenv()
 
 
