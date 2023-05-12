@@ -178,6 +178,7 @@ def main():
         return 1
 
     job.run_schedule()
+    return 0
 
 
 if __name__ == '__main__':
