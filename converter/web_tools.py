@@ -205,6 +205,7 @@ class WebTools:
         # https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp
         async with async_playwright() as p:
             browser = await p.chromium.connect_over_cdp(endpoint_url=env.get("PLAYWRIGHT_WS_ENDPOINT"))
+            browser = await browser.new_context(java_script_enabled=True)
             page = await browser.new_page()
             await page.goto(url, wait_until="load", timeout=90000)
             # waits for a website to fire the DOMContentLoaded event or for a timeout of 90s
@@ -217,6 +218,7 @@ class WebTools:
             #  see: https://playwright.dev/python/docs/api/class-browsercontext#browser-context-cookies
             return {
                 "content": content,
+                "title": await page.title(),
                 "screenshot_bytes": screenshot_bytes
             }
 
