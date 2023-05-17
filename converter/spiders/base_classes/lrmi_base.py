@@ -35,7 +35,7 @@ class LrmiBase(LomBase, JSONBase):
             return None
         for l in lrmi:
             value = JSONBase.get(self, *params, json=l)
-            if value != None:
+            if value is not None:
                 return html.unescape(value)
         return None
 
