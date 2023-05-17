@@ -26,9 +26,16 @@ class PermissionStuff:
         ]
 
     def get_current_path(self):
+        """
+        Get the current path of the folder.
+        """
         return '/'.join([folder.name for folder in self.path_stack])
 
     def get_permissions(self, node: Node):
+        """
+        Get the current permission of the node.
+        @param node: Node of Edu-Sharing
+        """
         if node.name == 'geogebra_spider' or self.path_stack and self.path_stack[-1].name == 'sodix_spider':
             return
         self.path_stack.append(node)
@@ -50,6 +57,9 @@ class PermissionStuff:
         self.path_stack.pop()
 
     def run(self):
+        """
+        Run the permissions.
+        """
         sync_obj = self.api.get_sync_obj_folder()
         self.get_permissions(sync_obj)
         file = open(sys.argv[1], 'w')

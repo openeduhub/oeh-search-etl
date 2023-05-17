@@ -1,0 +1,29 @@
+# Specify directory for which all elements will be affected.
+
+directory_node_id: "10959296-11c1-4c13-b65c-9e48933cc029" # dev - BRBSport
+#directory_node_id: "1b22130b-85af-40e0-80d8-64457b0f44a4" # staging - BRBSport
+#directory_node_id: "6961e357-480d-4e05-a154-3eb8d27e501c" # prod - BRBSport
+
+# Execution mode values: collections, non_collection_files
+#execution_mode: "collections"
+execution_mode: "non_collection_files"
+
+# Keywords
+general_keywords: ["Schulsport", "Bewegungsförderung", "Grundschule", "Sportangebote", "Bewegungsangebote",
+                    "Sportunterricht", "Sportübungen", "motorische Förderung", "Spaß im Schulsport",
+                    "Bewegung für zu Hause", "MBJS-Schulsport", "Micha Hess", "Jürgen Hodek", "Martina Schünemann",
+                    "Sportförderunterricht", "Fangen und Werfen", "Lauf- und Sprungschule", "Kraftentwicklung",
+                    "Koordinationsschulung", "gesunder Rücken", "Ballschule", "Springen", "Werfen", "Laufen",
+                    "Kindersport"]
+
+keywords_per_chapter: {
+    "1": ["ganzheitliche Erwärmung", "koordinative Bewegungen (der oberen und unteren Extremitäten)", "Rhythmisierung"],
+    "2": ["Fingerakrobatik", "Hand- Auge- Koordination"],
+    "3": ["koordinative Ballschule", "Fangen und Werfen", "Hand- Auge- Koordination", "Alltagsmaterialien",
+          "peripheres Sehen", "Rhythmisierung"],
+    "4": ["koordinatives Laufen", "koordinatives Springen",
+          "Förderung von Richtungswechsel, Ausweichbewegungen, Finten",
+          "frontale und laterale Laufarbeit", "Lauf- und Sprungschule"],
+    "5": ["koordinative Kraftentwicklung", "ganzheitliche Kräftigung", "Gleichgewichtskoordination",
+          "gesunder (gerader) Rücken"]
+}

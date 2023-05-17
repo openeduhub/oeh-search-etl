@@ -32,6 +32,10 @@ class Collection:
         self.children: List[Metadata] = []
 
     def add_child(self, child: Metadata):
+        """
+        Add children nodes to Metadata.
+        @param child: Metadata from children nodes
+        """
         self.children.append(child)
         self.publishers.add(child.publisher)
         self.keywords.update(child.keywords)
@@ -56,37 +60,33 @@ class MetadataFile:
         self._file = file
         self.collections: List[Collection] = []  # collections of files
         self.single_files: List[Metadata] = []  # files outside any collection
-        self.workbook = openpyxl.load_workbook(filename=file, data_only=True)
-        self.o_sheet = self.workbook["Tabelle1"]
-        self._validate_sheet()
         self._parse()
 
-    def close(self):
-        self.workbook.close()
-        if not isinstance(self._file, str):
-            self._file.close()
-
-    def _validate_sheet(self):
+    def _validate_sheet(self, sheet):
+        """
+        Validate, if all required metadata is available in the excel-sheet
+        """
         # Check required fields
         required_fields = [self.COLUMN.TITLE, self.COLUMN.FILENAME, self.COLUMN.PERMISSION]
-        for row in range(1, self.o_sheet.max_row + 1):
+        for row in range(1, sheet.max_row + 1):
             for column in range(1, self.COLUMN.COUNT + 1):
                 if column in required_fields:
-                    if not self.o_sheet.cell(row=row, column=column).value:
+                    if not sheet.cell(row=row, column=column).value:
                         raise ParsingError(f'Empty required cell: column: {get_column_letter(column)} row: {row} at '
                                            f'{self._file.name}')
 
         # Check for collection
-        if self.o_sheet.cell(row=1, column=self.COLUMN.COLLECTION).value:
-            collection = self.o_sheet.cell(row=1, column=self.COLUMN.COLLECTION).value
-            for row in range(1, self.o_sheet.max_row + 1):
-                other_collection = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
+        if sheet.cell(row=1, column=self.COLUMN.COLLECTION).value:
+            collection = sheet.cell(row=1, column=self.COLUMN.COLLECTION).value
+            for row in range(1, sheet.max_row + 1):
+                other_collection = sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
                 if not other_collection == collection:
                     raise ParsingError(f'Multiple collection or spelling mistake in row {row} at {self._file.name}.')
-        # Check permissions of collection
+
+            # Check permissions of collection
             permissions = []
-            for row in range(1, self.o_sheet.max_row + 1):
-                permissions_raw = self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value
+            for row in range(1, sheet.max_row + 1):
+                permissions_raw = sheet.cell(row=row, column=self.COLUMN.PERMISSION).value
                 permissions.append(permissions_raw)
             first_permission = permissions[0]
             for permission in permissions:
@@ -97,20 +97,27 @@ class MetadataFile:
                                        f'are not matching! ({first_permission} != {permission})')
 
     def _parse(self):
-        for row in range(1, self.o_sheet.max_row + 1):
-            order_raw: Optional[Union[int, str]] = self.o_sheet.cell(row=row, column=self.COLUMN.ORDER).value
-            order = str(order_raw) if order_raw else ''
-            prefix: str = self._fill_zeros(order) + '. ' if order else ''
-            title: str = prefix + str(self.o_sheet.cell(row=row, column=self.COLUMN.TITLE).value)
-            filepath: str = self.o_sheet.cell(row=row, column=self.COLUMN.FILENAME).value
-            keywords_raw: str = self.o_sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
-            keywords: List[str] = re.findall(r'\w+', keywords_raw)
-            publisher: str = self.o_sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
-            license_raw: str = self.o_sheet.cell(row=row, column=self.COLUMN.LICENSE).value or ''
-            license = license_raw.rsplit('(', 1)[0]
-            permissions: List[str] = re.findall(r'\w+', self.o_sheet.cell(row=row, column=self.COLUMN.PERMISSION).value)
+        """
+        Parse the metadata from excel-sheet into metadata for Edu-Sharing nodes.
+        """
+        workbook = openpyxl.load_workbook(filename=self._file, data_only=True)
+        sheet = workbook["Tabelle1"]
+        self._validate_sheet(sheet)
 
-            collection_name: Optional[str] = self.o_sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
+        for row in range(1, sheet.max_row + 1):
+            order_raw: Optional[Union[int, str]] = sheet.cell(row=row, column=self.COLUMN.ORDER).value
+            order = str(order_raw) if order_raw else ''
+            prefix: str = self._fill_zeros(order, sheet) + '. ' if order else ''
+            title: str = prefix + str(sheet.cell(row=row, column=self.COLUMN.TITLE).value)
+            filepath: str = sheet.cell(row=row, column=self.COLUMN.FILENAME).value
+            keywords_raw: str = sheet.cell(row=row, column=self.COLUMN.KEYWORDS).value
+            keywords: List[str] = re.findall(r'\w+', keywords_raw)
+            publisher: str = sheet.cell(row=row, column=self.COLUMN.PUBLISHER).value
+            license_raw: str = sheet.cell(row=row, column=self.COLUMN.LICENSE).value or ''
+            license = license_raw.rsplit('(', 1)[0]
+            permissions: List[str] = re.findall(r'\w+', sheet.cell(row=row, column=self.COLUMN.PERMISSION).value)
+
+            collection_name: Optional[str] = sheet.cell(row=row, column=self.COLUMN.COLLECTION).value
             if collection_name:
                 for c in self.collections:
                     if c.name == collection_name:
@@ -123,8 +130,14 @@ class MetadataFile:
             else:
                 self.single_files.append(Metadata(filepath, title, publisher, keywords, order, permissions, license=license))
 
-    def _fill_zeros(self, order: str):
-        max_length = len(str(self.o_sheet.max_row))
+        workbook.close()
+
+    def _fill_zeros(self, order: str, sheet):
+        """
+        Fill zeros for ascending order.
+        @param order: Stringified number of order
+        """
+        max_length = len(str(sheet.max_row))
         zero = (max_length - len(order)) * '0'
         return zero + order
 

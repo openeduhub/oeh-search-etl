@@ -5,63 +5,60 @@ from http.client import HTTPSConnection
 from urllib.parse import urlparse
 
 import requests
+import requests.auth
 import json
 import yaml
 
 import converter.env as env
+from schulcloud.edusharing import EdusharingAPI
 
 
-def get_base_headers(auth_response):
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Cookie": auth_response.headers.get("Set-Cookie"),
-    }
-    return headers
+api = None
 
-def authenticate():
-    at_uri = "/edu-sharing/rest/authentication/v1/validateSession"
 
+def get_api():
+    global api
+    if not api:
+        configuration = get_configuration()
+        api = EdusharingAPI(
+            configuration['parsed_edusharing_url'].geturl(),
+            configuration['username'],
+            configuration['password']
+        )
+    return api
+
+
+def edusharing_set_property2(node_id, property_name, property_value, auth_response):
     configuration = get_configuration()
+    session = get_session()
 
-    c = HTTPSConnection(configuration["hostname"])
-    headers = {'Authorization': 'Basic %s' % configuration["user_and_pass"]}
-    c.request('GET', at_uri, headers=headers)
-
-    res = c.getresponse()
-    return res
-
-def edusharing_set_property(node_id, property_name, property_value, auth_response):
-    headers = get_base_headers(auth_response)
-    configuration = get_configuration()
-
-    if not (type(property_value) == list or type(property_value) == set):
+    if type(property_value) not in (list, set):
         property_value = [property_value]
 
     at_uri = "/edu-sharing/rest/node/v1/nodes/-home-/" + node_id + "/property?property=" + property_name + "&value=" + \
             '&value='.join(map(lambda x: str(x), property_value))
 
     at_url = configuration["parsed_edusharing_url"].scheme + "://" + configuration["hostname"] + at_uri
-    r = requests.request("POST", at_url, headers=headers, allow_redirects=False)
+    r = session.request("POST", at_url, allow_redirects=False)
     if r.status_code != 200:
         print("Problem with " + node_id + " when setting " + property_name + " to " + str(property_value) + "\n")
         print(r.text)
 
 
-
-def edusharing_change_metadata(auth_response, node_id, key, value, is_array=False):
+def edusharing_change_metadata2(auth_response, node_id, key, value, is_array=False):
     headers = get_base_headers(auth_response)
     configuration = get_configuration()
 
     at_uri = "/edu-sharing/rest/node/v1/nodes/-home-/" + node_id + "/metadata"
     at_url = configuration["parsed_edusharing_url"].scheme + "://" + configuration["hostname"] + at_uri
 
-    if is_array is False:
+    if not is_array:
         data = json.dumps({key: [value]})
     else:
         data = json.dumps({key: value})
 
     r = requests.request("PUT", at_url, data=data, headers=headers, allow_redirects=False)
+
 
 def get_configuration():
     username = env.get("EDU_SHARING_USERNAME")

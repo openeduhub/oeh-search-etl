@@ -83,11 +83,9 @@ class ESApiClient(ApiClient):
                 ESApiClient.lastRequestTime = time.time()
                 return attr(*args, **kwargs)
 
-
             return newfunc
         else:
             return attr
-
 
 
 class EduSharing:
@@ -96,7 +94,7 @@ class EduSharing:
         MediaCenter = 2
 
     cookie: str = None
-    resetVersion: bool = False
+    resetVersion: bool = True
     apiClient: ESApiClient
     bulkApi: BULKV1Api
     iamApi: IAMV1Api

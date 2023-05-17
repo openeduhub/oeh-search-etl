@@ -7,6 +7,7 @@ from schulcloud.edusharing import EdusharingAPI, NotFoundException
 from schulcloud.util import Environment
 
 
+ADMIN_GROUP = 'ALFRESCO_ADMINISTRATORS'
 ENV_VARS = ['EDU_SHARING_BASE_URL', 'EDU_SHARING_USERNAME', 'EDU_SHARING_PASSWORD', 'SETUP_CONFIG_PATH']
 
 
@@ -31,8 +32,6 @@ class EdusharingSetup:
             self.api.set_application_properties(xml_name, properties)
 
     def _add_users_and_groups(self, users: List[User], groups: Set[str]):
-        # requirement: all groups within "users" must also be within "groups"
-
         existing_usernames = [user['userName'] for user in self.api.get_users()]
 
         for user in users:
@@ -43,6 +42,12 @@ class EdusharingSetup:
                 print(f'User already exists: {user.name}')
 
         existing_groupnames = [group['groupName'] for group in self.api.get_groups()]
+
+        # handle admin group
+        existing_groupnames.append(ADMIN_GROUP)
+        for user in users:
+            if user.type == 'system' and ADMIN_GROUP not in user.groups:
+                user.groups.append(ADMIN_GROUP)
 
         for group in groups:
             if group not in existing_groupnames:
@@ -58,13 +63,9 @@ class EdusharingSetup:
                     self.api.group_add_user(group, user.name)
 
     def _upload_color_picker(self):
-        # the color picker h5p content contains the color picker library needed for other h5p items
-        # which will be installed after upload
         colorpicker_path = 'schulcloud/update_colorpicker.h5p'
         colorpicker_name = os.path.basename(colorpicker_path)
-        try:
-            self.api.find_node_by_name('-userhome-', colorpicker_name)
-        except NotFoundException:
+        if not self.api.find_node_by_name('-userhome-', colorpicker_name):
             node = self.api.create_node('-userhome-', colorpicker_name)
             file = open(colorpicker_path, 'rb')
             self.api.upload_content(node.id, colorpicker_name, file)

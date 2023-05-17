@@ -21,6 +21,10 @@ class PermissionUpdater:
         self.node_cache: dict[str, Node] = {}
 
     def get_node_by_path(self, path: str) -> Node:
+        """
+        Get the node of Edu-Sharing by path.
+        @param path: Path to node
+        """
         path = os.path.normpath(path)
         try:
             return self.node_cache[path]
@@ -43,18 +47,28 @@ class PermissionUpdater:
             return node
 
     def run(self):
+        """
+        Update the permissions accordingly to 'schulcloud/permissions.json'.
+        """
         file = open('schulcloud/permissions.json')
         permissions = json.load(file)['permissions']
         file.close()
         for permission in permissions:
-            print()
-            print(permission['path'])
+            print('Check', permission['path'])
             try:
                 node = self.get_node_by_path(permission['path'])
-                self.api.set_permissions(node.id, permission['permitted_groups'], permission['inherit'])
+                current_groups, inherited = self.api.get_permissions_groups(node.id)
+                current_groups.sort()
+                new_groups: list[str] = permission['permitted_groups']
+                new_groups.sort()
+                if not (current_groups == new_groups and inherited == permission['inherit']):
+                    print(f'Change {current_groups} -> {new_groups}')
+                    self.api.set_permissions(node.id, permission['permitted_groups'], permission['inherit'])
             except PathNotFoundException:
                 print(f'Warning: Could not find {permission["path"]}', file=sys.stderr)
-            except:
+            except KeyboardInterrupt:
+                break
+            except Exception:
                 print(f'Error: Could not set permission for {permission["path"]}', file=sys.stderr)
                 traceback.print_exc()
 

@@ -66,7 +66,6 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
             LomBase.parse(self, copyResponse)
 
-
     def getId(self, response):
         # Element response as a Python dict.
         element_dict = response.meta["item"]
@@ -156,7 +155,6 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
 
         return technical
 
-
     def getPermissions(self, response):
         """
         Licensing information is controlled via the 'oeffentlich' flag. When it is '1' it is available to the public,
@@ -175,10 +173,9 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             permissions.add_value('groups', ['Thuringia'])
             # permissions.add_value('mediacenters', [self.name])  # only 1 mediacenter.
         else:
-            permissions.add_value('groups', ['public'])
+            permissions.add_value('groups', ['Thuringia-public'])
 
         return permissions
-
 
     def getLOMRelation(self, response=None) -> LomRelationItemLoader:
         """

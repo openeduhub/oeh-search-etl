@@ -1,20 +1,35 @@
 {
   "permissions": [
     {
+      "path": "BRBSport",
+      "inherit": false,
+      "permitted_groups": [
+        "Brandenburg"
+      ]
+    },
+    {
       "path": "SYNC_OBJ",
       "inherit": false,
       "permitted_groups": []
     },
     {
       "path": "SYNC_OBJ/merlin_spider",
+      "comment": "content in this folder has explicit permissions from crawler",
       "inherit": false,
-      "permitted_groups": ["LowerSaxony"]
+      "permitted_groups": []
     },
     {
       "path": "SYNC_OBJ/mediothek_pixiothek_spider",
       "comment": "content in this folder has explicit permissions from crawler",
       "inherit": false,
       "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/FWU",
+      "inherit": false,
+      "permitted_groups": [
+        "Brandenburg"
+      ]
     },
     {
       "path": "SYNC_OBJ/oeh_spider",
@@ -28,8 +43,7 @@
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -39,8 +53,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -49,8 +62,7 @@
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -60,18 +72,18 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
       "path": "SYNC_OBJ/oeh_spider/serlo_spider",
       "inherit": false,
+      "comment": "Thuringia not allowed according to old edusharing (mv-repo)",
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "International",
-        "HPIBossCloud"
+        "Thuringia",
+        "Dbildungscloud"
       ]
     },
     {
@@ -81,8 +93,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -92,8 +103,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -102,8 +112,7 @@
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -113,8 +122,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -123,8 +131,7 @@
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -132,8 +139,7 @@
       "inherit": false,
       "permitted_groups": [
         "LowerSaxony",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -143,19 +149,17 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
       "path": "SYNC_OBJ/oeh_spider/tutory_spider",
       "inherit": false,
+      "comment": "Thuringia allowed according to old edusharing (mv-repo)",
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -165,8 +169,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -176,8 +179,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -187,8 +189,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -197,9 +198,7 @@
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -209,8 +208,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -220,8 +218,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -231,8 +228,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -242,8 +238,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -252,8 +247,7 @@
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -262,8 +256,7 @@
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -272,8 +265,7 @@
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -283,8 +275,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -294,8 +285,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -305,8 +295,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -316,8 +305,7 @@
         "LowerSaxony",
         "Brandenburg",
         "Thuringia",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -326,8 +314,17 @@
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
+      ]
+    },
+    {
+      "path": "SYNC_OBJ/oeh_spider/geogebra_spider",
+      "inherit": false,
+      "permitted_groups": [
+        "LowerSaxony",
+        "Brandenburg",
+        "Thuringia",
+        "Dbildungscloud"
       ]
     },
     {
@@ -336,8 +333,7 @@
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -346,8 +342,7 @@
       "permitted_groups": [
         "LowerSaxony",
         "Brandenburg",
-        "International",
-        "HPIBossCloud"
+        "Dbildungscloud"
       ]
     },
     {
@@ -4225,6 +4220,13 @@
       "comment": "WetterKontor GmbH",
       "inherit": false,
       "permitted_groups": []
+    },
+    {
+      "path": "SYNC_OBJ/FWU",
+      "inherit": false,
+      "permitted_groups": [
+        "Brandenburg"
+      ]
     }
   ]
 }

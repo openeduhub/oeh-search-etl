@@ -120,9 +120,9 @@ class TestH5P(unittest.TestCase):
         for group in groups:
             self.assertTrue(group in permitted_groups, 'Permission not found.')
 
-    def test_edusharing009_get_metadata(self):
-        response = self.api.get_metadata(self.test_folder.id)
-        self.assertEqual(self.test_folder.name, response['node']['name'], 'Can\'t get metadata of node.')
+    def test_edusharing009_get_node(self):
+        node = self.api.get_node(self.test_folder.id)
+        self.assertEqual(self.test_folder.name, node.name, 'Can\'t get metadata of node.')
 
     def test_edusharing010_sync_node(self):
         name = 'test_file'
