@@ -57,6 +57,26 @@ class Valuespaces:
                     return found
         return None
 
+    def findInText(self, valuespaceId: string, text: string, valuespace = None):
+        if valuespace is None:
+            valuespace = self.data[valuespaceId]
+        result = []
+        for v in valuespace:
+            labels = list(v["prefLabel"].values())
+            if "altLabel" in v:
+                labels = labels + list(v["altLabel"].values())
+            labels = list(map(lambda x: x.casefold(), labels))
+            for label in labels:
+                # TODO: dirty hack!
+                if (" " + label) in text.casefold():
+                    result.append(v["id"])
+                    break
+        for key in valuespace:
+            if key['id'] == id:
+                return key
+            if 'narrower' in key:
+                result = result + self.findInText(valuespaceId, text, key['narrower'])
+        return result
     def initTree(self, tree):
         for t in tree:
             names = self.getNames(t)
