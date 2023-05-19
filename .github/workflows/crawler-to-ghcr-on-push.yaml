@@ -1,0 +1,42 @@
+---
+name: oeh-search-etl Docker image on push to GHCR
+on:
+  push:
+    tags:
+      - 'edusharing-crawler-*'
+      - 'edusharing-setup-*'
+
+jobs:
+  pre_build:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.version }}
+      prefix: ${{ steps.tag.outputs.prefix }}
+    steps:
+      - name: Filter Tag name
+        uses: olegtarasov/get-tag@v2.1
+        id: tag
+        with:
+          tagRegex: "(?<prefix>.+)-(?<version>[0-9]+.[0-9]+.[0-9]+)"
+  build_and_push:
+    needs: pre_build
+    uses: hpi-schul-cloud/infra-tools/.github/workflows/build-and-push.yaml@master
+    permissions:
+      packages: write
+      contents: read
+    with:
+      registry: ghcr.io
+      image: ${{ github.repository_owner }}/oeh-search-etl
+      prefix: ${{ needs.pre_build.outputs.prefix }}-
+      tag: ${{ needs.pre_build.outputs.tag }}
+      file: ./Dockerfile.${{ needs.pre_build.outputs.prefix }}
+
+  trivy_image_scan:
+    needs: build_and_push
+    uses: hpi-schul-cloud/infra-tools/.github/workflows/trivy-scan.yaml@master
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    with:
+      image-ref: ghcr.io/${{ github.repository_owner }}/oeh-search-etl:${{ github.ref_name }}

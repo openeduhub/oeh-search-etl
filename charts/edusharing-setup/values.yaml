@@ -1,0 +1,24 @@
+image:
+  repository: ghcr.io/hpi-schul-cloud/oeh-search-etl
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion.
+  tag: "edusharing-setup-{{ .Chart.AppVersion }}"
+
+nameOverride: ""
+fullnameOverride: ""
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+volumes: {}
+volumeMounts: {}
+
+restartPolicy: OnFailure
+backoffLimit: 6
+
+env: {}
