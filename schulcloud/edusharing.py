@@ -421,6 +421,13 @@ class EdusharingAPI:
         }
         self.make_request('POST', url, params)
 
+    def set_owner(self, node_id: str, username: str):
+        url = f'/node/v1/nodes/-home-/{node_id}/owner'
+        params = {
+            'username': username
+        }
+        self.make_request('POST', url, params)
+
         """
         Delete a node by ID.
         @param node_id: ID of the node
