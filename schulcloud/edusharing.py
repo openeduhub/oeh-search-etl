@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import time
 from datetime import datetime
 from typing import Dict, List, Literal, Optional, IO, Any, Callable
@@ -99,7 +100,9 @@ class EdusharingAPI:
                 print(f'    --> {response.status_code} {response.text}')
                 print()
             if 500 <= response.status_code < 600 and i < retry:
-                time.sleep(i // 2)
+                sleep_seconds = i // 2
+                print(f'Internal server error. Waiting {sleep_seconds} sec until retrying.', file=sys.stderr)
+                time.sleep(sleep_seconds)
                 continue
             if not (200 <= response.status_code < 300):
                 raise RequestErrorResponseException(response)
