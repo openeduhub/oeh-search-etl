@@ -326,6 +326,22 @@ class EdusharingAPI:
             if not skip_exception:
                 raise NotFoundException(replication_source_uuid)
 
+    def get_node(self, node_id: str, all_properties: bool = False):
+        """
+        Returns the metadata of the node.
+        @param node_id: ID of the node
+        """
+        url = f'/node/v1/nodes/-home-/{node_id}/metadata'
+        params = {}
+        if all_properties:
+            params['propertyFilter'] = ['-all-']
+        try:
+            return Node(self.make_request('GET', url, params=params).json()['node'])
+        except RequestErrorResponseException as exc:
+            if exc.response.status_code == 404:
+                raise NotFoundException(node_id)
+            raise
+
     def get_node_versions(self, node_id: str) -> list:
         url = f'/node/v1/nodes/-home-/{node_id}/versions'
         try:
@@ -521,22 +537,6 @@ class EdusharingAPI:
             ]
         }
         response = self.make_request('POST', url, params=params, json_data=body, timeout=60)
-
-    def get_node(self, node_id: str, all_properties: bool = False):
-        """
-        Returns the metadata of the node.
-        @param node_id: ID of the node
-        """
-        url = f'/node/v1/nodes/-home-/{node_id}/metadata'
-        params = {}
-        if all_properties:
-            params['propertyFilter'] = '-all-'
-        try:
-            return Node(self.make_request('GET', url, params=params).json()['node'])
-        except RequestErrorResponseException as exc:
-            if exc.response.status_code == 404:
-                raise NotFoundException(node_id)
-            raise
 
     def get_collection(self, node_id: str):
         """
