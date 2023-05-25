@@ -326,6 +326,27 @@ class EdusharingAPI:
             if not skip_exception:
                 raise NotFoundException(replication_source_uuid)
 
+    def get_node_versions(self, node_id: str) -> list:
+        url = f'/node/v1/nodes/-home-/{node_id}/versions'
+        try:
+            return self.make_request('GET', url).json()['versions']
+        except RequestErrorResponseException as exc:
+            if exc.response.status_code == 404:
+                raise NotFoundException(node_id)
+            raise
+
+    def get_node_version(self, node_id: str, version: tuple[int, int], all_properties: bool = False):
+        url = f'/node/v1/nodes/-home-/{node_id}/versions/{version[0]}/{version[1]}/metadata'
+        params = {}
+        if all_properties:
+            params['propertyFilter'] = ['-all-']
+        try:
+            return self.make_request('GET', url, params=params).json()['version']
+        except RequestErrorResponseException as exc:
+            if exc.response.status_code == 404:
+                raise NotFoundException(node_id)
+            raise
+
     def create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file',
                     properties: Optional[Dict] = None) -> Node:
         """
