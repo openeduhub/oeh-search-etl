@@ -413,7 +413,6 @@ class EdusharingAPI:
         response = self.make_request('PUT', url, params=params, json_data=properties)
         return Node(response.json()['node'])
 
-    def delete_node(self, node_id: str):
     def move_node(self, node_id: str, new_parent_id: str):
         url = f'/node/v1/nodes/-home-/{new_parent_id}/children/_move'
         params = {
@@ -428,12 +427,16 @@ class EdusharingAPI:
         }
         self.make_request('POST', url, params)
 
+    def delete_node(self, node_id: str, recycle: bool = False):
         """
         Delete a node by ID.
         @param node_id: ID of the node
         """
         url = f'/node/v1/nodes/-home-/{node_id}'
-        self.make_request('DELETE', url)
+        params = {
+            'recycle': recycle
+        }
+        self.make_request('DELETE', url, params)
 
     def get_sync_obj_folder(self) -> Node:
         """
