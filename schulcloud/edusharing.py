@@ -457,6 +457,24 @@ class EdusharingAPI:
         name = name.replace(" ", "_")
         return len(self.search_custom('name', name, content_type='FILES')) > 0
 
+    def walk_children_recursively(self, node_id: str, all_properties: bool = False):
+        """
+        Use with for-loop: for node in walk_children_recursively(root)
+        """
+        # don't use if it can be avoided
+        chunk = 100
+        start = 0
+        while True:
+            children = self.get_children(node_id, all_properties=all_properties, type='all', start=start, count=chunk)
+            for child in children:
+                yield child
+                if child.is_directory:
+                    for node in self.walk_children_recursively(child.id, all_properties=all_properties):
+                        yield node
+            if len(children) != chunk:
+                break
+            start += chunk
+
     def search_ngsearch(self, criteria: list[dict[str, str]], content_type: Optional[Literal['FOLDERS', 'FILES']] = None,
                         all_properties: bool = False) -> list[Node]:
         url = f'/search/v1/queries/-home-/mds_oeh/ngsearch/'
