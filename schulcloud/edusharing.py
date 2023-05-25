@@ -414,6 +414,13 @@ class EdusharingAPI:
         return Node(response.json()['node'])
 
     def delete_node(self, node_id: str):
+    def move_node(self, node_id: str, new_parent_id: str):
+        url = f'/node/v1/nodes/-home-/{new_parent_id}/children/_move'
+        params = {
+            'source': node_id
+        }
+        self.make_request('POST', url, params)
+
         """
         Delete a node by ID.
         @param node_id: ID of the node
