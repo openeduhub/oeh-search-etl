@@ -1,6 +1,6 @@
 {
   "users": [
-    ["User1", "test123", "function", ["Test-public"]]
+    ["User1", "test123", "function", ["Test-public"], 1024]  // storage quota in MB, optional
   ],
   "groups": ["public"]
 }
