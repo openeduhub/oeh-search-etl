@@ -9,6 +9,7 @@ class Constants:
     LICENSE_CC_BY_NC_30: Final[str] = "https://creativecommons.org/licenses/by-nc/3.0/"
     LICENSE_CC_BY_NC_40: Final[str] = "https://creativecommons.org/licenses/by-nc/4.0/"
     LICENSE_CC_BY_NC_ND_20: Final[str] = "https://creativecommons.org/licenses/by-nc-nd/2.0/"
+    LICENSE_CC_BY_NC_ND_25: Final[str] = "https://creativecommons.org/licenses/by-nc-nd/2.5/"
     LICENSE_CC_BY_NC_ND_30: Final[str] = "https://creativecommons.org/licenses/by-nc-nd/3.0/"
     LICENSE_CC_BY_NC_ND_40: Final[str] = "https://creativecommons.org/licenses/by-nc-nd/4.0/"
     LICENSE_CC_BY_NC_SA_20: Final[str] = "https://creativecommons.org/licenses/by-nc-sa/2.0/"
@@ -33,6 +34,7 @@ class Constants:
         LICENSE_CC_BY_NC_30,
         LICENSE_CC_BY_NC_40,
         LICENSE_CC_BY_NC_ND_20,
+        LICENSE_CC_BY_NC_ND_25,
         LICENSE_CC_BY_NC_ND_30,
         LICENSE_CC_BY_NC_ND_40,
         LICENSE_CC_BY_NC_SA_20,

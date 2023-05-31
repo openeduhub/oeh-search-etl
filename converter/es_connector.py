@@ -242,7 +242,10 @@ class EduSharing:
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
                 case Constants.LICENSE_CC_BY_NC_ND_20:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
-                    spaces["ccm:commonlicense_cc_version"] = "20"
+                    spaces["ccm:commonlicense_cc_version"] = "2.0"
+                case Constants.LICENSE_CC_BY_NC_ND_25:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "2.5"
                 case Constants.LICENSE_CC_BY_NC_ND_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"

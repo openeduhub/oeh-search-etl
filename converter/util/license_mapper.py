@@ -156,8 +156,6 @@ class LicenseMapper:
                 if regex_deed_hit:
                     deed_hit = regex_deed_hit.group()
                     license_url_candidate = license_url_candidate[: -len(deed_hit)]
-            # ToDo: while it (thankfully) hasn't happened yet, we have to assume that URLs ending in "/fr/" or "/es"
-            #  could be problematic as well. Therefore: refactor the if-checks for "/de/" and "/de" asap
             url_ending_in_two_char_language_code_regex = re.compile(r"/([a-z]{2}/?)$")
             # RegEx pattern for handling URLs that end in "/de", "/de/", "/fr", "/es/" etc.
             two_char_language_code_hit = url_ending_in_two_char_language_code_regex.search(license_url_candidate)
@@ -169,7 +167,7 @@ class LicenseMapper:
                 if url_language_code_trail:
                     # the url_language_code_trail will typically look like "/de/" or "/de", but we only want to cut off
                     # the 2-char language code and its trailing slash, but keep the first slash intact
-                    license_url_candidate = license_url_candidate[: -len(url_language_code_trail) +1]
+                    license_url_candidate = license_url_candidate[: -len(url_language_code_trail) + 1]
             for valid_license_url in Constants.VALID_LICENSE_URLS:
                 if license_url_candidate in valid_license_url:
                     return valid_license_url
@@ -213,9 +211,9 @@ class LicenseMapper:
 if __name__ == "__main__":
     test_mapper = LicenseMapper()
     # test-cases for debugging purposes
-    print(test_mapper.get_license_internal_key("CC BY-NC-ND"))
-    print(test_mapper.get_license_internal_key("zufälliger CC BY lizenzierter Freitext-String"))
-    print(test_mapper.get_license_url("a random CC-BY 4.0 string"))
-    print(test_mapper.get_license_url("https://creativecommons.org/licenses/by-nc/3.0/de/"))
-    print(test_mapper.identify_cc_license("https://creativecommons.org/licenses/by-nc/3.0/deed.de"))
-    pass
+    # print(test_mapper.get_license_internal_key("CC BY-NC-ND"))
+    # print(test_mapper.get_license_internal_key("zufälliger CC BY lizenzierter Freitext-String"))
+    # print(test_mapper.get_license_url("a random CC-BY 4.0 string"))
+    # print(test_mapper.get_license_url("https://creativecommons.org/licenses/by-nc/3.0/de/"))
+    # print(test_mapper.identify_cc_license("https://creativecommons.org/licenses/by-nc/3.0/deed.de"))
+    print(test_mapper.identify_cc_license("http://creativecommons.org/licenses/by-nc-nd/2.5/ch/deed.en"))
