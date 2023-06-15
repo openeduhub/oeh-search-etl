@@ -3,7 +3,8 @@ import logging
 import re
 
 from bs4 import BeautifulSoup
-from scrapy.spiders import CrawlSpider, Rule
+from scrapy import Request
+from scrapy.spiders import CrawlSpider, Rule, Spider
 
 import z_api
 from valuespace_converter.app.valuespaces import Valuespaces
@@ -13,7 +14,9 @@ from ..items import LicenseItemLoader
 from ..web_tools import WebEngine, WebTools
 
 
-class GenericSpider(CrawlSpider, LrmiBase):
+# class GenericSpider(CrawlSpider, LrmiBase):
+
+class GenericSpider(Spider, LrmiBase):
     name = "generic_spider"
     friendlyName = "Sample Source"  # name as shown in the search ui
     start_urls = ["https://www.planet-schule.de/schwerpunkt/total-phaenomenal-energie/sonnenenergie-film-100.html"]
@@ -40,7 +43,8 @@ class GenericSpider(CrawlSpider, LrmiBase):
     z_api_text: z_api.AITextPromptsApi
 
     def __init__(self, **kwargs):
-        CrawlSpider.__init__(self, **kwargs)
+        # CrawlSpider.__init__(self, **kwargs)
+
         LrmiBase.__init__(self, **kwargs)
 
         self.valuespaces = Valuespaces()
@@ -48,6 +52,10 @@ class GenericSpider(CrawlSpider, LrmiBase):
         z_api_config.api_key = {'ai-prompt-token': env.get("Z_API_KEY", False)}
         z_api_client = z_api.ApiClient(configuration=z_api_config)
         self.z_api_text = z_api.AITextPromptsApi(z_api_client)
+
+    def start_requests(self):
+        for url in self.start_urls:
+            yield Request(url, callback=self.parse)
 
     def parse(self, response):
         if not self.hasChanged(response):
@@ -100,10 +108,11 @@ class GenericSpider(CrawlSpider, LrmiBase):
 
     def getLicense(self, response) -> LicenseItemLoader:
         license = LrmiBase.getLicense(self, response)
-        author = response.meta['data']['parsed_html'].find('meta', {"name":"author"})
+        author = response.meta['data']['parsed_html'].find('meta', {"name": "author"})
         if author:
             license.add_value('author', author.get_text())
         return license
+
     def getLOMTechnical(self, response):
         technical = LrmiBase.getLOMTechnical(self, response)
         technical.add_value("location", response.url)
