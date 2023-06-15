@@ -18,7 +18,7 @@ from ..web_tools import WebEngine, WebTools
 
 class GenericSpider(Spider, LrmiBase):
     name = "generic_spider"
-    friendlyName = "Sample Source"  # name as shown in the search ui
+    friendlyName = "generic_spider"  # name as shown in the search ui
     start_urls = ["https://www.planet-schule.de/schwerpunkt/total-phaenomenal-energie/sonnenenergie-film-100.html"]
     ROBOTSTXT_OBEY = False
     rules = [
@@ -27,7 +27,8 @@ class GenericSpider(Spider, LrmiBase):
         ),
     ]
     custom_settings = {
-        'WEB_TOOLS': WebEngine.Playwright
+        'WEB_TOOLS': WebEngine.Playwright,
+        "ROBOTSTXT_OBEY": False
     }
     clean_tags = ['nav', 'header', 'footer']
     prompts = {
