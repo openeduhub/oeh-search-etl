@@ -1,9 +1,26 @@
 #!/bin/bash
-python -m venv chatgpt-api
+# Creating a venv within the "venv_z_api"-directory (for easier distinction from our "normal" venv)
+python3 -m venv venv_z_api
+# deleting the "tmp"-directory (if there is one)
 rm -rf tmp
-mkdir tmp && cd tmp
+# create a temporary "tmp"-directory which will be used by the OpenAPI Generator (API Client)
+mkdir tmp
+# switch to it (or exit here if changing directories fails)
+cd tmp || exit
+#
+# follow these steps manually:
+# activating the venv:
+# source ./venv_z_api/bin/activate
+# confirm that you are within your venv, then install the requirements.txt:
+# pip3 install -r requirements.txt
+#
+# make sure that you have the OpenAPI Generator installed (and the PATH exposed within your ".profile")
+# before running this command, otherwise the following steps WILL NOT WORK:
 openapi-generator generate -g python -o z_api -i https://ai-prompt-service.staging.openeduhub.net/v3/api-docs --package-name z_api
-cd z_api && python setup.py install --user
+cd z_api && python3 setup.py install --user
+# change directories to project root:
 cd ../../
+# move the only relevant sub-directory to the "z_api"-directory at project root:
 cp -r tmp/z_api/z_api/ z_api
+# delete the temporary folder after everything is done:
 rm -rf tmp
