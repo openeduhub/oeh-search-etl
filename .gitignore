@@ -3,4 +3,4 @@ __pycache__/
 .venv/
 .env
 out
-converter/z_api
+z_api

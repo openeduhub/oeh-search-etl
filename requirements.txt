@@ -25,3 +25,4 @@ certifi==2022.12.7
 urllib3~=1.26.09
 playwright==1.30.0
 pyOpenSSL==22.1.0
+openapi-generator-cli==4.3.1
