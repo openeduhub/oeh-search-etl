@@ -1,6 +1,7 @@
 .idea/
 __pycache__/
 .venv/
+venv_*
 .env
 out
 z_api
