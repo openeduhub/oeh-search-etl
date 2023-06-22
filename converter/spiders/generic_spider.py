@@ -10,6 +10,7 @@ from scrapy import Request
 from scrapy.spiders import Rule, Spider
 
 import z_api
+from util.license_mapper import LicenseMapper
 from valuespace_converter.app.valuespaces import Valuespaces
 from .base_classes import LrmiBase
 from .. import env
@@ -32,7 +33,7 @@ class GenericSpider(Spider, LrmiBase):
         # "https://www.dilertube.de/englisch/oer-video/algeria-in-a-nutshell.html",
         # "https://www.dilertube.de/alltagskultur-ernaehrung-soziales-aes/oer-video/erklaerfilm-medikamente-richtig-entsorgen.html",
         # "https://www.umwelt-im-unterricht.de/unterrichtsvorschlaege/der-mensch-hauptursache-fuer-den-rueckgang-der-biologischen-vielfalt",
-        # "https://www.umwelt-im-unterricht.de/hintergrund/die-endlagerung-hochradioaktiver-abfaelle",
+        "https://www.umwelt-im-unterricht.de/hintergrund/die-endlagerung-hochradioaktiver-abfaelle",
         # "https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78",
         # "https://editor.mnweg.org/mnw/sammlung/bruchrechnen-m-10",
         # "https://www.bpb.de/themen/migration-integration/laenderprofile/277555/afghanistan-geschichte-politik-gesellschaft/",
@@ -57,8 +58,6 @@ class GenericSpider(Spider, LrmiBase):
         # "https://lernen.schule.de/das-menschliche-skelett/",
         # "https://www.schulebewegt.ch/de/aufgaben/Streckung",
         # "https://www.schulebewegt.ch/de/aufgaben/Hampelmann",
-        # Debugging Examples - 'noindex' robot meta tag:
-        "https://de.serlo.org/geographie/169056/der-aufbau-der-atmosph%C3%A4re?contentOnly",
     ]
     rules = [
         Rule(
@@ -88,26 +87,32 @@ class GenericSpider(Spider, LrmiBase):
         LrmiBase.__init__(self, **kwargs)
 
         self.valuespaces = Valuespaces()
-        # ToDo: optional Feature: "generic_spider" (AI=enabled) <-> "generic_minimal_spider" (AI=disabled)?
+        # ToDo: optional .env Feature: "generic_spider" (AI=enabled) <-> "generic_minimal_spider" (AI=disabled)?
         z_api_config = z_api.Configuration.get_default_copy()
         z_api_config.api_key = {'ai-prompt-token': env.get("Z_API_KEY", False)}
         z_api_client = z_api.ApiClient(configuration=z_api_config)
         self.z_api_text = z_api.AITextPromptsApi(z_api_client)
 
     def start_requests(self):
-        # ToDo: Feature - control list of start_urls via '.env'-setting
+        url_from_dot_env = env.get(key="GENERIC_SPIDER_URL_TARGET", allow_null=True, default=None)
+        if url_from_dot_env:
+            logging.info(f"Recognized URL to crawl from '.env'-Setting 'GENERIC_SPIDER_URL_TARGET': {url_from_dot_env}")
+            yield Request(url_from_dot_env, callback=self.parse)
         for url in self.start_urls:
             yield Request(url, callback=self.parse)
 
     def parse(self, response: scrapy.http.Response, **kwargs) -> Any | None:
         if not self.hasChanged(response):
             return
-        data = asyncio.run(WebTools.fetchDataPlaywright(response.url))
+        data_playwright = asyncio.run(WebTools.fetchDataPlaywright(response.url))
         response = response.copy()
         # ToDo: validate "trafilatura"-fulltext-extraction from playwright (compared to the html2text approach)
-        text_trafilatura = trafilatura.extract(data["content"])
-
-        parsed_html = BeautifulSoup(data['content'], features='lxml')
+        playwright_text: str = data_playwright["content"]
+        playwright_bytes: bytes = playwright_text.encode()
+        text_trafilatura = trafilatura.extract(playwright_text)
+        trafilatura_meta_scrapy = trafilatura.extract_metadata(response.body).as_dict()
+        trafilatura_meta_playwright = trafilatura.extract_metadata(playwright_bytes).as_dict()
+        parsed_html = BeautifulSoup(data_playwright['content'], features='lxml')
         for tag in self.clean_tags:
             tags = parsed_html.find_all(tag) if parsed_html.find_all(tag) else []
             for t in tags:
@@ -116,36 +121,36 @@ class GenericSpider(Spider, LrmiBase):
         for t in crawler_ignore:
             t.clear()
         html = parsed_html.prettify()
-        data['parsed_html'] = parsed_html
-        data['text'] = WebTools.html2Text(html)
-        response.meta['data'] = data
+        data_playwright['parsed_html'] = parsed_html
+        data_playwright['text'] = WebTools.html2Text(html)
+        data_playwright['text_trafilatura'] = text_trafilatura
+        data_playwright['trafilatura_meta'] = trafilatura_meta_playwright
+        response.meta['data'] = data_playwright
 
-        text_html2text = data["text"]
-
-        selector_playwright = scrapy.Selector(text=data["content"])
-        # ToDo: optional-feature - respect Robot-Meta-Tags in the DOM Header (-> abort crawl on prohibited websites)
+        selector_playwright = scrapy.Selector(text=playwright_text)
         robot_meta_tags: list[str] = selector_playwright.xpath("//meta[@name='robots']/@content").getall()
-        # ToDo: use Playwright response instead of Scrapy's Response (-> Selector)
-        # ToDo: optional - parametrize setting if Robots Meta Tags should be respected?
+        respect_robot_meta_tags = env.get_bool(key="RESPECT_ROBOT_META_TAGS", allow_null=True, default=True)
         if robot_meta_tags:
-            # There are 3 Robot Meta Tags that we need to respect:
+            # There are 3 Robot Meta Tags (<meta name="robots" content="VALUE">) that we need to respect:
             # - "noindex"       (= don't index the current URL)
             # - "nofollow"      (= don't follow any links on this site)
             # - "none"          (= shortcut for combined value "noindex, nofollow")
-            if "noindex" in robot_meta_tags:
-                logging.info(f"Robot Meta Tag 'noindex' identified. Aborting further parsing of item: "
-                             f"{response.url} .")
-                return None
-            if "nofollow" in robot_meta_tags:
-                # ToDo: don't follow any links, but parse the current response
-                #  -> yield response with 'nofollow'-setting in cb_kwargs
-                logging.info(f"Robot Meta Tag 'nofollow' identified. Parsing item {response.url} , but WILL NOT "
-                             f"follow any links found within.")
-                pass
-            if "none" in robot_meta_tags:
-                logging.info(f"Robot Meta Tag 'none' identified (= 'noindex, nofollow'). "
-                             f"Aborting further parsing of item: {response.url} itself and any links within it.")
-                return None
+            if respect_robot_meta_tags:
+                # by default, we try to respect the webmaster's wish to not be indexed/crawled
+                if "noindex" in robot_meta_tags:
+                    logging.info(f"Robot Meta Tag 'noindex' identified. Aborting further parsing of item: "
+                                 f"{response.url} .")
+                    return None
+                if "nofollow" in robot_meta_tags:
+                    # ToDo: don't follow any links, but parse the current response
+                    #  -> yield response with 'nofollow'-setting in cb_kwargs
+                    logging.info(f"Robot Meta Tag 'nofollow' identified. Parsing item {response.url} , but WILL NOT "
+                                 f"follow any links found within.")
+                    pass
+                if "none" in robot_meta_tags:
+                    logging.info(f"Robot Meta Tag 'none' identified (= 'noindex, nofollow'). "
+                                 f"Aborting further parsing of item: {response.url} itself and any links within it.")
+                    return None
 
         return LrmiBase.parse(self, response)
 
@@ -173,15 +178,20 @@ class GenericSpider(Spider, LrmiBase):
         general = LrmiBase.getLOMGeneral(self, response)
         general.add_value("title", response.meta['data']['title'])
         # TODO: Map language based on z-api
-        html_language = response.xpath('//html/@lang').get()
-        # html language and locale properties haven proven to be pretty inconsistent, but they might be useful for
-        # fallback values
-        meta_locale = response.xpath('//meta[@property="og:locale"]/@content').get()
-        general.add_value(
-            "language", "de"
-        )
+        html_language: str = response.xpath('//html/@lang').get()
+        meta_locale: str = response.xpath('//meta[@property="og:locale"]/@content').get()
+        # HTML language and locale properties haven proven to be pretty inconsistent, but they might be useful as
+        # fallback values.
+        if html_language:
+            general.add_value("language", html_language)
+        elif meta_locale:
+            general.add_value("language", meta_locale)
+        else:
+            # ToDo: remove this fallback value
+            general.add_value("language", "de")
         general.add_value("description", self.resolve_z_api('description', response))
         general.add_value("keyword", self.resolve_z_api('keyword', response, split=True))
+        # ToDo: keywords will (often) be returned as a list of bullet points by the AI -> clean up the string first
         return general
 
     def getLicense(self, response) -> LicenseItemLoader:
@@ -189,13 +199,26 @@ class GenericSpider(Spider, LrmiBase):
         author = response.meta['data']['parsed_html'].find('meta', {"name": "author"})
         if author:
             license.add_value('author', author.get_text())
+        # trafilatura offers a license detection feature as part of its "extract_metadata()"-method
+        if response.meta["data"]:
+            if "trafilatura_meta" in response.meta["data"]:
+                if "license" in response.meta['data']['trafilatura_meta']:
+                    trafilatura_license_detected: str = response.meta['data']['trafilatura_meta']['license']
+                    if trafilatura_license_detected:
+                        license_mapper = LicenseMapper()
+                        license_url_mapped: str = license_mapper.get_license_url(
+                            license_string=trafilatura_license_detected)
+                        if license_url_mapped:
+                            # ToDo: this is a really risky assignment! Validation of trafilatura's license detection
+                            #  will be necessary! (this is a metadata field that needs to be confirmed by a human!)
+                            license.add_value('url', license_url_mapped)
         return license
 
     def getLOMTechnical(self, response):
         technical = LrmiBase.getLOMTechnical(self, response)
-        technical.add_value("location", response.url)
-        technical.add_value("format", "text/html")
-        technical.add_value("size", len(response.body))
+        technical.replace_value("location", response.url)
+        technical.replace_value("format", "text/html")
+        technical.replace_value("size", len(response.body))
         return technical
 
     def getValuespaces(self, response):
@@ -220,6 +243,7 @@ class GenericSpider(Spider, LrmiBase):
         # fix utf-8 chars
         # result = codecs.decode(result, 'unicode-escape')
         # data['text'] = data['text'].encode().decode('unicode-escape').encode('latin1').decode('utf-8')
+        # ToDo: (.csv or .json) pipeline to store the (raw) AI Prompts and answers we received for an item
         if split:
             result = list(map(lambda x: x.strip(), re.split(r"[,|\n]", result)))
         return result
