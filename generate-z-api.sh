@@ -1,11 +1,11 @@
 #!/bin/bash
 # Creating a venv within the "venv_z_api"-directory (for easier distinction from our "normal" venv)
 python3 -m venv venv_z_api
-# deleting the "tmp"-directory (if there is one)
+# deleting the "tmp"-directory (if there was one from a previous execution of this script)
 rm -rf tmp
 # create a temporary "tmp"-directory which will be used by the OpenAPI Generator (API Client)
 mkdir tmp
-# switch to it (or exit here if changing directories fails)
+# switch to directory (or: exit here if changing directories fails)
 cd tmp || exit
 #
 # follow these steps manually:
