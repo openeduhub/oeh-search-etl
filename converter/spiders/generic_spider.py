@@ -20,12 +20,13 @@ from ..web_tools import WebEngine, WebTools
 
 # class GenericSpider(CrawlSpider, LrmiBase):
 
+
 class GenericSpider(Spider, LrmiBase):
     name = "generic_spider"
     friendlyName = "generic_spider"  # name as shown in the search ui
     version = "0.1.2"
     start_urls = [
-        # "https://www.planet-schule.de/schwerpunkt/total-phaenomenal-energie/sonnenenergie-film-100.html",  # the original Hackathon example URL
+        "https://www.planet-schule.de/schwerpunkt/total-phaenomenal-energie/sonnenenergie-film-100.html",  # the original Hackathon example URL
         # "https://de.serlo.org/informatik/158541/definitionen-von-%E2%80%9Ebig-data%E2%80%9C",
         # "https://de.serlo.org/mathe/62630/aufgaben-zum-volumen-eines-quaders",
         # "https://www.planet-schule.de/schwerpunkt/dichter-dran/fontane-film-100.html",
@@ -33,7 +34,7 @@ class GenericSpider(Spider, LrmiBase):
         # "https://www.dilertube.de/englisch/oer-video/algeria-in-a-nutshell.html",
         # "https://www.dilertube.de/alltagskultur-ernaehrung-soziales-aes/oer-video/erklaerfilm-medikamente-richtig-entsorgen.html",
         # "https://www.umwelt-im-unterricht.de/unterrichtsvorschlaege/der-mensch-hauptursache-fuer-den-rueckgang-der-biologischen-vielfalt",
-        "https://www.umwelt-im-unterricht.de/hintergrund/die-endlagerung-hochradioaktiver-abfaelle",
+        # "https://www.umwelt-im-unterricht.de/hintergrund/die-endlagerung-hochradioaktiver-abfaelle",
         # "https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78",
         # "https://editor.mnweg.org/mnw/sammlung/bruchrechnen-m-10",
         # "https://www.bpb.de/themen/migration-integration/laenderprofile/277555/afghanistan-geschichte-politik-gesellschaft/",
@@ -60,25 +61,21 @@ class GenericSpider(Spider, LrmiBase):
         # "https://www.schulebewegt.ch/de/aufgaben/Hampelmann",
     ]
     rules = [
-        Rule(
-            callback='parse'
-        ),
+        Rule(callback="parse"),
     ]
-    custom_settings = {
-        'WEB_TOOLS': WebEngine.Playwright,
-        "ROBOTSTXT_OBEY": False
-    }
+    custom_settings = {"WEB_TOOLS": WebEngine.Playwright, "ROBOTSTXT_OBEY": False}
 
-    clean_tags = ['nav', 'header', 'footer']
+    clean_tags = ["nav", "header", "footer"]
     prompts = {
-        'description': 'Fasse folgenden Text in 3 Sätzen zusammen: %(text)s',
-        'keyword': 'Liefere 4 Schlagworte für folgenden Text: %(text)s',
-        'discipline': 'Für welche Schul bzw. Fachgebiete eignet sich folgender Text: %(text)s',
-        'educationalContext': 'Für welche Bildungsstufe eignet sich folgender Text: %(text)s',
-        'new_lrt': 'Welche Materialart im schulischen Kontext ist folgender Text: %(text)s',
-        'intendedEndUserRole': 'Für welche Zielgruppen eignet sich folgender Text: %(text)s',
+        "description": "Fasse folgenden Text in 3 Sätzen zusammen: %(text)s",
+        "keyword": "Liefere 4 Schlagworte für folgenden Text: %(text)s",
+        "discipline": "Für welche Schul bzw. Fachgebiete eignet sich folgender Text: %(text)s",
+        "educationalContext": "Für welche Bildungsstufe eignet sich folgender Text: %(text)s",
+        "new_lrt": "Welche Materialart im schulischen Kontext ist folgender Text: %(text)s",
+        "intendedEndUserRole": "Für welche Zielgruppen eignet sich folgender Text: %(text)s",
     }
     valuespaces: Valuespaces
+    AI_ENABLED: bool = True  # optional .env setting to turn off AI services (-> generic_spider_minimal)
     z_api_text: z_api.AITextPromptsApi
 
     def __init__(self, **kwargs):
@@ -88,10 +85,21 @@ class GenericSpider(Spider, LrmiBase):
 
         self.valuespaces = Valuespaces()
         # ToDo: optional .env Feature: "generic_spider" (AI=enabled) <-> "generic_minimal_spider" (AI=disabled)?
-        z_api_config = z_api.Configuration.get_default_copy()
-        z_api_config.api_key = {'ai-prompt-token': env.get("Z_API_KEY", False)}
-        z_api_client = z_api.ApiClient(configuration=z_api_config)
-        self.z_api_text = z_api.AITextPromptsApi(z_api_client)
+        ai_enabled: bool = env.get_bool(key="GENERIC_SPIDER_AI_ENABLED", allow_null=True, default=True)
+        if ai_enabled:
+            self.AI_ENABLED = True
+            logging.info(f"Starting generic_spider with AI_ENABLED flag!")
+            z_api_config = z_api.Configuration.get_default_copy()
+            z_api_config.api_key = {"ai-prompt-token": env.get("Z_API_KEY", False)}
+            z_api_client = z_api.ApiClient(configuration=z_api_config)
+            self.z_api_text = z_api.AITextPromptsApi(z_api_client)
+        elif ai_enabled is False:
+            logging.info(f"Starting generic_spider with MINIMAL settings. AI Services are DISABLED!")
+            self.AI_ENABLED = False
+            # this optional flag allows us to control if we want to use AI-suggested metadata. We can compare the
+            # items gathered by the "generic_spider_minimal" against the (AI-enabled) "generic_spider"
+            self.name = "generic_spider_minimal"
+            self.friendlyName = "generic_spider_minimal"
 
     def start_requests(self):
         url_from_dot_env = env.get(key="GENERIC_SPIDER_URL_TARGET", allow_null=True, default=None)
@@ -112,20 +120,20 @@ class GenericSpider(Spider, LrmiBase):
         text_trafilatura = trafilatura.extract(playwright_text)
         trafilatura_meta_scrapy = trafilatura.extract_metadata(response.body).as_dict()
         trafilatura_meta_playwright = trafilatura.extract_metadata(playwright_bytes).as_dict()
-        parsed_html = BeautifulSoup(data_playwright['content'], features='lxml')
+        parsed_html = BeautifulSoup(data_playwright["content"], features="lxml")
         for tag in self.clean_tags:
             tags = parsed_html.find_all(tag) if parsed_html.find_all(tag) else []
             for t in tags:
                 t.clear()
-        crawler_ignore = parsed_html.find_all(name=None, attrs={'data-crawler': 'ignore'})
+        crawler_ignore = parsed_html.find_all(name=None, attrs={"data-crawler": "ignore"})
         for t in crawler_ignore:
             t.clear()
         html = parsed_html.prettify()
-        data_playwright['parsed_html'] = parsed_html
-        data_playwright['text'] = WebTools.html2Text(html)
-        data_playwright['text_trafilatura'] = text_trafilatura
-        data_playwright['trafilatura_meta'] = trafilatura_meta_playwright
-        response.meta['data'] = data_playwright
+        data_playwright["parsed_html"] = parsed_html
+        data_playwright["text"] = WebTools.html2Text(html)
+        data_playwright["text_trafilatura"] = text_trafilatura
+        data_playwright["trafilatura_meta"] = trafilatura_meta_playwright
+        response.meta["data"] = data_playwright
 
         selector_playwright = scrapy.Selector(text=playwright_text)
         robot_meta_tags: list[str] = selector_playwright.xpath("//meta[@name='robots']/@content").getall()
@@ -138,18 +146,23 @@ class GenericSpider(Spider, LrmiBase):
             if respect_robot_meta_tags:
                 # by default, we try to respect the webmaster's wish to not be indexed/crawled
                 if "noindex" in robot_meta_tags:
-                    logging.info(f"Robot Meta Tag 'noindex' identified. Aborting further parsing of item: "
-                                 f"{response.url} .")
+                    logging.info(
+                        f"Robot Meta Tag 'noindex' identified. Aborting further parsing of item: " f"{response.url} ."
+                    )
                     return None
                 if "nofollow" in robot_meta_tags:
                     # ToDo: don't follow any links, but parse the current response
                     #  -> yield response with 'nofollow'-setting in cb_kwargs
-                    logging.info(f"Robot Meta Tag 'nofollow' identified. Parsing item {response.url} , but WILL NOT "
-                                 f"follow any links found within.")
+                    logging.info(
+                        f"Robot Meta Tag 'nofollow' identified. Parsing item {response.url} , but WILL NOT "
+                        f"follow any links found within."
+                    )
                     pass
                 if "none" in robot_meta_tags:
-                    logging.info(f"Robot Meta Tag 'none' identified (= 'noindex, nofollow'). "
-                                 f"Aborting further parsing of item: {response.url} itself and any links within it.")
+                    logging.info(
+                        f"Robot Meta Tag 'none' identified (= 'noindex, nofollow'). "
+                        f"Aborting further parsing of item: {response.url} itself and any links within it."
+                    )
                     return None
 
         return LrmiBase.parse(self, response)
@@ -176,42 +189,55 @@ class GenericSpider(Spider, LrmiBase):
 
     def getLOMGeneral(self, response):
         general = LrmiBase.getLOMGeneral(self, response)
-        general.add_value("title", response.meta['data']['title'])
+        general.add_value("title", response.meta["data"]["title"])
         # TODO: Map language based on z-api
-        html_language: str = response.xpath('//html/@lang').get()
+        html_language: str = response.xpath("//html/@lang").get()
         meta_locale: str = response.xpath('//meta[@property="og:locale"]/@content').get()
         # HTML language and locale properties haven proven to be pretty inconsistent, but they might be useful as
         # fallback values.
+        # ToDo: websites might return languagecodes as 4-char values (e.g. "de-DE") instead of the 2-char value "de"
+        #       -> we will have to detect/clean up languageCodes to edu-sharing's expected 2-char format
         if html_language:
             general.add_value("language", html_language)
         elif meta_locale:
             general.add_value("language", meta_locale)
         else:
-            # ToDo: remove this fallback value
+            # ToDo: replace this fallback value when using the AI_enabled flag
             general.add_value("language", "de")
-        general.add_value("description", self.resolve_z_api('description', response))
-        general.add_value("keyword", self.resolve_z_api('keyword', response, split=True))
-        # ToDo: keywords will (often) be returned as a list of bullet points by the AI -> clean up the string first
+        if self.AI_ENABLED:
+            general.add_value("description", self.resolve_z_api("description", response))
+            general.add_value("keyword", self.resolve_z_api("keyword", response, split=True))
+            # ToDo: keywords will (often) be returned as a list of bullet points by the AI -> clean up the string first
+        elif self.AI_ENABLED is False:
+            if response.meta["data"]:
+                if "trafilatura_meta" in response.meta["data"]:
+                    if "description" in response.meta["data"]["trafilatura_meta"]:
+                        trafilatura_description = response.meta["data"]["trafilatura_meta"]["description"]
+                        general.add_value("description", trafilatura_description)
+                    if "title" in response.meta["data"]["trafilatura_meta"]:
+                        trafilatura_title: str = response.meta["data"]["trafilatura_meta"]["title"]
+                        general.replace_value("title", trafilatura_title)
         return general
 
     def getLicense(self, response) -> LicenseItemLoader:
         license = LrmiBase.getLicense(self, response)
-        author = response.meta['data']['parsed_html'].find('meta', {"name": "author"})
+        author = response.meta["data"]["parsed_html"].find("meta", {"name": "author"})
         if author:
-            license.add_value('author', author.get_text())
+            license.add_value("author", author.get_text())
         # trafilatura offers a license detection feature as part of its "extract_metadata()"-method
         if response.meta["data"]:
             if "trafilatura_meta" in response.meta["data"]:
-                if "license" in response.meta['data']['trafilatura_meta']:
-                    trafilatura_license_detected: str = response.meta['data']['trafilatura_meta']['license']
+                if "license" in response.meta["data"]["trafilatura_meta"]:
+                    trafilatura_license_detected: str = response.meta["data"]["trafilatura_meta"]["license"]
                     if trafilatura_license_detected:
                         license_mapper = LicenseMapper()
                         license_url_mapped: str = license_mapper.get_license_url(
-                            license_string=trafilatura_license_detected)
+                            license_string=trafilatura_license_detected
+                        )
                         if license_url_mapped:
                             # ToDo: this is a really risky assignment! Validation of trafilatura's license detection
                             #  will be necessary! (this is a metadata field that needs to be confirmed by a human!)
-                            license.add_value('url', license_url_mapped)
+                            license.add_value("url", license_url_mapped)
         return license
 
     def getLOMTechnical(self, response):
@@ -223,18 +249,13 @@ class GenericSpider(Spider, LrmiBase):
 
     def getValuespaces(self, response):
         valuespaces = LrmiBase.getValuespaces(self, response)
-        for v in ['educationalContext', 'discipline', 'educationalContext', 'intendedEndUserRole', 'new_lrt']:
-            valuespaces.add_value(v,
-                                  self.valuespaces.findInText(
-                                      v, self.resolve_z_api(v, response)
-                                  )
-                                  )
+        if self.AI_ENABLED:
+            for v in ["educationalContext", "discipline", "educationalContext", "intendedEndUserRole", "new_lrt"]:
+                valuespaces.add_value(v, self.valuespaces.findInText(v, self.resolve_z_api(v, response)))
         return valuespaces
 
     def resolve_z_api(self, field, response, split=False):
-        prompt = self.prompts[field] % {
-            'text': response.meta['data']['text'][:4000]
-        }
+        prompt = self.prompts[field] % {"text": response.meta["data"]["text"][:4000]}
         # ToDo: figure out a reasonable cutoff-length
         # (prompts which are too long get thrown out by the AI services)
         result = self.z_api_text.prompt(body=prompt)
