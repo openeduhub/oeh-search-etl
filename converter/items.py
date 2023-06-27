@@ -50,7 +50,7 @@ class LomGeneralItem(Item):
     """Corresponding edu-sharing property: 'cclom:general_identifier' """
     keyword = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: 'cclom:general_keyword'"""
-    language = Field()
+    language = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: 'cclom:general_language'"""
     structure = Field()
     # ToDo: 'structure' is currently not used; no equivalent edu-sharing property
