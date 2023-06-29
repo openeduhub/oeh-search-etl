@@ -25,7 +25,7 @@ from PIL import Image
 from itemadapter import ItemAdapter
 from scrapy import settings
 from scrapy.exceptions import DropItem
-from scrapy.exporters import JsonItemExporter
+from scrapy.exporters import JsonItemExporter, JsonLinesItemExporter
 from scrapy.utils.project import get_project_settings
 
 from converter import env
@@ -481,26 +481,99 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
         item = ItemAdapter(raw_item)
         if "hash" not in item:
             log.error(
-                "The spider did not provide a hash on the base object. The hash is required to detect changes on an element. May use the last modified date or something similar"
+                "EduSharingCheckPipeline: The spider did not provide a 'hash'-value on the BaseItem object. The hash "
+                "is required to detect changes on an element. (Hint: Use the last modified date or something similar)"
             )
             item["hash"] = time.time()
 
         # @TODO: May this can be done only once?
         if self.findSource(spider) is None:
-            log.info("create new source " + spider.name)
+            log.info("EduSharingCheckPipeline: Creating new source: " + spider.name)
             self.createSource(spider)
 
         db_item = self.findItem(item["sourceId"], spider)
         if db_item:
             if item["hash"] != db_item[1]:
-                log.debug("hash has changed, continuing pipelines")
+                log.debug("EduSharingCheckPipeline: hash has changed, continuing pipelines.")
             else:
-                log.debug("hash unchanged, skip item")
+                log.debug("EduSharingCheckPipeline: hash unchanged, skipping item.")
                 # self.update(item['sourceId'], spider)
                 # for tests, we update everything for now
                 # activate this later
                 # raise DropItem()
         return raw_item
+
+
+class JSONLinesStorePipelineRaw(BasicPipeline, PipelineWithPerSpiderMethods):
+    """
+    Pipeline for storing (raw) items within a local '.jsonl'-file. Useful for debugging if you want to compare the raw
+    item (before any of the mapping pipelines have transformed the item) with the final (processed) item.
+    """
+    BASE_ITEM_FIELDS_TO_IGNORE: set = {
+        "response",
+        "screenshot_bytes"
+    }
+    # some fields are not serializable (or bloat up the .jsonl), therefore we disable those fields for exports
+
+    def __init__(self):
+        self.files: dict[str, BinaryIO] = {}
+        self.exporters: dict[str, JsonLinesItemExporter] = {}
+
+    def open_spider(self, spider: scrapy.Spider) -> None:
+        file_output = open(f"output_{spider.name}_raw.jsonl", 'wb')
+        self.files[spider.name] = file_output
+        exporter = JsonLinesItemExporter(
+            file=file_output,
+        )
+        fields_serializable: set = set(list(BaseItem.fields.keys()))
+        fields_serializable.difference_update(self.BASE_ITEM_FIELDS_TO_IGNORE)
+        fields_serializable: list = list(fields_serializable)
+        fields_serializable.sort()
+        exporter.fields_to_export = fields_serializable
+        self.exporters[spider.name] = exporter
+        exporter.start_exporting()
+
+    def close_spider(self, spider: scrapy.Spider) -> None:
+        self.exporters[spider.name].finish_exporting()
+        self.files[spider.name].close()
+
+    def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        self.exporters[spider.name].export_item(item)
+        return item
+
+
+class JSONLinesStorePipelineProcessed(BasicPipeline, PipelineWithPerSpiderMethods):
+    BASE_ITEM_FIELDS_TO_IGNORE: set = {
+        "response",
+        "thumbnail",
+        "screenshot_bytes",
+    }
+
+    def __init__(self):
+        self.files: dict[str, BinaryIO] = {}
+        self.exporters: dict[str, JsonLinesItemExporter] = {}
+
+    def open_spider(self, spider: scrapy.Spider) -> None:
+        file_output = open(f"output_{spider.name}_processed.jsonl", 'wb')
+        self.files[spider.name] = file_output
+        exporter = JsonLinesItemExporter(
+            file=file_output,
+        )
+        fields_serializable: set = set(list(BaseItem.fields.keys()))
+        fields_serializable.difference_update(self.BASE_ITEM_FIELDS_TO_IGNORE)
+        fields_serializable: list = list(fields_serializable)
+        fields_serializable.sort()
+        exporter.fields_to_export = fields_serializable
+        self.exporters[spider.name] = exporter
+        exporter.start_exporting()
+
+    def close_spider(self, spider: scrapy.Spider) -> None:
+        self.exporters[spider.name].finish_exporting()
+        self.files[spider.name].close()
+
+    def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        self.exporters[spider.name].export_item(item)
+        return item
 
 
 class JSONStorePipeline(BasicPipeline, PipelineWithPerSpiderMethods):

@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 import logging
-from pathlib import Path  # python3 only
 
-import scrapy
+from scrapy.utils.log import configure_logging
 
 import converter.env as env
-from scrapy.utils.log import configure_logging
 
 # Scrapy settings for project
 #
@@ -25,11 +23,7 @@ LOG_FILE = env.get("LOG_FILE", allow_null=True)
 LOG_LEVEL = env.get("LOG_LEVEL", default="INFO")
 LOG_FORMATTER = "converter.custom_log_formatter.CustomLogFormatter"
 
-configure_logging(settings = {
-    "LOG_FILE": LOG_FILE,
-    "LOG_LEVEL": LOG_LEVEL,
-    "LOG_FORMATTER": LOG_FORMATTER
-})
+configure_logging(settings={"LOG_FILE": LOG_FILE, "LOG_LEVEL": LOG_LEVEL, "LOG_FORMATTER": LOG_FORMATTER})
 
 # Default behaviour for regular crawlers of non-license-controlled content
 # When set True, every item will have GROUP_EVERYONE attached in edu-sharing
@@ -38,9 +32,7 @@ DEFAULT_PUBLIC_STATE = False
 
 # Splash (Web Thumbnailer)
 # Will be rolled out via docker-compose by default
-SPLASH_URL = (
-    None if env.get_bool("DISABLE_SPLASH", default=False) else env.get("SPLASH_URL")
-)
+SPLASH_URL = None if env.get_bool("DISABLE_SPLASH", default=False) else env.get("SPLASH_URL")
 SPLASH_WAIT = 2  # seconds to let the page load
 SPLASH_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36"
@@ -56,10 +48,7 @@ THUMBNAIL_SMALL_SIZE = 250 * 250
 THUMBNAIL_SMALL_QUALITY = 40
 THUMBNAIL_LARGE_SIZE = 800 * 800
 THUMBNAIL_LARGE_QUALITY = 60
-THUMBNAIL_MAX_SIZE = (
-    1 * 1024 * 1024
-)  # max size for images that can not be converted (e.g. svg)
-
+THUMBNAIL_MAX_SIZE = 1 * 1024 * 1024  # max size for images that can not be converted (e.g. svg)
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 # USER_AGENT = 'converter_search_idx (+http://www.yourdomain.com)'
@@ -111,7 +100,7 @@ EXTENSIONS = {
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-storeMode = env.get("MODE", default='edu-sharing')
+storeMode = env.get("MODE", default="edu-sharing")
 ITEM_PIPELINES = {
     "converter.pipelines.EduSharingCheckPipeline": 0,
     "converter.pipelines.FilterSparsePipeline": 25,
@@ -120,16 +109,29 @@ ITEM_PIPELINES = {
     "converter.pipelines.ConvertTimePipeline": 200,
     "converter.pipelines.ProcessValuespacePipeline": 250,
     "converter.pipelines.ProcessThumbnailPipeline": 300,
-    (
-        "converter.pipelines.DummyPipeline"
-        if storeMode == "None"
-        else "converter.pipelines.CSVStorePipeline"
-        if storeMode == 'csv'
-        else "converter.pipelines.JSONStorePipeline"
-        if storeMode == 'json'
-        else "converter.pipelines.EduSharingStorePipeline"
-    ): 1000,
 }
+match storeMode:
+    case "None" | None:
+        ITEM_PIPELINES.update({"converter.pipelines.DummyPipeline": 1000})
+    case "csv":
+        ITEM_PIPELINES.update({"converter.pipelines.CSVStorePipeline": 1000})
+    case "edu-sharing":
+        ITEM_PIPELINES.update({"converter.pipelines.EduSharingStorePipeline": 1000})
+    case "json":
+        ITEM_PIPELINES.update({"converter.pipelines.JSONStorePipeline": 1000})
+    case "jsonl":
+        ITEM_PIPELINES.update(
+            {
+                "converter.pipelines.JSONLinesStorePipelineRaw": 5,
+                "converter.pipelines.JSONLinesStorePipelineProcessed": 1000,
+            }
+        )
+    case _:
+        logging.info(
+            f"MODE-value '{storeMode}' not recognized! Please check your '.env'-Settings! "
+            f"Defaulting to MODE = 'edu-sharing'"
+        )
+        ITEM_PIPELINES.update({"converter.pipelines.EduSharingStorePipeline": 1000})
 
 # add custom pipelines from the .env file, if any
 ADDITIONAL_PIPELINES = env.get("CUSTOM_PIPELINES", True)
@@ -160,25 +162,33 @@ AUTOTHROTTLE_DEBUG = False
 # HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 # Enables useful test exports with `scrapy crawl -o my-test-output.json <spider>`
+# The order of these fields determines how they appear in the output file, therefore we're sorting these fields from
+# most-important to least-important metadata fields for debugging (spammy fields appear last):
 FEED_EXPORT_FIELDS = [
-    "collection",
-    "fulltext",
+    "sourceId",
     "hash",
+    "origin",
     "lastModified",
     "license",
     "lom",
-    "origin",
-    "permissions",
     "publisher",
+    "valuespaces",
+    "valuespaces_raw",
+    # metadata fields which aren't used as often
+    "collection",
+    "custom",
+    "notes",
+    "permissions",
     "ranking",
+    "status",
+    "uuid",
+    "fulltext",
     # Response cannot be serialized since it has `bytes` keys
     # "response",
-    "sourceId",
-    # Too much clutter
+    # Too much clutter:
+    # "binary",
+    # "screenshot_bytes",
     # "thumbnail",
-    "type",
-    "uuid",
-    "valuespaces",
 ]
 FEED_EXPORT_INDENT = 2
 FEED_EXPORT_ENCODING = "utf-8"
