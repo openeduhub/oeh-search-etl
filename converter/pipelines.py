@@ -682,6 +682,78 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
         return raw_item
 
 
+class JSONLinesStorePipelineRaw(BasicPipeline, PipelineWithPerSpiderMethods):
+    """
+    Pipeline for storing (raw) items within a local '.jsonl'-file. Useful for debugging if you want to compare the raw
+    item (before any of the mapping pipelines have transformed the item) with the final (processed) item.
+    """
+    BASE_ITEM_FIELDS_TO_IGNORE: set = {
+        "response",
+        "screenshot_bytes"
+    }
+    # some fields are not serializable (or bloat up the .jsonl), therefore we disable those fields for exports
+
+    def __init__(self):
+        self.files: dict[str, BinaryIO] = {}
+        self.exporters: dict[str, JsonLinesItemExporter] = {}
+
+    def open_spider(self, spider: scrapy.Spider) -> None:
+        file_output = open(f"output_{spider.name}_raw.jsonl", 'wb')
+        self.files[spider.name] = file_output
+        exporter = JsonLinesItemExporter(
+            file=file_output,
+        )
+        fields_serializable: set = set(list(BaseItem.fields.keys()))
+        fields_serializable.difference_update(self.BASE_ITEM_FIELDS_TO_IGNORE)
+        fields_serializable: list = list(fields_serializable)
+        fields_serializable.sort()
+        exporter.fields_to_export = fields_serializable
+        self.exporters[spider.name] = exporter
+        exporter.start_exporting()
+
+    def close_spider(self, spider: scrapy.Spider) -> None:
+        self.exporters[spider.name].finish_exporting()
+        self.files[spider.name].close()
+
+    def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        self.exporters[spider.name].export_item(item)
+        return item
+
+
+class JSONLinesStorePipelineProcessed(BasicPipeline, PipelineWithPerSpiderMethods):
+    BASE_ITEM_FIELDS_TO_IGNORE: set = {
+        "response",
+        "thumbnail",
+        "screenshot_bytes",
+    }
+
+    def __init__(self):
+        self.files: dict[str, BinaryIO] = {}
+        self.exporters: dict[str, JsonLinesItemExporter] = {}
+
+    def open_spider(self, spider: scrapy.Spider) -> None:
+        file_output = open(f"output_{spider.name}_processed.jsonl", 'wb')
+        self.files[spider.name] = file_output
+        exporter = JsonLinesItemExporter(
+            file=file_output,
+        )
+        fields_serializable: set = set(list(BaseItem.fields.keys()))
+        fields_serializable.difference_update(self.BASE_ITEM_FIELDS_TO_IGNORE)
+        fields_serializable: list = list(fields_serializable)
+        fields_serializable.sort()
+        exporter.fields_to_export = fields_serializable
+        self.exporters[spider.name] = exporter
+        exporter.start_exporting()
+
+    def close_spider(self, spider: scrapy.Spider) -> None:
+        self.exporters[spider.name].finish_exporting()
+        self.files[spider.name].close()
+
+    def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        self.exporters[spider.name].export_item(item)
+        return item
+
+
 class JSONStorePipeline(BasicPipeline, PipelineWithPerSpiderMethods):
     def __init__(self):
         self.files: dict[str, BinaryIO] = {}
