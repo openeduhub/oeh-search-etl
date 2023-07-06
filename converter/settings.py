@@ -186,6 +186,7 @@ FEED_EXPORT_FIELDS = [
     "publisher",
     "valuespaces",
     "valuespaces_raw",
+    "ai_prompts",
     # metadata fields which aren't used as often
     "collection",
     "custom",
