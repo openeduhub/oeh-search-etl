@@ -287,7 +287,8 @@ class AiPromptItem(Item):
     """
     field_name = Field()
     ai_prompt = Field()
-    ai_response = Field()
+    ai_response = Field(output_processor=JoinMultivalues())
+    ai_response_raw = Field()
 
 
 class BaseItem(Item):
