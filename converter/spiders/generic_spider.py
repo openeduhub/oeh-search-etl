@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 import re
 from typing import Any
@@ -10,23 +11,33 @@ from scrapy import Request
 from scrapy.spiders import Rule, Spider
 
 import z_api
-from util.license_mapper import LicenseMapper
 from valuespace_converter.app.valuespaces import Valuespaces
 from .base_classes import LrmiBase
 from .. import env
-from ..items import LicenseItemLoader
+from ..items import (
+    LicenseItemLoader,
+    BaseItemLoader,
+    LomBaseItemloader,
+    LomGeneralItemloader,
+    LomTechnicalItemLoader,
+    LomLifecycleItemloader,
+    LomEducationalItemLoader,
+    LomClassificationItemLoader,
+    ValuespaceItemLoader,
+    PermissionItemLoader,
+    ResponseItemLoader,
+    AiPromptItemLoader,
+)
+from ..util.license_mapper import LicenseMapper
 from ..web_tools import WebEngine, WebTools
-
-
-# class GenericSpider(CrawlSpider, LrmiBase):
 
 
 class GenericSpider(Spider, LrmiBase):
     name = "generic_spider"
     friendlyName = "generic_spider"  # name as shown in the search ui
-    version = "0.1.2"
+    version = "0.1.3"
     start_urls = [
-        "https://www.planet-schule.de/schwerpunkt/total-phaenomenal-energie/sonnenenergie-film-100.html",  # the original Hackathon example URL
+        # "https://www.planet-schule.de/schwerpunkt/total-phaenomenal-energie/sonnenenergie-film-100.html",  # the original Hackathon example URL
         # "https://de.serlo.org/informatik/158541/definitionen-von-%E2%80%9Ebig-data%E2%80%9C",
         # "https://de.serlo.org/mathe/62630/aufgaben-zum-volumen-eines-quaders",
         # "https://www.planet-schule.de/schwerpunkt/dichter-dran/fontane-film-100.html",
@@ -37,7 +48,7 @@ class GenericSpider(Spider, LrmiBase):
         # "https://www.umwelt-im-unterricht.de/hintergrund/die-endlagerung-hochradioaktiver-abfaelle",
         # "https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78",
         # "https://editor.mnweg.org/mnw/sammlung/bruchrechnen-m-10",
-        # "https://www.bpb.de/themen/migration-integration/laenderprofile/277555/afghanistan-geschichte-politik-gesellschaft/",
+        "https://www.bpb.de/themen/migration-integration/laenderprofile/277555/afghanistan-geschichte-politik-gesellschaft/",
         # "https://www.bpb.de/themen/kolonialismus-imperialismus/postkolonialismus-und-globalgeschichte/236617/kolonialismus-und-postkolonialismus-schluesselbegriffe-der-aktuellen-debatte/",
         # "https://www.geschichtsquellen.de/werk/3402",
         # "https://www.geschichtsquellen.de/werk/4799",
@@ -79,8 +90,6 @@ class GenericSpider(Spider, LrmiBase):
     z_api_text: z_api.AITextPromptsApi
 
     def __init__(self, **kwargs):
-        # CrawlSpider.__init__(self, **kwargs)
-
         LrmiBase.__init__(self, **kwargs)
 
         self.valuespaces = Valuespaces()
@@ -112,12 +121,17 @@ class GenericSpider(Spider, LrmiBase):
     def parse(self, response: scrapy.http.Response, **kwargs) -> Any | None:
         if not self.hasChanged(response):
             return
+
         data_playwright = asyncio.run(WebTools.fetchDataPlaywright(response.url))
         response = response.copy()
         # ToDo: validate "trafilatura"-fulltext-extraction from playwright (compared to the html2text approach)
         playwright_text: str = data_playwright["content"]
         playwright_bytes: bytes = playwright_text.encode()
         text_trafilatura = trafilatura.extract(playwright_text)
+        # ToDo: implement text extraction .env toggle: default / advanced / basic?
+        #  - default: use trafilatura by default?
+        #  - advanced: which trafilatura parameters could be used to improve text extraction for "weird" results?
+        #  - basic: fallback to html2text extraction (explicit .env setting)
         trafilatura_meta_scrapy = trafilatura.extract_metadata(response.body).as_dict()
         trafilatura_meta_playwright = trafilatura.extract_metadata(playwright_bytes).as_dict()
         parsed_html = BeautifulSoup(data_playwright["content"], features="lxml")
@@ -165,31 +179,29 @@ class GenericSpider(Spider, LrmiBase):
                     )
                     return None
 
-        return LrmiBase.parse(self, response)
+        base_loader = BaseItemLoader()
+        base_loader.add_value("sourceId", self.getId(response))
+        base_loader.add_value("hash", self.getHash(response))
+        lrmi_thumbnail = self.getLRMI("thumbnailUrl", response=response)
+        if lrmi_thumbnail:
+            base_loader.add_value("thumbnail", lrmi_thumbnail)
 
-    # return a (stable) id of the source
-    def getId(self, response):
-        return response.url
+        # Creating the nested ItemLoaders according to our items.py data model
+        lom_loader = LomBaseItemloader()
+        general_loader = LomGeneralItemloader()
+        technical_loader = LomTechnicalItemLoader()
+        lifecycle_loader = LomLifecycleItemloader()
+        educational_loader = LomEducationalItemLoader()
+        classification_loader = LomClassificationItemLoader()
+        valuespace_loader = ValuespaceItemLoader()
+        license_loader = LicenseItemLoader()
+        permissions_loader = PermissionItemLoader()
+        response_loader = ResponseItemLoader()
 
-    # return a stable hash to detect content changes
-    # if there is no hash available, may use the current time as "always changing" info
-    # Please include your crawler version as well
-    def getHash(self, response):
-        # ToDo: append the current date to the hash?
-        return self.version
+        # ToDo: rework LRMI JSON-LD extraction
+        #  - so it can handle websites when there are several JSON-LD containers within a single DOM
 
-    def getBase(self, response):
-        base = LrmiBase.getBase(self, response)
-        # optionally provide thumbnail. If empty, it will tried to be generated from the getLOMTechnical 'location' (if format is 'text/html')
-        # base.add_value('thumbnail', 'https://url/to/thumbnail')
-        return base
-
-    def mapResponse(self, response):
-        return LrmiBase.mapResponse(self, response, False)
-
-    def getLOMGeneral(self, response):
-        general = LrmiBase.getLOMGeneral(self, response)
-        general.add_value("title", response.meta["data"]["title"])
+        general_loader.add_value("title", response.meta["data"]["title"])
         # TODO: Map language based on z-api
         html_language: str = response.xpath("//html/@lang").get()
         meta_locale: str = response.xpath('//meta[@property="og:locale"]/@content').get()
@@ -197,33 +209,69 @@ class GenericSpider(Spider, LrmiBase):
         # fallback values.
         # ToDo: websites might return languagecodes as 4-char values (e.g. "de-DE") instead of the 2-char value "de"
         #       -> we will have to detect/clean up languageCodes to edu-sharing's expected 2-char format
-        if html_language:
-            general.add_value("language", html_language)
+        lrmi_language = self.getLRMI("inLanguage", response=response)
+        if lrmi_language:
+            general_loader.add_value("language", lrmi_language)
+        elif html_language:
+            general_loader.add_value("language", html_language)
         elif meta_locale:
-            general.add_value("language", meta_locale)
+            general_loader.add_value("language", meta_locale)
         else:
             # ToDo: replace this fallback value when using the AI_enabled flag
-            general.add_value("language", "de")
+            general_loader.add_value("language", "de")
+        lrmi_description = self.getLRMI("description", "about", response=response)
+        if lrmi_description:
+            general_loader.add_value("description", lrmi_description)
+        lrmi_keywords: list[str] = self.getLRMI("keywords", response=response)
+        if lrmi_keywords:
+            general_loader.add_value("keyword", lrmi_keywords)
+
         if self.AI_ENABLED:
-            general.add_value("description", self.resolve_z_api("description", response))
-            general.add_value("keyword", self.resolve_z_api("keyword", response, split=True))
-            # ToDo: keywords will (often) be returned as a list of bullet points by the AI -> clean up the string first
+            general_loader.add_value(
+                "description", self.resolve_z_api("description", response, base_itemloader=base_loader)
+            )
+            general_loader.add_value(
+                "keyword", self.resolve_z_api("keyword", response, base_itemloader=base_loader, split=True)
+            )
+            # ToDo: keywords will (often) be returned as a list of bullet points by the AI
+            #  -> we might have to detect & clean up the string first
         elif self.AI_ENABLED is False:
             if response.meta["data"]:
                 if "trafilatura_meta" in response.meta["data"]:
                     if "description" in response.meta["data"]["trafilatura_meta"]:
                         trafilatura_description = response.meta["data"]["trafilatura_meta"]["description"]
-                        general.add_value("description", trafilatura_description)
+                        general_loader.add_value("description", trafilatura_description)
                     if "title" in response.meta["data"]["trafilatura_meta"]:
                         trafilatura_title: str = response.meta["data"]["trafilatura_meta"]["title"]
-                        general.replace_value("title", trafilatura_title)
-        return general
+                        general_loader.replace_value("title", trafilatura_title)
 
-    def getLicense(self, response) -> LicenseItemLoader:
-        license = LrmiBase.getLicense(self, response)
+        lom_loader.add_value("general", general_loader.load_item())
+
+        lrmi_file_format = self.getLRMI("fileFormat", response=response)
+        if lrmi_file_format:
+            technical_loader.add_value("format", lrmi_file_format)
+        lrmi_content_size = self.getLRMI("ContentSize", response=response)
+        if lrmi_content_size:
+            technical_loader.add_value("size", lrmi_content_size)
+        lrmi_url = self.getLRMI("url", response=response)
+        if lrmi_url:
+            technical_loader.add_value("location", lrmi_url)
+        technical_loader.add_value("location", response.url)
+        technical_loader.replace_value("format", "text/html")  # ToDo: do we really want to hard-code this?
+        technical_loader.replace_value("size", len(response.body))
+        # ToDo: this needs to use the legnth of our playwright response, not scrapy's response.body
+
+        lom_loader.add_value("lifecycle", lifecycle_loader.load_item())  # ToDo: lifecycle metadata
+        # we might be able to extract author/publisher information from typical <meta> or <head> fields in the DOM
+        lom_loader.add_value("educational", educational_loader.load_item())
+        lom_loader.add_value("classification", classification_loader.load_item())
+        lom_loader.add_value("technical", technical_loader.load_item())
+        # after LomBaseItem is filled with nested metadata, we build the LomBaseItem and add it to our BaseItem:
+        base_loader.add_value("lom", lom_loader.load_item())
+
         author = response.meta["data"]["parsed_html"].find("meta", {"name": "author"})
         if author:
-            license.add_value("author", author.get_text())
+            license_loader.add_value("author", author.get_text())
         # trafilatura offers a license detection feature as part of its "extract_metadata()"-method
         if response.meta["data"]:
             if "trafilatura_meta" in response.meta["data"]:
@@ -237,34 +285,65 @@ class GenericSpider(Spider, LrmiBase):
                         if license_url_mapped:
                             # ToDo: this is a really risky assignment! Validation of trafilatura's license detection
                             #  will be necessary! (this is a metadata field that needs to be confirmed by a human!)
-                            license.add_value("url", license_url_mapped)
-        return license
+                            license_loader.add_value("url", license_url_mapped)
 
-    def getLOMTechnical(self, response):
-        technical = LrmiBase.getLOMTechnical(self, response)
-        technical.replace_value("location", response.url)
-        technical.replace_value("format", "text/html")
-        technical.replace_value("size", len(response.body))
-        return technical
-
-    def getValuespaces(self, response):
-        valuespaces = LrmiBase.getValuespaces(self, response)
+        lrmi_lrt = self.getLRMI("learningResourceType", response=response)
+        if lrmi_lrt:
+            valuespace_loader.add_value("learningResourceType", lrmi_lrt)
+        # lrmi_intended_end_user_role = self.getLRMI("audience.educationalRole", response=response)  # ToDo: rework
+        # # attention: serlo URLs will break the getLRMI() Method because JSONBase cannot extract the JSON-LD properly
+        # # ToDo: maybe use the 'jmespath' Python package to retrieve this value more reliably
+        # if lrmi_intended_end_user_role:
+        #     valuespace_loader.add_value("intendedEndUserRole", lrmi_intended_end_user_role)
         if self.AI_ENABLED:
-            for v in ["educationalContext", "discipline", "educationalContext", "intendedEndUserRole", "new_lrt"]:
-                valuespaces.add_value(v, self.valuespaces.findInText(v, self.resolve_z_api(v, response)))
-        return valuespaces
+            for v in ["educationalContext", "discipline", "intendedEndUserRole", "new_lrt"]:
+                valuespace_loader.add_value(
+                    v, self.valuespaces.findInText(v, self.resolve_z_api(v, response, base_itemloader=base_loader))
+                )
 
-    def resolve_z_api(self, field, response, split=False):
+        # loading all nested ItemLoaders into our BaseItemLoader:
+        base_loader.add_value("license", license_loader.load_item())
+        base_loader.add_value("valuespaces", valuespace_loader.load_item())
+        base_loader.add_value("permissions", permissions_loader.load_item())
+        base_loader.add_value("response", response_loader.load_item())
+        # once all scrapy.Items are loaded into our "base", we yield the BaseItem by calling the .load_item() method
+        yield base_loader.load_item()
+
+    def getId(self, response=None) -> str:
+        """Return a stable identifier (URI) of the crawled item"""
+        lrmi_identifier = self.getLRMI("identifier", "url", response=response)
+        if lrmi_identifier:
+            return lrmi_identifier
+        else:
+            return response.url
+
+    def getHash(self, response=None) -> str:
+        """
+        Return a stable hash to detect content changes (for future crawls).
+        """
+        return f"{datetime.datetime.now().isoformat()}v{self.version}"
+
+    def resolve_z_api(self, field: str, response: scrapy.http.Response, base_itemloader: BaseItemLoader, split=False):
+        ai_prompt_itemloader = AiPromptItemLoader()
+        ai_prompt_itemloader.add_value("field_name", field)
         prompt = self.prompts[field] % {"text": response.meta["data"]["text"][:4000]}
         # ToDo: figure out a reasonable cutoff-length
         # (prompts which are too long get thrown out by the AI services)
+        ai_prompt_itemloader.add_value("ai_prompt", prompt)
+
         result = self.z_api_text.prompt(body=prompt)
         logging.info(result)
         result = result.responses[0].strip()
+        ai_prompt_itemloader.add_value("ai_response_raw", result)
+        # ToDo: error-handling when there is no valid response that we could return as a result
+
         # fix utf-8 chars
         # result = codecs.decode(result, 'unicode-escape')
         # data['text'] = data['text'].encode().decode('unicode-escape').encode('latin1').decode('utf-8')
-        # ToDo: (.csv or .json) pipeline to store the (raw) AI Prompts and answers we received for an item
         if split:
             result = list(map(lambda x: x.strip(), re.split(r"[,|\n]", result)))
+            # ToDo: fix 'split'-parameter:
+            #  - keyword-strings need to be split up in a cleaner way, this approach isn't precise enough for Serlo URLs
+        ai_prompt_itemloader.add_value("ai_response", result)
+        base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
         return result
