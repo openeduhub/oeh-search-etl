@@ -24,7 +24,6 @@ from ..items import (
     LomEducationalItemLoader,
     LomClassificationItemLoader,
     ValuespaceItemLoader,
-    PermissionItemLoader,
     ResponseItemLoader,
     AiPromptItemLoader,
 )
@@ -35,7 +34,7 @@ from ..web_tools import WebEngine, WebTools
 class GenericSpider(Spider, LrmiBase):
     name = "generic_spider"
     friendlyName = "generic_spider"  # name as shown in the search ui
-    version = "0.1.3"
+    version = "0.1.4"
     start_urls = [
         # "https://www.planet-schule.de/schwerpunkt/total-phaenomenal-energie/sonnenenergie-film-100.html",  # the original Hackathon example URL
         # "https://de.serlo.org/informatik/158541/definitionen-von-%E2%80%9Ebig-data%E2%80%9C",
@@ -118,6 +117,16 @@ class GenericSpider(Spider, LrmiBase):
         for url in self.start_urls:
             yield Request(url, callback=self.parse)
 
+    def getId(self, response=None) -> str:
+        """Return a stable identifier (URI) of the crawled item"""
+        return response.url
+
+    def getHash(self, response=None) -> str:
+        """
+        Return a stable hash to detect content changes (for future crawls).
+        """
+        return f"{datetime.datetime.now().isoformat()}v{self.version}"
+
     def parse(self, response: scrapy.http.Response, **kwargs) -> Any | None:
         if not self.hasChanged(response):
             return
@@ -127,7 +136,7 @@ class GenericSpider(Spider, LrmiBase):
         # ToDo: validate "trafilatura"-fulltext-extraction from playwright (compared to the html2text approach)
         playwright_text: str = data_playwright["content"]
         playwright_bytes: bytes = playwright_text.encode()
-        text_trafilatura = trafilatura.extract(playwright_text)
+        trafilatura_text = trafilatura.extract(playwright_text)
         # ToDo: implement text extraction .env toggle: default / advanced / basic?
         #  - default: use trafilatura by default?
         #  - advanced: which trafilatura parameters could be used to improve text extraction for "weird" results?
@@ -145,7 +154,7 @@ class GenericSpider(Spider, LrmiBase):
         html = parsed_html.prettify()
         data_playwright["parsed_html"] = parsed_html
         data_playwright["text"] = WebTools.html2Text(html)
-        data_playwright["text_trafilatura"] = text_trafilatura
+        data_playwright["trafilatura_text"] = trafilatura_text
         data_playwright["trafilatura_meta"] = trafilatura_meta_playwright
         response.meta["data"] = data_playwright
 
@@ -185,26 +194,31 @@ class GenericSpider(Spider, LrmiBase):
         lrmi_thumbnail = self.getLRMI("thumbnailUrl", response=response)
         if lrmi_thumbnail:
             base_loader.add_value("thumbnail", lrmi_thumbnail)
+        meta_og_image: str = selector_playwright.xpath('//meta[@property="og:image"]/@content').get()
+        if meta_og_image:
+            base_loader.add_value("thumbnail", meta_og_image)
+        meta_last_modified: str = selector_playwright.xpath('//meta[@name="last-modified"]/@content').get()
+        if meta_last_modified:
+            base_loader.add_value("lastModified", meta_last_modified)
 
         # Creating the nested ItemLoaders according to our items.py data model
         lom_loader = LomBaseItemloader()
         general_loader = LomGeneralItemloader()
         technical_loader = LomTechnicalItemLoader()
-        lifecycle_loader = LomLifecycleItemloader()
         educational_loader = LomEducationalItemLoader()
         classification_loader = LomClassificationItemLoader()
         valuespace_loader = ValuespaceItemLoader()
         license_loader = LicenseItemLoader()
-        permissions_loader = PermissionItemLoader()
+        permissions_loader = self.getPermissions(response)
         response_loader = ResponseItemLoader()
 
         # ToDo: rework LRMI JSON-LD extraction
         #  - so it can handle websites when there are several JSON-LD containers within a single DOM
+        # ToDo: try to grab as many OpenGraph metadata properties as possible (for reference, see: https://ogp.me)
 
         general_loader.add_value("title", response.meta["data"]["title"])
-        # TODO: Map language based on z-api
-        html_language: str = response.xpath("//html/@lang").get()
-        meta_locale: str = response.xpath('//meta[@property="og:locale"]/@content').get()
+        html_language: str = selector_playwright.xpath("//html/@lang").get()
+        meta_locale: str = selector_playwright.xpath('//meta[@property="og:locale"]/@content').get()
         # HTML language and locale properties haven proven to be pretty inconsistent, but they might be useful as
         # fallback values.
         # ToDo: websites might return languagecodes as 4-char values (e.g. "de-DE") instead of the 2-char value "de"
@@ -216,9 +230,6 @@ class GenericSpider(Spider, LrmiBase):
             general_loader.add_value("language", html_language)
         elif meta_locale:
             general_loader.add_value("language", meta_locale)
-        else:
-            # ToDo: replace this fallback value when using the AI_enabled flag
-            general_loader.add_value("language", "de")
         lrmi_description = self.getLRMI("description", "about", response=response)
         if lrmi_description:
             general_loader.add_value("description", lrmi_description)
@@ -233,9 +244,11 @@ class GenericSpider(Spider, LrmiBase):
             general_loader.add_value(
                 "keyword", self.resolve_z_api("keyword", response, base_itemloader=base_loader, split=True)
             )
+            # ToDo: map/replace the previously set 'language'-value by AI suggestions from Z-API?
+
             # ToDo: keywords will (often) be returned as a list of bullet points by the AI
             #  -> we might have to detect & clean up the string first
-        elif self.AI_ENABLED is False:
+        else:
             if response.meta["data"]:
                 if "trafilatura_meta" in response.meta["data"]:
                     if "description" in response.meta["data"]["trafilatura_meta"]:
@@ -259,9 +272,15 @@ class GenericSpider(Spider, LrmiBase):
         technical_loader.add_value("location", response.url)
         technical_loader.replace_value("format", "text/html")  # ToDo: do we really want to hard-code this?
         technical_loader.replace_value("size", len(response.body))
-        # ToDo: this needs to use the legnth of our playwright response, not scrapy's response.body
+        # ToDo: 'size' should probably use the length of our playwright response, not scrapy's response.body
+        meta_og_url = selector_playwright.xpath('//meta[@property="og:url"]/@content').get()
+        if meta_og_url != response.url:
+            technical_loader.add_value("location", meta_og_url)
 
-        lom_loader.add_value("lifecycle", lifecycle_loader.load_item())  # ToDo: lifecycle metadata
+        self.get_lifecycle_author(lom_loader=lom_loader, selector=selector_playwright, response=response)
+
+        self.get_lifecycle_publisher(lom_loader=lom_loader, selector=selector_playwright, response=response)
+
         # we might be able to extract author/publisher information from typical <meta> or <head> fields in the DOM
         lom_loader.add_value("educational", educational_loader.load_item())
         lom_loader.add_value("classification", classification_loader.load_item())
@@ -269,9 +288,9 @@ class GenericSpider(Spider, LrmiBase):
         # after LomBaseItem is filled with nested metadata, we build the LomBaseItem and add it to our BaseItem:
         base_loader.add_value("lom", lom_loader.load_item())
 
-        author = response.meta["data"]["parsed_html"].find("meta", {"name": "author"})
-        if author:
-            license_loader.add_value("author", author.get_text())
+        meta_author = selector_playwright.xpath('//meta[@name="author"]/@content').getall()
+        if meta_author:
+            license_loader.add_value("author", meta_author)
         # trafilatura offers a license detection feature as part of its "extract_metadata()"-method
         if response.meta["data"]:
             if "trafilatura_meta" in response.meta["data"]:
@@ -309,19 +328,45 @@ class GenericSpider(Spider, LrmiBase):
         # once all scrapy.Items are loaded into our "base", we yield the BaseItem by calling the .load_item() method
         yield base_loader.load_item()
 
-    def getId(self, response=None) -> str:
-        """Return a stable identifier (URI) of the crawled item"""
-        lrmi_identifier = self.getLRMI("identifier", "url", response=response)
-        if lrmi_identifier:
-            return lrmi_identifier
-        else:
-            return response.url
+    def get_lifecycle_publisher(
+        self, lom_loader: LomBaseItemloader, selector: scrapy.Selector, response: scrapy.http.Response
+    ):
+        meta_publisher: str = selector.xpath('//meta[@name="publisher"]/@content').get()
+        if meta_publisher:
+            lifecycle_publisher_loader = LomLifecycleItemloader()
+            lifecycle_publisher_loader.add_value("role", "publisher")
+            lifecycle_publisher_loader.add_value("organization", meta_publisher)
+            self.get_lifecycle_date(lifecycle_loader=lifecycle_publisher_loader, selector=selector, response=response)
 
-    def getHash(self, response=None) -> str:
-        """
-        Return a stable hash to detect content changes (for future crawls).
-        """
-        return f"{datetime.datetime.now().isoformat()}v{self.version}"
+            lom_loader.add_value("lifecycle", lifecycle_publisher_loader.load_item())
+
+    def get_lifecycle_author(
+        self, lom_loader: LomBaseItemloader, selector: scrapy.Selector, response: scrapy.http.Response
+    ):
+        meta_author: str = selector.xpath('//meta[@name="author"]/@content').get()
+        if meta_author:
+            lifecycle_author_loader = LomLifecycleItemloader()
+            lifecycle_author_loader.add_value("role", "author")
+            # author strings could be one or several names or organizations. The license loader expects a 'firstName'.
+            lifecycle_author_loader.add_value("firstName", meta_author)
+            # ToDo: (optional) try determining if names need to be sorted into
+            #  'firstName', 'lastName' or 'organization'-field-values
+            # ToDo: shoving the whole string into 'firstName' is a hacky approach that will cause organizations
+            #  to appear as persons within the "lifecycle"-metadata. fine-tune this approach later.
+            self.get_lifecycle_date(lifecycle_loader=lifecycle_author_loader, selector=selector, response=response)
+
+            lom_loader.add_value("lifecycle", lifecycle_author_loader.load_item())
+
+    @staticmethod
+    def get_lifecycle_date(lifecycle_loader: LomLifecycleItemloader, selector: scrapy.Selector, response):
+        if "date" in response.meta["data"]["trafilatura_meta"]:
+            # trafilatura's metadata extraction scans for dates within <meta name="date" content"..."> Elements
+            date = selector.xpath('//meta[@name="date"]/@content').get()
+            date_trafilatura: str = response.meta["data"]["trafilatura_meta"]["date"]
+            if date_trafilatura:
+                lifecycle_loader.add_value("date", date_trafilatura)
+            elif date:
+                lifecycle_loader.add_value("date", date)
 
     def resolve_z_api(self, field: str, response: scrapy.http.Response, base_itemloader: BaseItemLoader, split=False):
         ai_prompt_itemloader = AiPromptItemLoader()
