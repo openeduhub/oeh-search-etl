@@ -319,6 +319,15 @@ class PermissionItem(Item):
     """Determines if this item should be 'public' (= accessible by anyone)"""
 
 
+class AiPromptItem(Item):
+    """
+    Temporary item which is used to store information about AI prompts which were made by a crawler.
+    """
+    field_name = Field()
+    ai_prompt = Field()
+    ai_response = Field()
+
+
 class BaseItem(Item):
     """
     BaseItem provides the basic data structure for any crawled item.
@@ -390,6 +399,7 @@ class BaseItem(Item):
     valuespaces. Please DO NOT use it within normal crawlers"""
     screenshot_bytes = Field()
     """screenshot_bytes is a (temporary) field that gets deleted after the thumbnail pipeline processed its byte-data"""
+    ai_prompts = Field(output_processor=JoinMultivalues())
 
 
 class BaseItemLoader(ItemLoader):
@@ -448,9 +458,11 @@ class LomEducationalItemLoader(ItemLoader):
     default_output_processor = TakeFirst()
 
 
-# class LomRightsItemLoader(ItemLoader):
-#    default_item_class = LomRightsItem
-#    default_output_processor = TakeFirst()
+class AiPromptItemLoader(ItemLoader):
+    default_item_class = AiPromptItem
+    default_output_processor = TakeFirst()
+
+
 class LomClassificationItemLoader(ItemLoader):
     default_item_class = LomClassificationItem
     default_output_processor = TakeFirst()
