@@ -6,7 +6,7 @@ import dateparser
 import requests
 import scrapy
 
-import env
+from converter import env
 from converter.constants import Constants
 from converter.items import (
     BaseItemLoader,
