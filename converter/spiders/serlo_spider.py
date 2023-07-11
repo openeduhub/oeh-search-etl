@@ -1,9 +1,12 @@
 import datetime
 import json
+import logging
 
+import dateparser
 import requests
 import scrapy
 
+import env
 from converter.constants import Constants
 from converter.items import (
     BaseItemLoader,
@@ -18,6 +21,7 @@ from converter.items import (
 )
 from converter.spiders.base_classes import LomBase
 from converter.web_tools import WebEngine, WebTools
+from ..util.license_mapper import LicenseMapper
 
 
 class SerloSpider(scrapy.Spider, LomBase):
@@ -26,11 +30,12 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.2.7"  # last update: 2023-05-12
+    version = "0.2.8"  # last update: 2023-07-11
     custom_settings = {
         # Using Playwright because of Splash-issues with thumbnails+text for Serlo
         "WEB_TOOLS": WebEngine.Playwright
     }
+    GRAPHQL_MODIFIED_AFTER_PARAMETER: str = ""
 
     graphql_items = list()
     # Mapping from EducationalAudienceRole (LRMI) to IntendedEndUserRole(LOM), see:
@@ -52,32 +57,80 @@ class SerloSpider(scrapy.Spider, LomBase):
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
+        self.decide_crawl_mode()
         self.graphql_items = self.fetch_all_graphql_pages()
 
+    def decide_crawl_mode(self):
+        """
+        Check the '.env'-file for a 'SERLO_MODIFIED_AFTER'-variable and set the GraphQL API parameter 'modifiedAfter'
+        accordingly.
+
+        *   Default behaviour: The Serlo GraphQL API is crawled COMPLETELY. (The 'modifiedAfter'-parameter will be
+            omitted in this case.)
+        *   Optional behaviour: If the 'SERLO_MODIFIED_AFTER'-variable is set in your .env file (e.g. "2023-07-01"),
+            Serlo's GraphQL API shall be queried ONLY for items that have been modified (by Serlo) since that date.
+
+        You can use this '.env'-setting to crawl Serlo more efficiently: Specify a date and only receive items that were
+        modified since <date of the last crawling process>.
+        """
+        graphql_modified_after_param: str = env.get(key="SERLO_MODIFIED_AFTER", allow_null=True, default=None)
+        if graphql_modified_after_param:
+            logging.info(
+                f"INIT: '.env'-Setting 'SERLO_MODIFIED_AFTER': '{graphql_modified_after_param}' detected. "
+                f"Trying to parse the date string..."
+            )
+            # the 'modifiedAfter'-parameter must be an ISO-formatted string WITH timezone information, e.g.:
+            # "2023-07-01T00:00:00+00:00". To make future crawler maintenance a bit easier, we use scrapy's dateparser
+            # module, so you can control crawls by setting the '.env'-parameter:
+            # "SERLO_MODIFIED_AFTER"-Parameter "2023-07-01" and it will convert the string accordingly
+            date_parsed = dateparser.parse(
+                date_string=graphql_modified_after_param,
+                settings={"TIMEZONE": "Europe/Berlin", "RETURN_AS_TIMEZONE_AWARE": True},
+            )
+            if date_parsed:
+                date_parsed_iso = date_parsed.isoformat()
+                logging.info(
+                    f"INIT: SUCCESS - serlo_spider will ONLY request GraphQL items that were modified (by Serlo) after "
+                    f"'{date_parsed_iso}' ."
+                )
+                self.GRAPHQL_MODIFIED_AFTER_PARAMETER = date_parsed_iso
+        else:
+            logging.info("INIT: Starting COMPLETE Serlo crawl (WITHOUT any GraphQL API 'modifiedAfter'-parameter).")
+
     def fetch_all_graphql_pages(self):
-        all_entities = list()
+        all_resources = list()
         pagination_string: str = ""
         has_next_page = True
         while has_next_page is True:
-            current_page = self.query_graphql_page(pagination_string=pagination_string)["data"]["metadata"]["entities"]
-            all_entities += current_page["nodes"]
+            current_page = self.query_graphql_page(pagination_string=pagination_string)["data"]["metadata"]["resources"]
+            all_resources += current_page["nodes"]
             has_next_page = current_page["pageInfo"]["hasNextPage"]
             if has_next_page:
                 pagination_string = current_page["pageInfo"]["endCursor"]
             else:
                 break
-        return all_entities
+        return all_resources
 
     def query_graphql_page(self, amount_of_nodes: int = 500, pagination_string: str = None) -> dict:
         amount_of_nodes = amount_of_nodes
         # specifies the amount of nodes that shall be requested (per page) from the GraphQL API
         # (default: 100 // max: 500)
         pagination_string = pagination_string
+        modified_after: str = ""
+        if self.GRAPHQL_MODIFIED_AFTER_PARAMETER:
+            # the 'modifiedAfter'-parameter can be used to only crawl items that have been modified since the last time
+            # the crawler ran.
+            # see: https://github.com/serlo/documentation/wiki/Metadata-API#tips-for-api-consumer
+            modified_after: str = self.GRAPHQL_MODIFIED_AFTER_PARAMETER
+            if modified_after:
+                # we only add the (optional) 'modifiedAfter'-parameter if the .env-Setting was recognized. By default,
+                # the string will stay empty.
+                modified_after: str = f', modifiedAfter: "{modified_after}"'
         graphql_metadata_query_body = {
             "query": f"""
                         query {{
                             metadata {{
-                                entities(first: {amount_of_nodes}, after: "{pagination_string}"){{
+                                resources(first: {amount_of_nodes}, after: "{pagination_string}"{modified_after}){{
                                     nodes
                                     pageInfo {{
                                         hasNextPage
@@ -134,17 +187,32 @@ class SerloSpider(scrapy.Spider, LomBase):
         html_body = playwright_dict.get("html")
         screenshot_bytes = playwright_dict.get("screenshot_bytes")
         html_text = playwright_dict.get("text")
+        selector_playwright: scrapy.Selector = scrapy.Selector(text=html_body)
+
+        robot_meta_tags: list[str] = selector_playwright.xpath("//meta[@name='robots']/@content").getall()
+        if robot_meta_tags:
+            # Serlo makes use of the Google's Robot Meta Tag Specification
+            # (see: https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag)
+            # Serlo Items that are marked for deletion ("Papierkorb"-Items) carry Robot Meta Tags in the HTML Header,
+            # therefore we need to respect these tags and skip the items!
+            if "noindex" in robot_meta_tags or "none" in robot_meta_tags:
+                logging.info(
+                    f"Robot Meta Tag {robot_meta_tags} identified. Robot Meta Tags 'noindex' or 'none' should "
+                    f"be skipped by the crawler. Dropping item {response.url} ."
+                )
+                return None
 
         base = BaseItemLoader()
-        # # ALL possible keys for the different Item and ItemLoader-classes can be found inside converter/items.py
-        # # TODO: fill "base"-keys with values for
-        # #  - thumbnail          recommended
-        base.add_value("screenshot_bytes", screenshot_bytes)
+        og_image: str = selector_playwright.xpath('//meta[@property="og:image"]/@content').get()
+        if og_image:
+            # if an OpenGraph image property is available, we'll use that as our thumbnail URL, e.g.:
+            # <meta property="og:image" name="image" content="https://de.serlo.org/_assets/img/meta/mathe.png">
+            base.add_value("thumbnail", og_image)
+        else:
+            base.add_value("screenshot_bytes", screenshot_bytes)
         base.add_value("sourceId", self.getId(response, graphql_json=graphql_json))
         base.add_value("hash", self.getHash(response, graphql_json=graphql_json))
         base.add_value("lastModified", graphql_json["dateModified"])
-        # thumbnail_url: str = "This string should hold the thumbnail URL"
-        # base.add_value('thumbnail', thumbnail_url)
         if "publisher" in json_ld:
             base.add_value("publisher", json_ld["publisher"])
 
@@ -192,12 +260,16 @@ class SerloSpider(scrapy.Spider, LomBase):
                                     title_breadcrumb_last_label: str = breadcrumbs[-1]["label"]
                                     if title_breadcrumb_last_label:
                                         general.replace_value("title", title_breadcrumb_last_label)
-        # not all GraphQL entries have a description either, therefore we try to grab that from different sources
+        # Not all GraphQL items have a description, but we need one (otherwise the item would get dropped since Serlo
+        # provides no keywords either). That's why we try to grab the description from three different sources:
         # (GraphQL > JSON-LD > DOM header)
         description_1st_try = str()
         description_2nd_try = str()
         if "description" in graphql_json:
             description_1st_try: str = graphql_json["description"]
+            # as of Serlo's Metadata API v1.0.0:
+            # - the "description"-property is only available where a description exists
+            # see: https://github.com/serlo/documentation/wiki/Metadata-API#changes-to-entity-descriptions
             if description_1st_try:
                 general.add_value("description", description_1st_try)
         if not description_1st_try and "description" in json_ld:
@@ -210,10 +282,9 @@ class SerloSpider(scrapy.Spider, LomBase):
             if description_from_header:
                 general.add_value("description", description_from_header)
         in_language: list = graphql_json["inLanguage"]
+        # Serlo provides a list of 2-char-language-codes within its "inLanguage"-property
         general.add_value("language", in_language)
-        # ToDo: keywords would be extremely useful, but aren't supplied by neither the API / JSON_LD nor the header
-        # # once we've added all available values to the necessary keys in our LomGeneralItemLoader,
-        # # we call the load_item()-method to return a (now filled) LomGeneralItem to the LomBaseItemLoader
+        # ToDo: keywords would be extremely useful, but aren't supplied by neither the API, JSON_LD nor the HTML header
         lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
@@ -224,27 +295,22 @@ class SerloSpider(scrapy.Spider, LomBase):
         # #  - otherPlatformRequirements      optional
         # #  - duration                       optional (only applies to audiovisual content like videos/podcasts)
         technical.add_value("format", "text/html")  # e.g. if the learning object is a web-page
-        technical.add_value("location", graphql_json["id"])  # we could also use response.url here
+        if "id" in graphql_json:
+            graphql_id: str = graphql_json["id"]  # e.g.: "https://serlo.org/1495"
+            technical.add_value("location", graphql_id)
+        else:
+            # This case should never occur. The resolved URLs will always be longer and less stable than the shortened
+            # URI vom the GraphQL 'id'-property above.
+            technical.add_value("location", response.url)
 
         lom.add_value("technical", technical.load_item())
 
-        lifecycle = LomLifecycleItemloader()
-        # # TODO: fill "lifecycle"-keys with values for
-        # #  - role                           recommended
-        # #  - firstName                      recommended
-        # #  - lastName                       recommended
-        # #  - uuid                           optional
-        if "publisher" in json_ld:
-            lifecycle.add_value("organization", "Serlo Education e. V.")
-            lifecycle.add_value("role", "publisher")  # supported roles: "author" / "editor" / "publisher"
-            # for available roles mapping, please take a look at converter/es_connector.py
-            lifecycle.add_value("url", json_ld["publisher"])
-            lifecycle.add_value("email", "de@serlo.org")
-            for language_item in in_language:
-                if language_item == "en":
-                    lifecycle.replace_value("email", "en@serlo.org")
-        lifecycle.add_value("date", graphql_json["dateCreated"])
-        lom.add_value("lifecycle", lifecycle.load_item())
+        self.get_lifecycle_authors(graphql_json=graphql_json, lom_base_item_loader=lom)
+        # Serlo's new "maintainer"-property holds the identical information as the "creator.affiliaton"-property.
+
+        self.get_lifecycle_metadata_providers(graphql_json=graphql_json, lom_base_item_loader=lom)
+
+        self.get_lifecycle_publishers(graphql_json=graphql_json, lom_base_item_loader=lom)
 
         educational = LomEducationalItemLoader()
         # # TODO: fill "educational"-keys with values for
@@ -297,17 +363,28 @@ class SerloSpider(scrapy.Spider, LomBase):
             vs.add_value("intendedEndUserRole", intended_end_user_roles)
             # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl)
 
+        # ToDo: the graphql_json["about"] field might carry more precise information, but uses the DINI KIM Schulfaecher
+        #  vocabulary. A mapper/resolver might be necessary. Example:
+        # {
+        # 		"about": [
+        # 			{
+        # 				"type": "Concept",
+        # 				"id": "http://w3id.org/kim/schulfaecher/s1017",
+        # 				"inScheme": {
+        # 					"id": "http://w3id.org/kim/schulfaecher/"
+        # 				}
+        # 			}
         if "about" in json_ld and len(json_ld["about"]) != 0:
             # not every json_ld-container has an "about"-key, e.g.: https://de.serlo.org/5343/5343
             # we need to make sure that we only try to access "about" if it's actually available
             # making sure that we only try to look for a discipline if the "about"-list actually has list items
             disciplines = list()
-            for list_item in json_ld["about"]:
-                if "de" in list_item["prefLabel"]:
-                    discipline_de: str = list_item["prefLabel"]["de"]
+            for about_item in json_ld["about"]:
+                if "de" in about_item["prefLabel"]:
+                    discipline_de: str = about_item["prefLabel"]["de"]
                     disciplines.append(discipline_de)
-                elif "en" in list_item["prefLabel"]:
-                    discipline_en: str = list_item["prefLabel"]["en"]
+                elif "en" in about_item["prefLabel"]:
+                    discipline_en: str = about_item["prefLabel"]["en"]
                     disciplines.append(discipline_en)
             if len(disciplines) > 0:
                 vs.add_value("discipline", disciplines)
@@ -334,18 +411,34 @@ class SerloSpider(scrapy.Spider, LomBase):
             # only set the price to "kostenpflichtig" if it's explicitly stated, otherwise we'll leave it empty
             vs.add_value("price", "yes")
         if graphql_json["learningResourceType"]:
+            # Serlo is using the learningResourceType vocabulary (as specified in the AMB standard), see:
+            # https://github.com/serlo/documentation/wiki/Metadata-API#changes-to-the-learningresourcetype-property
             # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/learningResourceType.ttl)
-            vs.add_value("learningResourceType", graphql_json["learningResourceType"])
+            learning_resource_types: list[dict] = graphql_json["learningResourceType"]
+            for lrt_item in learning_resource_types:
+                if "id" in lrt_item:
+                    learning_resource_type_url: str = lrt_item["id"]
+                    if "/openeduhub/vocabs/learningResourceType/" in learning_resource_type_url:
+                        lrt_key: str = learning_resource_type_url.split("/")[-1]
+                        if lrt_key:
+                            vs.add_value("learningResourceType", lrt_key)
+                    else:
+                        logging.debug(
+                            f"Serlo 'learningResourceType' {learning_resource_type_url} was not recognized "
+                            f"as part of the OpenEduHub 'learningResourceType' vocabulary. Please check the "
+                            f"crawler or the vocab at oeh-metadata-vocabs/learningResourceType.ttl"
+                        )
 
         base.add_value("valuespaces", vs.load_item())
 
         lic = LicenseItemLoader()
-        # # TODO: fill "license"-keys with values for
-        # #  - author                         recommended
-        # #  - expirationDate                 optional (for content that expires, e.g. ÖR-Mediatheken)
-        license_url = graphql_json["license"]["id"]
-        if license_url:
-            lic.add_value("url", license_url)
+        if "license" in graphql_json:
+            license_url: str = graphql_json["license"]["id"]
+            if license_url:
+                license_mapper = LicenseMapper()
+                license_url_mapped = license_mapper.get_license_url(license_string=license_url)
+                if license_url_mapped:
+                    lic.add_value("url", license_url_mapped)
         base.add_value("license", lic.load_item())
 
         permissions = super().getPermissions(response)
@@ -360,3 +453,99 @@ class SerloSpider(scrapy.Spider, LomBase):
         base.add_value("response", response_loader.load_item())
 
         yield base.load_item()
+
+    @staticmethod
+    def get_lifecycle_authors(graphql_json: dict, lom_base_item_loader: LomBaseItemloader):
+        """Retrieve author metadata from GraphQL 'creator'-items and store it in the provided LomBaseItemLoader."""
+        if "creator" in graphql_json:
+            creators: list[dict] = graphql_json["creator"]
+            for creator in creators:
+                # a typical "creator" item currently (2023-07-11) looks like this:
+                # {
+                # 			"type": "Person",
+                # 			"id": "https://serlo.org/49129",
+                # 			"name": "testaccount",
+                # 			"affiliation": {
+                # 				"id": "https://serlo.org/organization",
+                # 				"name": "Serlo Education e.V.",
+                # 				"type": "Organization"
+                # 			}
+                # While the "affiliation" needs to be handled within the lifecycle_publisher item, we can use the 'name'
+                # and 'id'-field for author information. (the 'id'-field leads to the user-profile on Serlo)
+                lifecycle_author = LomLifecycleItemloader()
+                lifecycle_author.add_value("role", "author")
+                if "name" in creator:
+                    # the "name"-property will hold a Serlo username
+                    lifecycle_author.add_value("firstName", creator["name"])
+                if "id" in creator:
+                    # the "id"-property will point towards a serlo profile
+                    lifecycle_author.add_value("url", creator["id"])
+                lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
+
+    @staticmethod
+    def get_lifecycle_metadata_providers(graphql_json, lom_base_item_loader):
+        """
+        Retrieve metadata-provider metadata from GraphQL 'mainEntityOfPage'-items and store it in the provided
+        LomBaseItemLoader.
+        """
+        if "mainEntityOfPage" in graphql_json:
+            maeop_list: list[dict] = graphql_json["mainEntityOfPage"]
+            for maeop_item in maeop_list:
+                # for future reference - a single 'mainEntityOfpage'-item might look like this:
+                # {
+                # 			"dateCreated": "2023-07-11T15:24:14.042782898+00:00",
+                # 			"dateModified": "2023-07-11T15:24:14.042782898+00:00",
+                # 			"id": "https://serlo.org/metadata",
+                # 			"provider": {
+                # 				"id": "https://serlo.org/organization",
+                # 				"name": "Serlo Education e.V.",
+                # 				"type": "Organization"
+                # 			}
+                # 		}
+                lifecycle_metadata_provider = LomLifecycleItemloader()
+                lifecycle_metadata_provider.add_value("role", "metadata_provider")
+                if "dateCreated" in maeop_item:
+                    date_created: str = maeop_item["dateCreated"]
+                    if date_created:
+                        lifecycle_metadata_provider.add_value("date", date_created)
+                elif "dateModified" in maeop_item:
+                    date_modified: str = maeop_item["dateModified"]
+                    if date_modified:
+                        lifecycle_metadata_provider.add_value("date", date_modified)
+                if "id" in maeop_item:
+                    maeop_item_url: str = maeop_item["id"]
+                    if maeop_item_url:
+                        lifecycle_metadata_provider.add_value("url", maeop_item_url)
+                if "provider" in maeop_item:
+                    provider_dict: dict = maeop_item["provider"]
+                    if "id" in provider_dict:
+                        provider_url: str = provider_dict["id"]
+                        if provider_url:
+                            lifecycle_metadata_provider.add_value("url", provider_url)
+                    if "name" in provider_dict:
+                        provider_name: str = provider_dict["name"]
+                        lifecycle_metadata_provider.add_value("organization", provider_name)
+                lom_base_item_loader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
+
+    @staticmethod
+    def get_lifecycle_publishers(graphql_json, lom_base_item_loader):
+        """Retrieve publisher metadata from GraphQL 'publisher'-items and store it in the provided LomBaseItemLoader."""
+        graphql_publishers: list[dict] = graphql_json["publisher"]
+        if graphql_publishers:
+            for publisher_dict in graphql_publishers:
+                lifecycle_publisher = LomLifecycleItemloader()
+                lifecycle_publisher.add_value("role", "publisher")
+                if "name" in graphql_json["publisher"]:
+                    publisher_name: str = publisher_dict["name"]
+                    lifecycle_publisher.add_value("organization", publisher_name)
+                if "id" in graphql_json["publisher"]:
+                    publisher_url: str = publisher_dict["id"]
+                    lifecycle_publisher.add_value("url", publisher_url)
+                if "dateCreated" in graphql_json:
+                    date_created: str = graphql_json["dateCreated"]
+                    lifecycle_publisher.add_value("date", date_created)
+                elif "dateModified" in graphql_json:
+                    date_modified: str = graphql_json["dateModified"]
+                    if date_modified:
+                        lifecycle_publisher.add_value("date", date_modified)
+                lom_base_item_loader.add_value("lifecycle", lifecycle_publisher.load_item())
