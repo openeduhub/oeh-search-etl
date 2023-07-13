@@ -10,6 +10,7 @@ class TestLicenseMapper:
         [
             ("a random CC-BY 4.0 string", Constants.LICENSE_CC_BY_40),
             ("CC-0", Constants.LICENSE_CC_ZERO_10),
+            ("https://creativecommons.org/publicdomain/zero/1.0/deed.de", Constants.LICENSE_CC_ZERO_10),
             ("the license CC0 is mentioned somewhere", Constants.LICENSE_CC_ZERO_10),
             ("CC-Zero", Constants.LICENSE_CC_ZERO_10),
             ("Creative Commons Zero", Constants.LICENSE_CC_ZERO_10),
@@ -31,6 +32,7 @@ class TestLicenseMapper:
                 None,
             ),
             ("Public Domain", Constants.LICENSE_PDM),
+            ("https://creativecommons.org/publicdomain/mark/1.0/deed.de", Constants.LICENSE_PDM),
             ("https://creativecommons.org/licenses/by-nc-nd/3.0/deed.DE", Constants.LICENSE_CC_BY_NC_ND_30),
             ("https://creativecommons.org/licenses/by-nc-nd/2.0/deed.CA", Constants.LICENSE_CC_BY_NC_ND_20),
             ("https://creativecommons.org/licenses/by-sa/4.0/deed.es_ES", Constants.LICENSE_CC_BY_SA_40),
@@ -63,6 +65,7 @@ class TestLicenseMapper:
             (" CC BY SA ", "CC_BY_SA"),
             ("dieser Text ist public domain", "PDM"),
             ("Gemeinfrei", "PDM"),
+            ("Gemeinfrei / public domain", "PDM"),
             ("Frei nutzbares Material", None),
             (" ", None),
             ("", None),
