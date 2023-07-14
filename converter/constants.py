@@ -91,6 +91,8 @@ class Constants:
     LICENSE_COPYRIGHT_LAW: Final[str] = "COPYRIGHT_FREE"
     LICENSE_CUSTOM: Final[str] = "CUSTOM"  # Custom License, use the license description field for arbitrary values
     LICENSE_NONPUBLIC: Final[str] = "NONPUBLIC"
+    LICENSE_SCHULFUNK: Final[str] = "SCHULFUNK"  # "Schulfunk (§47 UrhG)"
+    LICENSE_UNTERRICHTS_UND_SCHULMEDIEN = "UNTERRICHTS_UND_LEHRMEDIEN"  # "§60b Unterrichts- und Lehrmedien"
 
     NEW_LRT_MATERIAL: Final[str] = "1846d876-d8fd-476a-b540-b8ffd713fedb"
     NEW_LRT_TOOL: Final[str] = "cefccf75-cba3-427d-9a0f-35b4fedcbba1"

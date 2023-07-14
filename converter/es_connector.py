@@ -296,9 +296,10 @@ class EduSharing:
                                     f"please check if the license-mapping within es_connector.py is up-to-date.")
         if "internal" in license:
             match license["internal"]:
-                case Constants.LICENSE_COPYRIGHT_LAW:
-                    spaces["ccm:commonlicense_key"] = "COPYRIGHT_FREE"
-                case "CC_0" | "CC_BY" | "CC_BY_NC" | "CC_BY_NC_ND" | "CC_BY_NC_SA" | "CC_BY_ND" | "CC_BY_SA" | "PDM":
+                case "CC_0" | "CC_BY" | "CC_BY_NC" | "CC_BY_NC_ND" | "CC_BY_NC_SA" | "CC_BY_ND" | "CC_BY_SA" | "PDM" \
+                     | Constants.LICENSE_COPYRIGHT_LAW \
+                     | Constants.LICENSE_SCHULFUNK \
+                     | Constants.LICENSE_UNTERRICHTS_UND_SCHULMEDIEN:
                     spaces["ccm:commonlicense_key"] = license["internal"]
                 case Constants.LICENSE_CUSTOM:
                     spaces["ccm:commonlicense_key"] = "CUSTOM"
