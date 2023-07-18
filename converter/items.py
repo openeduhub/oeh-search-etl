@@ -32,61 +32,137 @@ class MutlilangItem(Item):
 
 
 class LomGeneralItem(Item):
-    identifier = Field(output_processor=JoinMultivalues())
-    title = Field()
-    language = Field()
-    keyword = Field(output_processor=JoinMultivalues())
-    coverage = Field()
-    structure = Field()
+    """
+    General requirements:
+    - 'description'
+    - 'keyword'
+    - 'title'
+
+    (If neither 'description' nor 'keyword' are provided, the whole item gets dropped by the pipeline.)
+    """
     aggregationLevel = Field()
+    """Corresponding edu-sharing property: 'cclom:aggregationlevel'"""
+    coverage = Field()
+    # ToDo: 'coverage' is currently not used; no equivalent edu-sharing property
     description = Field()
+    """Corresponding edu-sharing property: 'cclom:general_description'"""
+    identifier = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'cclom:general_identifier' """
+    keyword = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'cclom:general_keyword'"""
+    language = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'cclom:general_language'"""
+    structure = Field()
+    # ToDo: 'structure' is currently not used; no equivalent edu-sharing property
+    title = Field()
+    """Corresponding edu-sharing properties: 'cm:title' & 'cclom:title'"""
 
 
 class LomLifecycleItem(Item):
-    role = Field()
+    """
+    Depending on the 'role'-value that is chosen for a LomLifecycleItem, values are written to a VCARD-string and mapped
+    to either one of these corresponding edu-sharing properties:
+
+    - 'ccm:lifecyclecontributer_publisher'              ('role'-value = 'publisher')
+    - 'ccm:lifecyclecontributer_author'                 ('role'-value = 'author')
+    - 'ccm:lifecyclecontributer_editor'                 ('role'-value = 'editor')
+    - 'ccm:metadatacontributer_creator'                 ('role'-value = 'metadata_creator')
+    - 'ccm:metadatacontributer_provider'                ('role'-value = 'metadata_provider')
+    - 'ccm:lifecyclecontributer_unknown'                ('role'-value = 'unknown')
+
+    The role 'unknown' is used for contributors in an unknown capacity ("Mitarbeiter").
+    """
+    date = Field()
+    """The (publication) date of a contribution. Date values will be automatically transformed/parsed.
+    Corresponding edu-sharing property: 'ccm:published_date'"""
+    email = Field()
     firstName = Field()
     lastName = Field()
     organization = Field()
-    email = Field()
+    role = Field()
+    title = Field()
+    """The (academic) title of a person. String value will be prefixed to '(title) firstName lastName' and written into
+    the vCard-field 'TITLE'.
+    """
     url = Field()
     uuid = Field()
-    date = Field()
-    "the date of contribution. Will be automatically transformed/parsed"
+    id_gnd = Field()
+    """The GND identifier (URI) of a PERSON, e.g. "https://d-nb.info/gnd/<identifier>". 
+    Values will be written into the vCard namespace 'X-GND-URI'."""
+    id_orcid = Field()
+    """The ORCID identifier (URI) of a PERSON, e.g. "https://orcid.org/<identifier>". 
+    Values will be written into the vCard namespace 'X-ORCID'."""
+    id_ror = Field()
+    """The ROR identifier (URI) of an ORGANIZATION, e.g. "https://ror.org/<identifier>".
+    Values will be written into the vCard namespace 'X-ROR'."""
+    id_wikidata = Field()
+    """The Wikidata identifier (URI) of an ORGANIZATION, e.g. "https://www.wikidata.org/wiki/<identifier>". 
+    Values will be written into the vCard namespace 'X-Wikidata'."""
+
+
 
 class LomTechnicalItem(Item):
-    format = Field()
-    size = Field()
-    location = Field(output_processor=JoinMultivalues())
-    "URI/location of the element, multiple values are supported, the first entry is the primary location, while all others are secondary locations"
-    requirement = Field()
-    installationRemarks = Field()
-    otherPlatformRequirements = Field()
     duration = Field()
-    "Duration of the element (e.g. for video or audio). Supported formats for automatic transforming include seconds, HH:MM:SS and ISO 8601 duration (PT0H0M0S)"
+    """Duration of the element (e.g. for video or audio content). Supported formats for automatic transforming include 
+    seconds, HH:MM:SS and ISO 8601 duration (PT0H0M0S).
+    Corresponding edu-sharing property: 'cclom:duration'"""
+    format = Field()
+    """'format' expects MIME-type as a string, e.g. "text/html" or "video/mp4".
+    Corresponding edu-sharing property: 'cclom:format'"""
+    installationRemarks = Field()
+    # ToDo: 'installationRemarks' is an unused field
+    location = Field(output_processor=JoinMultivalues())
+    """URI/location of the element; multiple values are supported. 
+    The first entry is the primary location, while all others are secondary locations.
+    Corresponding edu-sharing properties: 'ccm:wwwurl' & 'cclom:location'"""
+    otherPlatformRequirements = Field()
+    # ToDo: LOM.technical attribute 'otherPlatformRequirements' has no equivalent property in edu-sharing (and has never
+    #  been provided by any of the crawled APIs, yet.
+    requirement = Field()
+    # ToDo: LOM.technical attribute 'requirement' has no equivalent property in edu-sharing
+    size = Field()
+    """Content size in bytes. (The value is automatically calculated by the edu-sharing back-end)
+    Corresponding edu-sharing property: 'cclom:size'"""
 
 
 class LomAgeRangeItem(Item):
     fromRange = Field()
+    """Corresponding edu-sharing property: 'ccm:educationaltypicalagerange_from'"""
     toRange = Field()
+    """Corresponding edu-sharing property: 'ccm:educationaltypicalagerange_to"""
 
 
 class LomEducationalItem(Item):
-    interactivityType = Field()
-    # Please use valuespaces.learningResourceType
-    # learningResourceType = Field()
-    interactivityLevel = Field()
-    semanticDensity = Field()
-    # Please use valuespaces.intendedEndUserRole
-    intendedEndUserRole = Field(
-        serializer=MutlilangItem, output_processor=JoinMultivalues()
-    )
-    # Please use valuespaces.educationalContext
-    # context = Field()
-    typicalAgeRange = Field(serializer=LomAgeRangeItem)
-    difficulty = Field()
-    typicalLearningTime = Field()
+    """
+    Item modeled after LOM-DE "Educational". Attention: Some fields which originally appear in "educational" are handled
+    by "ValuespaceItem" instead because of vocabularies which need to be mapped.
+
+    Please DO NOT use/fill the following fields here in "educational", but rather use them in ValuespaceItem:
+    - intendedEndUserRole       (see: 'valuespaces.intendedEndUserRole')
+    - learningResourceType      (see: 'valuespaces.learningResourceType')
+    - context                   (see: 'valuespaces.educationalContext')
+    """
     description = Field()
+    # ToDo: 'description' isn't mapped to any field in edu-sharing
+    difficulty = Field()
+    """Corresponding edu-sharing property: 'ccm:educationaldifficulty'"""
+    # ToDo: 'ccm:educationaldifficulty' is currently not used in edu-sharing / WLO
+    #  - either use this field or get rid of it
+    intendedEndUserRole = Field(serializer=MutlilangItem, output_processor=JoinMultivalues())
+    # Please use valuespaces.intendedEndUserRole instead!
+    interactivityLevel = Field()
+    # ToDo: 'interactivityLevel' is currently not used anywhere in edu-sharing
+    interactivityType = Field()
+    """Corresponding edu-sharing property: 'ccm:educationalinteractivitytype'"""
+    # ToDo: 'ccm:educationalinteractivitytype' is currently not used anywhere in edu-sharing
     language = Field()
+    # ToDo: "Educational language" seems to be unused in edu-sharing.
+    semanticDensity = Field()
+    # ToDo: 'semanticDensity' is not used anywhere and there doesn't appear to be an edu-sharing property for it
+    typicalAgeRange = Field(serializer=LomAgeRangeItem)
+    """See LomAgeRangeItem. Corresponding edu-sharing properties: 
+    'ccm:educationaltypicalagerange_from' & 'ccm:educationaltypicalagerange_to'"""
+    typicalLearningTime = Field()
 
 
 # please use the seperate license data
@@ -97,114 +173,199 @@ class LomEducationalItem(Item):
 
 
 class LomClassificationItem(Item):
+    """
+    LOM "Classification"-specific metadata.
+    (see: LOM-DE specifications: "Classification"-category)
+    """
     cost = Field()
-    purpose = Field()
-    taxonPath = Field(output_processor=JoinMultivalues())
+    # ToDo: no equivalent property in edu-sharing, might be obsolete (see: 'valuespaces.price')
     description = Field()
+    # ToDo: LOM classification 'description' has no equivalent property in edu-sharing
     keyword = Field()
+    # ToDo: 'ccm:classification_keyword' currently not used in edu-sharing
+    purpose = Field()
+    # ToDo: 'ccm:classification_purpose' not actively used in edu-sharing?
+    taxonPath = Field(output_processor=JoinMultivalues())
+    # ToDo: LOM classification 'taxonPath' has no equivalent property in edu-sharing, might be obsolete
 
 
 class LomBaseItem(Item):
+    """
+    LomBaseItem provides the nested structure for LOM (Sub-)Elements. No metadata is saved here.
+    (Please check the specific class definitions of the nested Items for more information.)
+    """
+    classification = Field(serializer=LomClassificationItem)
+    educational = Field(serializer=LomEducationalItem)
     general = Field(serializer=LomGeneralItem)
     lifecycle = Field(serializer=LomLifecycleItem, output_processor=JoinMultivalues())
-    technical = Field(serializer=LomTechnicalItem)
-    educational = Field(serializer=LomEducationalItem)
     # rights = Field(serializer=LomRightsItem)
-    classification = Field(serializer=LomClassificationItem)
+    technical = Field(serializer=LomTechnicalItem)
 
 
 class ResponseItem(Item):
-    status = Field()
-    url = Field()
-    html = Field()
-    text = Field()
-    headers = Field()
+    """
+    Attributes of ResponseItem are populated by either Playwright or Splash when an item is processed by the pipelines.
+    """
     cookies = Field()
+    headers = Field()
     har = Field()
+    html = Field()
+    status = Field()
+    text = Field()
+    url = Field()
 
 
 class ValuespaceItem(Item):
-    intendedEndUserRole = Field(output_processor=JoinMultivalues())
+    """
+    Values provided for attributes of ValuespaceItem are mapped against OEH (SKOS) vocabularies before saving them to
+    edu-sharing. (see: https://github.com/openeduhub/oeh-metadata-vocabs)
+    """
+    accessibilitySummary = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:accessibilitysummary'"""
+    conditionsOfAccess = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:conditionsOfAccess'"""
+    containsAdvertisement = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:containsAdvertisement'"""
+    dataProtectionConformity = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:dataProtectionConformity'"""
     discipline = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:taxonid'"""
     educationalContext = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:educationalcontext'"""
+    fskRating = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:fskRating'"""
+    hochschulfaechersystematik = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:oeh_taxonid_university"""
+    intendedEndUserRole = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:intendedEndUserRole'"""
     learningResourceType = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:educationallearningresourcetype'"""
     new_lrt = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:oeh_lrt'"""
+    oer = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:license_oer'"""
+    price = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:price'"""
     sourceContentType = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:sourceContentType'"""
     # ToDo: sourceContentType is no longer used in edu-sharing
     # DO NOT SET this field in crawlers for individual materials!
     toolCategory = Field(output_processor=JoinMultivalues())
-
-    conditionsOfAccess = Field(output_processor=JoinMultivalues())
-    containsAdvertisement = Field(output_processor=JoinMultivalues())
-    price = Field(output_processor=JoinMultivalues())
-    accessibilitySummary = Field(output_processor=JoinMultivalues())
-    dataProtectionConformity = Field(output_processor=JoinMultivalues())
-    fskRating = Field(output_processor=JoinMultivalues())
-    oer = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:toolCategory'"""
 
 
 class LicenseItem(Item):
-    url = Field()
-    "url to a license description"
-    internal = Field()
-    "a internal constants for this license"
+    """
+    Metadata provided within LicenseItem is used to recognize and map specific licenses to edu-sharing's corresponding
+    properties. To make sure that licenses are properly recognized by edu-sharing, make sure to provide a valid
+    'url'-string and if that's not possible, set a correct 'internal'-constant. (see: constants.py)
+    """
+    author = Field(output_processor=JoinMultivalues())
+    """An author freetext string. (Basically, how the author should be named in case this is a 'CC-BY'-license.
+    Corresponding edu-sharing property: 'ccm:author_freetext'"""
     description = Field()
-    "a custom, free-text license description. Will only be used if the internal constants is set to CUSTOM"
-    oer = Field()
-    "a value of OerType (if empty, will be mapped via the given url or internal value)"
-    author = Field()
-    "an author freetext (basically, how the author should be named in case this is a by-license"
+    """A custom, free-text license description. Will only be used if the 'internal'-attribute (see: constants.py) is set 
+    to 'CUSTOM'.
+    Corresponding edu-sharing property: 'cclom:rights_description'"""
     expirationDate = Field()
-    "a date at which any content license expires and the content shouldn't be delivered anymore"
+    """A date at which any content license expires and the content shouldn't be delivered anymore.
+    Corresponding edu-sharing property: 'ccm:license_to'"""
+    internal = Field()
+    """An internal (edu-sharing) constant for this license.
+    Corresponding edu-sharing property: 'ccm:commonlicense_key'"""
+    oer = Field()
+    """A value of OerType (if empty, will be mapped via the given url or internal value).
+    Corresponding edu-sharing property: 'ccm:oer'"""
+    url = Field()
+    """Expects a URL (String) to a license description.
+    Gets mapped to two corresponding edu-sharing properties: 'ccm:commonlicense_key' & 'ccm:commonlicense_version'"""
 
 
 class PermissionItem(Item):
-    public = Field()
-    "Should this item be public (accessible for anyone)"
-    groups = Field(output_processor=JoinMultivalues())
-    "Global Groups that should have access to this object"
-    mediacenters = Field(output_processor=JoinMultivalues())
-    "Mediacenters that should have access to this object"
+    """
+    PermissionItem sets the edu-sharing permissions for a crawled item.
+    """
     autoCreateGroups = Field()
-    "Should global groups be created if they don't exist"
+    """Should global groups be created if they don't already exist"""
     autoCreateMediacenters = Field()
-    "Should media centers be created  if they don't exist"
+    """Should media centers be created if they don't already exist"""
+    groups = Field(output_processor=JoinMultivalues())
+    """Global Groups that should have access to this object"""
+    mediacenters = Field(output_processor=JoinMultivalues())
+    """Mediacenters that should have access to this object"""
+    public = Field()
+    """Determines if this item should be 'public' (= accessible by anyone)"""
 
 
 class BaseItem(Item):
-    sourceId = Field()
-    uuid = Field()
-    "explicit uuid of the target element, please only set this if you actually know the uuid of the internal document"
-    hash = Field()
-    collection = Field(output_processor=JoinMultivalues())
-    "id of collections this entry should be placed into"
-    origin = Field()
-    "in case it was fetched from a referatorium, the real origin name may be included here"
-    response = Field(serializer=ResponseItem)
-    ranking = Field()
-    fulltext = Field()
-    thumbnail = Field()
-    "thumbnail data in base64"
-    lastModified = Field()
-    lom = Field(serializer=LomBaseItem)
-    valuespaces = Field(serializer=ValuespaceItem)
-    "all items which are based on (skos) based valuespaces. The ProcessValuespacePipeline will automatically convert items inside here"
-    valuespaces_raw = Field(serializer=ValuespaceItem)
-    "this item is only used by the ProcessValuespacePipeline and holds the ""raw"" data which were given to the valuespaces. Please do not use it inside crawlers"
-    permissions = Field(serializer=PermissionItem)
-    "permissions (access rights) for this entry"
-    license = Field(serializer=LicenseItem)
-    publisher = Field()
-    notes = Field()
-    "editorial notes"
-    status = Field()
-    "status information of a given node, i.e. activated or deactivated"
+    """
+    BaseItem provides the basic data structure for any crawled item.
+
+    BaseItem requirements:
+    - 'sourceId'
+    - 'hash'
+
+    Expected Items to be nested within BaseItem:
+    - LicenseItem
+    - LomBaseItem
+    - PermissionItem
+    - ResponseItem
+    - ValuespaceItem
+    """
     binary = Field()
-    "binary data which should be uploaded (raw data)"
+    """Binary data which should be uploaded to edu-sharing (= raw data, e.g. ".pdf"-files)."""
+    collection = Field(output_processor=JoinMultivalues())
+    """id of edu-sharing collections this entry should be placed into"""
     custom = Field()
-    "custom data, it can be used by the target transformer to store data in the native format (i.e. ccm/cclom properties in edu-sharing)"
+    """A field for custom data which can be used by the target transformer to store data in the native format 
+    (i.e. 'ccm:'/'cclom:'-properties in edu-sharing)."""
+    fulltext = Field()
+    """The 'fulltext'-attribute gets populated by a 'response.text'-call in the pipelines."""
+    hash = Field()
+    """Corresponding edu-sharing property: 'ccm:replicationsourcehash'"""
+    lastModified = Field()
+    # ToDo: 'lastModified' doesn't appear to be mapped to any edu-sharing property
+    license = Field(serializer=LicenseItem)
+    lom = Field(serializer=LomBaseItem)
+    notes = Field()
+    """Editorial notes (e.g. as used in edu-sharing between editors (WLO: "FachredakteurInnen")).
+    Corresponding edu-sharing property: 'ccm:notes'"""
+    origin = Field()
+    """In case an item was fetched from a "referatorium", the real origin name may be included here.
+    Corresponding edu-sharing property: 'ccm:replicationsourceorigin'"""
+    # 'origin' is currently used to create crawler subfolders in edu-sharing's workspace view:
+    # e.g.: "SYNC_OBJ/<crawler_name>/<origin-value>/..."
+    permissions = Field(serializer=PermissionItem)
+    """edu-sharing permissions (access rights) for this entry"""
+    publisher = Field()
+    # ToDo: publisher is implemented as a part of Lifecycle. This field isn't used anywhere, is most probably an
+    #  oversight and should be deleted.
+    ranking = Field()
+    # ToDo: ranking isn't used anywhere, might be obsolete
+    response = Field(serializer=ResponseItem)
+    sourceId = Field()
+    """Corresponding edu-sharing property: 'ccm:replicationsourceid'"""
+    status = Field()
+    """Status information of a given node, i.e. activated or deactivated.
+    Corresponding edu-sharing property: 'ccm:editorial_state'"""
+    thumbnail = Field()
+    """Expects a thumbnail URL which in turn is consumed by the thumbnail pipeline. If a valid URL is provided,
+    the resulting 'thumbnail'-dictionary consists of 3 key-value pairs after completion:
+    - 'mimetype'    mimetype (String)
+    - 'small'       image data in base64
+    - 'large'       image data in base64"""
+    uuid = Field()
+    """Explicit uuid of the target element. 
+    Please ONLY set this manually IF you actually know the uuid of the internal document!
+    Corresponding edu-sharing property: 'ccm:replicationsourceuuid'"""
+    valuespaces = Field(serializer=ValuespaceItem)
+    """All items which are based on (SKOS) based valuespaces vocabularies. 
+    The ProcessValuespacePipeline will automatically convert items inside here."""
+    valuespaces_raw = Field(serializer=ValuespaceItem)
+    """This item is only used by the ProcessValuespacePipeline and holds the ""raw"" data which were given to the 
+    valuespaces. Please DO NOT use it within normal crawlers"""
     screenshot_bytes = Field()
-    # this is a (temporary) field that gets deleted after the thumbnail pipeline processed its byte-data
+    """screenshot_bytes is a (temporary) field that gets deleted after the thumbnail pipeline processed its byte-data"""
 
 
 class BaseItemLoader(ItemLoader):

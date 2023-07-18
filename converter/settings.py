@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
+import logging
 from pathlib import Path  # python3 only
+
+import scrapy
+
 import converter.env as env
+from scrapy.utils.log import configure_logging
 
 # Scrapy settings for project
 #
@@ -19,6 +24,12 @@ NEWSPIDER_MODULE = "converter.spiders"
 LOG_FILE = env.get("LOG_FILE", allow_null=True)
 LOG_LEVEL = env.get("LOG_LEVEL", default="INFO")
 LOG_FORMATTER = "converter.custom_log_formatter.CustomLogFormatter"
+
+configure_logging(settings = {
+    "LOG_FILE": LOG_FILE,
+    "LOG_LEVEL": LOG_LEVEL,
+    "LOG_FORMATTER": LOG_FORMATTER
+})
 
 # Default behaviour for regular crawlers of non-license-controlled content
 # When set True, every item will have GROUP_EVERYONE attached in edu-sharing
@@ -124,6 +135,7 @@ ITEM_PIPELINES = {
 ADDITIONAL_PIPELINES = env.get("CUSTOM_PIPELINES", True)
 if ADDITIONAL_PIPELINES:
     for pipe in map(lambda p: p.split(":"), ADDITIONAL_PIPELINES.split(",")):
+        logging.info("Enabling custom pipeline: " + pipe[0])
         ITEM_PIPELINES[pipe[0]] = int(pipe[1])
 
 # Enable and configure the AutoThrottle extension (disabled by default)

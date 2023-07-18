@@ -5,14 +5,20 @@ import scrapy
 from converter.constants import Constants
 from converter.items import LicenseItem, LomTechnicalItem, ValuespaceItem, LomGeneralItem
 from converter.spiders.base_classes import MediaWikiBase
+from converter.web_tools import WebEngine
 
 
 class ZUMSpider(MediaWikiBase, scrapy.Spider):
     name = "zum_spider"
     friendlyName = "ZUM-Unterrichten"
     url = "https://unterrichten.zum.de/"
-    version = "0.1.1"  # last update: 2022-09-13
+    version = "0.1.3"  # last update: 2023-01-09
     license = Constants.LICENSE_CC_BY_SA_40
+    custom_settings = {
+        "WEB_TOOLS": WebEngine.Playwright,
+        "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_DEBUG": True
+    }
 
     def technical_item(self, response=None) -> LomTechnicalItem:
         """
@@ -41,4 +47,3 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
         @scrapes discipline educationalContext intendedEndUserRole
         """
         return self.getValuespaces(response).load_item()
-

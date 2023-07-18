@@ -3,7 +3,6 @@ import json
 from enum import Enum
 
 import html2text
-import pyppeteer
 import requests
 from playwright.async_api import async_playwright
 from scrapy.utils.project import get_project_settings
@@ -14,8 +13,6 @@ from converter import env
 class WebEngine(Enum):
     # Splash (default engine)
     Splash = 'splash',
-    # Pyppeteer is controlling a headless Chrome browser
-    Pyppeteer = 'pyppeteer'
     # Playwright is controlling a headless Chrome browser
     Playwright = 'playwright'
 
@@ -25,18 +22,10 @@ class WebTools:
     def getUrlData(url: str, engine=WebEngine.Splash):
         if engine == WebEngine.Splash:
             return WebTools.__getUrlDataSplash(url)
-        elif engine == WebEngine.Pyppeteer:
-            return WebTools.__getUrlDataPyppeteer(url)
         elif engine == WebEngine.Playwright:
             return WebTools.__getUrlDataPlaywright(url)
 
         raise Exception("Invalid engine")
-
-    @staticmethod
-    def __getUrlDataPyppeteer(url: str):
-        # html = "test"
-        html = asyncio.run(WebTools.fetchDataPyppeteer(url))
-        return {"html": html, "text": WebTools.html2Text(html), "cookies": None, "har": None}
 
     @staticmethod
     def __getUrlDataPlaywright(url: str):
@@ -83,27 +72,15 @@ class WebTools:
             return {"html": None, "text": None, "cookies": None, "har": None}
 
     @staticmethod
-    async def fetchDataPyppeteer(url: str):
-        browser = await pyppeteer.connect({
-            'browserWSEndpoint': env.get('PYPPETEER_WS_ENDPOINT'),
-            'logLevel': 'WARN'
-        })
-        page = await browser.newPage()
-        await page.goto(url)
-        content = await page.content()
-        # await page.close()
-        return content
-
-    @staticmethod
     async def fetchDataPlaywright(url: str):
         # relevant docs for this implementation: https://hub.docker.com/r/browserless/chrome#playwright and
         # https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp
         async with async_playwright() as p:
             browser = await p.chromium.connect_over_cdp(endpoint_url=env.get("PLAYWRIGHT_WS_ENDPOINT"))
             page = await browser.new_page()
-            await page.goto(url, wait_until="networkidle", timeout=90000)
-            # waits for page to fully load (= no network traffic for 500ms),
-            # maximum timeout: 90s
+            await page.goto(url, wait_until="domcontentloaded", timeout=90000)
+            # waits for a website to fire the DOMContentLoaded event or for a timeout of 90s
+            # since waiting for 'networkidle' seems to cause timeouts
             content = await page.content()
             screenshot_bytes = await page.screenshot()
             # ToDo: HAR / text / cookies

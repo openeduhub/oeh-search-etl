@@ -242,7 +242,10 @@ class EduSharing:
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
                 case Constants.LICENSE_CC_BY_NC_ND_20:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
-                    spaces["ccm:commonlicense_cc_version"] = "20"
+                    spaces["ccm:commonlicense_cc_version"] = "2.0"
+                case Constants.LICENSE_CC_BY_NC_ND_25:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "2.5"
                 case Constants.LICENSE_CC_BY_NC_ND_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
@@ -293,8 +296,11 @@ class EduSharing:
                                     f"please check if the license-mapping within es_connector.py is up-to-date.")
         if "internal" in license:
             match license["internal"]:
-                case Constants.LICENSE_COPYRIGHT_LAW:
-                    spaces["ccm:commonlicense_key"] = "COPYRIGHT_FREE"
+                case "CC_0" | "CC_BY" | "CC_BY_NC" | "CC_BY_NC_ND" | "CC_BY_NC_SA" | "CC_BY_ND" | "CC_BY_SA" | "PDM" \
+                     | Constants.LICENSE_COPYRIGHT_LAW \
+                     | Constants.LICENSE_SCHULFUNK \
+                     | Constants.LICENSE_UNTERRICHTS_UND_SCHULMEDIEN:
+                    spaces["ccm:commonlicense_key"] = license["internal"]
                 case Constants.LICENSE_CUSTOM:
                     spaces["ccm:commonlicense_key"] = "CUSTOM"
                     if "description" in license:
@@ -357,6 +363,8 @@ class EduSharing:
                     # edusharing requires milliseconds
                     duration = int(float(duration) * 1000)
                 except:
+                    logging.debug(f"The supplied 'technical.duration'-value {duration} could not be converted from "
+                                  f"seconds to milliseconds. ('cclom:duration' expects ms)")
                     pass
                 spaces["cclom:duration"] = duration
 
@@ -380,12 +388,17 @@ class EduSharing:
                 # convert to a vcard string
                 firstName = person["firstName"] if "firstName" in person else ""
                 lastName = person["lastName"] if "lastName" in person else ""
+                title: str = person["title"] if "title" in person else ""
                 organization = (
                     person["organization"] if "organization" in person else ""
                 )
                 url = person["url"] if "url" in person else ""
                 email = person["email"] if "email" in person else ""
                 date = person["date"] if "date" in person else None
+                id_gnd: str = person["id_gnd"] if "id_gnd" in person else ""
+                id_orcid: str = person["id_orcid"] if "id_orcid" in person else ""
+                id_ror: str = person["id_ror"] if "id_ror" in person else ""
+                id_wikidata: str = person["id_wikidata"] if "id_wikidata" in person else ""
                 vcard = vobject.vCard()
                 vcard.add("n").value = vobject.vcard.Name(
                     family=lastName, given=firstName
@@ -395,39 +408,56 @@ class EduSharing:
                     if organization
                     else (firstName + " " + lastName).strip()
                 )
+                if id_gnd:
+                    vcard.add("X-GND-URI").value = id_gnd
+                if id_orcid:
+                    vcard.add("X-ORCID").value = id_orcid
+                if id_ror:
+                    vcard.add("X-ROR").value = id_ror
+                if id_wikidata:
+                    vcard.add("X-Wikidata").value = id_wikidata
+                if title:
+                    vcard.add("title").value = title
                 if date:
                     vcard.add("X-ES-LOM-CONTRIBUTE-DATE").value = date.isoformat()
                     if person["role"].lower() == 'publisher':
                         spaces["ccm:published_date"] = date.isoformat()
                 if organization:
                     vcard.add("org")
-                    # fix a bug of splitted org values
+                    # fix a bug of split org values
                     vcard.org.behavior = VCardBehavior.defaultBehavior
                     vcard.org.value = organization
-                vcard.add("url").value = url
+                if url:
+                    vcard.add("url")
+                    vcard.url.value = url
                 if email:
                     vcard.add("EMAIL;TYPE=PREF,INTERNET").value = email
                 if mapping in spaces:
                     # checking if a vcard already exists for this role: if so, extend the list
-                    spaces[mapping].append(vcard.serialize())
+                    spaces[mapping].append(vcard.serialize(lineLength=10000))
+                    # default of "lineLength" is 75, which is too short for longer URLs. We're intentionally setting an
+                    # absurdly long lineLength, so we don't run into the problem where vCARD attributes like 'url' would
+                    # get split up with a '\r\n '-string inbetween, which would cause broken URLs in the final vCard
+                    # string and therefore broken links in the edu-sharing front-end
                 else:
-                    spaces[mapping] = [vcard.serialize()]
+                    spaces[mapping] = [vcard.serialize(lineLength=10000)]
 
         valuespaceMapping = {
-            "discipline": "ccm:taxonid",
-            "intendedEndUserRole": "ccm:educationalintendedenduserrole",
-            "educationalContext": "ccm:educationalcontext",
-            "learningResourceType": "ccm:educationallearningresourcetype",
-            "new_lrt": "ccm:oeh_lrt",
-            "sourceContentType": "ccm:sourceContentType",
-            "toolCategory": "ccm:toolCategory",
+            "accessibilitySummary": "ccm:accessibilitySummary",
             "conditionsOfAccess": "ccm:conditionsOfAccess",
             "containsAdvertisement": "ccm:containsAdvertisement",
-            "price": "ccm:price",
-            "accessibilitySummary": "ccm:accessibilitySummary",
             "dataProtectionConformity": "ccm:dataProtectionConformity",
+            "discipline": "ccm:taxonid",
+            "educationalContext": "ccm:educationalcontext",
             "fskRating": "ccm:fskRating",
+            "hochschulfaechersystematik": "ccm:oeh_taxonid_university",
+            "intendedEndUserRole": "ccm:educationalintendedenduserrole",
+            "learningResourceType": "ccm:educationallearningresourcetype",
+            "new_lrt": "ccm:oeh_lrt",
             "oer": "ccm:license_oer",
+            "price": "ccm:price",
+            "sourceContentType": "ccm:sourceContentType",
+            "toolCategory": "ccm:toolCategory",
         }
         for key in item["valuespaces"]:
             spaces[valuespaceMapping[key]] = item["valuespaces"][key]
@@ -458,6 +488,10 @@ class EduSharing:
         if mdsId != "default":
             spaces["cm:edu_metadataset"] = mdsId
             spaces["cm:edu_forcemetadataset"] = "true"
+            logging.debug("Using metadataset " + mdsId)
+        else:
+            logging.debug("Using default metadataset")
+
         for key in spaces:
             if type(spaces[key]) is tuple:
                 spaces[key] = list([x for y in spaces[key] for x in y])

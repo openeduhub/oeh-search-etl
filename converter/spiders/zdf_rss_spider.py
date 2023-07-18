@@ -4,24 +4,24 @@ from typing import Optional
 import requests
 import scrapy
 
-from .base_classes import RSSListBase, LomBase, CSVBase
+from .base_classes import RSSListBase
+from ..web_tools import WebEngine
 
 
-# Spider to fetch RSS from planet schule
 class ZDFRSSSpider(RSSListBase):
     name = "zdf_rss_spider"
     friendlyName = "ZDF"
     url = "https://www.zdf.de/"
-    version = "0.1.0"
+    version = "0.1.1"  # last update: 2023-02-01
+    custom_settings = {
+        'WEB_TOOLS': WebEngine.Playwright
+    }
 
     def __init__(self, **kwargs):
         RSSListBase.__init__(self, "../csv/zdf_rss.csv", **kwargs)  # couldn't find file, had to move 1 folder upwards
 
     def getLicense(self, response):
-        license_info = LomBase.getLicense(self, response)
-        license_info.add_value(
-            "internal", self.getCSVValue(response, CSVBase.COLUMN_LICENSE)
-        )
+        license_info = RSSListBase.getLicense(self, response)
         page_content = scrapy.Selector(requests.get(response.url))
         date = self.get_expiration_date(page_content)
         if date:

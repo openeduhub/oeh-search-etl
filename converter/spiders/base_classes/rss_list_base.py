@@ -1,12 +1,12 @@
-import scrapy
-
-from converter.items import *
-from .lom_base import LomBase
-from .rss_base import RSSBase
-from .csv_base import CSVBase
-from converter.valuespace_helper import ValuespaceHelper
 import csv
 import os
+
+import scrapy
+
+from converter.valuespace_helper import ValuespaceHelper
+from .csv_base import CSVBase
+from .lom_base import LomBase
+from .rss_base import RSSBase
 
 
 # rss crawler with a list of entries to crawl and map
@@ -67,7 +67,7 @@ class RSSListBase(RSSBase, LomBase):
         return general
 
     def getLicense(self, response):
-        license = LomBase.getLicense(self, response)
+        license = RSSBase.getLicense(self, response)
         license.add_value(
             "internal", self.getCSVValue(response, CSVBase.COLUMN_LICENSE)
         )

@@ -65,7 +65,6 @@ jmes_description = jmespath.compile('parse.properties[?name==\'description\']."*
 jmes_text = jmespath.compile('parse.text."*"')
 jmes_pageid = jmespath.compile('parse.pageid')
 jmes_revid = jmespath.compile('parse.revid')
-log = logging.getLogger(__name__)
 
 
 def _api_url(url) -> str:
@@ -95,7 +94,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
     _query_params = _default_params | {
         'action': 'query',
         'list': 'allpages',
-        'aplimit': '100',
+        'aplimit': '500',  # Values between 1 and 500 are allowed by MediaWiki APIs
         'apfilterredir': 'nonredirects'  # ignore redirection pages
     }
 
@@ -187,7 +186,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
         response.meta['item'] = data
         response.meta['item_extra'] = extra
         if error := data.get('error', None):
-            log.error(f"""
+            logging.error(f"""
             | Wiki Error: {error}
             | for request {response.request.body}
             | extra data: {extra}
@@ -249,10 +248,30 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
     def getValuespaces(self, response):
         loader = super().getValuespaces(response)
         data = response.meta['item']
-        categories = jmes_categories.search(data)  # ['Ethik', 'Sekundarstufe_1']
+        categories: list[str] = jmes_categories.search(data)  # ['Ethik', 'Sekundarstufe_1']
         if categories:
             loader.add_value("discipline", categories)
             loader.add_value("educationalContext", categories)
             loader.add_value("intendedEndUserRole", categories)
+            for category in categories:
+                # ZUM MediaWiki "category"-strings can consist of several words. We're looking for individual parts of
+                # the whole string and use a search-hit as our indicator to set the corresponding "new_lrt"-value.
+                category: str = str(category).lower()
+                if "arbeitsblatt" in category:
+                    loader.add_value("new_lrt", "36e68792-6159-481d-a97b-2c00901f4f78")  # "Arbeitsblatt"
+                if "erklärvideo" in category:
+                    loader.add_value("new_lrt", "a0218a48-a008-4975-a62a-27b1a83d454f")  # "Erklärvideo und gefilmtes Experiment"
+                if "lernpfad" in category:
+                    loader.add_value("new_lrt", "ad9b9299-0913-40fb-8ad3-50c5fd367b6a")  # "Lernpfad, Lernobjekt"
+                if "methode" in category:
+                    loader.add_value("new_lrt", "0a79a1d0-583b-47ce-86a7-517ab352d796")  # "Methode"
+                if "tool" in category:
+                    loader.add_value("new_lrt", "cefccf75-cba3-427d-9a0f-35b4fedcbba1")  # "Tool"
+                if "unterrichtsidee" in category:
+                    loader.add_value("new_lrt", "94222751-6c90-4623-9c7e-09e21d885599")  # Unterrichtsidee
+                if "video" in category:
+                    loader.add_value("new_lrt", "7a6e9608-2554-4981-95dc-47ab9ba924de")  # "Video"
+                if "übung" in category:
+                    loader.add_value("new_lrt", "a33ef73d-9210-4305-97f9-7357bbf43486")  # "Übungsmaterial"
         loader.add_value("new_lrt", "6b9748e4-fb3b-4082-ae08-c7a11c717256")  # "Wiki (dynamisch)"
         return loader

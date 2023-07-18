@@ -9,6 +9,7 @@ class Constants:
     LICENSE_CC_BY_NC_30: Final[str] = "https://creativecommons.org/licenses/by-nc/3.0/"
     LICENSE_CC_BY_NC_40: Final[str] = "https://creativecommons.org/licenses/by-nc/4.0/"
     LICENSE_CC_BY_NC_ND_20: Final[str] = "https://creativecommons.org/licenses/by-nc-nd/2.0/"
+    LICENSE_CC_BY_NC_ND_25: Final[str] = "https://creativecommons.org/licenses/by-nc-nd/2.5/"
     LICENSE_CC_BY_NC_ND_30: Final[str] = "https://creativecommons.org/licenses/by-nc-nd/3.0/"
     LICENSE_CC_BY_NC_ND_40: Final[str] = "https://creativecommons.org/licenses/by-nc-nd/4.0/"
     LICENSE_CC_BY_NC_SA_20: Final[str] = "https://creativecommons.org/licenses/by-nc-sa/2.0/"
@@ -33,6 +34,7 @@ class Constants:
         LICENSE_CC_BY_NC_30,
         LICENSE_CC_BY_NC_40,
         LICENSE_CC_BY_NC_ND_20,
+        LICENSE_CC_BY_NC_ND_25,
         LICENSE_CC_BY_NC_ND_30,
         LICENSE_CC_BY_NC_ND_40,
         LICENSE_CC_BY_NC_SA_20,
@@ -86,12 +88,14 @@ class Constants:
         "PDM": [LICENSE_PDM],
     }
 
-    LICENSE_COPYRIGHT_LAW: Final[str] = "COPYRIGHT_LAW"
+    LICENSE_COPYRIGHT_LAW: Final[str] = "COPYRIGHT_FREE"
     LICENSE_CUSTOM: Final[str] = "CUSTOM"  # Custom License, use the license description field for arbitrary values
     LICENSE_NONPUBLIC: Final[str] = "NONPUBLIC"
+    LICENSE_SCHULFUNK: Final[str] = "SCHULFUNK"  # "Schulfunk (§47 UrhG)"
+    LICENSE_UNTERRICHTS_UND_SCHULMEDIEN = "UNTERRICHTS_UND_LEHRMEDIEN"  # "§60b Unterrichts- und Lehrmedien"
 
-    NEW_LRT_MATERIAL: Final[str] = "https://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb"
-    NEW_LRT_TOOL: Final[str] = "https://w3id.org/openeduhub/vocabs/new_lrt/cefccf75-cba3-427d-9a0f-35b4fedcbba1"
+    NEW_LRT_MATERIAL: Final[str] = "1846d876-d8fd-476a-b540-b8ffd713fedb"
+    NEW_LRT_TOOL: Final[str] = "cefccf75-cba3-427d-9a0f-35b4fedcbba1"
 
     SOURCE_TYPE_SPIDER: int = 1
     SOURCE_TYPE_EDITORIAL: int = 2

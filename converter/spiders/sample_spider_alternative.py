@@ -21,8 +21,10 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
     start_urls = ["https://edu-sharing.com"]  # starting point of your crawler, e.g. a sitemap, index, rss-feed etc.
     version = "0.0.1"  # this is used for timestamping your crawler results (if a source changes its layout/data,
     # make sure to increment this value to force a clear distinction between old and new crawler results)
-    WEB_TOOLS = WebEngine.Playwright  # OPTIONAL: this attribute controls which tool is used for taking Screenshots
-    # you can skip this attribute altogether if you want to use the default Settings (Splash)
+    custom_settings = {
+        'WEB_TOOLS': WebEngine.Playwright  # OPTIONAL: this attribute controls which tool is used for taking Screenshots
+        # you can skip this attribute altogether if you want to use the default Settings (Splash)
+    }
 
     def getId(self, response=None) -> str:
         # You have two choices here:
@@ -131,8 +133,15 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - organization                   optional
         #  - email                          optional
         #  - uuid                           optional
-        lifecycle.add_value('role', 'author')  # supported roles: "author" / "editor" / "publisher"
-        # for available roles mapping, please take a look at converter/es_connector.py
+        #  - title                          optional (academic title)
+        #  - id_gnd                         optional (expected: URI)
+        #  - id_orcid                       optional (expected: URI)
+        #  - id_ror                         optional (expected: URI)
+        #  - id_wikidata                    optional (expected: URI)
+        lifecycle.add_value('role', 'author')
+        # supported roles:
+        #   "author" / "editor" / "publisher" / "metadata_contributor" / "metadata_provider" / "unknown"
+        # for further available role mappings, please take a look at converter/es_connector.py
 
         educational = LomEducationalItemLoader()
         # TODO: fill "educational"-keys with values for
@@ -159,9 +168,12 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         vs = ValuespaceItemLoader()
         # for possible values, either consult https://vocabs.openeduhub.de
         # or take a look at https://github.com/openeduhub/oeh-metadata-vocabs
+        # wherever possible, please use the skos:Concept <key> instead of literal strings
+        # (since they are more stable over a longer period of time)
         # TODO: fill "valuespaces"-keys with values for
         #  - discipline                     recommended
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/discipline.ttl)
+        #   (please set discipline-values by their unique vocab-identifier: e.g. '060' for "Art education")
         #  - intendedEndUserRole            recommended
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl)
         #  - learningResourceType           recommended
