@@ -139,12 +139,20 @@ class EduSharing:
         except ApiException as e:
             # ToDo:
             #  - error-handling for code 500 ("java.util.concurrent.TimeoutException")
-            jsonError = json.loads(e.body)
-            if jsonError["error"] == "java.lang.IllegalStateException":
-                logging.warning(
-                    "Node '" + properties["cm:name"][0] + "' probably blocked for sync: " + jsonError["message"]
+            try:
+                json_error: dict = json.loads(e.body)
+                if json_error["error"] == "java.lang.IllegalStateException":
+                    logging.warning(
+                        "Node '" + properties["cm:name"][0] + "' probably blocked for sync: " + json_error["message"]
+                    )
+                    return None
+            except json.JSONDecodeError:
+                logging.error(
+                    f"ES_CONNECTOR: edu-sharing ApiException 'body'-attribute was't a deserializable JSON "
+                    f"String for item '{properties['cm:name'][0]}' "
+                    f"(replicationsourceid: '{properties['ccm:replicationsourceid']}'). "
+                    f'edu-sharing returned the following exception:\n"{e.body}"'
                 )
-                return None
             raise e
         return response["node"]
 
@@ -719,17 +727,22 @@ class EduSharing:
             if e.status == 401:
                 # Typically happens when the edu-sharing session cookie is lost and needs to be renegotiated.
                 # (edu-sharing error-message: "Admin rights are required for this endpoint")
-                logging.info(f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode {e.status} for (replicationsourceid '{id}').")
-                logging.debug(f"(HTTP-Body: '{e.body}\n')"
-                              f"Reason: {e.reason}\n"
-                              f"HTTP Headers: {e.headers}")
-                logging.info(f"ES_CONNECTOR: Re-initializing edu-sharing API Client...")
+                logging.info(
+                    f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode {e.status} for (replicationsourceid "
+                    f"'{id}')."
+                )
+                logging.debug(f"(HTTP-Body: '{e.body}\n')" f"Reason: {e.reason}\n" f"HTTP Headers: {e.headers}")
+                logging.info("ES_CONNECTOR: Re-initializing edu-sharing API Client...")
                 self.init_api_client()
+                return None
             if e.status == 404:
-                logging.debug(f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode {e.status} (replicationsourceid '{id}') :\n"
-                              f"HTTP Body: {e.body}\n"
-                              f"HTTP Header: {e.headers}")
-                pass
+                logging.debug(
+                    f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode {e.status} (replicationsourceid "
+                    f"'{id}'):\n"
+                    f"HTTP Body: {e.body}\n"
+                    f"HTTP Header: {e.headers}"
+                )
+                return None
             else:
                 raise e
         return None
