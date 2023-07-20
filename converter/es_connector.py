@@ -107,6 +107,10 @@ class EduSharing:
     enabled: bool
 
     def __init__(self):
+        cookie_threshold = env.get('EDU_SHARING_COOKIE_REBUILD_THRESHOLD', True)
+        if cookie_threshold:
+            logging.info('Setting COOKIE_REBUILD_THRESHOLD to ' + str(cookie_threshold) + ' seconds')
+            self.COOKIE_REBUILD_THRESHOLD = cookie_threshold
         self.enabled = env.get("MODE", default="edu-sharing") == "edu-sharing"
         if self.enabled:
             self.initApiClient()
