@@ -116,11 +116,11 @@ class EduSharing:
         if self.enabled:
             self.initApiClient()
 
-    def getHeaders(self, contentType="application/json"):
+    def getHeaders(self, content_type: str | None = "application/json"):
         return {
             "COOKIE": EduSharing.cookie,
             "Accept": "application/json",
-            "Content-Type": contentType,
+            "Content-Type": content_type,
         }
 
     def syncNode(self, spider, type, properties):
