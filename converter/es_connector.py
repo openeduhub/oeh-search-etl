@@ -136,6 +136,8 @@ class EduSharing:
                 reset_version=EduSharing.resetVersion,
             )
         except ApiException as e:
+            # ToDo:
+            #  - error-handling for code 500 ("java.util.concurrent.TimeoutException")
             jsonError = json.loads(e.body)
             if jsonError["error"] == "java.lang.IllegalStateException":
                 logging.warning(
@@ -749,7 +751,17 @@ class EduSharing:
                     properties["ccm:replicationsourcehash"][0],
                 ]
         except ApiException as e:
+            if e.status == 401:
+                # Typically happens when the edu-sharing session cookie is lost and needs to be renegotiated.
+                # (edu-sharing error-message: "Admin rights are required for this endpoint")
+                logging.info(f"ES_CONNECTOR - findItem: edu-sharing returned HTTP-statuscode 401.")
+                logging.debug(f"(HTTP-Body: '{e.body}')")
+                logging.debug(f"Reason: {e.reason}")
+                logging.debug(f"HTTP Headers: {e.headers}")
+                logging.info(f"ES_CONNECTOR: Re-initializing edu-sharing API Client...")
+                self.initApiClient()
             if e.status == 404:
+                logging.debug(f"ES_CONNECTOR - findItem: edu-sharing returned HTTP-statuscode 404.")
                 pass
             else:
                 raise e
