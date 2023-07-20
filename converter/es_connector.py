@@ -334,7 +334,8 @@ class EduSharing:
             "cclom:location": item["lom"]["technical"]["location"]
             if "location" in item["lom"]["technical"] else None,
             "cclom:format": item["lom"]["technical"]["format"] if "format" in item["lom"]["technical"] else None,
-            "cclom:aggregationlevel": item["lom"]["general"]["aggregationLevel"] if "aggregationLevel" in item["lom"]["general"] else None,
+            "cclom:aggregationlevel": item["lom"]["general"]["aggregationLevel"] if "aggregationLevel" in item["lom"][
+                "general"] else None,
             "cclom:title": item["lom"]["general"]["title"]
         }
         if "identifier" in item["lom"]["general"]:
@@ -376,7 +377,7 @@ class EduSharing:
 
         if "lifecycle" in item["lom"]:
             for person in item["lom"]["lifecycle"]:
-                if not "role" in person:
+                if "role" not in person:
                     continue
                 if (
                         not person["role"].lower()
@@ -551,7 +552,7 @@ class EduSharing:
                 EduSharing.groupCache.append(result["authorityName"])
 
     def setNodePermissions(self, uuid, item):
-        if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) == False:
+        if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is False:
             logging.debug("Skipping permissions, EDU_SHARING_PERMISSION_CONTROL is set to false")
             return
         if "permissions" in item:
@@ -560,7 +561,7 @@ class EduSharing:
                 "permissions": [],
             }
             public = item["permissions"]["public"]
-            if public == True:
+            if public is True:
                 if (
                         "groups" in item["permissions"]
                         or "mediacenters" in item["permissions"]
@@ -590,7 +591,7 @@ class EduSharing:
                 if "groups" in item["permissions"]:
                     if (
                             "autoCreateGroups" in item["permissions"]
-                            and item["permissions"]["autoCreateGroups"] == True
+                            and item["permissions"]["autoCreateGroups"] is True
                     ):
                         self.createGroupsIfNotExists(
                             item["permissions"]["groups"],
@@ -605,7 +606,7 @@ class EduSharing:
                 if "mediacenters" in item["permissions"]:
                     if (
                             "autoCreateMediacenters" in item["permissions"]
-                            and item["permissions"]["autoCreateMediacenters"] == True
+                            and item["permissions"]["autoCreateMediacenters"] is True
                     ):
                         self.createGroupsIfNotExists(
                             item["permissions"]["mediacenters"],
@@ -671,7 +672,7 @@ class EduSharing:
         return auth
 
     def initApiClient(self):
-        if EduSharing.cookie == None:
+        if EduSharing.cookie is None:
             settings = get_project_settings()
             auth = self.initCookie()
             isAdmin = json.loads(auth.text)["isAdmin"]
@@ -698,15 +699,17 @@ class EduSharing:
                 EduSharing.mediacenterApi = MEDIACENTERV1Api(EduSharing.apiClient)
                 EduSharing.nodeApi = NODEV1Api(EduSharing.apiClient)
                 about = EduSharing.aboutApi.about()
-                EduSharing.version = list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0]["version"]
+                EduSharing.version = list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0][
+                    "version"]
                 version_str = str(EduSharing.version["major"]) + "." + str(EduSharing.version["minor"])
-                if EduSharing.version["major"] != 1 or EduSharing.version["minor"] < 0 or EduSharing.version["minor"] > 1:
+                if EduSharing.version["major"] != 1 or EduSharing.version["minor"] < 0 or EduSharing.version[
+                    "minor"] > 1:
                     raise Exception(
                         f"Given repository api version is unsupported: " + version_str
                     )
                 else:
                     logging.info("Detected edu-sharing bulk api with version " + version_str)
-                if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) == True:
+                if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is True:
                     EduSharing.groupCache = list(
                         map(
                             lambda x: x["authorityName"],
