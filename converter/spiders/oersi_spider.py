@@ -344,7 +344,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         # The "getUUID"-method of LomBase couldn't be cleanly overridden because at the point of time when we do this
         # check, there is no "Response"-object available yet.
         item_url = OersiSpider.get_item_url(elastic_item=elastic_item)
-        return EduSharing.buildUUID(item_url)
+        return EduSharing.build_uuid(item_url)
 
     @staticmethod
     def get_item_url(elastic_item) -> str:
@@ -380,7 +380,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                 logging.info(f"matching requested id: {self.remoteId}")
                 return True
             return False
-        db = EduSharing().findItem(self.getId(response, elastic_item=elastic_item), self)
+        db = EduSharing().find_item(self.getId(response, elastic_item=elastic_item), self)
         changed = db is None or db[1] != self.getHash(response, elastic_item_source=elastic_item["_source"])
         if not changed:
             logging.info(f"Item {self.getId(response, elastic_item=elastic_item)} (uuid: {db[0]}) has not changed")

@@ -486,11 +486,11 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
             item["hash"] = time.time()
 
         # @TODO: May this can be done only once?
-        if self.findSource(spider) is None:
+        if self.find_source(spider) is None:
             log.info("create new source " + spider.name)
-            self.createSource(spider)
+            self.create_source(spider)
 
-        db_item = self.findItem(item["sourceId"], spider)
+        db_item = self.find_item(item["sourceId"], spider)
         if db_item:
             if item["hash"] != db_item[1]:
                 log.debug("hash has changed, continuing pipelines")
@@ -594,8 +594,8 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         title = "<no title>"
         if "title" in item["lom"]["general"]:
             title = str(item["lom"]["general"]["title"])
-        entryUUID = EduSharing.buildUUID(item["response"]["url"] if "url" in item["response"] else item["hash"])
-        self.insertItem(spider, entryUUID, item)
+        entryUUID = EduSharing.build_uuid(item["response"]["url"] if "url" in item["response"] else item["hash"])
+        self.insert_item(spider, entryUUID, item)
         logging.info("item " + entryUUID + " inserted/updated")
 
         # @TODO: We may need to handle Collections

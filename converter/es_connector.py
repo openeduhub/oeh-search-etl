@@ -78,7 +78,7 @@ class ESApiClient(ApiClient):
 
             def newfunc(*args, **kwargs):
                 if time.time() - ESApiClient.lastRequestTime > ESApiClient.COOKIE_REBUILD_THRESHOLD:
-                    EduSharing.initCookie()
+                    EduSharing.init_cookie()
                     self.cookie = EduSharing.cookie
 
                 # store last request time
@@ -114,16 +114,16 @@ class EduSharing:
             self.COOKIE_REBUILD_THRESHOLD = cookie_threshold
         self.enabled = env.get("MODE", default="edu-sharing") == "edu-sharing"
         if self.enabled:
-            self.initApiClient()
+            self.init_api_client()
 
-    def getHeaders(self, content_type: str | None = "application/json"):
+    def get_headers(self, content_type: str | None = "application/json"):
         return {
             "COOKIE": EduSharing.cookie,
             "Accept": "application/json",
             "Content-Type": content_type,
         }
 
-    def syncNode(self, spider, type, properties):
+    def sync_node(self, spider, type, properties):
         groupBy = []
         if "ccm:replicationsourceorigin" in properties:
             groupBy = ["ccm:replicationsourceorigin"]
@@ -148,14 +148,14 @@ class EduSharing:
             raise e
         return response["node"]
 
-    def setNodeText(self, uuid, item) -> bool:
+    def set_node_text(self, uuid, item) -> bool:
         if "fulltext" in item:
             response = requests.post(
                 get_project_settings().get("EDU_SHARING_BASE_URL")
                 + "rest/node/v1/nodes/-home-/"
                 + uuid
                 + "/textContent?mimetype=text/plain",
-                headers=self.getHeaders("multipart/form-data"),
+                headers=self.get_headers("multipart/form-data"),
                 data=item["fulltext"].encode("utf-8"),
             )
             return response.status_code == 200
@@ -167,7 +167,7 @@ class EduSharing:
             #     print(e)
             #     return False
 
-    def setPermissions(self, uuid, permissions) -> bool:
+    def set_permissions(self, uuid, permissions) -> bool:
         try:
             EduSharing.nodeApi.set_permission(
                 repository=EduSharingConstants.HOME,
@@ -180,7 +180,7 @@ class EduSharing:
         except ApiException as e:
             return False
 
-    def setNodeBinaryData(self, uuid, item) -> bool:
+    def set_node_binary_data(self, uuid, item) -> bool:
         if "binary" in item:
             logging.info(
                 get_project_settings().get("EDU_SHARING_BASE_URL")
@@ -196,14 +196,14 @@ class EduSharing:
                 + uuid
                 + "/content?mimetype="
                 + item["lom"]["technical"]["format"],
-                headers=self.getHeaders(None),
+                headers=self.get_headers(None),
                 files=files,
             )
             return response.status_code == 200
         else:
             return False
 
-    def setNodePreview(self, uuid, item) -> bool:
+    def set_node_preview(self, uuid, item) -> bool:
         if "thumbnail" in item:
             key = "large" if "large" in item["thumbnail"] else "small" if "small" in item["thumbnail"] else None
             if key:
@@ -214,14 +214,14 @@ class EduSharing:
                     + uuid
                     + "/preview?mimetype="
                     + item["thumbnail"]["mimetype"],
-                    headers=self.getHeaders(None),
+                    headers=self.get_headers(None),
                     files=files,
                 )
                 return response.status_code == 200
         else:
             logging.warning("No thumbnail provided for " + uuid)
 
-    def mapLicense(self, spaces, license):
+    def map_license(self, spaces, license):
         if "url" in license:
             match license["url"]:
                 # ToDo: refactor this ungodly method asap
@@ -320,7 +320,7 @@ class EduSharing:
         if "expirationDate" in license:
             spaces["ccm:license_to"] = [license["expirationDate"].isoformat()]
 
-    def transformItem(self, uuid, spider, item):
+    def transform_item(self, uuid, spider, item):
         spaces = {
             "ccm:replicationsource": spider.name,
             "ccm:replicationsourceid": item["sourceId"],
@@ -344,7 +344,7 @@ class EduSharing:
         if "origin" in item:
             spaces["ccm:replicationsourceorigin"] = item["origin"]  # TODO currently not mapped in edu-sharing
 
-        self.mapLicense(spaces, item["license"])
+        self.map_license(spaces, item["license"])
         if "description" in item["lom"]["general"]:
             spaces["cclom:general_description"] = item["lom"]["general"]["description"]
 
@@ -491,7 +491,7 @@ class EduSharing:
 
         return spaces
 
-    def createGroupsIfNotExists(self, groups, type: CreateGroupType):
+    def create_groups_if_not_exists(self, groups, type: CreateGroupType):
         for group in groups:
             if type == EduSharing.CreateGroupType.MediaCenter:
                 uuid = EduSharingConstants.GROUP_PREFIX + EduSharingConstants.MEDIACENTER_PREFIX + group
@@ -521,7 +521,7 @@ class EduSharing:
                 result = EduSharing.iamApi.create_group(repository=EduSharingConstants.HOME, group=group, body={})
                 EduSharing.groupCache.append(result["authorityName"])
 
-    def setNodePermissions(self, uuid, item):
+    def set_node_permissions(self, uuid, item):
         if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is False:
             logging.debug("Skipping permissions, EDU_SHARING_PERMISSION_CONTROL is set to false")
             return
@@ -557,7 +557,7 @@ class EduSharing:
                 mergedGroups = []
                 if "groups" in item["permissions"]:
                     if "autoCreateGroups" in item["permissions"] and item["permissions"]["autoCreateGroups"] is True:
-                        self.createGroupsIfNotExists(
+                        self.create_groups_if_not_exists(
                             item["permissions"]["groups"],
                             EduSharing.CreateGroupType.Regular,
                         )
@@ -572,7 +572,7 @@ class EduSharing:
                         "autoCreateMediacenters" in item["permissions"]
                         and item["permissions"]["autoCreateMediacenters"] is True
                     ):
-                        self.createGroupsIfNotExists(
+                        self.create_groups_if_not_exists(
                             item["permissions"]["mediacenters"],
                             EduSharing.CreateGroupType.MediaCenter,
                         )
@@ -597,24 +597,24 @@ class EduSharing:
                             ],
                         }
                     )
-            if not self.setPermissions(uuid, permissions):
+            if not self.set_permissions(uuid, permissions):
                 logging.error(
                     "Failed to set permissions, please check that the given groups/mediacenters are existing in the repository or set the autoCreate mode to true"
                 )
                 logging.error(item["permissions"])
 
-    def insertItem(self, spider, uuid, item):
-        node = self.syncNode(spider, "ccm:io", self.transformItem(uuid, spider, item))
-        self.setNodePermissions(node["ref"]["id"], item)
-        self.setNodePreview(node["ref"]["id"], item)
-        if not self.setNodeBinaryData(node["ref"]["id"], item):
-            self.setNodeText(node["ref"]["id"], item)
+    def insert_item(self, spider, uuid, item):
+        node = self.sync_node(spider, "ccm:io", self.transform_item(uuid, spider, item))
+        self.set_node_permissions(node["ref"]["id"], item)
+        self.set_node_preview(node["ref"]["id"], item)
+        if not self.set_node_binary_data(node["ref"]["id"], item):
+            self.set_node_text(node["ref"]["id"], item)
 
-    def updateItem(self, spider, uuid, item):
-        self.insertItem(spider, uuid, item)
+    def update_item(self, spider, uuid, item):
+        self.insert_item(spider, uuid, item)
 
     @staticmethod
-    def initCookie():
+    def init_cookie():
         logging.debug("Init edu sharing cookie...")
         settings = get_project_settings()
         auth = requests.get(
@@ -634,10 +634,10 @@ class EduSharing:
             EduSharing.cookie = ";".join(cookies)
         return auth
 
-    def initApiClient(self):
+    def init_api_client(self):
         if EduSharing.cookie is None:
             settings = get_project_settings()
-            auth = self.initCookie()
+            auth = self.init_cookie()
             isAdmin = json.loads(auth.text)["isAdmin"]
             if isAdmin:
                 configuration = Configuration()
@@ -692,13 +692,13 @@ class EduSharing:
             )
 
     @staticmethod
-    def buildUUID(url):
+    def build_uuid(url):
         return str(uuid.uuid5(uuid.NAMESPACE_URL, url))
 
-    def uuidExists(self, uuid):
+    def uuid_exists(self, uuid):
         return False
 
-    def findItem(self, id, spider):
+    def find_item(self, id, spider):
         if not self.enabled:
             return None
         properties = {
@@ -717,23 +717,23 @@ class EduSharing:
             if e.status == 401:
                 # Typically happens when the edu-sharing session cookie is lost and needs to be renegotiated.
                 # (edu-sharing error-message: "Admin rights are required for this endpoint")
-                logging.info(f"ES_CONNECTOR - findItem: edu-sharing returned HTTP-statuscode 401.")
+                logging.info(f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode 401.")
                 logging.debug(f"(HTTP-Body: '{e.body}')")
                 logging.debug(f"Reason: {e.reason}")
                 logging.debug(f"HTTP Headers: {e.headers}")
                 logging.info(f"ES_CONNECTOR: Re-initializing edu-sharing API Client...")
-                self.initApiClient()
+                self.init_api_client()
             if e.status == 404:
-                logging.debug(f"ES_CONNECTOR - findItem: edu-sharing returned HTTP-statuscode 404.")
+                logging.debug(f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode 404.")
                 pass
             else:
                 raise e
         return None
 
-    def findSource(self, spider):
+    def find_source(self, spider):
         return True
 
-    def createSource(self, spider):
+    def create_source(self, spider):
         # src = self.createNode(EduSharing.etlFolder['ref']['id'], 'ccm:map', {'cm:name' : [spider.name]})
         # EduSharing.spiderNodes[spider.name] = src
         # return src
