@@ -107,6 +107,10 @@ class EduSharing:
     enabled: bool
 
     def __init__(self):
+        cookie_threshold = env.get('EDU_SHARING_COOKIE_REBUILD_THRESHOLD', True)
+        if cookie_threshold:
+            logging.info('Setting COOKIE_REBUILD_THRESHOLD to ' + str(cookie_threshold) + ' seconds')
+            self.COOKIE_REBUILD_THRESHOLD = cookie_threshold
         self.enabled = env.get("MODE", default="edu-sharing") == "edu-sharing"
         if self.enabled:
             self.initApiClient()
@@ -644,6 +648,7 @@ class EduSharing:
 
     @staticmethod
     def initCookie():
+        logging.debug("Init edu sharing cookie...")
         settings = get_project_settings()
         auth = requests.get(
             settings.get("EDU_SHARING_BASE_URL")
@@ -655,6 +660,7 @@ class EduSharing:
             headers={"Accept": "application/json"},
         )
         isAdmin = json.loads(auth.text)["isAdmin"]
+        logging.info("Got edu sharing cookie, admin status: " + str(isAdmin))
         if isAdmin:
             cookies = []
             for cookie in auth.headers["SET-COOKIE"].split(","):
