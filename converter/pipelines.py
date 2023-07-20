@@ -902,11 +902,12 @@ class LisumPipeline(BasicPipeline):
                             lrt_w3id: str = lrt_item.split(sep='/')[-1]
                             if lrt_w3id in self.LRT_OEH_TO_LISUM:
                                 lrt_w3id = self.LRT_OEH_TO_LISUM.get(lrt_w3id)
-                            if lrt_w3id:
-                                # ToDo: workaround
+                            if lrt_w3id and type(lrt_w3id) is str:
                                 # making sure to exclude '' strings from populating the list
                                 lrt_temporary_list.append(lrt_w3id)
-                    lrt_list = lrt_temporary_list
+                            elif lrt_w3id and type(lrt_w3id) is list:
+                                lrt_temporary_list.extend(lrt_w3id)
+                    lrt_list = list(set(lrt_temporary_list))
                 # after everything is mapped, we're saving the (updated) list back to our LRT:
                 valuespaces["learningResourceType"] = lrt_list
 
