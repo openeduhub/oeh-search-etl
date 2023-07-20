@@ -714,17 +714,21 @@ class EduSharing:
                     properties["ccm:replicationsourcehash"][0],
                 ]
         except ApiException as e:
+            # ToDo:
+            #  - find a way to handle statuscode 503 ("Service Temporarily Unavailable") gracefully?
             if e.status == 401:
                 # Typically happens when the edu-sharing session cookie is lost and needs to be renegotiated.
                 # (edu-sharing error-message: "Admin rights are required for this endpoint")
-                logging.info(f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode 401.")
-                logging.debug(f"(HTTP-Body: '{e.body}')")
-                logging.debug(f"Reason: {e.reason}")
-                logging.debug(f"HTTP Headers: {e.headers}")
+                logging.info(f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode {e.status} for (replicationsourceid '{id}').")
+                logging.debug(f"(HTTP-Body: '{e.body}\n')"
+                              f"Reason: {e.reason}\n"
+                              f"HTTP Headers: {e.headers}")
                 logging.info(f"ES_CONNECTOR: Re-initializing edu-sharing API Client...")
                 self.init_api_client()
             if e.status == 404:
-                logging.debug(f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode 404.")
+                logging.debug(f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode {e.status} (replicationsourceid '{id}') :\n"
+                              f"HTTP Body: {e.body}\n"
+                              f"HTTP Header: {e.headers}")
                 pass
             else:
                 raise e
