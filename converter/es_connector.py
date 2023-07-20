@@ -648,6 +648,7 @@ class EduSharing:
 
     @staticmethod
     def initCookie():
+        logging.debug("Init edu sharing cookie...")
         settings = get_project_settings()
         auth = requests.get(
             settings.get("EDU_SHARING_BASE_URL")
@@ -659,6 +660,7 @@ class EduSharing:
             headers={"Accept": "application/json"},
         )
         isAdmin = json.loads(auth.text)["isAdmin"]
+        logging.info("Got edu sharing cookie, admin status: " + str(isAdmin))
         if isAdmin:
             cookies = []
             for cookie in auth.headers["SET-COOKIE"].split(","):
