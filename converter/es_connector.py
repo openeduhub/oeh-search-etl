@@ -74,10 +74,11 @@ class ESApiClient(ApiClient):
 
     def __getattribute__(self, name):
         attr = object.__getattribute__(self, name)
-        if hasattr(attr, '__call__'):
+        if hasattr(attr, "__call__"):
+
             def newfunc(*args, **kwargs):
                 if time.time() - ESApiClient.lastRequestTime > ESApiClient.COOKIE_REBUILD_THRESHOLD:
-                    EduSharing.initCookie()
+                    EduSharing.init_cookie()
                     self.cookie = EduSharing.cookie
 
                 # store last request time
@@ -107,22 +108,22 @@ class EduSharing:
     enabled: bool
 
     def __init__(self):
-        cookie_threshold = env.get('EDU_SHARING_COOKIE_REBUILD_THRESHOLD', True)
+        cookie_threshold = env.get("EDU_SHARING_COOKIE_REBUILD_THRESHOLD", True)
         if cookie_threshold:
-            logging.info('Setting COOKIE_REBUILD_THRESHOLD to ' + str(cookie_threshold) + ' seconds')
+            logging.info("Setting COOKIE_REBUILD_THRESHOLD to " + str(cookie_threshold) + " seconds")
             self.COOKIE_REBUILD_THRESHOLD = cookie_threshold
         self.enabled = env.get("MODE", default="edu-sharing") == "edu-sharing"
         if self.enabled:
-            self.initApiClient()
+            self.init_api_client()
 
-    def getHeaders(self, contentType="application/json"):
+    def get_headers(self, content_type: str | None = "application/json"):
         return {
             "COOKIE": EduSharing.cookie,
             "Accept": "application/json",
-            "Content-Type": contentType,
+            "Content-Type": content_type,
         }
 
-    def syncNode(self, spider, type, properties):
+    def sync_node(self, spider, type, properties):
         groupBy = []
         if "ccm:replicationsourceorigin" in properties:
             groupBy = ["ccm:replicationsourceorigin"]
@@ -136,22 +137,33 @@ class EduSharing:
                 reset_version=EduSharing.resetVersion,
             )
         except ApiException as e:
-            jsonError = json.loads(e.body)
-            if jsonError["error"] == "java.lang.IllegalStateException":
-                logging.warning(
-                    "Node '" + properties['cm:name'][0] + "' probably blocked for sync: " + jsonError["message"])
-                return None
+            # ToDo:
+            #  - error-handling for code 500 ("java.util.concurrent.TimeoutException")
+            try:
+                json_error: dict = json.loads(e.body)
+                if json_error["error"] == "java.lang.IllegalStateException":
+                    logging.warning(
+                        "Node '" + properties["cm:name"][0] + "' probably blocked for sync: " + json_error["message"]
+                    )
+                    return None
+            except json.JSONDecodeError:
+                logging.error(
+                    f"ES_CONNECTOR: edu-sharing ApiException 'body'-attribute was't a deserializable JSON "
+                    f"String for item '{properties['cm:name'][0]}' "
+                    f"(replicationsourceid: '{properties['ccm:replicationsourceid']}'). "
+                    f'edu-sharing returned the following exception:\n"{e.body}"'
+                )
             raise e
         return response["node"]
 
-    def setNodeText(self, uuid, item) -> bool:
+    def set_node_text(self, uuid, item) -> bool:
         if "fulltext" in item:
             response = requests.post(
                 get_project_settings().get("EDU_SHARING_BASE_URL")
                 + "rest/node/v1/nodes/-home-/"
                 + uuid
                 + "/textContent?mimetype=text/plain",
-                headers=self.getHeaders("multipart/form-data"),
+                headers=self.get_headers("multipart/form-data"),
                 data=item["fulltext"].encode("utf-8"),
             )
             return response.status_code == 200
@@ -163,7 +175,7 @@ class EduSharing:
             #     print(e)
             #     return False
 
-    def setPermissions(self, uuid, permissions) -> bool:
+    def set_permissions(self, uuid, permissions) -> bool:
         try:
             EduSharing.nodeApi.set_permission(
                 repository=EduSharingConstants.HOME,
@@ -176,14 +188,15 @@ class EduSharing:
         except ApiException as e:
             return False
 
-    def setNodeBinaryData(self, uuid, item) -> bool:
+    def set_node_binary_data(self, uuid, item) -> bool:
         if "binary" in item:
-            logging.info(get_project_settings().get("EDU_SHARING_BASE_URL")
-                         + "rest/node/v1/nodes/-home-/"
-                         + uuid
-                         + "/content?mimetype="
-                         + item["lom"]["technical"]["format"]
-                         )
+            logging.info(
+                get_project_settings().get("EDU_SHARING_BASE_URL")
+                + "rest/node/v1/nodes/-home-/"
+                + uuid
+                + "/content?mimetype="
+                + item["lom"]["technical"]["format"]
+            )
             files = {"file": item["binary"]}
             response = requests.post(
                 get_project_settings().get("EDU_SHARING_BASE_URL")
@@ -191,22 +204,16 @@ class EduSharing:
                 + uuid
                 + "/content?mimetype="
                 + item["lom"]["technical"]["format"],
-                headers=self.getHeaders(None),
+                headers=self.get_headers(None),
                 files=files,
             )
             return response.status_code == 200
         else:
             return False
 
-    def setNodePreview(self, uuid, item) -> bool:
+    def set_node_preview(self, uuid, item) -> bool:
         if "thumbnail" in item:
-            key = (
-                "large"
-                if "large" in item["thumbnail"]
-                else "small"
-                if "small" in item["thumbnail"]
-                else None
-            )
+            key = "large" if "large" in item["thumbnail"] else "small" if "small" in item["thumbnail"] else None
             if key:
                 files = {"image": base64.b64decode(item["thumbnail"][key])}
                 response = requests.post(
@@ -215,14 +222,14 @@ class EduSharing:
                     + uuid
                     + "/preview?mimetype="
                     + item["thumbnail"]["mimetype"],
-                    headers=self.getHeaders(None),
+                    headers=self.get_headers(None),
                     files=files,
                 )
                 return response.status_code == 200
         else:
             logging.warning("No thumbnail provided for " + uuid)
 
-    def mapLicense(self, spaces, license):
+    def map_license(self, spaces, license):
         if "url" in license:
             match license["url"]:
                 # ToDo: refactor this ungodly method asap
@@ -295,24 +302,25 @@ class EduSharing:
                 case Constants.LICENSE_PDM:
                     spaces["ccm:commonlicense_key"] = "PDM"
                 case _:
-                    logging.warning(f"License.url {license['url']} could not be mapped to a license from Constants.\n"
-                                    f"If you are sure that you provided a correct URL to a license, "
-                                    f"please check if the license-mapping within es_connector.py is up-to-date.")
+                    logging.warning(
+                        f"License.url {license['url']} could not be mapped to a license from Constants.\n"
+                        f"If you are sure that you provided a correct URL to a license, "
+                        f"please check if the license-mapping within es_connector.py is up-to-date."
+                    )
         if "internal" in license:
             match license["internal"]:
-                case "CC_0" | "CC_BY" | "CC_BY_NC" | "CC_BY_NC_ND" | "CC_BY_NC_SA" | "CC_BY_ND" | "CC_BY_SA" | "PDM" \
-                     | Constants.LICENSE_COPYRIGHT_LAW \
-                     | Constants.LICENSE_SCHULFUNK \
-                     | Constants.LICENSE_UNTERRICHTS_UND_SCHULMEDIEN:
+                case "CC_0" | "CC_BY" | "CC_BY_NC" | "CC_BY_NC_ND" | "CC_BY_NC_SA" | "CC_BY_ND" | "CC_BY_SA" | "PDM" | Constants.LICENSE_COPYRIGHT_LAW | Constants.LICENSE_SCHULFUNK | Constants.LICENSE_UNTERRICHTS_UND_SCHULMEDIEN:
                     spaces["ccm:commonlicense_key"] = license["internal"]
                 case Constants.LICENSE_CUSTOM:
                     spaces["ccm:commonlicense_key"] = "CUSTOM"
                     if "description" in license:
                         spaces["cclom:rights_description"] = license["description"]
                 case _:
-                    logging.warning(f"Received a value for license['internal'] that is not recognized by es_connector. "
-                                    f"Please double-check if the provided value {license['internal']} is correctly "
-                                    f"mapped within Constants AND es_connector.")
+                    logging.warning(
+                        f"Received a value for license['internal'] that is not recognized by es_connector. "
+                        f"Please double-check if the provided value {license['internal']} is correctly "
+                        f"mapped within Constants AND es_connector."
+                    )
 
         if "author" in license:
             spaces["ccm:author_freetext"] = license["author"]
@@ -320,20 +328,20 @@ class EduSharing:
         if "expirationDate" in license:
             spaces["ccm:license_to"] = [license["expirationDate"].isoformat()]
 
-    def transformItem(self, uuid, spider, item):
+    def transform_item(self, uuid, spider, item):
         spaces = {
             "ccm:replicationsource": spider.name,
             "ccm:replicationsourceid": item["sourceId"],
             "ccm:replicationsourcehash": item["hash"],
             "ccm:replicationsourceuuid": uuid,
             "cm:name": item["lom"]["general"]["title"],
-            "ccm:wwwurl": item["lom"]["technical"]["location"][0]
-            if "location" in item["lom"]["technical"] else None,
-            "cclom:location": item["lom"]["technical"]["location"]
-            if "location" in item["lom"]["technical"] else None,
+            "ccm:wwwurl": item["lom"]["technical"]["location"][0] if "location" in item["lom"]["technical"] else None,
+            "cclom:location": item["lom"]["technical"]["location"] if "location" in item["lom"]["technical"] else None,
             "cclom:format": item["lom"]["technical"]["format"] if "format" in item["lom"]["technical"] else None,
-            "cclom:aggregationlevel": item["lom"]["general"]["aggregationLevel"] if "aggregationLevel" in item["lom"]["general"] else None,
-            "cclom:title": item["lom"]["general"]["title"]
+            "cclom:aggregationlevel": item["lom"]["general"]["aggregationLevel"]
+            if "aggregationLevel" in item["lom"]["general"]
+            else None,
+            "cclom:title": item["lom"]["general"]["title"],
         }
         if "identifier" in item["lom"]["general"]:
             spaces["cclom:general_identifier"] = item["lom"]["general"]["identifier"]
@@ -342,11 +350,9 @@ class EduSharing:
         if "status" in item:
             spaces["ccm:editorial_state"] = item["status"]
         if "origin" in item:
-            spaces["ccm:replicationsourceorigin"] = item[
-                "origin"
-            ]  # TODO currently not mapped in edu-sharing
+            spaces["ccm:replicationsourceorigin"] = item["origin"]  # TODO currently not mapped in edu-sharing
 
-        self.mapLicense(spaces, item["license"])
+        self.map_license(spaces, item["license"])
         if "description" in item["lom"]["general"]:
             spaces["cclom:general_description"] = item["lom"]["general"]["description"]
 
@@ -367,35 +373,30 @@ class EduSharing:
                     # edusharing requires milliseconds
                     duration = int(float(duration) * 1000)
                 except:
-                    logging.debug(f"The supplied 'technical.duration'-value {duration} could not be converted from "
-                                  f"seconds to milliseconds. ('cclom:duration' expects ms)")
+                    logging.debug(
+                        f"The supplied 'technical.duration'-value {duration} could not be converted from "
+                        f"seconds to milliseconds. ('cclom:duration' expects ms)"
+                    )
                     pass
                 spaces["cclom:duration"] = duration
 
         if "lifecycle" in item["lom"]:
             for person in item["lom"]["lifecycle"]:
-                if not "role" in person:
+                if "role" not in person:
                     continue
-                if (
-                        not person["role"].lower()
-                            in EduSharingConstants.LIFECYCLE_ROLES_MAPPING
-                ):
+                if not person["role"].lower() in EduSharingConstants.LIFECYCLE_ROLES_MAPPING:
                     logging.warning(
                         "The lifecycle role "
                         + person["role"]
                         + " is currently not supported by the edu-sharing connector"
                     )
                     continue
-                mapping = EduSharingConstants.LIFECYCLE_ROLES_MAPPING[
-                    person["role"].lower()
-                ]
+                mapping = EduSharingConstants.LIFECYCLE_ROLES_MAPPING[person["role"].lower()]
                 # convert to a vcard string
                 firstName = person["firstName"] if "firstName" in person else ""
                 lastName = person["lastName"] if "lastName" in person else ""
                 title: str = person["title"] if "title" in person else ""
-                organization = (
-                    person["organization"] if "organization" in person else ""
-                )
+                organization = person["organization"] if "organization" in person else ""
                 url = person["url"] if "url" in person else ""
                 email = person["email"] if "email" in person else ""
                 date = person["date"] if "date" in person else None
@@ -404,14 +405,8 @@ class EduSharing:
                 id_ror: str = person["id_ror"] if "id_ror" in person else ""
                 id_wikidata: str = person["id_wikidata"] if "id_wikidata" in person else ""
                 vcard = vobject.vCard()
-                vcard.add("n").value = vobject.vcard.Name(
-                    family=lastName, given=firstName
-                )
-                vcard.add("fn").value = (
-                    organization
-                    if organization
-                    else (firstName + " " + lastName).strip()
-                )
+                vcard.add("n").value = vobject.vcard.Name(family=lastName, given=firstName)
+                vcard.add("fn").value = organization if organization else (firstName + " " + lastName).strip()
                 if id_gnd:
                     vcard.add("X-GND-URI").value = id_gnd
                 if id_orcid:
@@ -424,7 +419,7 @@ class EduSharing:
                     vcard.add("title").value = title
                 if date:
                     vcard.add("X-ES-LOM-CONTRIBUTE-DATE").value = date.isoformat()
-                    if person["role"].lower() == 'publisher':
+                    if person["role"].lower() == "publisher":
                         spaces["ccm:published_date"] = date.isoformat()
                 if organization:
                     vcard.add("org")
@@ -504,35 +499,23 @@ class EduSharing:
 
         return spaces
 
-    def createGroupsIfNotExists(self, groups, type: CreateGroupType):
+    def create_groups_if_not_exists(self, groups, type: CreateGroupType):
         for group in groups:
             if type == EduSharing.CreateGroupType.MediaCenter:
-                uuid = (
-                        EduSharingConstants.GROUP_PREFIX
-                        + EduSharingConstants.MEDIACENTER_PREFIX
-                        + group
-                )
+                uuid = EduSharingConstants.GROUP_PREFIX + EduSharingConstants.MEDIACENTER_PREFIX + group
             else:
                 uuid = EduSharingConstants.GROUP_PREFIX + group
             if uuid in EduSharing.groupCache:
-                logging.debug(
-                    "Group " + uuid + " is existing in cache, no need to create"
-                )
+                logging.debug("Group " + uuid + " is existing in cache, no need to create")
                 continue
             logging.debug("Group " + uuid + " is not in cache, checking consistency...")
             try:
                 group = EduSharing.iamApi.get_group(EduSharingConstants.HOME, uuid)
-                logging.info(
-                    "Group "
-                    + uuid
-                    + " was found in edu-sharing (cache inconsistency), no need to create"
-                )
+                logging.info("Group " + uuid + " was found in edu-sharing (cache inconsistency), no need to create")
                 EduSharing.groupCache.append(uuid)
                 continue
             except ApiException as e:
-                logging.info(
-                    "Group " + uuid + " was not found in edu-sharing, creating it"
-                )
+                logging.info("Group " + uuid + " was not found in edu-sharing, creating it")
                 pass
 
             if type == EduSharing.CreateGroupType.MediaCenter:
@@ -543,13 +526,11 @@ class EduSharing:
                 )
                 EduSharing.groupCache.append(result["authorityName"])
             else:
-                result = EduSharing.iamApi.create_group(
-                    repository=EduSharingConstants.HOME, group=group, body={}
-                )
+                result = EduSharing.iamApi.create_group(repository=EduSharingConstants.HOME, group=group, body={})
                 EduSharing.groupCache.append(result["authorityName"])
 
-    def setNodePermissions(self, uuid, item):
-        if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) == False:
+    def set_node_permissions(self, uuid, item):
+        if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is False:
             logging.debug("Skipping permissions, EDU_SHARING_PERMISSION_CONTROL is set to false")
             return
         if "permissions" in item:
@@ -558,11 +539,8 @@ class EduSharing:
                 "permissions": [],
             }
             public = item["permissions"]["public"]
-            if public == True:
-                if (
-                        "groups" in item["permissions"]
-                        or "mediacenters" in item["permissions"]
-                ):
+            if public is True:
+                if "groups" in item["permissions"] or "mediacenters" in item["permissions"]:
                     logging.error(
                         "Invalid state detected: Permissions public is set to true but groups or mediacenters are also set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!"
                     )
@@ -586,15 +564,12 @@ class EduSharing:
                 #    return
                 mergedGroups = []
                 if "groups" in item["permissions"]:
-                    if (
-                            "autoCreateGroups" in item["permissions"]
-                            and item["permissions"]["autoCreateGroups"] == True
-                    ):
-                        self.createGroupsIfNotExists(
+                    if "autoCreateGroups" in item["permissions"] and item["permissions"]["autoCreateGroups"] is True:
+                        self.create_groups_if_not_exists(
                             item["permissions"]["groups"],
                             EduSharing.CreateGroupType.Regular,
                         )
-                    mergedGroups = mergedGroups + list(
+                    mergedGroups += list(
                         map(
                             lambda x: EduSharingConstants.GROUP_PREFIX + x,
                             item["permissions"]["groups"],
@@ -602,18 +577,18 @@ class EduSharing:
                     )
                 if "mediacenters" in item["permissions"]:
                     if (
-                            "autoCreateMediacenters" in item["permissions"]
-                            and item["permissions"]["autoCreateMediacenters"] == True
+                        "autoCreateMediacenters" in item["permissions"]
+                        and item["permissions"]["autoCreateMediacenters"] is True
                     ):
-                        self.createGroupsIfNotExists(
+                        self.create_groups_if_not_exists(
                             item["permissions"]["mediacenters"],
                             EduSharing.CreateGroupType.MediaCenter,
                         )
-                    mergedGroups = mergedGroups + list(
+                    mergedGroups += list(
                         map(
                             lambda x: EduSharingConstants.GROUP_PREFIX
-                                      + EduSharingConstants.MEDIACENTER_PROXY_PREFIX
-                                      + x,
+                            + EduSharingConstants.MEDIACENTER_PROXY_PREFIX
+                            + x,
                             item["permissions"]["mediacenters"],
                         )
                     )
@@ -630,29 +605,28 @@ class EduSharing:
                             ],
                         }
                     )
-            if not self.setPermissions(uuid, permissions):
+            if not self.set_permissions(uuid, permissions):
                 logging.error(
                     "Failed to set permissions, please check that the given groups/mediacenters are existing in the repository or set the autoCreate mode to true"
                 )
                 logging.error(item["permissions"])
 
-    def insertItem(self, spider, uuid, item):
-        node = self.syncNode(spider, "ccm:io", self.transformItem(uuid, spider, item))
-        self.setNodePermissions(node["ref"]["id"], item)
-        self.setNodePreview(node["ref"]["id"], item)
-        if not self.setNodeBinaryData(node["ref"]["id"], item):
-            self.setNodeText(node["ref"]["id"], item)
+    def insert_item(self, spider, uuid, item):
+        node = self.sync_node(spider, "ccm:io", self.transform_item(uuid, spider, item))
+        self.set_node_permissions(node["ref"]["id"], item)
+        self.set_node_preview(node["ref"]["id"], item)
+        if not self.set_node_binary_data(node["ref"]["id"], item):
+            self.set_node_text(node["ref"]["id"], item)
 
-    def updateItem(self, spider, uuid, item):
-        self.insertItem(spider, uuid, item)
+    def update_item(self, spider, uuid, item):
+        self.insert_item(spider, uuid, item)
 
     @staticmethod
-    def initCookie():
+    def init_cookie():
         logging.debug("Init edu sharing cookie...")
         settings = get_project_settings()
         auth = requests.get(
-            settings.get("EDU_SHARING_BASE_URL")
-            + "rest/authentication/v1/validateSession",
+            settings.get("EDU_SHARING_BASE_URL") + "rest/authentication/v1/validateSession",
             auth=HTTPBasicAuth(
                 settings.get("EDU_SHARING_USERNAME"),
                 settings.get("EDU_SHARING_PASSWORD"),
@@ -668,10 +642,10 @@ class EduSharing:
             EduSharing.cookie = ";".join(cookies)
         return auth
 
-    def initApiClient(self):
-        if EduSharing.cookie == None:
+    def init_api_client(self):
+        if EduSharing.cookie is None:
             settings = get_project_settings()
-            auth = self.initCookie()
+            auth = self.init_cookie()
             isAdmin = json.loads(auth.text)["isAdmin"]
             if isAdmin:
                 configuration = Configuration()
@@ -696,21 +670,23 @@ class EduSharing:
                 EduSharing.mediacenterApi = MEDIACENTERV1Api(EduSharing.apiClient)
                 EduSharing.nodeApi = NODEV1Api(EduSharing.apiClient)
                 about = EduSharing.aboutApi.about()
-                EduSharing.version = list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0]["version"]
+                EduSharing.version = list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0][
+                    "version"
+                ]
                 version_str = str(EduSharing.version["major"]) + "." + str(EduSharing.version["minor"])
-                if EduSharing.version["major"] != 1 or EduSharing.version["minor"] < 0 or EduSharing.version["minor"] > 1:
-                    raise Exception(
-                        f"Given repository api version is unsupported: " + version_str
-                    )
+                if (
+                    EduSharing.version["major"] != 1
+                    or EduSharing.version["minor"] < 0
+                    or EduSharing.version["minor"] > 1
+                ):
+                    raise Exception(f"Given repository api version is unsupported: " + version_str)
                 else:
                     logging.info("Detected edu-sharing bulk api with version " + version_str)
-                if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) == True:
+                if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is True:
                     EduSharing.groupCache = list(
                         map(
                             lambda x: x["authorityName"],
-                            EduSharing.iamApi.search_groups(
-                                EduSharingConstants.HOME, "", max_items=1000000
-                            )["groups"],
+                            EduSharing.iamApi.search_groups(EduSharingConstants.HOME, "", max_items=1000000)["groups"],
                         )
                     )
                     logging.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
@@ -724,13 +700,13 @@ class EduSharing:
             )
 
     @staticmethod
-    def buildUUID(url):
+    def build_uuid(url):
         return str(uuid.uuid5(uuid.NAMESPACE_URL, url))
 
-    def uuidExists(self, uuid):
+    def uuid_exists(self, uuid):
         return False
 
-    def findItem(self, id, spider):
+    def find_item(self, id, spider):
         if not self.enabled:
             return None
         properties = {
@@ -740,25 +716,41 @@ class EduSharing:
         try:
             response = EduSharing.bulkApi.find(properties)
             properties = response["node"]["properties"]
-            if (
-                    "ccm:replicationsourcehash" in properties
-                    and "ccm:replicationsourceuuid" in properties
-            ):
+            if "ccm:replicationsourcehash" in properties and "ccm:replicationsourceuuid" in properties:
                 return [
                     properties["ccm:replicationsourceuuid"][0],
                     properties["ccm:replicationsourcehash"][0],
                 ]
         except ApiException as e:
+            # ToDo:
+            #  - find a way to handle statuscode 503 ("Service Temporarily Unavailable") gracefully?
+            if e.status == 401:
+                # Typically happens when the edu-sharing session cookie is lost and needs to be renegotiated.
+                # (edu-sharing error-message: "Admin rights are required for this endpoint")
+                logging.info(
+                    f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode {e.status} for (replicationsourceid "
+                    f"'{id}')."
+                )
+                logging.debug(f"(HTTP-Body: '{e.body}\n')" f"Reason: {e.reason}\n" f"HTTP Headers: {e.headers}")
+                logging.info("ES_CONNECTOR: Re-initializing edu-sharing API Client...")
+                self.init_api_client()
+                return None
             if e.status == 404:
-                pass
+                logging.debug(
+                    f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode {e.status} (replicationsourceid "
+                    f"'{id}'):\n"
+                    f"HTTP Body: {e.body}\n"
+                    f"HTTP Header: {e.headers}"
+                )
+                return None
             else:
                 raise e
         return None
 
-    def findSource(self, spider):
+    def find_source(self, spider):
         return True
 
-    def createSource(self, spider):
+    def create_source(self, spider):
         # src = self.createNode(EduSharing.etlFolder['ref']['id'], 'ccm:map', {'cm:name' : [spider.name]})
         # EduSharing.spiderNodes[spider.name] = src
         # return src

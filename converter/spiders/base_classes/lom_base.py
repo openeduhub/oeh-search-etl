@@ -62,7 +62,7 @@ class LomBase:
         return response.url
 
     def getUUID(self, response=None) -> str:
-        return EduSharing.buildUUID(self.getUri(response))
+        return EduSharing.build_uuid(self.getUri(response))
 
     def hasChanged(self, response=None) -> bool:
         if self.forceUpdate:
@@ -77,7 +77,7 @@ class LomBase:
                 logging.info(f"matching requested id: {self.remoteId}")
                 return True
             return False
-        db = EduSharing().findItem(self.getId(response), self)
+        db = EduSharing().find_item(self.getId(response), self)
         changed = db is None or db[1] != self.getHash(response)
         if not changed:
             logging.info(f"Item {self.getId(response)} (uuid: {db[0]}) has not changed")
