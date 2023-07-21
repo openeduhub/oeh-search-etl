@@ -268,15 +268,15 @@ class EduSharingBase(Spider, LomBase):
             # this fallback will lose metadata in the long run since the "conditionsOfAccess"-Vocab has 3 values, while
             # "ccm:oeh_quality_login" returns only binary string values:
             # - "0": login required
-            # - "1": no login required
+            # - "1": no login necessary
             oeh_quality_login_value: list = self.getProperty("ccm:oeh_quality_login", response)
             if oeh_quality_login_value:
                 oeh_quality_login_value: str = oeh_quality_login_value[0]
                 match oeh_quality_login_value:
+                    case "0":
+                        valuespaces.add_value("conditionsOfAccess", "login")
                     case "1":
                         valuespaces.add_value("conditionsOfAccess", "no_login")
-                    case "2":
-                        valuespaces.add_value("conditionsOfAccess", "login")
                     case _:
                         logging.warning(f"edu-sharing property 'ccm:oeh_quality_login' returned an unexpected value: "
                                         f"{oeh_quality_login_value} for node-ID {response.meta['item']['ref']['id']}")
