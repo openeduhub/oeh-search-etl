@@ -1,7 +1,5 @@
 FROM python:3.9-slim-buster
 
-ENV TZ="Europe/Berlin"
-
 RUN apt-get install ca-certificates
 
 WORKDIR /oeh-search-etl

@@ -17,6 +17,7 @@ class User:
     password: str
     type: Literal['function', 'system']
     groups: List[str]
+    quota: int = 1
 
 
 class EdusharingSetup:
@@ -50,7 +51,7 @@ class EdusharingSetup:
                 user.groups.append(ADMIN_GROUP)
 
         for group in groups:
-            if group not in existing_groupnames:
+            if group not in existing_groupnames and not group == ADMIN_GROUP:
                 self.api.create_group(group)
                 print(f'Created group {group}')
             else:
@@ -72,13 +73,13 @@ class EdusharingSetup:
             file.close()
 
     def run(self, users: List[User], other_groups: List[str]):
-        other_groups = set(other_groups)
+        all_groups = set(other_groups)
         for user in users:
             for group in user.groups:
-                other_groups.add(group)
+                all_groups.add(group)
 
         self._add_metadata_sets()
-        self._add_users_and_groups(users, other_groups)
+        self._add_users_and_groups(users, all_groups)
         self._upload_color_picker()
 
 
@@ -90,7 +91,7 @@ def main():
     obj = json.load(file)
     file.close()
     groups = obj['groups']
-    users = [User(user[0], user[1], user[2], user[3]) for user in obj['users']]
+    users = [User(*user) for user in obj['users']]
 
     setup = EdusharingSetup(
         env['EDU_SHARING_BASE_URL'],

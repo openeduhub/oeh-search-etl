@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import time
 from datetime import datetime
 from typing import Dict, List, Literal, Optional, IO, Any, Callable
@@ -99,7 +100,9 @@ class EdusharingAPI:
                 print(f'    --> {response.status_code} {response.text}')
                 print()
             if 500 <= response.status_code < 600 and i < retry:
-                time.sleep(i // 2)
+                sleep_seconds = i // 2
+                print(f'Internal server error. Waiting {sleep_seconds} sec until retrying.', file=sys.stderr)
+                time.sleep(sleep_seconds)
                 continue
             if not (200 <= response.status_code < 300):
                 raise RequestErrorResponseException(response)
@@ -323,6 +326,43 @@ class EdusharingAPI:
             if not skip_exception:
                 raise NotFoundException(replication_source_uuid)
 
+    def get_node(self, node_id: str, all_properties: bool = False):
+        """
+        Returns the metadata of the node.
+        @param node_id: ID of the node
+        """
+        url = f'/node/v1/nodes/-home-/{node_id}/metadata'
+        params = {}
+        if all_properties:
+            params['propertyFilter'] = ['-all-']
+        try:
+            return Node(self.make_request('GET', url, params=params).json()['node'])
+        except RequestErrorResponseException as exc:
+            if exc.response.status_code == 404:
+                raise NotFoundException(node_id)
+            raise
+
+    def get_node_versions(self, node_id: str) -> list:
+        url = f'/node/v1/nodes/-home-/{node_id}/versions'
+        try:
+            return self.make_request('GET', url).json()['versions']
+        except RequestErrorResponseException as exc:
+            if exc.response.status_code == 404:
+                raise NotFoundException(node_id)
+            raise
+
+    def get_node_version(self, node_id: str, version: tuple[int, int], all_properties: bool = False):
+        url = f'/node/v1/nodes/-home-/{node_id}/versions/{version[0]}/{version[1]}/metadata'
+        params = {}
+        if all_properties:
+            params['propertyFilter'] = ['-all-']
+        try:
+            return self.make_request('GET', url, params=params).json()['version']
+        except RequestErrorResponseException as exc:
+            if exc.response.status_code == 404:
+                raise NotFoundException(node_id)
+            raise
+
     def create_node(self, parent_id: str, name: str, type: Literal['file', 'folder'] = 'file',
                     properties: Optional[Dict] = None) -> Node:
         """
@@ -373,13 +413,30 @@ class EdusharingAPI:
         response = self.make_request('PUT', url, params=params, json_data=properties)
         return Node(response.json()['node'])
 
-    def delete_node(self, node_id: str):
+    def move_node(self, node_id: str, new_parent_id: str):
+        url = f'/node/v1/nodes/-home-/{new_parent_id}/children/_move'
+        params = {
+            'source': node_id
+        }
+        self.make_request('POST', url, params)
+
+    def set_owner(self, node_id: str, username: str):
+        url = f'/node/v1/nodes/-home-/{node_id}/owner'
+        params = {
+            'username': username
+        }
+        self.make_request('POST', url, params)
+
+    def delete_node(self, node_id: str, recycle: bool = False):
         """
         Delete a node by ID.
         @param node_id: ID of the node
         """
         url = f'/node/v1/nodes/-home-/{node_id}'
-        self.make_request('DELETE', url)
+        params = {
+            'recycle': recycle
+        }
+        self.make_request('DELETE', url, params)
 
     def get_sync_obj_folder(self) -> Node:
         """
@@ -399,6 +456,24 @@ class EdusharingAPI:
         # TODO: replace with find_node_by_name?
         name = name.replace(" ", "_")
         return len(self.search_custom('name', name, content_type='FILES')) > 0
+
+    def walk_children_recursively(self, node_id: str, all_properties: bool = False):
+        """
+        Use with for-loop: for node in walk_children_recursively(root)
+        """
+        # don't use if it can be avoided
+        chunk = 100
+        start = 0
+        while True:
+            children = self.get_children(node_id, all_properties=all_properties, type='all', start=start, count=chunk)
+            for child in children:
+                yield child
+                if child.is_directory:
+                    for node in self.walk_children_recursively(child.id, all_properties=all_properties):
+                        yield node
+            if len(children) != chunk:
+                break
+            start += chunk
 
     def search_ngsearch(self, criteria: list[dict[str, str]], content_type: Optional[Literal['FOLDERS', 'FILES']] = None,
                         all_properties: bool = False) -> list[Node]:
@@ -497,22 +572,6 @@ class EdusharingAPI:
             ]
         }
         response = self.make_request('POST', url, params=params, json_data=body, timeout=60)
-
-    def get_node(self, node_id: str, all_properties: bool = False):
-        """
-        Returns the metadata of the node.
-        @param node_id: ID of the node
-        """
-        url = f'/node/v1/nodes/-home-/{node_id}/metadata'
-        params = {}
-        if all_properties:
-            params['propertyFilter'] = '-all-'
-        try:
-            return Node(self.make_request('GET', url, params=params).json()['node'])
-        except RequestErrorResponseException as exc:
-            if exc.response.status_code == 404:
-                raise NotFoundException(node_id)
-            raise
 
     def get_collection(self, node_id: str):
         """
