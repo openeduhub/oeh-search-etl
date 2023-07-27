@@ -271,12 +271,7 @@
     {
       "path": "SYNC_OBJ/oeh_spider/rpi_virtuell_spider",
       "inherit": false,
-      "permitted_groups": [
-        "LowerSaxony",
-        "Brandenburg",
-        "Thuringia",
-        "Dbildungscloud"
-      ]
+      "permitted_groups": []
     },
     {
       "path": "SYNC_OBJ/oeh_spider/kindoergarten_spider",
