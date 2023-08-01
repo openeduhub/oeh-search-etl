@@ -30,12 +30,13 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.2.8"  # last update: 2023-07-11
+    version = "0.2.9"  # last update: 2023-08-01
     custom_settings = {
         # Using Playwright because of Splash-issues with thumbnails+text for Serlo
         "WEB_TOOLS": WebEngine.Playwright
     }
     GRAPHQL_MODIFIED_AFTER_PARAMETER: str = ""
+    GRAPHQL_INSTANCE_PARAMETER: str = ""
 
     graphql_items = list()
     # Mapping from EducationalAudienceRole (LRMI) to IntendedEndUserRole(LOM), see:
@@ -73,6 +74,11 @@ class SerloSpider(scrapy.Spider, LomBase):
         You can use this '.env'-setting to crawl Serlo more efficiently: Specify a date and only receive items that were
         modified since <date of the last crawling process>.
         """
+        graphql_instance_param: str = env.get(key="SERLO_INSTANCE", allow_null=True, default=None)
+        if graphql_instance_param:
+            logging.info(f"INIT: '.env'-Setting 'SERLO_INSTANCE': {graphql_instance_param} (language) detected. "
+                         f"Limiting query to a single language selection.")
+            self.GRAPHQL_INSTANCE_PARAMETER = graphql_instance_param
         graphql_modified_after_param: str = env.get(key="SERLO_MODIFIED_AFTER", allow_null=True, default=None)
         if graphql_modified_after_param:
             logging.info(
@@ -91,7 +97,7 @@ class SerloSpider(scrapy.Spider, LomBase):
                 date_parsed_iso = date_parsed.isoformat()
                 logging.info(
                     f"INIT: SUCCESS - serlo_spider will ONLY request GraphQL items that were modified (by Serlo) after "
-                    f"'{date_parsed_iso}' ."
+                    f"'{date_parsed_iso}'."
                 )
                 self.GRAPHQL_MODIFIED_AFTER_PARAMETER = date_parsed_iso
         else:
@@ -126,16 +132,27 @@ class SerloSpider(scrapy.Spider, LomBase):
                 # we only add the (optional) 'modifiedAfter'-parameter if the .env-Setting was recognized. By default,
                 # the string will stay empty.
                 modified_after: str = f', modifiedAfter: "{modified_after}"'
+        instance_parameter: str = ""
+        if self.GRAPHQL_INSTANCE_PARAMETER:
+            # Serlo allows us to limit the query results to a specific serlo instance (the currently 6 possible language
+            # codes can be seen here:
+            # https://github.com/serlo/documentation/wiki/Metadata-API#understanding-the-request-payload-and-pagination
+            instance_value: str = self.GRAPHQL_INSTANCE_PARAMETER
+            if instance_value and instance_value in ["de", "en", "es", "ta", "hi", "fr"]:
+                instance_parameter: str = f'instance: {instance_value}'
         graphql_metadata_query_body = {
             "query": f"""
                         query {{
                             metadata {{
-                                resources(first: {amount_of_nodes}, after: "{pagination_string}"{modified_after}){{
-                                    nodes
-                                    pageInfo {{
-                                        hasNextPage
-                                        endCursor
-                                        }}
+                                resources(
+                                    first: {amount_of_nodes}
+                                    after: "{pagination_string}"{modified_after}{instance_parameter}
+                                    ){{
+                                        nodes
+                                        pageInfo {{
+                                            hasNextPage
+                                            endCursor
+                                            }}
                                 }}
                             }}
                         }}
