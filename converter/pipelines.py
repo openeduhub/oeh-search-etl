@@ -318,7 +318,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
         while w * h > max_size:
             w *= 0.9
             h *= 0.9
-        return img.resize((int(w), int(h)), Image.ANTIALIAS).convert("RGB")
+        return img.resize((int(w), int(h)), Image.Resampling.LANCZOS).convert("RGB")
 
     def process_item(self, raw_item, spider):
         """
