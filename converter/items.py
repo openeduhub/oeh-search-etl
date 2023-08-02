@@ -19,7 +19,7 @@ def replace_processor(value):
 
 
 class JoinMultivalues(object):
-    def __init__(self, separator=u" "):
+    def __init__(self, separator=" "):
         self.separator = separator
 
     def __call__(self, values):
@@ -34,12 +34,14 @@ class MutlilangItem(Item):
 class LomGeneralItem(Item):
     """
     General requirements:
+
     - 'description'
     - 'keyword'
     - 'title'
 
     (If neither 'description' nor 'keyword' are provided, the whole item gets dropped by the pipeline.)
     """
+
     aggregationLevel = Field()
     """Corresponding edu-sharing property: 'cclom:aggregationlevel'"""
     coverage = Field()
@@ -72,6 +74,7 @@ class LomLifecycleItem(Item):
 
     The role 'unknown' is used for contributors in an unknown capacity ("Mitarbeiter").
     """
+
     date = Field()
     """The (publication) date of a contribution. Date values will be automatically transformed/parsed.
     Corresponding edu-sharing property: 'ccm:published_date'"""
@@ -98,7 +101,6 @@ class LomLifecycleItem(Item):
     id_wikidata = Field()
     """The Wikidata identifier (URI) of an ORGANIZATION, e.g. "https://www.wikidata.org/wiki/<identifier>". 
     Values will be written into the vCard namespace 'X-Wikidata'."""
-
 
 
 class LomTechnicalItem(Item):
@@ -138,10 +140,12 @@ class LomEducationalItem(Item):
     by "ValuespaceItem" instead because of vocabularies which need to be mapped.
 
     Please DO NOT use/fill the following fields here in "educational", but rather use them in ValuespaceItem:
+
     - intendedEndUserRole       (see: 'valuespaces.intendedEndUserRole')
     - learningResourceType      (see: 'valuespaces.learningResourceType')
     - context                   (see: 'valuespaces.educationalContext')
     """
+
     description = Field()
     # ToDo: 'description' isn't mapped to any field in edu-sharing
     difficulty = Field()
@@ -177,6 +181,7 @@ class LomClassificationItem(Item):
     LOM "Classification"-specific metadata.
     (see: LOM-DE specifications: "Classification"-category)
     """
+
     cost = Field()
     # ToDo: no equivalent property in edu-sharing, might be obsolete (see: 'valuespaces.price')
     description = Field()
@@ -194,6 +199,7 @@ class LomBaseItem(Item):
     LomBaseItem provides the nested structure for LOM (Sub-)Elements. No metadata is saved here.
     (Please check the specific class definitions of the nested Items for more information.)
     """
+
     classification = Field(serializer=LomClassificationItem)
     educational = Field(serializer=LomEducationalItem)
     general = Field(serializer=LomGeneralItem)
@@ -206,6 +212,7 @@ class ResponseItem(Item):
     """
     Attributes of ResponseItem are populated by either Playwright or Splash when an item is processed by the pipelines.
     """
+
     cookies = Field()
     headers = Field()
     har = Field()
@@ -220,6 +227,7 @@ class ValuespaceItem(Item):
     Values provided for attributes of ValuespaceItem are mapped against OEH (SKOS) vocabularies before saving them to
     edu-sharing. (see: https://github.com/openeduhub/oeh-metadata-vocabs)
     """
+
     accessibilitySummary = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: 'ccm:accessibilitysummary'"""
     conditionsOfAccess = Field(output_processor=JoinMultivalues())
@@ -260,6 +268,7 @@ class LicenseItem(Item):
     properties. To make sure that licenses are properly recognized by edu-sharing, make sure to provide a valid
     'url'-string and if that's not possible, set a correct 'internal'-constant. (see: constants.py)
     """
+
     author = Field(output_processor=JoinMultivalues())
     """An author freetext string. (Basically, how the author should be named in case this is a 'CC-BY'-license.
     Corresponding edu-sharing property: 'ccm:author_freetext'"""
@@ -285,6 +294,7 @@ class PermissionItem(Item):
     """
     PermissionItem sets the edu-sharing permissions for a crawled item.
     """
+
     autoCreateGroups = Field()
     """Should global groups be created if they don't already exist"""
     autoCreateMediacenters = Field()
@@ -312,6 +322,7 @@ class BaseItem(Item):
     - ResponseItem
     - ValuespaceItem
     """
+
     binary = Field()
     """Binary data which should be uploaded to edu-sharing (= raw data, e.g. ".pdf"-files)."""
     collection = Field(output_processor=JoinMultivalues())
