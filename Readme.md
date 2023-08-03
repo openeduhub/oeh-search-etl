@@ -22,9 +22,9 @@ python3 -m venv .venv
 
 - Step 1: Make sure that you have [Poetry](https://python-poetry.org) v1.5.0+ installed
 - Step 2: Open your terminal in the project root directory:
-  - Step 2.1 (this is an optional, strictly personal preference): If you want to have your `.venv` to be created in the project root directory: 
+  - Step 2.1: (this is an optional, strictly personal preference) If you want to have your `.venv` to be created in the project root directory: 
     - `poetry config virtualenvs.in-project true`
-- Step 3: Install dependencies according to `pyproject.toml`-instructions: `poetry install`
+- Step 3: Install dependencies (according to `pyproject.toml`) by running: `poetry install`
 
 ## Step 2: Project Setup - required Docker Containers
 If you have Docker installed, use `docker-compose up` to start up the multi-container for `Splash` and `Playwright`-integration.
@@ -45,10 +45,10 @@ As a last step, set up your config variables by copying the `.env.example`-file 
 ```bash
 git clone https://github.com/openeduhub/oeh-search-etl
 cd oeh-search-etl
-cp .env.example .env
+cp converter/.env.example .env
 # modify .env with your edu sharing instance
-docker compose build scrapy
 export CRAWLER=your_crawler_id_spider # i.e. wirlernenonline_spider
+docker compose build scrapy
 docker compose up
 ```
 
