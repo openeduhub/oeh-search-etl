@@ -24,7 +24,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     name = "lehreronline_spider"
     friendlyName = "Lehrer-Online"
     start_urls = [
-        "https://www.lehrer-online.de/?type=3030&limit=10"
+        "https://www.lehrer-online.de/?type=3030&limit=10000"
         # the limit parameter controls the amount of results PER CATEGORY (NOT the total amount of results)
         # API response with a "limit"-value set to 10.000 might take more than 90s (17.7 MB, 5912 URLs to crawl)
     ]
