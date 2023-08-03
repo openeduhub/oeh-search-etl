@@ -1,14 +1,13 @@
 [project]
-description = "crawls educational sites for use in wirlernenonline.de"
+description = "Crawls educational sites for use in wirlernenonline.de"
 authors = [
-    "torsten simon <doesnotexist@example.com>"
+    "Torsten Simon <simon@edu-sharing.net>"
 ]
 maintainers = [
-
+    "Andreas Schnäpp <981166+Criamos@users.noreply.github.com>"
 ]
-license = "Proprietary"
 readme = "README.md"
-python = "^3.9"
+python = "^3.10"
 homepage = "https://github.com/openeduhub/oeh-search-etl"
 repository = "https://github.com/openeduhub/oeh-search-etl"
 documentation = "https://github.com/openeduhub/oeh-search-etl"
@@ -18,28 +17,14 @@ keywords = ["metadata", "oer", "crawl", " wirlernenonline"]
 classifiers = [
     "Framework :: Scrapy",
     "Development Status :: 4 - Beta",
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Topic :: Education :: Testing",
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
 ]
 
-# Requirements
-[dependencies]
-Click = "^7.0"
-
-[dev-dependencies]
-black = { version = "^18.3-alpha.0", python = "^3.6" }
-
-[scripts]
-poetry = "infer_pyproject.cli:main"
-
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [tool.black]
-line-length = 88
-target-version = ['py39']
+line-length = 120
+target-version = ['py310']
 include = '\.pyi?$'
 exclude = '''
 
@@ -61,17 +46,50 @@ exclude = '''
 )
 '''
 
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-envlist = py39
-skipsdist=True
+[tool.poetry]
+name = "oeh-search-etl"
+version = "2023.08.01"
+description = "Crawls educational sites for use in WirLernenOnline.de"
+authors = ["Torsten Simon <simon@edu-sharing.net>"]
+maintainers = [
+    "Andreas Schnäpp <981166+Criamos@users.noreply.github.com>"
+]
+readme = "Readme.md"
+packages = [{include = "converter"}]
 
-[testenv]
-deps =
-    pytest
-    flake8
+[tool.poetry.dependencies]
+python = "^3.10"
+wheel = "0.41.0"
+black = "^23.7.0"
+certifi="2023.7.22"
+dateparser="1.1.8"
+extruct="0.16.0"
+flake8 = "^6.1.0"
+html2text="2020.1.16"
+jmespath="1.0.1"
+image = "1.5.33"
+itemadapter="0.8.0"
+itemloaders="1.1.0"
+isodate="0.6.1"
+lxml="4.9.3"
+overrides="3.1.0"
+Pillow="10.0.0"
+playwright="1.36.0"
+pyOpenSSL="23.2.0"
+pytest="7.4.0"
+python-dateutil="2.8.2"
+python-dotenv="1.0.0"
+requests="2.31.0"
+six="1.16.0"
+Scrapy="2.9.0"
+scrapy-splash="0.9.0"
+urllib3="2.0.4"
+vobject="0.9.6.1"
+w3lib="2.1.1"
+xmltodict="0.13.0"
 
-commands =
-    scrapy check
-"""
+[tool.poetry.group.dev.dependencies]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
