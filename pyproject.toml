@@ -64,6 +64,7 @@ black = "^23.7.0"
 certifi="2023.7.22"
 dateparser="1.1.8"
 extruct="0.16.0"
+flake8 = "^6.1.0"
 html2text="2020.1.16"
 jmespath="1.0.1"
 image = "1.5.33"
@@ -88,7 +89,6 @@ w3lib="2.1.1"
 xmltodict="0.13.0"
 
 [tool.poetry.group.dev.dependencies]
-flake8 = "^6.1.0"
 
 [build-system]
 requires = ["poetry-core"]
