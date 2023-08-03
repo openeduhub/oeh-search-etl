@@ -736,12 +736,32 @@ class EduSharing:
                 self.init_api_client()
                 return None
             if e.status == 404:
-                logging.debug(
-                    f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode {e.status} (replicationsourceid "
-                    f"'{id}'):\n"
-                    f"HTTP Body: {e.body}\n"
-                    f"HTTP Header: {e.headers}"
-                )
+                try:
+                    error_dict: dict = json.loads(e.body)
+                    error_name: str = error_dict["error"]
+                    if error_name and error_name == 'org.edu_sharing.restservices.DAOMissingException':
+                        # when there is no already existing node in the edu-sharing repository, edu-sharing returns
+                        # a "DAOMissingException". The following debug message is commented out to reduce log-spam:
+                        # error_message: str = error_dict["message"]
+                        # logging.debug(f"ES_CONNECTOR 'find_item': edu-sharing returned HTTP-statuscode 404 "
+                        #               f"('{error_message}') for\n '{id}'. \n(This typically means that there was no "
+                        #               f"existing node in the edu-sharing repository. Continuing...)")
+                        return None
+                    else:
+                        logging.debug(
+                            f"ES_CONNECTOR 'find_item': edu-sharing returned HTTP-statuscode {e.status} "
+                            f"(replicationsourceid '{id}'):\n"
+                            f"HTTP Body: {e.body}\n"
+                            f"HTTP Header: {e.headers}"
+                        )
+                        return None
+                except json.JSONDecodeError:
+                    logging.debug(
+                        f"ES_CONNECTOR 'find_item': edu-sharing returned HTTP-statuscode {e.status} "
+                        f"(replicationsourceid '{id}'):\n"
+                        f"HTTP Body: {e.body}\n"
+                        f"HTTP Header: {e.headers}"
+                    )
                 return None
             else:
                 raise e
