@@ -21,6 +21,7 @@ from converter.items import (
 )
 from converter.spiders.base_classes import LomBase
 from converter.web_tools import WebEngine, WebTools
+from ..es_connector import EduSharing
 from ..util.license_mapper import LicenseMapper
 
 
@@ -30,7 +31,7 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.2.9"  # last update: 2023-08-01
+    version = "0.2.9"  # last update: 2023-08-04
     custom_settings = {
         # Using Playwright because of Splash-issues with thumbnails+text for Serlo
         "WEB_TOOLS": WebEngine.Playwright
@@ -56,8 +57,8 @@ class SerloSpider(scrapy.Spider, LomBase):
         "student": "learner",
     }
 
-    def __init__(self, *a, **kw):
-        super().__init__(*a, **kw)
+    def __init__(self, **kw):
+        LomBase.__init__(self, **kw)
         self.decide_crawl_mode()
         self.graphql_items = self.fetch_all_graphql_pages()
 
@@ -76,8 +77,10 @@ class SerloSpider(scrapy.Spider, LomBase):
         """
         graphql_instance_param: str = env.get(key="SERLO_INSTANCE", allow_null=True, default=None)
         if graphql_instance_param:
-            logging.info(f"INIT: '.env'-Setting 'SERLO_INSTANCE': {graphql_instance_param} (language) detected. "
-                         f"Limiting query to a single language selection.")
+            logging.info(
+                f"INIT: '.env'-Setting 'SERLO_INSTANCE': {graphql_instance_param} (language) detected. "
+                f"Limiting query to a single language selection."
+            )
             self.GRAPHQL_INSTANCE_PARAMETER = graphql_instance_param
         graphql_modified_after_param: str = env.get(key="SERLO_MODIFIED_AFTER", allow_null=True, default=None)
         if graphql_modified_after_param:
@@ -139,7 +142,7 @@ class SerloSpider(scrapy.Spider, LomBase):
             # https://github.com/serlo/documentation/wiki/Metadata-API#understanding-the-request-payload-and-pagination
             instance_value: str = self.GRAPHQL_INSTANCE_PARAMETER
             if instance_value and instance_value in ["de", "en", "es", "ta", "hi", "fr"]:
-                instance_parameter: str = f'instance: {instance_value}'
+                instance_parameter: str = f"instance: {instance_value}"
         graphql_metadata_query_body = {
             "query": f"""
                         query {{
@@ -165,8 +168,8 @@ class SerloSpider(scrapy.Spider, LomBase):
 
     def start_requests(self):
         for graphql_item in self.graphql_items:
-            # logging.debug(f"{graphql_item}")
             item_url = graphql_item["id"]
+            # ToDo: there is room for further optimization if we do the drop_item check here
             yield scrapy.Request(url=item_url, callback=self.parse, cb_kwargs={"graphql_item": graphql_item})
 
     def getId(self, response=None, graphql_json=None) -> str:
@@ -176,26 +179,90 @@ class SerloSpider(scrapy.Spider, LomBase):
         # e.g.:     "id": "https://serlo.org/2097"
         #           "value": "2097"
         graphql_json: dict = graphql_json
-        if "identifier" in graphql_json:
-            if "value" in graphql_json["identifier"]:
-                identifier_value = graphql_json["identifier"]["value"]
-                if identifier_value:
-                    return identifier_value
-        else:
-            return response.url
+        try:
+            identifier_value: str = graphql_json["identifier"]["value"]
+            if identifier_value:
+                return identifier_value
+            else:
+                return response.url
+        except KeyError:
+            logging.debug(
+                f"getId: Could not retrieve Serlo identifier from 'graphql_json'-dict. Falling back to 'response.url'"
+            )
 
     def getHash(self, response=None, graphql_json=None) -> str:
         graphql_json: dict = graphql_json
-        if "dateModified" in graphql_json:
+        try:
             date_modified: str = graphql_json["dateModified"]
             if date_modified:
                 hash_combined = f"{date_modified}{self.version}"
                 return hash_combined
-        else:
-            return f"{datetime.datetime.now().isoformat()}{self.version}"
+            else:
+                return f"{datetime.datetime.now().isoformat()}{self.version}"
+        except KeyError:
+            logging.debug(
+                f"getHash: Could not retrieve Serlo 'dateModified' from 'graphql_json'-dict. Falling back to "
+                f"'datetime.now()'-value for 'hash'."
+            )
+
+    def hasChanged(self, response=None, **kwargs) -> bool:
+        try:
+            graphql_json: dict = kwargs["kwargs"]["graphql_json"]
+            identifier: str = self.getId(response, graphql_json)
+            hash_str: str = self.getHash(response, graphql_json)
+            uuid_str: str = self.getUUID(response)
+            # ToDo - further optimization: if we want to save even more time, we could use graphql_json as a parameter
+            #  in the 'getUUID'-method (needs to be overwritten) and check if the item should be dropped in the
+            #  start_requests()-method before yielding the scrapy.Request
+        except KeyError as ke:
+            logging.debug(f"hasChanged(): Could not retrieve 'graphql_json' from kwargs.")
+            raise ke
+        if self.forceUpdate:
+            return True
+        if self.uuid:
+            if uuid_str == self.uuid:
+                logging.info(f"matching requested id: {self.uuid}")
+                return True
+            return False
+        if self.remoteId:
+            if identifier == self.remoteId:
+                logging.info(f"matching requested id: {self.remoteId}")
+                return True
+            return False
+        db = EduSharing().find_item(identifier, self)
+        changed = db is None or db[1] != hash_str
+        if not changed:
+            logging.info(f"Item {identifier} (uuid: {db[0]}) has not changed")
+        return changed
+
+    def check_if_item_should_be_dropped(self, response, graphql_json: dict):
+        """
+        Check if item needs to be dropped (before making any further HTTP Requests).
+        This could happen for reasons like "the hash has not changed" (= the object has not changed since the last
+        crawl) or if the 'shouldImport'-attribute was set to False.
+
+        :param response: scrapy.http.Response
+        :param graphql_json: metadata dictionary of an item (from Serlo's GraphQL API)
+        :return: True if item needs to be dropped. Defaults to: False
+        """
+        drop_item_flag: bool = False  # by default, we assume that all items should be crawled
+        identifier: str = self.getId(response, graphql_json)
+        hash_str: str = self.getHash(response, graphql_json)
+        if self.shouldImport(response) is False:
+            logging.debug(f"Skipping entry {identifier} because shouldImport() returned false")
+            drop_item_flag = True
+            return drop_item_flag
+        if identifier is not None and hash_str is not None:
+            if not self.hasChanged(response, kwargs={"graphql_json": graphql_json}):
+                drop_item_flag = True
+            return drop_item_flag
 
     def parse(self, response, **kwargs):
         graphql_json: dict = kwargs.get("graphql_item")
+
+        drop_item_flag = self.check_if_item_should_be_dropped(response, graphql_json)
+        if drop_item_flag is True:
+            return None
 
         json_ld = response.xpath('//*[@type="application/ld+json"]/text()').get()
         json_ld = json.loads(json_ld)
