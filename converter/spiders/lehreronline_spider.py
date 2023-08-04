@@ -16,6 +16,7 @@ from converter.items import (
     LomEducationalItemLoader,
     ValuespaceItemLoader,
     LicenseItemLoader,
+    ResponseItemLoader,
 )
 from converter.spiders.base_classes import LomBase
 
@@ -468,31 +469,48 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         else:
             pass
 
+    def getUri(self, response=None, **kwargs) -> str:
+        try:
+            metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
+        except KeyError as ke:
+            logging.error("getUri()-method could not access 'metadata_dict'.")
+            raise ke
+        return metadata_dict["url"]
+
+    def getUUID(self, response=None, **kwargs) -> str:
+        try:
+            metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
+        except KeyError as ke:
+            logging.error("getUUID()-method could not access 'metadata_dict'.")
+            raise ke
+        return EduSharing.build_uuid(self.getUri(response, kwargs={"metadata_dict": metadata_dict}))
+
     def hasChanged(self, response=None, **kwargs) -> bool:
         """Re-implements LomBase's hasChanged()-method for Lehrer-Online."""
         try:
             metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
-            identifier_url: str = self.getId(response, kwargs={"metadata_dict": metadata_dict})
+            identifier: str = self.getId(response, kwargs={"metadata_dict": metadata_dict})
             hash_str: str = self.getHash(response, kwargs={"metadata_dict": metadata_dict})
+            uuid_str: str = self.getUUID(response, kwargs={"metadata_dict": metadata_dict})
         except KeyError as ke:
             logging.error("hasChanged()-method could not access 'metadata_dict'.")
             raise ke
         if self.forceUpdate:
             return True
         if self.uuid:
-            if self.getUUID(response) == self.uuid:
+            if uuid_str == self.uuid:
                 logging.info(f"matching requested id: {self.uuid}")
                 return True
             return False
         if self.remoteId:
-            if identifier_url == self.remoteId:
+            if identifier == self.remoteId:
                 logging.info(f"matching requested id: {self.remoteId}")
                 return True
             return False
-        db = EduSharing().find_item(identifier_url, self)
+        db = EduSharing().find_item(identifier, self)
         changed = db is None or db[1] != hash_str
         if not changed:
-            logging.info(f"Item {identifier_url} (uuid: {db[0]}) has not changed")
+            logging.info(f"Item {identifier} (uuid: {db[0]}) has not changed")
         return changed
 
     def check_if_item_should_be_dropped(self, response, metadata_dict: dict) -> bool:
@@ -650,7 +668,9 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value("permissions", permissions.load_item())
 
-        response_loader = super().mapResponse(response)
+        response_loader = ResponseItemLoader()
+        response_loader.add_value("headers", response.headers)
+        response_loader.add_value("url", self.getUri(response, kwargs={"metadata_dict": metadata_dict}))
         base.add_value("response", response_loader.load_item())
 
         yield base.load_item()
