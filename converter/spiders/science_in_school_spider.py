@@ -41,8 +41,8 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
     }
     KEYWORD_EXCLUSION_LIST = ["Not applicable", "not applicable"]
 
-    def __init__(self):
-        LomBase.__init__(self=self)
+    def __init__(self, **kwargs):
+        LomBase.__init__(self=self, **kwargs)
 
     def start_requests(self):
         for start_url in self.start_urls:
