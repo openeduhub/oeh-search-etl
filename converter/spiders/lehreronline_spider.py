@@ -5,6 +5,7 @@ import scrapy.selector.unified
 import w3lib.html
 from scrapy.spiders import XMLFeedSpider
 
+from converter import env
 from converter.constants import Constants
 from converter.es_connector import EduSharing
 from converter.items import (
@@ -29,7 +30,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         # the limit parameter controls the amount of results PER CATEGORY (NOT the total amount of results)
         # API response with a "limit"-value set to 10.000 might take more than 90s (17.7 MB, 5912 URLs to crawl)
     ]
-    version = "0.0.7"  # last update: 2023-08-03
+    version = "0.0.7"  # last update: 2023-08-10
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -210,7 +211,6 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         new_lrts = set()
 
         title_raw: str = selector.xpath("titel/text()").get()
-        # self.logger.info(f"the title is: {title_raw}")
         if title_raw:
             metadata_dict.update({"title": title_raw})
 
@@ -465,8 +465,42 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 # (this reduces the amount of unnecessary HTTP requests)
                 pass
             else:
-                yield scrapy.Request(url=material_url, callback=self.parse, cb_kwargs={"metadata_dict": metadata_dict})
+                skip_portal_setting: str = env.get(key="LO_SKIP_PORTAL", allow_null=True, default="false")
+                # possible settings:
+                # - "hwm" (= skip handwerk-macht-schule URLs)
+                # - "pubertaet" (= skip Themenportal 'Pubertät' URLs)
+                # - "false" (= default behaviour, crawl everything)
+                if "hwm" in skip_portal_setting or "pubertaet" in skip_portal_setting:
+                    if "handwerk-macht-schule.de" in material_url and "hwm" in skip_portal_setting:
+                        # this workaround was requested by Romy on 2023-08-10 to (temporarily) avoid the problem of
+                        # crawling duplicates on WLO prod (since some editors have already uploaded
+                        # "Handwerk-macht-Schule"-learning-objects by hand)
+                        # ToDo: revert this workaround in the next version of the crawler
+                        #  (after the "Herkunft des Inhalts"-topic has been resolved)
+                        logging.info(
+                            f"Temporarily skipping {material_url} from crawling (due to Team4-decision on "
+                            f"2023-08-10)."
+                        )
+                        pass
+                    elif "pubertaet.lehrer-online.de" in material_url and "pubertaet" in skip_portal_setting:
+                        logging.info(
+                            f"Temporarily skipping {material_url} due to chosen '.env'-Setting for "
+                            f"'LO_SKIP_PORTAL'."
+                        )
+                        pass
+                    else:
+                        yield scrapy.Request(
+                            url=material_url, callback=self.parse, cb_kwargs={"metadata_dict": metadata_dict}
+                        )
+                else:
+                    # default behaviour: everything from the Lehrer-Online API should be crawled
+                    yield scrapy.Request(
+                        url=material_url, callback=self.parse, cb_kwargs={"metadata_dict": metadata_dict}
+                    )
         else:
+            # if no material_url is provided, we cannot crawl anything, therefore skip the item
+            logging.debug(f"Lehrer-Online API returned a node without a 'material_url'-value. (The title of the node "
+                          f"was '{title_raw}'.")
             pass
 
     def getUri(self, response=None, **kwargs) -> str:
