@@ -53,7 +53,8 @@ class ZUMDeutschLernenSpider(MediaWikiBase, scrapy.Spider):
                     item_url: str = urls_collected[0]
                     downloaded: str = trafilatura.fetch_url(item_url)
                     trafilatura_text: str = trafilatura.extract(downloaded)
-                    general_loader.replace_value('description', trafilatura_text)
+                    if trafilatura_text:
+                        general_loader.replace_value('description', trafilatura_text)
 
         general_loader.replace_value("keyword", category_list)
         # ToDo (later): clean up matched Vocab values from keywords, so they don't appear in both fields?
