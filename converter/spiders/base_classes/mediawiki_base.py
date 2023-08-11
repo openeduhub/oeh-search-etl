@@ -249,6 +249,9 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
         loader = super().getValuespaces(response)
         data = response.meta['item']
         categories: list[str] = jmes_categories.search(data)  # ['Ethik', 'Sekundarstufe_1']
+        # hard-coded values for all 3 ZUM crawlers as per feature-request on 2023-08-11 from Team4 (Romy):
+        loader.add_value('conditionsOfAccess', 'no_login')
+        loader.add_value('price', 'no')
         if categories:
             loader.add_value("discipline", categories)
             loader.add_value("educationalContext", categories)
