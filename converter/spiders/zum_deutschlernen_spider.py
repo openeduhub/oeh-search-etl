@@ -1,6 +1,7 @@
 import json
 
 import jmespath
+import trafilatura
 
 from converter.items import (
     LomTechnicalItem,
@@ -39,7 +40,23 @@ class ZUMDeutschLernenSpider(MediaWikiBase, scrapy.Spider):
         general_loader: LomGeneralItemloader = super().getLOMGeneral(response)
         jmes_categories = jmespath.compile('parse.categories[]."*"')
         category_list: list[str] = jmes_categories.search(response.meta["item"])
+        # the API sometimes returns unusable descriptions like "START_WIDGET87710400b0e5c411-0END_WIDGET" (and carries
+        # the same string in the header)
+        descriptions_collected: list[str] = general_loader.get_collected_values('description')
+        if descriptions_collected and type(descriptions_collected) is list:
+            description_str: str = descriptions_collected[0]
+            if description_str.startswith("START_WIDGET"):
+                # this will typically be the case for H5P materials which carry almost no useful metadata
+                urls_collected: list[str] = self.getLOMTechnical(response=response).get_collected_values('location')
+                if urls_collected and type(urls_collected) is list:
+                    # making sure that we actually fetch the main urL, then extract the fulltext with trafilatura
+                    item_url: str = urls_collected[0]
+                    downloaded: str = trafilatura.fetch_url(item_url)
+                    trafilatura_text: str = trafilatura.extract(downloaded)
+                    general_loader.replace_value('description', trafilatura_text)
+
         general_loader.replace_value("keyword", category_list)
+        # ToDo (later): clean up matched Vocab values from keywords, so they don't appear in both fields?
         return general_loader
 
     def getValuespaces(self, response):
@@ -47,9 +64,6 @@ class ZUMDeutschLernenSpider(MediaWikiBase, scrapy.Spider):
         # hard-coded to "Deutsch" / "DaZ" because all materials of this MediaWiki were created for this purpose
         vs_loader.add_value("discipline", "28002")  # "Deutsch als Zweitsprache"
         vs_loader.add_value("discipline", "120")  # Deutsch
-        # ToDo:
-        #  - A1 / A2 etc. -> languageLevel
-        #  - implement languageLevel into valuespaces / es_connector
         jmes_categories = jmespath.compile('parse.categories[]."*"')
         category_list: list[str] = jmes_categories.search(response.meta["item"])
         vs_loader.add_value('languageLevel', category_list)
