@@ -246,6 +246,8 @@ class ValuespaceItem(Item):
     """Corresponding edu-sharing property: 'ccm:oeh_taxonid_university"""
     intendedEndUserRole = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: 'ccm:intendedEndUserRole'"""
+    languageLevel = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:oeh_languageLevel"""
     learningResourceType = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: 'ccm:educationallearningresourcetype'"""
     new_lrt = Field(output_processor=JoinMultivalues())

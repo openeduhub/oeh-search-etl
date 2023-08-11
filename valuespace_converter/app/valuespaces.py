@@ -5,7 +5,8 @@ import requests
 
 class Valuespaces:
     idsVocabs = ['conditionsOfAccess', 'discipline', 'educationalContext', 'hochschulfaechersystematik',
-                 'intendedEndUserRole', 'learningResourceType', 'new_lrt', 'oer', 'sourceContentType', 'toolCategory']
+                 'intendedEndUserRole', 'languageLevel', 'learningResourceType', 'new_lrt', 'oer', 'sourceContentType',
+                 'toolCategory']
     idsW3ID = ['containsAdvertisement', 'price', 'accessibilitySummary', 'dataProtectionConformity', 'fskRating']
     data = {}
 
