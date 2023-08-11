@@ -324,6 +324,22 @@ files = [
 ]
 
 [[package]]
+name = "courlan"
+version = "0.9.3"
+description = "Clean, filter and sample URLs to optimize data collection – includes spam, content type and language filters."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "courlan-0.9.3-py3-none-any.whl", hash = "sha256:d76fe98be7cfef077b7099d8d906e817f9c20f610a7c29d676f1869e7b45144d"},
+    {file = "courlan-0.9.3.tar.gz", hash = "sha256:7e6dd2a7e57853b94db9656ee1769b8cdaccbb4982346891c42338329d7e0958"},
+]
+
+[package.dependencies]
+langcodes = ">=3.3.0"
+tld = {version = ">=0.13", markers = "python_version >= \"3.7\""}
+urllib3 = {version = ">=1.26,<3", markers = "python_version >= \"3.7\""}
+
+[[package]]
 name = "cryptography"
 version = "41.0.3"
 description = "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
@@ -610,6 +626,28 @@ genshi = ["genshi"]
 lxml = ["lxml"]
 
 [[package]]
+name = "htmldate"
+version = "1.4.3"
+description = "Fast and robust extraction of original and updated publication dates from URLs and web pages."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "htmldate-1.4.3-py3-none-any.whl", hash = "sha256:d529a319a2fae8329c2beaa54c45af9295d0eca425dfba33b81e4665e8e8a78e"},
+    {file = "htmldate-1.4.3.tar.gz", hash = "sha256:ec50f084b997fdf6b26f8c31447e5789f4deb71fe69342cda1d7af0c9f91e01b"},
+]
+
+[package.dependencies]
+charset-normalizer = {version = ">=3.1.0", markers = "python_version >= \"3.7\""}
+dateparser = ">=1.1.2"
+lxml = ">=4.9.2"
+python-dateutil = ">=2.8.2"
+urllib3 = {version = ">=1.26,<3", markers = "python_version >= \"3.7\""}
+
+[package.extras]
+all = ["cchardet (>=2.1.7)", "faust-cchardet (>=2.1.18)", "urllib3[brotli]"]
+speed = ["cchardet (>=2.1.7)", "faust-cchardet (>=2.1.18)", "urllib3[brotli]"]
+
+[[package]]
 name = "hyperlink"
 version = "21.0.0"
 description = "A featureful, immutable, and correct URL for Python."
@@ -737,6 +775,34 @@ python-versions = "*"
 files = [
     {file = "jstyleson-0.0.2.tar.gz", hash = "sha256:680003f3b15a2959e4e6a351f3b858e3c07dd3e073a0d54954e34d8ea5e1308e"},
 ]
+
+[[package]]
+name = "justext"
+version = "3.0.0"
+description = "Heuristic based boilerplate removal tool"
+optional = false
+python-versions = "*"
+files = [
+    {file = "jusText-3.0.0-py2.py3-none-any.whl", hash = "sha256:86b48f5b1d99505acd072f5831def6cd3f1306043651c524a1c609e62e3544e4"},
+    {file = "jusText-3.0.0.tar.gz", hash = "sha256:7640e248218795f6be65f6c35fe697325a3280fcb4675d1525bcdff2b86faadf"},
+]
+
+[package.dependencies]
+lxml = ">=4.4.2"
+
+[[package]]
+name = "langcodes"
+version = "3.3.0"
+description = "Tools for labeling human languages with IETF language tags"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "langcodes-3.3.0-py3-none-any.whl", hash = "sha256:4d89fc9acb6e9c8fdef70bcdf376113a3db09b67285d9e1d534de6d8818e7e69"},
+    {file = "langcodes-3.3.0.tar.gz", hash = "sha256:794d07d5a28781231ac335a1561b8442f8648ca07cd518310aeb45d6f0807ef6"},
+]
+
+[package.extras]
+data = ["language-data (>=1.1,<2.0)"]
 
 [[package]]
 name = "lxml"
@@ -1556,6 +1622,17 @@ doc = ["sphinx"]
 test = ["pytest", "pytest-cov"]
 
 [[package]]
+name = "tld"
+version = "0.13"
+description = "Extract the top-level domain (TLD) from the URL given."
+optional = false
+python-versions = ">=3.7, <4"
+files = [
+    {file = "tld-0.13-py2.py3-none-any.whl", hash = "sha256:f75b2be080f767ed17c2338a339eaa4fab5792586319ca819119da252f9f3749"},
+    {file = "tld-0.13.tar.gz", hash = "sha256:93dde5e1c04bdf1844976eae440706379d21f4ab235b73c05d7483e074fb5629"},
+]
+
+[[package]]
 name = "tldextract"
 version = "3.4.4"
 description = "Accurately separates a URL's subdomain, domain, and public suffix, using the Public Suffix List (PSL). By default, this includes the public ICANN TLDs and their exceptions. You can optionally support the Public Suffix List's private domains as well."
@@ -1582,6 +1659,30 @@ files = [
     {file = "tomli-2.0.1-py3-none-any.whl", hash = "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc"},
     {file = "tomli-2.0.1.tar.gz", hash = "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"},
 ]
+
+[[package]]
+name = "trafilatura"
+version = "1.6.1"
+description = "Python package and command-line tool designed to gather text on the Web. It includes discovery, extraction and text processing components. Its main applications are web crawling, downloads, scraping, and extraction of main texts, metadata and comments."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "trafilatura-1.6.1-py3-none-any.whl", hash = "sha256:fe94ed68fb50ec80ae698095010e1a0a7827bee0542ecd33c2cb55ca3e985aa7"},
+    {file = "trafilatura-1.6.1.tar.gz", hash = "sha256:a7792b037d624d04ab05fcce556cfe08b771dfc8c1db1494c750879530c9a30c"},
+]
+
+[package.dependencies]
+certifi = "*"
+charset-normalizer = {version = ">=3.1.0", markers = "python_version >= \"3.7\""}
+courlan = ">=0.9.3"
+htmldate = ">=1.4.3"
+justext = ">=3.0.0"
+lxml = ">=4.9.2"
+urllib3 = {version = ">=1.26,<3", markers = "python_version >= \"3.7\""}
+
+[package.extras]
+all = ["brotli", "cchardet (>=2.1.7)", "faust-cchardet (>=2.1.18)", "htmldate[speed] (>=1.4.3)", "py3langid (>=0.2.2)", "pycurl (>=7.45.2)"]
+gui = ["Gooey (>=1.0.1)"]
 
 [[package]]
 name = "twisted"
@@ -1812,4 +1913,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "a1d4fcb83cb185c2ee82aacb0bed152aecbf6c01b2cc1f384dba999876ed5841"
+content-hash = "0d3a96ee74ec5463061ed5e3694c05316539a3ebebd589e975dcadd8e1dd5af0"
