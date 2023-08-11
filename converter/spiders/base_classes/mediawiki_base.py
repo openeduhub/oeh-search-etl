@@ -273,5 +273,9 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
                     loader.add_value("new_lrt", "7a6e9608-2554-4981-95dc-47ab9ba924de")  # "Video"
                 if "übung" in category:
                     loader.add_value("new_lrt", "a33ef73d-9210-4305-97f9-7357bbf43486")  # "Übungsmaterial"
+                if "glossar" in category:
+                    loader.add_value("new_lrt", "c022c920-c236-4234-bae1-e264a3e2bdf6")  # "Nachschlagewerk und Glossar"
+                if "fortbildung" in category:
+                    loader.add_value("new_lrt", "4fe167ea-1f40-44b7-8c17-355f256b4fc9")  # "Fortbildungsangebot"
         loader.add_value("new_lrt", "6b9748e4-fb3b-4082-ae08-c7a11c717256")  # "Wiki (dynamisch)"
         return loader
