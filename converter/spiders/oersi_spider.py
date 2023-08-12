@@ -39,7 +39,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.5"  # last update: 2023-05-05
+    version = "0.1.5"  # last update: 2023-08-12
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -1074,24 +1074,27 @@ class OersiSpider(scrapy.Spider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value("permissions", permissions.load_item())
 
-        response_loader = ResponseItemLoader(response=response)
+        response_loader = ResponseItemLoader()
         # ToDo: skip the scrapy.Request altogether? (-> would be a huge time benefit)
         response_loader.add_value("status", response.status)
-        url_data = WebTools.getUrlData(url=response.url, engine=WebEngine.Playwright)
-        if "html" in url_data:
-            response_loader.add_value("html", url_data["html"])
-        if "text" in url_data:
-            response_loader.add_value("text", url_data["text"])
-        if "cookies" in url_data:
-            response_loader.add_value("cookies", url_data["cookies"])
-        if "har" in url_data:
-            response_loader.add_value("har", url_data["har"])
-        if not thumbnail_url and "screenshot_bytes" in url_data:
-            # if a thumbnail was provided, use that first - otherwise try to use Playwright website screenshot
-            # ToDo: optional feature - control which thumbnail is used, depending on the metadata-provider?
-            #  metadata-provider 'Open Music Academy' serves generic thumbnails, which is why a screenshot of the
-            #  website will always be more interesting to users than the same generic image across ~650 materials
-            base.add_value("screenshot_bytes", url_data["screenshot_bytes"])
+        if not thumbnail_url:
+            # only use the headless browser if we need to take a website screenshot, otherwise skip this (expensive)
+            # part of the program flow completely
+            url_data = WebTools.getUrlData(url=response.url, engine=WebEngine.Playwright)
+            if "html" in url_data:
+                response_loader.add_value("html", url_data["html"])
+            if "text" in url_data:
+                response_loader.add_value("text", url_data["text"])
+            if "cookies" in url_data:
+                response_loader.add_value("cookies", url_data["cookies"])
+            if "har" in url_data:
+                response_loader.add_value("har", url_data["har"])
+            if not thumbnail_url and "screenshot_bytes" in url_data:
+                # if a thumbnail was provided, use that first - otherwise try to use Playwright website screenshot
+                # ToDo: optional feature - control which thumbnail is used, depending on the metadata-provider?
+                #  metadata-provider 'Open Music Academy' serves generic thumbnails, which is why a screenshot of the
+                #  website will always be more interesting to users than the same generic image across ~650 materials
+                base.add_value("screenshot_bytes", url_data["screenshot_bytes"])
         response_loader.add_value("headers", response.headers)
         response_loader.add_value("url", response.url)
         base.add_value("response", response_loader.load_item())
