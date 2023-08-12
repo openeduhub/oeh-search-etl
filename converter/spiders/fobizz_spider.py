@@ -23,7 +23,7 @@ class FobizzSpider(scrapy.Spider, LomBase):
 
     start_urls = ['https://plattform.fobizz.com/sitemap']
     name = 'fobizz_spider'
-    version = '0.0.3'  # last update: 2022-08-15
+    version = '0.0.4'  # last update: 2023-08-12
 
     overview_pages_without_a_json_ld = [
         "https://plattform.fobizz.com/unterrichtsmaterialien/faecher/Religion",
@@ -111,7 +111,6 @@ class FobizzSpider(scrapy.Spider, LomBase):
         data = jslde.extract(response.text)[0]
         response.meta['sitemap_entry'] = sitemap_entry
         base = super().getBase(response=response)
-        base.replace_value('sourceId', response.url)
         base.add_value("response", super().mapResponse(response).load_item())
         # we assume that content is imported. Please use replace_value if you import something different
         base.add_value('thumbnail', data.get("thumbnailUrl", None))

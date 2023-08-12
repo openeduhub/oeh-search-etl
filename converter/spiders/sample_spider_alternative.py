@@ -196,6 +196,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/dataProtectionConformity.ttl)
         #  - fskRating                      optional
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/fskRating.ttl)
+        #  - languageLevel                  optional
+        #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/languageLevel.ttl)
         #  - oer                            optional
         #  (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/oer.ttl)
         vs.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
