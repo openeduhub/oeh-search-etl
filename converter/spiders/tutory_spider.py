@@ -7,6 +7,7 @@ from scrapy.selector import Selector
 from scrapy.spiders import CrawlSpider
 
 from .base_classes import LomBase, JSONBase
+from ..items import LomBaseItemloader, BaseItemLoader
 from ..web_tools import WebEngine, WebTools
 
 
@@ -16,18 +17,20 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
     url = "https://www.tutory.de/"
     objectUrl = "https://www.tutory.de/bereitstellung/dokument/"
     baseUrl = "https://www.tutory.de/api/v1/share/"
-    version = "0.1.4"  # last update: 2022-03-11
+    version = "0.1.5"  # last update: 2023-08-15
     custom_settings = {
-        "AUTOTHROTTLE_ENABLED": True,
-        "ROBOTSTXT_OBEY": False,
+        # "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
-    api_pagesize_limit = 5000
-
+    api_pagesize_limit = 250
     # the old API pageSize of 999999 (which was used in 2021) doesn't work anymore and throws a 502 Error (Bad Gateway).
-    # Setting the pageSize to 5000 appears to be a reasonable value with an API response time of 12-15s
+    # 2023-03: setting pageSize to 5000 appeared to be a reasonable value with an API response time of 12-15s
+    # 2023-08-15: every setting above 500 appears to always return a '502'-Error now. Current response times during api
+    # pagination are:
+    # - '500': the API response time is roughly 42s.
+    # - '250': the API response time is roughly 21s.
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -67,9 +70,12 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                 )
                 for j in worksheets_data:
                     response_copy = response.replace(url=self.objectUrl + j["id"])
+                    item_url = response_copy.url
                     response_copy.meta["item"] = j
                     if self.hasChanged(response_copy):
-                        yield self.parse(response_copy)
+                        yield scrapy.Request(url=item_url, callback=self.parse, cb_kwargs={
+                            "item_dict": j
+                        })
 
     def assemble_tutory_api_url(self, api_page: int):
         url_current_page = (
@@ -78,14 +84,62 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
         )
         return url_current_page
 
-    def getId(self, response=None):
-        return str(response.meta["item"]["id"])
+    def getId(self, response=None, **kwargs):
+        if "item" in response.meta:
+            item_id: str = response.meta["item"]["id"]
+            return item_id
+        else:
+            try:
+                api_item = kwargs["kwargs"]["item_dict"]
+                item_id: str = api_item["id"]
+                return item_id
+            except KeyError as ke:
+                logging.error(f"'getId'-method failed to retrieve item_id for '{response.url}'.")
+                raise ke
 
     def getHash(self, response=None):
         return response.meta["item"]["updatedAt"] + self.version
 
+    # ToDo (performance): reduce the amount of scrapy Requests by executing hasChanged() earlier:
+    #  - if we call hasChanged() earlier, we might have to re-implement getUri() as well (since the resolved URL is
+    #  always different from the unique 'dokument'-URL)
+
+    def check_if_item_should_be_dropped(self, response) -> bool:
+        drop_item_flag: bool = False
+        identifier: str = self.getId(response)
+        hash_str: str = self.getHash(response)
+        if self.shouldImport(response) is False:
+            logging.debug(f"Skipping entry {identifier} because shouldImport() returned false")
+            drop_item_flag = True
+            return drop_item_flag
+        if identifier is not None and hash_str is not None:
+            if not self.hasChanged(response):
+                drop_item_flag = True
+            return drop_item_flag
+
     def parse(self, response, **kwargs):
-        return LomBase.parse(self, response)
+        try:
+            item_dict_from_api: dict = kwargs["item_dict"]
+            response.meta["item"] = item_dict_from_api
+        except KeyError as ke:
+            raise ke
+
+        drop_item_flag: bool = self.check_if_item_should_be_dropped(response)
+        if drop_item_flag is True:
+            return None
+
+        base_loader: BaseItemLoader = self.getBase(response)
+        lom_loader: LomBaseItemloader = self.getLOM(response)
+        lom_loader.add_value('general', self.getLOMGeneral(response))
+        lom_loader.add_value('technical', self.getLOMTechnical(response))
+
+        base_loader.add_value('lom', lom_loader.load_item())
+        base_loader.add_value("valuespaces", self.getValuespaces(response).load_item())
+        base_loader.add_value("license", self.getLicense(response).load_item())
+        base_loader.add_value("permissions", self.getPermissions(response).load_item())
+        base_loader.add_value("response", self.mapResponse(response).load_item())
+        # ToDo: set fetchData to false to reduce amount of HTTP requests?
+        yield base_loader.load_item()
 
     def getBase(self, response=None):
         base = LomBase.getBase(self, response)
