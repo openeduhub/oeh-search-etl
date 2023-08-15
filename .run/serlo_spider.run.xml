@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="biologie_lernprogramme_spider" type="PythonConfigurationType" factoryName="Python">
-    <output_file path="$PROJECT_DIR$/logs/biologie_lernprogramme_console.log" is_save="true" />
+  <configuration default="false" name="serlo_spider" type="PythonConfigurationType" factoryName="Python">
+    <output_file path="$PROJECT_DIR$/logs/serlo_spider_console.log" is_save="true" />
     <module name="oeh-search-etl" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="./.venv/bin/scrapy" />
-    <option name="PARAMETERS" value="crawl biologie_lernprogramme_spider -O &quot;../../logs/bio_lernprogramme.json&quot;" />
+    <option name="PARAMETERS" value="crawl serlo_spider -O &quot;../../logs/serlo_spider.json&quot;" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
