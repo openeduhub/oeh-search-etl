@@ -31,7 +31,7 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.2.9"  # last update: 2023-08-04
+    version = "0.2.9"  # last update: 2023-08-16
     custom_settings = {
         # Using Playwright because of Splash-issues with thumbnails+text for Serlo
         "WEB_TOOLS": WebEngine.Playwright
@@ -255,6 +255,13 @@ class SerloSpider(scrapy.Spider, LomBase):
         if identifier is not None and hash_str is not None:
             if not self.hasChanged(response, kwargs={"graphql_json": graphql_json}):
                 drop_item_flag = True
+            return drop_item_flag
+        if "serlo.org/community/" in response.url:
+            # As requested by Team4/management on 2023-08-11: items from Serlo's "Blog-Archiv"
+            # (https://de.serlo.org/community/111255/blog-archiv) should not be crawled.
+            # We can use the resolved URL in 'response.url' for this purpose (minus the language-specific subdomain)
+            logging.info(f"Dropping URL {response.url} due to team4 decision on 2023-08-11.")
+            drop_item_flag = True
             return drop_item_flag
 
     def parse(self, response, **kwargs):
