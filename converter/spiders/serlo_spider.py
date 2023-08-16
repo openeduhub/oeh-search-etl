@@ -31,7 +31,7 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.2.9"  # last update: 2023-08-16
+    version = "0.3.0"  # last update: 2023-08-16
     custom_settings = {
         # Using Playwright because of Splash-issues with thumbnails+text for Serlo
         "WEB_TOOLS": WebEngine.Playwright
@@ -55,6 +55,57 @@ class SerloSpider(scrapy.Spider, LomBase):
         "professional": "other",
         # Someone already practicing a profession; an industry partner, or professional development trainer.
         "student": "learner",
+    }
+    # ToDo: refactor this crawler-specific mapping into a separate (and testable) helper utility asap
+    # this mapping table is a temporary workaround until a mapping-utility for KIM Schulfächer URLs has been implemented
+    KIM_TO_OEH_DISCIPLINE_MAPPING = {
+        "s1000": "20003",  # Alt-Griechisch
+        "s1040": "46014",  # Astronomie
+        "s1001": "080",  # Biologie
+        "s1002": "100",  # Chemie
+        "s1003": "20041",  # Chinesisch
+        "s1004": "12002",  # Darstellendes Spiel
+        "s1005": "120",  # Deutsch
+        "s1006": "28002",  # Deutsch als Zweitsprache
+        # "s1041": "",  # ToDo: "Deutsche Gebärdensprache" doesn't exist in our 'discipline'-vocab yet
+        "s1007": "20001",  # Englisch
+        "s1044": "04006",  # Ernährung → "Ernährung und Hauswirtschaft"
+        "s1045": "440",  # Erziehungswissenschaften → Pädagogik (altLabel: "Erziehungswissenschaften")
+        "s1008": "160",  # Ethik
+        "s1009": "20002",  # Französisch
+        "s1010": "220",  # Geografie
+        "s1011": "240",  # Geschichte
+        "s1012": "260",  # Gesundheit
+        "s1047": "50001",  # Hauswirtschaft
+        # "s1034": "",  # ToDo: "Hebräisch" doesn't exist in our 'discipline'-vocab yet
+        "s1013": "320",  # Informatik
+        "s1014": "20004",  # Italienisch
+        # "s1035": "",  # ToDo: "Japanisch" doesn't exist in our 'discipline'-vocab yet
+        "s1015": "060",  # Kunst
+        "s1016": "20005",  # Latein
+        "s1017": "380",  # Mathematik
+        "s1046": "900",  # Medienbildung
+        "s1019": "04003",  # MINT
+        "s1020": "420",  # Musik
+        # "s1036": "",  # ToDo: "Neu-Griechisch" doesn't exist in our 'discipline'-vocab yet
+        "s1021": "450",  # Philosophie
+        "s1022": "460",  # Physik
+        "s1023": "480",  # Politik
+        # "s1037": "",  # ToDo: "Polnisch" doesn't exist in our 'discipline'-vocab yet
+        # "s1038": "",  # ToDo: "Portugiesisch" doesn't exist in our 'discipline'-vocab yet
+        # "s1043": "",  # ToDo: "Psychologie" doesn't exist in our 'discipline'-vocab yet
+        "s1024": "520",  # Religionslehre (evangelisch) -> Religionslehre
+        "s1025": "520",  # Religionslehre (islamisch) -> Religionslehre
+        "s1026": "520",  # Religionslehre (katholisch) -> Religionslehre
+        "s1027": "20006",  # Russisch
+        "s1028": "28010",  # Sachunterricht
+        "s1029": "560",  # Sexualerziehung
+        "s1039": "20009",  # Sorbisch
+        "s1030": "20007",  # Spanisch
+        "s1031": "600",  # Sport
+        "s1032": "20008",  # Türkisch
+        "s1033": "700",  # Wirtschaftskunde
+        "s1042": "48005",  # Gesellschaftswissenschaften -> Gesellschaftskunde
     }
 
     def __init__(self, **kw):
@@ -425,8 +476,6 @@ class SerloSpider(scrapy.Spider, LomBase):
         # #  - keyword                        optional
         # lom.add_value('classification', classification.load_item())
 
-        base.add_value("lom", lom.load_item())
-
         vs = ValuespaceItemLoader()
         vs.add_value("new_lrt", Constants.NEW_LRT_MATERIAL)
         # # for possible values, either consult https://vocabs.openeduhub.de
@@ -454,18 +503,35 @@ class SerloSpider(scrapy.Spider, LomBase):
             vs.add_value("intendedEndUserRole", intended_end_user_roles)
             # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl)
 
-        # ToDo: the graphql_json["about"] field might carry more precise information, but uses the DINI KIM Schulfaecher
-        #  vocabulary. A mapper/resolver might be necessary. Example:
-        # {
-        # 		"about": [
-        # 			{
-        # 				"type": "Concept",
-        # 				"id": "http://w3id.org/kim/schulfaecher/s1017",
-        # 				"inScheme": {
-        # 					"id": "http://w3id.org/kim/schulfaecher/"
-        # 				}
-        # 			}
-        if "about" in json_ld and len(json_ld["about"]) != 0:
+        disciplines_set: set = set()
+        if "about" in graphql_json:
+            # The graphql_json["about"] field carries more precise information, but uses the DINI KIM Schulfaecher
+            #  vocabulary. A non-crawler-specific mapper/resolver will be necessary in the long run. Example:
+            # {
+            # 		"about": [
+            # 			{
+            # 				"type": "Concept",
+            # 				"id": "http://w3id.org/kim/schulfaecher/s1017",
+            # 				"inScheme": {
+            # 					"id": "http://w3id.org/kim/schulfaecher/"
+            # 				}
+            # 			}
+            about_list: list[dict] = graphql_json["about"]
+            if type(about_list) is list and about_list:
+                for about_item in about_list:
+                    if "id" in about_item:
+                        about_id: str = about_item["id"]
+                        if "w3id.org/kim/schulfaecher/" in about_id:
+                            about_id_key: str = about_id.split("/")[-1]
+                            if about_id_key and about_id_key in self.KIM_TO_OEH_DISCIPLINE_MAPPING:
+                                discipline_mapped: str = self.KIM_TO_OEH_DISCIPLINE_MAPPING.get(about_id_key)
+                                disciplines_set.add(discipline_mapped)
+                            elif about_id_key:
+                                logging.debug(
+                                    f"Serlo 'about.id'-value {about_id_key} could not be mapped to any OEH "
+                                    f"'discipline'. (Please check if all mapping-tables are still up to date.)"
+                                )
+        elif "about" in json_ld and len(json_ld["about"]) != 0:
             # not every json_ld-container has an "about"-key, e.g.: https://de.serlo.org/5343/5343
             # we need to make sure that we only try to access "about" if it's actually available
             # making sure that we only try to look for a discipline if the "about"-list actually has list items
@@ -481,17 +547,21 @@ class SerloSpider(scrapy.Spider, LomBase):
                 vs.add_value("discipline", disciplines)
                 # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/discipline.ttl)
             # if the json_ld doesn't hold a discipline value for us, we'll try to grab the discipline from the url path
-        else:
-            if "/mathe/" in response.url:
-                vs.add_value("discipline", "Mathematik")
-            if "/biologie/" in response.url:
-                vs.add_value("discipline", "Biologie")
-            if "/chemie/" in response.url:
-                vs.add_value("discipline", "Chemie")
-            if "/nachhaltigkeit/" in response.url:
-                vs.add_value("discipline", "Nachhaltigkeit")
-            if "/informatik/" in response.url:
-                vs.add_value("discipline", "Informatik")
+        # ToDo: these URL-fallbacks might be obsolete now. Remove in crawler v0.3.1 after further debugging
+        if "/mathe/" in response.url:
+            disciplines_set.add("380")  # Mathematik
+        if "/biologie/" in response.url:
+            disciplines_set.add("080")  # Biologie
+        if "/chemie/" in response.url:
+            disciplines_set.add("100")  # Chemie
+        if "/nachhaltigkeit/" in response.url:
+            disciplines_set.add("64018")  # Nachhaltigkeit
+        if "/informatik/" in response.url:
+            disciplines_set.add("320")  # Informatik
+        if "/deutsch-als-fremdsprache/" in response.url:
+            disciplines_set.add("28002")  # DaZ
+        if disciplines_set:
+            vs.add_value("discipline", list(disciplines_set))
         vs.add_value("containsAdvertisement", "No")
         # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/containsAdvertisement.ttl)
         # serlo doesn't want to distract learners with ads, therefore we can set it by default to 'no'
@@ -530,6 +600,54 @@ class SerloSpider(scrapy.Spider, LomBase):
                 license_url_mapped = license_mapper.get_license_url(license_string=license_url)
                 if license_url_mapped:
                     lic.add_value("url", license_url_mapped)
+                elif license_url and not license_url_mapped:
+                    # This edge-case happens when the Serlo API returns website URLs within the 'license.id'-property,
+                    # which cannot be mapped to the usual CC licenses.
+                    # As per team4 request on 2023-08-16, we're mapping these edge-cases to a custom license as a
+                    # (temporary) workaround since we cannot confirm with confidence that 100% of these cases should be
+                    # treated as the same license.
+                    custom_license_str = str()
+                    if "123mathe.de" in license_url:
+                        # example: https://de.serlo.org/mathe/8297/8297
+                        custom_license_str: str = "Quelle: 123mathe.de & serlo.org"
+                        lifecycle_author_loader = LomLifecycleItemloader()
+                        lifecycle_author_loader.add_value("firstName", "Rudolf")
+                        lifecycle_author_loader.add_value("lastName", "Brinkmann")
+                        lifecycle_author_loader.add_value("url", license_url)
+                        lom.add_value("lifecycle", lifecycle_author_loader.load_item())
+                    if "strobl-f.de" in license_url:
+                        # example: https://de.serlo.org/mathe/10359/10359
+                        custom_license_str: str = "Quelle: strobl-f.de & serlo.org"
+                        lifecycle_author_loader = LomLifecycleItemloader()
+                        lifecycle_author_loader.add_value("firstName", "Franz")
+                        lifecycle_author_loader.add_value("lastName", "Strobl")
+                        lifecycle_author_loader.add_value("url", license_url)
+                        lom.add_value("lifecycle", lifecycle_author_loader.load_item())
+                    if "raschweb.de" in license_url:
+                        # example: https://de.serlo.org/mathe/254590/254590
+                        custom_license_str: str = "Quelle: raschweb.de & serlo.org"
+                        lifecycle_author_loader = LomLifecycleItemloader()
+                        lifecycle_author_loader.add_value("firstName", "Günther")
+                        lifecycle_author_loader.add_value("lastName", "Rasch")
+                        lifecycle_author_loader.add_value("url", license_url)
+                        lom.add_value("lifecycle", lifecycle_author_loader.load_item())
+                    if "schule-bw.de" in license_url:
+                        # example: https://de.serlo.org/mathe/181820/181820
+                        custom_license_str: str = (
+                            "Quelle: Ausgangsmaterialien des Landesbildungsservers "
+                            "Baden-Württemberg (www.schule-bw.de) am Institut für "
+                            "Bildungsanalysen Baden-Württemberg (IBBW) "
+                            "(https://ibbw.kultus-bw.de)"
+                        )
+                        lifecycle_author_loader = LomLifecycleItemloader()
+                        lifecycle_author_loader.add_value("firstName", "Landesbildungsserver Baden-Württemberg")
+                        lifecycle_author_loader.add_value("url", license_url)
+                        lom.add_value("lifecycle", lifecycle_author_loader.load_item())
+                    if custom_license_str:
+                        lic.add_value("internal", Constants.LICENSE_CUSTOM)
+                        lic.add_value("description", custom_license_str)
+
+        base.add_value("lom", lom.load_item())
         base.add_value("license", lic.load_item())
 
         permissions = super().getPermissions(response)
