@@ -56,8 +56,7 @@ class SerloSpider(scrapy.Spider, LomBase):
         # Someone already practicing a profession; an industry partner, or professional development trainer.
         "student": "learner",
     }
-    # ToDo: refactor this crawler-specific mapping into a separate (and testable) helper utility asap
-    # this mapping table is a temporary workaround until a mapping-utility for KIM Schulfächer URLs has been implemented
+    # see: http://w3id.org/kim/schulfaecher/ (https://github.com/dini-ag-kim/schulfaecher)
     KIM_TO_OEH_DISCIPLINE_MAPPING = {
         "s1000": "20003",  # Alt-Griechisch
         "s1040": "46014",  # Astronomie
@@ -94,9 +93,9 @@ class SerloSpider(scrapy.Spider, LomBase):
         # "s1037": "",  # ToDo: "Polnisch" doesn't exist in our 'discipline'-vocab yet
         # "s1038": "",  # ToDo: "Portugiesisch" doesn't exist in our 'discipline'-vocab yet
         # "s1043": "",  # ToDo: "Psychologie" doesn't exist in our 'discipline'-vocab yet
-        "s1024": "520",  # Religionslehre (evangelisch) -> Religionslehre
-        "s1025": "520",  # Religionslehre (islamisch) -> Religionslehre
-        "s1026": "520",  # Religionslehre (katholisch) -> Religionslehre
+        "s1024": "520",  # Religionslehre (evangelisch) → Religionslehre
+        "s1025": "520",  # Religionslehre (islamisch) → Religionslehre
+        "s1026": "520",  # Religionslehre (katholisch) → Religionslehre
         "s1027": "20006",  # Russisch
         "s1028": "28010",  # Sachunterricht
         "s1029": "560",  # Sexualerziehung
@@ -105,8 +104,11 @@ class SerloSpider(scrapy.Spider, LomBase):
         "s1031": "600",  # Sport
         "s1032": "20008",  # Türkisch
         "s1033": "700",  # Wirtschaftskunde
-        "s1042": "48005",  # Gesellschaftswissenschaften -> Gesellschaftskunde
+        "s1042": "48005",  # Gesellschaftswissenschaften → Gesellschaftskunde
     }
+    # ToDo: refactor this crawler-specific mapping into a separate (and testable) helper utility asap
+    # (this mapping table is a temporary workaround until a mapping-utility for DINI AG KIM Schulfächer URLs
+    # has been implemented)
 
     def __init__(self, **kw):
         LomBase.__init__(self, **kw)
