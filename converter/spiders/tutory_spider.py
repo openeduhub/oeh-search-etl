@@ -3,6 +3,7 @@ import re
 import urllib.parse
 
 import scrapy
+import trafilatura
 from scrapy.selector import Selector
 from scrapy.spiders import CrawlSpider
 
@@ -17,14 +18,14 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
     url = "https://www.tutory.de/"
     objectUrl = "https://www.tutory.de/bereitstellung/dokument/"
     baseUrl = "https://www.tutory.de/api/v1/share/"
-    version = "0.1.6"  # last update: 2023-08-17
+    version = "0.1.7"  # last update: 2023-08-17
     custom_settings = {
         # "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
-    api_pagesize_limit = 5
+    API_PAGESIZE_LIMIT = 250
     # the old API pageSize of 999999 (which was used in 2021) doesn't work anymore and throws a 502 Error (Bad Gateway).
     # 2023-03: setting pageSize to 5000 appeared to be a reasonable value with an API response time of 12-15s
     # 2023-08-15: every setting above 500 appears to always return a '502'-Error now. Current response times during api
@@ -77,7 +78,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
 
     def assemble_tutory_api_url(self, api_page: int):
         url_current_page = (
-            f"{self.baseUrl}worksheet?groupSlug=entdecken&pageSize={str(self.api_pagesize_limit)}"
+            f"{self.baseUrl}worksheet?groupSlug=entdecken&pageSize={str(self.API_PAGESIZE_LIMIT)}"
             f"&page={str(api_page)}"
         )
         return url_current_page
@@ -125,7 +126,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
         drop_item_flag: bool = self.check_if_item_should_be_dropped(response)
         if drop_item_flag is True:
             return None
-
+        # if we need more metadata from the DOM, this could be a suitable place to move up the call to Playwright
         base_loader: BaseItemLoader = self.getBase(response)
         lom_loader: LomBaseItemloader = self.getLOM(response)
         lom_loader.add_value("general", self.getLOMGeneral(response))
@@ -135,8 +136,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
         base_loader.add_value("valuespaces", self.getValuespaces(response).load_item())
         base_loader.add_value("license", self.getLicense(response).load_item())
         base_loader.add_value("permissions", self.getPermissions(response).load_item())
-        base_loader.add_value("response", self.mapResponse(response).load_item())
-        # ToDo: set fetchData to false to reduce amount of HTTP requests?
+        base_loader.add_value("response", self.mapResponse(response, fetchData=False).load_item())
         yield base_loader.load_item()
 
     def getBase(self, response=None):
@@ -236,20 +236,36 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
             # 2nd fallback: <meta property="og:description">
             general.add_value("description", meta_og_description)
         else:
-            html = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)["html"]
-            if html:
-                # apparently, the human-readable text is nested within
-                # <div class="eduMark"> OR <div class="noEduMark"> elements
-                edumark_combined: list[str] = (
-                    Selector(text=html)
-                    .xpath("//div[contains(@class,'eduMark')]//text()|//div[contains(@class,'noEduMark')]//text()")
-                    .getall()
-                )
-                if edumark_combined:
-                    text_combined: str = " ".join(edumark_combined)
-                    text_combined = urllib.parse.unquote(text_combined)
-                    text_combined = f"{text_combined[:1000]} [...]"
-                    general.add_value("description", text_combined)
+            # this is where the (expensive) calls to our headless browser start
+            playwright_dict = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
+            playwright_html = playwright_dict["html"]
+            # ToDo: if we need DOM data from Playwright in another method, move the call to Playwright into parse()
+            #  and parametrize the result
+            if playwright_html:
+                # 3rd fallback: trying to extract the fulltext with trafilatura
+                playwright_bytes: bytes = playwright_html.encode()
+                trafilatura_text = trafilatura.extract(playwright_bytes)
+                if trafilatura_text:
+                    logging.debug(
+                        f"Item {response.url} did not provide any valid 'description' in its DOM header metadata. "
+                        f"Fallback to trafilatura fulltext..."
+                    )
+                    trafilatura_shortened: str = f"{trafilatura_text[:2000]} [...]"
+                    general.add_value("description", trafilatura_shortened)
+                else:
+                    # 4th fallback: resorting to (manual) scraping of DOM elements (via XPaths):
+                    # apparently, the human-readable text is nested within
+                    # <div class="eduMark"> OR <div class="noEduMark"> elements
+                    edumark_combined: list[str] = (
+                        Selector(text=playwright_html)
+                        .xpath("//div[contains(@class,'eduMark')]//text()|//div[contains(@class,'noEduMark')]//text()")
+                        .getall()
+                    )
+                    if edumark_combined:
+                        text_combined: str = " ".join(edumark_combined)
+                        text_combined = urllib.parse.unquote(text_combined)
+                        text_combined = f"{text_combined[:2000]} [...]"
+                        general.add_value("description", text_combined)
         return general
 
     def getLOMTechnical(self, response=None):
