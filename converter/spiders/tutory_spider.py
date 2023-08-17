@@ -18,7 +18,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
     url = "https://www.tutory.de/"
     objectUrl = "https://www.tutory.de/bereitstellung/dokument/"
     baseUrl = "https://www.tutory.de/api/v1/share/"
-    version = "0.1.7"  # last update: 2023-08-17
+    version = "0.1.8"  # last update: 2023-08-17
     custom_settings = {
         # "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -188,8 +188,57 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
             #  - "technik"
             valuespaces.add_value("discipline", list(disciplines))
 
-        # ToDo: test out similar mapping approach for 'metaValues.classLevel' for:
-        #  - educationalContext
+        potential_classlevel_values: list[str] = list(
+            map(
+                lambda x: x["code"],
+                filter(
+                    lambda x: x["type"] == "classLevel",
+                    response.meta["item"]["metaValues"],
+                ),
+            )
+        )
+        educontext_set: set[str] = set()
+        if potential_classlevel_values and type(potential_classlevel_values) is list:
+            potential_classlevel_values.sort()
+            two_digits_pattern = re.compile(r"\d{1,2}")
+            classlevel_set: set[str] = set()
+            classlevel_digits: set[int] = set()
+            for potential_classlevel in potential_classlevel_values:
+                # the classLevel field contains a wild mix of string-values
+                # this is a rough mapping that could be improved with further finetuning (and a more structured
+                # data-dump of all possible values)
+                two_digits_pattern_hit = two_digits_pattern.search(potential_classlevel)
+                if two_digits_pattern_hit:
+                    # 'classLevel'-values will appear as numbers within a string ("3" or "12") and need to be converted
+                    # for our mapping approach
+                    classlevel_candidate = two_digits_pattern_hit.group()
+                    classlevel_set.add(classlevel_candidate)
+                if "ausbildung" in potential_classlevel:
+                    # typical values: "1-ausbildungsjahr" / "2-ausbildungsjahr" / "3-ausbildungsjahr"
+                    educontext_set.add("berufliche_bildung")
+                if "e-1" in potential_classlevel or "e-2" in potential_classlevel:
+                    educontext_set.add("sekundarstufe_2")
+            if classlevel_set and len(classlevel_set) > 0:
+                classlevels_sorted: list[str] = list(classlevel_set)
+                classlevels_sorted.sort(key=len)
+                for classlevel_string in classlevels_sorted:
+                    classlevel_nr: int = int(classlevel_string)
+                    classlevel_digits.add(classlevel_nr)
+            if classlevel_digits:
+                classlevel_integers: list[int] = list(classlevel_digits)
+                if classlevel_integers and type(classlevel_integers) is list:
+                    # classlevel_min: int = min(classlevel_integers)
+                    # classlevel_max: int = max(classlevel_integers)
+                    for int_value in classlevel_integers:
+                        if 0 < int_value <= 4:
+                            educontext_set.add("grundschule")
+                        if 5 <= int_value <= 9:
+                            educontext_set.add("sekundarstufe_1")
+                        if 10 <= int_value <= 13:
+                            educontext_set.add("sekundarstufe_2")
+        if educontext_set:
+            educontext_list: list[str] = list(educontext_set)
+            valuespaces.add_value("educationalContext", educontext_list)
         valuespaces.add_value("new_lrt", "36e68792-6159-481d-a97b-2c00901f4f78")  # Arbeitsblatt
         return valuespaces
 
