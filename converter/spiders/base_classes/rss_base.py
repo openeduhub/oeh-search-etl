@@ -4,7 +4,7 @@ from scrapy.spiders import CrawlSpider
 
 from .lom_base import LomBase
 from ...constants import Constants
-from ...items import LicenseItemLoader
+from ...items import LicenseItemLoader, ValuespaceItemLoader
 
 
 class RSSBase(CrawlSpider, LomBase):
@@ -17,18 +17,10 @@ class RSSBase(CrawlSpider, LomBase):
 
     def parse(self, response):
         # common properties
-        self.commonProperties["language"] = response.xpath(
-            "//rss/channel/language//text()"
-        ).get()
-        self.commonProperties["source"] = response.xpath(
-            "//rss/channel/generator//text()"
-        ).get()
-        self.commonProperties["publisher"] = response.xpath(
-            "//rss/channel/author//text()"
-        ).get()
-        self.commonProperties["thumbnail"] = response.xpath(
-            "//rss/channel/image/url//text()"
-        ).get()
+        self.commonProperties["language"] = response.xpath("//rss/channel/language//text()").get()
+        self.commonProperties["source"] = response.xpath("//rss/channel/generator//text()").get()
+        self.commonProperties["publisher"] = response.xpath("//rss/channel/author//text()").get()
+        self.commonProperties["thumbnail"] = response.xpath("//rss/channel/image/url//text()").get()
         self.response = response
         return self.startHandler(response)
 
@@ -73,9 +65,7 @@ class RSSBase(CrawlSpider, LomBase):
         if guid:
             # by default, all guids are treated as (local) identifiers
             general.add_value("identifier", guid)
-        general.add_value(
-            "title", response.meta["item"].xpath("title//text()").get().strip()
-        )
+        general.add_value("title", response.meta["item"].xpath("title//text()").get().strip())
         general.add_value("language", self.commonProperties["language"])
         description: str = response.meta["item"].xpath("description//text()").get()
         summary: str = response.meta["item"].xpath('*[name()="summary"]//text()').get()
@@ -83,13 +73,13 @@ class RSSBase(CrawlSpider, LomBase):
         # in case that a RSS feed doesn't adhere to the RSS 2.0 spec (<description>), we're using two fallbacks:
         # <summary> or if that doesn't exist: <itunes:summary>
         if description:
-            general.add_value('description', description)
+            general.add_value("description", description)
         elif summary:
-            general.add_value('description', summary)
+            general.add_value("description", summary)
         elif itunes_summary:
-            general.add_value('description', itunes_summary)
-        rss_category_channel: list = response.xpath('//rss/channel/category/text()').getall()
-        rss_category_item: list = response.meta["item"].xpath('category/text()').getall()
+            general.add_value("description", itunes_summary)
+        rss_category_channel: list = response.xpath("//rss/channel/category/text()").getall()
+        rss_category_item: list = response.meta["item"].xpath("category/text()").getall()
         # see: https://www.rssboard.org/rss-profile#element-channel-item-category
         itunes_category: list = response.xpath('//*[name()="itunes:category"]/@text').getall()
         keyword_set = set()
@@ -103,7 +93,7 @@ class RSSBase(CrawlSpider, LomBase):
             keyword_list: list = list(keyword_set)
             if keyword_list:
                 keyword_list.sort()
-                general.add_value('keyword', keyword_list)
+                general.add_value("keyword", keyword_list)
         return general
 
     def getLOMTechnical(self, response):
@@ -152,13 +142,13 @@ class RSSBase(CrawlSpider, LomBase):
 
     def getLOMLifecycle(self, response):
         lifecycle = LomBase.getLOMLifecycle(self, response)
-        lifecycle.add_value('role', 'publisher')
+        lifecycle.add_value("role", "publisher")
         channel_author: str = response.xpath("//rss/channel/*[name()='itunes:author']/text()").get()
         # if <itunes:author> appears in /rss/channel, it will carry publisher/organizational information
         if "publisher" in self.commonProperties:
-            lifecycle.add_value('organization', self.commonProperties["publisher"])
+            lifecycle.add_value("organization", self.commonProperties["publisher"])
         elif channel_author:
-            lifecycle.add_value('organization', channel_author)
+            lifecycle.add_value("organization", channel_author)
         # ToDo: optional <dc:creator>-element in <item>, as soon as we actually encounter a RSS feed to test it against
         #   see: https://www.rssboard.org/rss-profile#namespace-elements-dublin-creator
         pub_date = response.meta["item"].xpath("pubDate//text()").get()  # <pubDate> according to the RSS 2.0 specs
@@ -170,24 +160,31 @@ class RSSBase(CrawlSpider, LomBase):
         # according to Apple's RSS Guidelines, some (Atom-inspired) feeds might use <published> instead
         if pub_date:
             # <pubDate> is an OPTIONAL sub-element of <item>
-            lifecycle.add_value('date', pub_date)
+            lifecycle.add_value("date", pub_date)
         elif pub_date_variation2:
             # if <pubDate> isn't available, <PubDate> might be
-            lifecycle.add_value('date', pub_date_variation2)
+            lifecycle.add_value("date", pub_date_variation2)
         elif pub_date_variation3:
             # if the RSS feed differs from the RSS 2.0 specs, <published> might be available
-            lifecycle.add_value('date', pub_date_variation3)
+            lifecycle.add_value("date", pub_date_variation3)
         return lifecycle
 
     def getLicense(self, response=None) -> LicenseItemLoader:
         license_item_loader = LomBase.getLicense(self, response)
-        copyright_description: str = response.xpath('//rss/channel/copyright/text()').get()
+        copyright_description: str = response.xpath("//rss/channel/copyright/text()").get()
         if copyright_description:
-            license_item_loader.add_value('internal', Constants.LICENSE_CUSTOM)
+            license_item_loader.add_value("internal", Constants.LICENSE_CUSTOM)
             # 'internal' needs to be set to CUSTOM for 'description' to be read
-            license_item_loader.add_value('description', copyright_description)
+            license_item_loader.add_value("description", copyright_description)
         item_author: str = response.meta["item"].xpath("*[name()='itunes:author']/text()").get()
         if item_author:
             # if the optional field <itunes:author> is nested in /rss/channel/item, it will contain author information
-            license_item_loader.add_value('author', item_author)
+            license_item_loader.add_value("author", item_author)
         return license_item_loader
+
+    def getValuespaces(self, response):
+        vs_loader = LomBase.getValuespaces(self, response)
+        # as per team4 request on 2023-08-11 the values for 'conditionsOfAccess' and 'price' are hard-coded:
+        vs_loader.add_value("conditionsOfAccess", "no login")
+        vs_loader.add_value("price", "no")
+        return vs_loader
