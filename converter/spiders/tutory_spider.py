@@ -17,14 +17,14 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
     url = "https://www.tutory.de/"
     objectUrl = "https://www.tutory.de/bereitstellung/dokument/"
     baseUrl = "https://www.tutory.de/api/v1/share/"
-    version = "0.1.5"  # last update: 2023-08-15
+    version = "0.1.6"  # last update: 2023-08-17
     custom_settings = {
         # "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
-    api_pagesize_limit = 250
+    api_pagesize_limit = 5
     # the old API pageSize of 999999 (which was used in 2021) doesn't work anymore and throws a 502 Error (Bad Gateway).
     # 2023-03: setting pageSize to 5000 appeared to be a reasonable value with an API response time of 12-15s
     # 2023-08-15: every setting above 500 appears to always return a '502'-Error now. Current response times during api
@@ -73,9 +73,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                     item_url = response_copy.url
                     response_copy.meta["item"] = j
                     if self.hasChanged(response_copy):
-                        yield scrapy.Request(url=item_url, callback=self.parse, cb_kwargs={
-                            "item_dict": j
-                        })
+                        yield scrapy.Request(url=item_url, callback=self.parse, cb_kwargs={"item_dict": j})
 
     def assemble_tutory_api_url(self, api_page: int):
         url_current_page = (
@@ -130,10 +128,10 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
 
         base_loader: BaseItemLoader = self.getBase(response)
         lom_loader: LomBaseItemloader = self.getLOM(response)
-        lom_loader.add_value('general', self.getLOMGeneral(response))
-        lom_loader.add_value('technical', self.getLOMTechnical(response))
+        lom_loader.add_value("general", self.getLOMGeneral(response))
+        lom_loader.add_value("technical", self.getLOMTechnical(response))
 
-        base_loader.add_value('lom', lom_loader.load_item())
+        base_loader.add_value("lom", lom_loader.load_item())
         base_loader.add_value("valuespaces", self.getValuespaces(response).load_item())
         base_loader.add_value("license", self.getLicense(response).load_item())
         base_loader.add_value("permissions", self.getPermissions(response).load_item())
@@ -152,7 +150,8 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
-        discipline = list(
+        disciplines = set()
+        subject_codes: list[str] = list(
             map(
                 lambda x: x["code"],
                 filter(
@@ -161,7 +160,36 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                 ),
             )
         )
-        valuespaces.add_value("discipline", discipline)
+        if subject_codes:
+            disciplines.update(subject_codes)
+        # This is a (temporary) workaround until ITSJOINTLY-332 has been solved: The vocab matching doesn't hit all
+        #  "altLabel"-values because they don't exist in the generated disipline.json. We're therefore trying to collect
+        # additional strings which could (hopefully) be mapped.
+        subject_names: list[str] = list(
+            map(
+                lambda x: x["name"],
+                filter(
+                    lambda x: x["type"] == "subject",
+                    response.meta["item"]["metaValues"],
+                ),
+            )
+        )
+        if subject_names:
+            disciplines.update(subject_names)
+        if disciplines:
+            # only one 'discipline'-value will remain after vocab-matching in our pipelines, so duplicate values are
+            # (for now) no problem, but need to be handled as soon as ITSJOINTLY-332 is solved
+            # ToDo: confirm that this workaround still works as intended after ITSJOINTLY-332 has been solved
+            # ToDo: known edge-cases for strings which cannot be mapped to our 'discipline'-vocab yet and should be
+            #  handled after SC 2023:
+            #  - "abu" ("Allg. bildender Unterricht")
+            #  - "betriebswirtschaft"
+            #  - "naturwissenschaft"
+            #  - "technik"
+            valuespaces.add_value("discipline", list(disciplines))
+
+        # ToDo: test out similar mapping approach for 'metaValues.classLevel' for:
+        #  - educationalContext
         valuespaces.add_value("new_lrt", "36e68792-6159-481d-a97b-2c00901f4f78")  # Arbeitsblatt
         return valuespaces
 
