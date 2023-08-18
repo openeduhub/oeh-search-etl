@@ -18,7 +18,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
     url = "https://www.tutory.de/"
     objectUrl = "https://www.tutory.de/bereitstellung/dokument/"
     baseUrl = "https://www.tutory.de/api/v1/share/"
-    version = "0.1.8"  # last update: 2023-08-17
+    version = "0.1.9"  # last update: 2023-08-18
     custom_settings = {
         # "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -200,7 +200,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
         educontext_set: set[str] = set()
         if potential_classlevel_values and type(potential_classlevel_values) is list:
             potential_classlevel_values.sort()
-            two_digits_pattern = re.compile(r"\d{1,2}")
+            two_digits_pattern = re.compile(r"^\d{1,2}$")  # the whole string must be exactly between 1 and 2 digits
             classlevel_set: set[str] = set()
             classlevel_digits: set[int] = set()
             for potential_classlevel in potential_classlevel_values:
@@ -217,6 +217,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                     # typical values: "1-ausbildungsjahr" / "2-ausbildungsjahr" / "3-ausbildungsjahr"
                     educontext_set.add("berufliche_bildung")
                 if "e-1" in potential_classlevel or "e-2" in potential_classlevel:
+                    educontext_set.add("sekundarstufe_1")
                     educontext_set.add("sekundarstufe_2")
             if classlevel_set and len(classlevel_set) > 0:
                 classlevels_sorted: list[str] = list(classlevel_set)
