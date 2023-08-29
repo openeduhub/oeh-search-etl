@@ -22,7 +22,7 @@ class ZUMDeutschLernenSpider(MediaWikiBase, scrapy.Spider):
     name = "zum_deutschlernen_spider"
     friendlyName = "ZUM-Deutsch-Lernen"
     url = "https://deutsch-lernen.zum.de/"
-    version = "0.1.4"  # last update: 2023-08-11
+    version = "0.1.5"  # last update: 2023-08-29
     license = Constants.LICENSE_CC_BY_40
     custom_settings = {"WEB_TOOLS": WebEngine.Playwright, "AUTOTHROTTLE_ENABLED": True, "AUTOTHROTTLE_DEBUG": True}
 

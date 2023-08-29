@@ -13,7 +13,7 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
     name = "zum_spider"
     friendlyName = "ZUM-Unterrichten"
     url = "https://unterrichten.zum.de/"
-    version = "0.1.4"  # last update: 2023-08-11
+    version = "0.1.5"  # last update: 2023-08-29
     license = Constants.LICENSE_CC_BY_SA_40
     custom_settings = {"WEB_TOOLS": WebEngine.Playwright, "AUTOTHROTTLE_ENABLED": True, "AUTOTHROTTLE_DEBUG": True}
 
