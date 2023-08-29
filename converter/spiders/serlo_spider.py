@@ -31,7 +31,7 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.3.0"  # last update: 2023-08-16
+    version = "0.3.1"  # last update: 2023-08-29
     custom_settings = {
         # Using Playwright because of Splash-issues with thumbnails+text for Serlo
         "WEB_TOOLS": WebEngine.Playwright
@@ -549,7 +549,7 @@ class SerloSpider(scrapy.Spider, LomBase):
                 vs.add_value("discipline", disciplines)
                 # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/discipline.ttl)
             # if the json_ld doesn't hold a discipline value for us, we'll try to grab the discipline from the url path
-        # ToDo: these URL-fallbacks might be obsolete now. Remove in crawler v0.3.1 after further debugging
+        # ToDo: these URL-fallbacks might be obsolete now. Remove them in crawler v0.3.1+ after further debugging
         if "/mathe/" in response.url:
             disciplines_set.add("380")  # Mathematik
         if "/biologie/" in response.url:
@@ -576,21 +576,36 @@ class SerloSpider(scrapy.Spider, LomBase):
         if graphql_json["learningResourceType"]:
             # Serlo is using the learningResourceType vocabulary (as specified in the AMB standard), see:
             # https://github.com/serlo/documentation/wiki/Metadata-API#changes-to-the-learningresourcetype-property
-            # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/learningResourceType.ttl)
             learning_resource_types: list[dict] = graphql_json["learningResourceType"]
+            lrts_new: set[str] = set()
+            lrts_old: set[str] = set()
             for lrt_item in learning_resource_types:
+                # we're checking for 'new_lrt'-values first and use the old (broader) LRT only as fallback
                 if "id" in lrt_item:
                     learning_resource_type_url: str = lrt_item["id"]
+                    if "/openeduhub/vocabs/new_lrt/" in learning_resource_type_url:
+                        # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/new_lrt.ttl)
+                        new_lrt_key: str = learning_resource_type_url.split("/")[-1]
+                        if new_lrt_key:
+                            lrts_new.add(new_lrt_key)
                     if "/openeduhub/vocabs/learningResourceType/" in learning_resource_type_url:
+                        # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/learningResourceType.ttl)
                         lrt_key: str = learning_resource_type_url.split("/")[-1]
                         if lrt_key:
-                            vs.add_value("learningResourceType", lrt_key)
-                    else:
-                        logging.debug(
-                            f"Serlo 'learningResourceType' {learning_resource_type_url} was not recognized "
-                            f"as part of the OpenEduHub 'learningResourceType' vocabulary. Please check the "
-                            f"crawler or the vocab at oeh-metadata-vocabs/learningResourceType.ttl"
-                        )
+                            lrts_old.add(lrt_key)
+            if lrts_new:
+                # OER Sommercamp 2023: Kulla and Romy defined precise mappings for our 'new_lrt'-vocab. These will
+                # always be more precise than the old (broader) LRT values. If the API provided 'new_lrt'-values, we'll
+                # ONLY be using these values.
+                lrts_new_list: list[str] = list(lrts_new)
+                if lrts_new_list:
+                    vs.add_value("new_lrt", lrts_new_list)
+            elif lrts_old:
+                # OER Sommercamp 2023: For now, the Serlo API provides both the 'learningResourceType' and 'new_lrt'
+                # values. We'll only use the old LRT values as a fallback if no 'new_lrt'-values were collected.
+                lrts_old_list: list[str] = list(lrts_old)
+                if lrts_old_list:
+                    vs.add_value("learningResourceType", lrts_old)
 
         base.add_value("valuespaces", vs.load_item())
 
