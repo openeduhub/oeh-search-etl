@@ -123,7 +123,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         "Gemeinfrei / Public Domain": Constants.LICENSE_PDM,
         "freie Lizenz": Constants.LICENSE_CUSTOM,
         "keine Angaben (gesetzliche Regelung)": Constants.LICENSE_CUSTOM,
-        "Schulfunk (§47)": Constants.LICENSE_SCHULFUNK
+        "Schulfunk (§47)": Constants.LICENSE_SCHULFUNK,
     }
 
     def __init__(self, oer_filter: str = "False", **kwargs):
@@ -261,7 +261,25 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         )
 
     def start_requests(self):
-        yield self.start_request()
+        start_page_setting = env.get(key="SODIX_SPIDER_START_AT_PAGE", allow_null=True, default="0")
+        if start_page_setting and start_page_setting != "0":
+            # The SODIX API provides items in a sorted-by-last-modified-date manner. Page 0 will therefore always
+            # return the most-recently updated items while higher API page numbers will have older last-modified dates.
+            try:
+                start_page: int = int(start_page_setting)
+                logging.info(
+                    f"'.env'-Setting SODIX_SPIDER_START_AT_PAGE recognized. Starting crawl at chosen API page: "
+                    f"{start_page} ."
+                )
+                yield self.start_request(page=start_page)
+            except ValueError:
+                logging.error(
+                    f"'.env'-Setting SODIX_SPIDER_START_AT_PAGE {start_page_setting} could not be successfully "
+                    f"converted to 'int'. Please make sure that you entered a valid string value that lies "
+                    f"within a valid API pagination range. Defaulting to API page 0 now..."
+                )
+        else:
+            yield self.start_request()
 
     def parse_request(self, response):
         results = json.loads(response.body)

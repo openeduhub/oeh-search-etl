@@ -3,10 +3,12 @@ import re
 import urllib.parse
 
 import scrapy
+import trafilatura
 from scrapy.selector import Selector
 from scrapy.spiders import CrawlSpider
 
 from .base_classes import LomBase, JSONBase
+from ..items import LomBaseItemloader, BaseItemLoader
 from ..web_tools import WebEngine, WebTools
 
 
@@ -16,18 +18,20 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
     url = "https://www.tutory.de/"
     objectUrl = "https://www.tutory.de/bereitstellung/dokument/"
     baseUrl = "https://www.tutory.de/api/v1/share/"
-    version = "0.1.4"  # last update: 2022-03-11
+    version = "0.1.9"  # last update: 2023-08-18
     custom_settings = {
-        "AUTOTHROTTLE_ENABLED": True,
-        "ROBOTSTXT_OBEY": False,
+        # "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
-    api_pagesize_limit = 5000
-
+    API_PAGESIZE_LIMIT = 250
     # the old API pageSize of 999999 (which was used in 2021) doesn't work anymore and throws a 502 Error (Bad Gateway).
-    # Setting the pageSize to 5000 appears to be a reasonable value with an API response time of 12-15s
+    # 2023-03: setting pageSize to 5000 appeared to be a reasonable value with an API response time of 12-15s
+    # 2023-08-15: every setting above 500 appears to always return a '502'-Error now. Current response times during api
+    # pagination are:
+    # - '500': the API response time is roughly 42s.
+    # - '250': the API response time is roughly 21s.
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -67,25 +71,73 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                 )
                 for j in worksheets_data:
                     response_copy = response.replace(url=self.objectUrl + j["id"])
+                    item_url = response_copy.url
                     response_copy.meta["item"] = j
                     if self.hasChanged(response_copy):
-                        yield self.parse(response_copy)
+                        yield scrapy.Request(url=item_url, callback=self.parse, cb_kwargs={"item_dict": j})
 
     def assemble_tutory_api_url(self, api_page: int):
         url_current_page = (
-            f"{self.baseUrl}worksheet?groupSlug=entdecken&pageSize={str(self.api_pagesize_limit)}"
+            f"{self.baseUrl}worksheet?groupSlug=entdecken&pageSize={str(self.API_PAGESIZE_LIMIT)}"
             f"&page={str(api_page)}"
         )
         return url_current_page
 
-    def getId(self, response=None):
-        return str(response.meta["item"]["id"])
+    def getId(self, response=None, **kwargs):
+        if "item" in response.meta:
+            item_id: str = response.meta["item"]["id"]
+            return item_id
+        else:
+            try:
+                api_item = kwargs["kwargs"]["item_dict"]
+                item_id: str = api_item["id"]
+                return item_id
+            except KeyError as ke:
+                logging.error(f"'getId'-method failed to retrieve item_id for '{response.url}'.")
+                raise ke
 
     def getHash(self, response=None):
         return response.meta["item"]["updatedAt"] + self.version
 
+    # ToDo (performance): reduce the amount of scrapy Requests by executing hasChanged() earlier:
+    #  - if we call hasChanged() earlier, we might have to re-implement getUri() as well (since the resolved URL is
+    #  always different from the unique 'dokument'-URL)
+
+    def check_if_item_should_be_dropped(self, response) -> bool:
+        drop_item_flag: bool = False
+        identifier: str = self.getId(response)
+        hash_str: str = self.getHash(response)
+        if self.shouldImport(response) is False:
+            logging.debug(f"Skipping entry {identifier} because shouldImport() returned false")
+            drop_item_flag = True
+            return drop_item_flag
+        if identifier is not None and hash_str is not None:
+            if not self.hasChanged(response):
+                drop_item_flag = True
+            return drop_item_flag
+
     def parse(self, response, **kwargs):
-        return LomBase.parse(self, response)
+        try:
+            item_dict_from_api: dict = kwargs["item_dict"]
+            response.meta["item"] = item_dict_from_api
+        except KeyError as ke:
+            raise ke
+
+        drop_item_flag: bool = self.check_if_item_should_be_dropped(response)
+        if drop_item_flag is True:
+            return None
+        # if we need more metadata from the DOM, this could be a suitable place to move up the call to Playwright
+        base_loader: BaseItemLoader = self.getBase(response)
+        lom_loader: LomBaseItemloader = self.getLOM(response)
+        lom_loader.add_value("general", self.getLOMGeneral(response))
+        lom_loader.add_value("technical", self.getLOMTechnical(response))
+
+        base_loader.add_value("lom", lom_loader.load_item())
+        base_loader.add_value("valuespaces", self.getValuespaces(response).load_item())
+        base_loader.add_value("license", self.getLicense(response).load_item())
+        base_loader.add_value("permissions", self.getPermissions(response).load_item())
+        base_loader.add_value("response", self.mapResponse(response, fetchData=False).load_item())
+        yield base_loader.load_item()
 
     def getBase(self, response=None):
         base = LomBase.getBase(self, response)
@@ -98,7 +150,8 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)
-        discipline = list(
+        disciplines = set()
+        subject_codes: list[str] = list(
             map(
                 lambda x: x["code"],
                 filter(
@@ -107,7 +160,86 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                 ),
             )
         )
-        valuespaces.add_value("discipline", discipline)
+        if subject_codes:
+            disciplines.update(subject_codes)
+        # This is a (temporary) workaround until ITSJOINTLY-332 has been solved: The vocab matching doesn't hit all
+        #  "altLabel"-values because they don't exist in the generated disipline.json. We're therefore trying to collect
+        # additional strings which could (hopefully) be mapped.
+        subject_names: list[str] = list(
+            map(
+                lambda x: x["name"],
+                filter(
+                    lambda x: x["type"] == "subject",
+                    response.meta["item"]["metaValues"],
+                ),
+            )
+        )
+        if subject_names:
+            disciplines.update(subject_names)
+        if disciplines:
+            # only one 'discipline'-value will remain after vocab-matching in our pipelines, so duplicate values are
+            # (for now) no problem, but need to be handled as soon as ITSJOINTLY-332 is solved
+            # ToDo: confirm that this workaround still works as intended after ITSJOINTLY-332 has been solved
+            # ToDo: known edge-cases for strings which cannot be mapped to our 'discipline'-vocab yet and should be
+            #  handled after SC 2023:
+            #  - "abu" ("Allg. bildender Unterricht")
+            #  - "betriebswirtschaft"
+            #  - "naturwissenschaft"
+            #  - "technik"
+            valuespaces.add_value("discipline", list(disciplines))
+
+        potential_classlevel_values: list[str] = list(
+            map(
+                lambda x: x["code"],
+                filter(
+                    lambda x: x["type"] == "classLevel",
+                    response.meta["item"]["metaValues"],
+                ),
+            )
+        )
+        educontext_set: set[str] = set()
+        if potential_classlevel_values and type(potential_classlevel_values) is list:
+            potential_classlevel_values.sort()
+            two_digits_pattern = re.compile(r"^\d{1,2}$")  # the whole string must be exactly between 1 and 2 digits
+            classlevel_set: set[str] = set()
+            classlevel_digits: set[int] = set()
+            for potential_classlevel in potential_classlevel_values:
+                # the classLevel field contains a wild mix of string-values
+                # this is a rough mapping that could be improved with further finetuning (and a more structured
+                # data-dump of all possible values)
+                two_digits_pattern_hit = two_digits_pattern.search(potential_classlevel)
+                if two_digits_pattern_hit:
+                    # 'classLevel'-values will appear as numbers within a string ("3" or "12") and need to be converted
+                    # for our mapping approach
+                    classlevel_candidate = two_digits_pattern_hit.group()
+                    classlevel_set.add(classlevel_candidate)
+                if "ausbildung" in potential_classlevel:
+                    # typical values: "1-ausbildungsjahr" / "2-ausbildungsjahr" / "3-ausbildungsjahr"
+                    educontext_set.add("berufliche_bildung")
+                if "e-1" in potential_classlevel or "e-2" in potential_classlevel:
+                    educontext_set.add("sekundarstufe_1")
+                    educontext_set.add("sekundarstufe_2")
+            if classlevel_set and len(classlevel_set) > 0:
+                classlevels_sorted: list[str] = list(classlevel_set)
+                classlevels_sorted.sort(key=len)
+                for classlevel_string in classlevels_sorted:
+                    classlevel_nr: int = int(classlevel_string)
+                    classlevel_digits.add(classlevel_nr)
+            if classlevel_digits:
+                classlevel_integers: list[int] = list(classlevel_digits)
+                if classlevel_integers and type(classlevel_integers) is list:
+                    # classlevel_min: int = min(classlevel_integers)
+                    # classlevel_max: int = max(classlevel_integers)
+                    for int_value in classlevel_integers:
+                        if 0 < int_value <= 4:
+                            educontext_set.add("grundschule")
+                        if 5 <= int_value <= 9:
+                            educontext_set.add("sekundarstufe_1")
+                        if 10 <= int_value <= 13:
+                            educontext_set.add("sekundarstufe_2")
+        if educontext_set:
+            educontext_list: list[str] = list(educontext_set)
+            valuespaces.add_value("educationalContext", educontext_list)
         valuespaces.add_value("new_lrt", "36e68792-6159-481d-a97b-2c00901f4f78")  # Arbeitsblatt
         return valuespaces
 
@@ -154,20 +286,36 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
             # 2nd fallback: <meta property="og:description">
             general.add_value("description", meta_og_description)
         else:
-            html = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)["html"]
-            if html:
-                # apparently, the human-readable text is nested within
-                # <div class="eduMark"> OR <div class="noEduMark"> elements
-                edumark_combined: list[str] = (
-                    Selector(text=html)
-                    .xpath("//div[contains(@class,'eduMark')]//text()|//div[contains(@class,'noEduMark')]//text()")
-                    .getall()
-                )
-                if edumark_combined:
-                    text_combined: str = " ".join(edumark_combined)
-                    text_combined = urllib.parse.unquote(text_combined)
-                    text_combined = f"{text_combined[:1000]} [...]"
-                    general.add_value("description", text_combined)
+            # this is where the (expensive) calls to our headless browser start
+            playwright_dict = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
+            playwright_html = playwright_dict["html"]
+            # ToDo: if we need DOM data from Playwright in another method, move the call to Playwright into parse()
+            #  and parametrize the result
+            if playwright_html:
+                # 3rd fallback: trying to extract the fulltext with trafilatura
+                playwright_bytes: bytes = playwright_html.encode()
+                trafilatura_text = trafilatura.extract(playwright_bytes)
+                if trafilatura_text:
+                    logging.debug(
+                        f"Item {response.url} did not provide any valid 'description' in its DOM header metadata. "
+                        f"Fallback to trafilatura fulltext..."
+                    )
+                    trafilatura_shortened: str = f"{trafilatura_text[:2000]} [...]"
+                    general.add_value("description", trafilatura_shortened)
+                else:
+                    # 4th fallback: resorting to (manual) scraping of DOM elements (via XPaths):
+                    # apparently, the human-readable text is nested within
+                    # <div class="eduMark"> OR <div class="noEduMark"> elements
+                    edumark_combined: list[str] = (
+                        Selector(text=playwright_html)
+                        .xpath("//div[contains(@class,'eduMark')]//text()|//div[contains(@class,'noEduMark')]//text()")
+                        .getall()
+                    )
+                    if edumark_combined:
+                        text_combined: str = " ".join(edumark_combined)
+                        text_combined = urllib.parse.unquote(text_combined)
+                        text_combined = f"{text_combined[:2000]} [...]"
+                        general.add_value("description", text_combined)
         return general
 
     def getLOMTechnical(self, response=None):
