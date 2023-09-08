@@ -384,11 +384,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                                 f"{self.COUNTER_ITEM_IS_NOT_OER}"
                             )
                             continue
-                    if self.hasChanged(response, sodix_item=sodix_item_copy):
-                        # Sommercamp 2023 observation: handle_entry needs to be called AFTER the complete item list has
-                        # been extracted, otherwise the items' index positions change while we're still iterating
-                        # through the API.
-                        self.SODIX_ITEMS.append(sodix_item_copy)
+                    self.SODIX_ITEMS.append(sodix_item_copy)
                 # ToDo: links to binary files (.jpeg) cause errors while building the BaseItem, we might have to filter
                 #  specific media types / URLs
                 yield self.start_request(response.meta["page"] + 1)
@@ -411,7 +407,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                     # signal to start the actual parsing of individual items
                     logging.info(
                         f"API Pagination: Reached the last API page {response.meta['page']}. "
-                        f"Beginning crawling of {len(self.SODIX_ITEMS)} SODIX items..."
+                        f"Beginning handling of {len(self.SODIX_ITEMS)} SODIX items..."
                     )
                     yield from self.handle_extracted_sodix_items()
 
@@ -421,9 +417,14 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             # if the crawler collected any items from the API, we're popping them 1-by-1 to reduce the initial memory
             # footprint of the crawler
             while self.SODIX_ITEMS:
-                self.COUNTER_ITEMS_TO_BE_CRAWLED += 1
                 next_item: dict = self.SODIX_ITEMS.pop()
-                yield self.handle_entry(next_item)
+                if self.hasChanged(response=None, sodix_item=next_item):
+                    # Sommercamp 2023 observation: handle_entry needs to be called AFTER the complete item list has
+                    # been extracted, otherwise the items' index positions change while we're still iterating
+                    # through the API.
+                    # We NEED to do the hasChanged()-check here, otherwise the API Pagination would take too long.
+                    self.COUNTER_ITEMS_TO_BE_CRAWLED += 1
+                    yield self.handle_entry(next_item)
             # ToDo: if we don't notice any side-effects of the above method, delete the below for-loop in v0.3.1+
             # for sodix_item in self.SODIX_ITEMS:
             #     self.COUNTER_ITEMS_TO_BE_CRAWLED += 1
@@ -431,7 +432,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         else:
             logging.info(
                 f"The amount of extracted (and to be crawled) SODIX items is: {len(self.SODIX_ITEMS)}. "
-                f"Stopping crawl-process..."
+                f"Stopping crawling-process..."
             )
 
     def handle_entry(self, sodix_item: dict):
