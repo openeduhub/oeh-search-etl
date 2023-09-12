@@ -42,7 +42,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.3.0"  # last update: 2023-09-08
+    version = "0.3.0"  # last update: 2023-09-12
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -161,7 +161,13 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         r = ResponseItemLoader()
         r.replace_value("text", "")  # ToDo: this might be obsolete
         r.replace_value("html", "")  # ToDo: this might be obsolete
-        r.replace_value("url", sodix_item["media"]["url"])
+        media_url: str = sodix_item["media"]["url"]
+        if media_url:
+            r.replace_value("url", media_url)
+        else:
+            media_original_url: str = sodix_item["media"]["originalUrl"]
+            if media_original_url:
+                r.replace_value("url", media_original_url)
         return r
 
     def getId(self, response=None, **kwargs) -> str:
@@ -189,13 +195,32 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         return EduSharing.build_uuid(self.getUri(response, sodix_item=sodix_item))
 
     def getUri(self, response=None, **kwargs) -> str:
-        # or media.originalUrl?
+        """Return the URI of the SODIX item."""
+        # Each SODIX item should (but in reality: doesn't) provide a 'media.url' which either points to
+        # - the internal (SODIX) URI
+        # - or an external URL
+        # Outlier items provide a 'null'-value for this field, which is why we need to use a fallback to
+        # 'media.originalUrl' for those exceptions.
         try:
             sodix_item: dict = kwargs["sodix_item"]
         except KeyError as ke:
             logging.error(f"getUri(): Could not access SODIX item.")
             raise ke
-        return self.get("media.url", json=sodix_item)
+        try:
+            media_url: str = sodix_item["media"]["url"]
+            if media_url:
+                return media_url
+        except KeyError:
+            # 2023-09-11: SODIX provides items where media.url is 'null', even though it is a REQUIRED field.
+            logging.info(f"SODIX did not provide a 'media.url'-value for item '{sodix_item['id']}'! Trying Fallback to "
+                         f"'media.originalUrl'...")
+        try:
+            media_original_url: str = sodix_item["media"]["originalUrl"]
+            if media_original_url:
+                return media_original_url
+        except KeyError:
+            logging.warning(f"SODIX did not provide a 'media.originalUrl'-value for item '{sodix_item['id']}'! "
+                            f"(If you see this warning, the fallback was not unsuccessful)")
 
     def start_request(self, page=0):
         access_token = requests.post(
@@ -661,9 +686,9 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
         technical = LomTechnicalItemLoader()
         technical.replace_value("format", self.get("media.dataType", json=sodix_item))
         technical.replace_value("location", self.getUri(response, sodix_item=sodix_item))
-        original = self.get("media.originalUrl", json=sodix_item)
-        if original and self.getUri(response, sodix_item=sodix_item) != original:
-            technical.add_value("location", original)
+        media_original_url: str = self.get("media.originalUrl", json=sodix_item)
+        if media_original_url and self.getUri(response, sodix_item=sodix_item) != media_original_url:
+            technical.add_value("location", media_original_url)
         duration: str = self.get("media.duration", json=sodix_item)
         if duration and duration != 0:
             # the API response contains "null"-values, we're making sure to only add valid duration values to our item
