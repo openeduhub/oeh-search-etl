@@ -42,7 +42,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     name = "sodix_spider"
     friendlyName = "Sodix"
     url = "https://sodix.de/"
-    version = "0.3.0"  # last update: 2023-09-12
+    version = "0.3.1"  # last update: 2023-09-26
     apiUrl = "https://api.sodix.de/gql/graphql"
     page_size = 2500
     custom_settings = {
@@ -104,14 +104,14 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     MAPPING_EDUCONTEXT = {"Primarbereich": "Primarstufe", "Fort- und Weiterbildung": "Fortbildung"}
 
     MAPPING_SCHOOL_TYPES_TO_EDUCONTEXT = {
-        "Berufsschule": "Berufliche Bildung",
-        "Fachoberschule": "Sekundarstufe II",
-        "Gesamtschule": "Sekundarstufe I",
-        "Grundschule": "Primarstufe",
-        "Gymnasium": "Sekundarstufe II",
-        "Kindergarten": "Elementarbereich",
-        "Mittel- / Hauptschule": "Sekundarstufe I",
-        "Realschule": "Sekundarstufe I",
+        "Berufsschule": "berufliche_bildung",
+        "Fachoberschule": "sekundarstufe_2",
+        "Gesamtschule": ["sekundarstufe_1", "sekundarstufe_2"],
+        "Grundschule": "grundschule",
+        "Gymnasium": ["sekundarstufe_1", "sekundarstufe_2"],
+        "Kindergarten": "elementarbereich",
+        "Mittel- / Hauptschule": "sekundarstufe_1",
+        "Realschule": "sekundarstufe_1",
     }
 
     MAPPING_INTENDED_END_USER_ROLE = {
@@ -212,15 +212,19 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 return media_url
         except KeyError:
             # 2023-09-11: SODIX provides items where media.url is 'null', even though it is a REQUIRED field.
-            logging.info(f"SODIX did not provide a 'media.url'-value for item '{sodix_item['id']}'! Trying Fallback to "
-                         f"'media.originalUrl'...")
+            logging.info(
+                f"SODIX did not provide a 'media.url'-value for item '{sodix_item['id']}'! Trying Fallback to "
+                f"'media.originalUrl'..."
+            )
         try:
             media_original_url: str = sodix_item["media"]["originalUrl"]
             if media_original_url:
                 return media_original_url
         except KeyError:
-            logging.warning(f"SODIX did not provide a 'media.originalUrl'-value for item '{sodix_item['id']}'! "
-                            f"(If you see this warning, the fallback was not unsuccessful)")
+            logging.warning(
+                f"SODIX did not provide a 'media.originalUrl'-value for item '{sodix_item['id']}'! "
+                f"(If you see this warning, the fallback was not unsuccessful)"
+            )
 
     def start_request(self, page=0):
         access_token = requests.post(
@@ -849,8 +853,8 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             if subject_ids:
                 subject_ids.sort()
                 valuespaces.add_value("discipline", subject_ids)
-        educational_context_list = self.get("educationalLevels", json=sodix_item)
-        school_types_list = self.get("schoolTypes", json=sodix_item)
+        educational_context_list: list[str] = self.get("educationalLevels", json=sodix_item)
+        school_types_list: list[str] = self.get("schoolTypes", json=sodix_item)
         educational_context_set = set()
         if educational_context_list:
             # the Sodix field 'educationalLevels' is directly mappable to our 'educationalContext'
@@ -858,12 +862,17 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 if potential_edu_context in self.MAPPING_EDUCONTEXT:
                     potential_edu_context = self.MAPPING_EDUCONTEXT.get(potential_edu_context)
                 educational_context_set.add(potential_edu_context)
-        elif school_types_list:
+        if school_types_list:
             # if 'educationalLevels' isn't available, fallback to: map 'schoolTypes'-field to 'educationalContext'
             for school_type in school_types_list:
                 if school_type in self.MAPPING_SCHOOL_TYPES_TO_EDUCONTEXT:
                     school_type = self.MAPPING_SCHOOL_TYPES_TO_EDUCONTEXT.get(school_type)
-                educational_context_set.add(school_type)
+                # the mapped value can be either a string or a list[str] from this point on, which is why we need to
+                # check their types before populating the educationalContext set
+                if school_type and type(school_type) is str:
+                    educational_context_set.add(school_type)
+                if school_type and type(school_type) is list:
+                    educational_context_set.update(school_type)
         educational_context_list = list(educational_context_set)
         educational_context_list.sort()
         if educational_context_list:
