@@ -29,6 +29,8 @@ from ..items import (
 )
 from ..util.license_mapper import LicenseMapper
 from ..web_tools import WebEngine, WebTools
+import threading
+from scrapy.utils import project
 
 
 class GenericSpider(Spider, LrmiBase):
@@ -131,7 +133,8 @@ class GenericSpider(Spider, LrmiBase):
         if not self.hasChanged(response):
             return
 
-        data_playwright = asyncio.run(WebTools.fetchDataPlaywright(response.url))
+        # data_playwright = asyncio.run(WebTools.fetchDataPlaywright(response.url))
+        data_playwright = run_async(WebTools.fetchDataPlaywright, response.url)
         response = response.copy()
         # ToDo: validate "trafilatura"-fulltext-extraction from playwright (compared to the html2text approach)
         playwright_text: str = data_playwright["content"]
@@ -392,3 +395,28 @@ class GenericSpider(Spider, LrmiBase):
         ai_prompt_itemloader.add_value("ai_response", result)
         base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
         return result
+
+
+class RunThread(threading.Thread):
+    def __init__(self, func, args, kwargs):
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+        self.result = None
+        super().__init__()
+
+    def run(self):
+        self.result = asyncio.run(self.func(*self.args, **self.kwargs))
+
+def run_async(func, *args, **kwargs):
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop and loop.is_running():
+        thread = RunThread(func, args, kwargs)
+        thread.start()
+        thread.join()
+        return thread.result
+    else:
+        return asyncio.run(func(*args, **kwargs))
