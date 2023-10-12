@@ -4,13 +4,21 @@ import fastapi.middleware.cors as fapicors
 import pydantic as pd
 import asyncio
 import subprocess
+import json
 
 
 class Data(pd.BaseModel):
     url: str
 
 class Result(pd.BaseModel):
-    resultjson: str = ""
+    title: str = ""
+    description: str = ""
+    keywords: list = []
+    disciplines: list = []
+    educational_context: list = []
+    license: list = []
+    license_author: list = []
+    new_lrt: list = []
 
 
 def create_app() -> fapi.FastAPI:
@@ -36,13 +44,44 @@ def create_app() -> fapi.FastAPI:
     async def metadata(data: Data) -> Result:
         print("TARGET_URL", data.url)
 
-        result = subprocess.run([f'scrapy', 'crawl', 'generic_spider', '-o', '-:json'],
+        result = subprocess.run([f'scrapy',
+                                 'crawl',
+                                 'generic_spider',
+                                 '-a',
+                                 'urltocrawl='+data.url, '-o', '-:json'],
                         cwd='../', capture_output=True)
 
-        result.stdout
+        bytes_result = result.stdout
+        str_result = bytes_result.decode('utf-8')
+        json_results = json.loads(str_result)
+        json_result = json_results[0]
+
+        dict_license = json_result['license']
+        license_author = []
+        license = []
+        if 'author' in dict_license.keys():
+            license_author = dict_license['author']
+        else:
+            license = [ k+" : "+v for (k, v) in dict_license.items() ]
+
+        title = json_result['lom']['general']['title']
+        description = json_result['lom']['general']['description']
+        keywords = json_result['lom']['general']['keyword']
+
+        valuespaces = json_result['valuespaces']
+        educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
+        disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
+        new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
 
         return Result(
-            resultjson="json_results",
+            title = title,
+            description = description,
+            keywords = keywords,
+            disciplines = disciplines,
+            educationalContext = educational_context,
+            license = license,
+            license_author = license_author,
+            new_lrt = new_lrt
         )
 
     return app
