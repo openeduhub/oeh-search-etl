@@ -88,9 +88,11 @@ class GenericSpider(Spider, LrmiBase):
     AI_ENABLED: bool = True  # optional .env setting to turn off AI services (-> generic_spider_minimal)
     z_api_text: z_api.AITextPromptsApi
 
-    def __init__(self, **kwargs):
+    def __init__(self, urltocrawl="", **kwargs):
         LrmiBase.__init__(self, **kwargs)
 
+        if urltocrawl != "":
+            self.start_urls = [urltocrawl]
         self.valuespaces = Valuespaces()
         # ToDo: optional .env Feature: "generic_spider" (AI=enabled) <-> "generic_minimal_spider" (AI=disabled)?
         ai_enabled: bool = env.get_bool(key="GENERIC_SPIDER_AI_ENABLED", allow_null=True, default=True)
