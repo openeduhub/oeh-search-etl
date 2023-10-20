@@ -31,7 +31,7 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.3.1"  # last update: 2023-08-29
+    version = "0.3.2"  # last update: 2023-10-27 (Serlo API v1.2.0)
     custom_settings = {
         # Using Playwright because of Splash-issues with thumbnails+text for Serlo
         "WEB_TOOLS": WebEngine.Playwright
@@ -128,11 +128,12 @@ class SerloSpider(scrapy.Spider, LomBase):
         You can use this '.env'-setting to crawl Serlo more efficiently: Specify a date and only receive items that were
         modified since <date of the last crawling process>.
         """
-        graphql_instance_param: str = env.get(key="SERLO_INSTANCE", allow_null=True, default=None)
+        graphql_instance_param: str = env.get(key="SERLO_INSTANCE", allow_null=True, default="de")
         if graphql_instance_param:
             logging.info(
-                f"INIT: '.env'-Setting 'SERLO_INSTANCE': {graphql_instance_param} (language) detected. "
-                f"Limiting query to a single language selection."
+                f"INIT: '.env'-Setting 'SERLO_INSTANCE': '{graphql_instance_param}' detected. "
+                f"Limiting query to a single language selection. (You should always see this message. "
+                f"This setting defaults to: 'de')"
             )
             self.GRAPHQL_INSTANCE_PARAMETER = graphql_instance_param
         graphql_modified_after_param: str = env.get(key="SERLO_MODIFIED_AFTER", allow_null=True, default=None)
@@ -347,8 +348,12 @@ class SerloSpider(scrapy.Spider, LomBase):
                 return None
 
         base = BaseItemLoader()
+
         og_image: str = selector_playwright.xpath('//meta[@property="og:image"]/@content').get()
-        if og_image:
+        if "image" in graphql_json and graphql_json["image"]:
+            # Serlo API v1.2.0 provides an 'image'-property that serves a single URL (type: String)
+            base.add_value("thumbnail", graphql_json["image"])
+        elif og_image:
             # if an OpenGraph image property is available, we'll use that as our thumbnail URL, e.g.:
             # <meta property="og:image" name="image" content="https://de.serlo.org/_assets/img/meta/mathe.png">
             base.add_value("thumbnail", og_image)
@@ -617,52 +622,6 @@ class SerloSpider(scrapy.Spider, LomBase):
                 license_url_mapped = license_mapper.get_license_url(license_string=license_url)
                 if license_url_mapped:
                     lic.add_value("url", license_url_mapped)
-                elif license_url and not license_url_mapped:
-                    # This edge-case happens when the Serlo API returns website URLs within the 'license.id'-property,
-                    # which cannot be mapped to the usual CC licenses.
-                    # As per team4 request on 2023-08-16, we're mapping these edge-cases to a custom license as a
-                    # (temporary) workaround since we cannot confirm with confidence that 100% of these cases should be
-                    # treated as the same license.
-                    custom_license_str = str()
-                    if "123mathe.de" in license_url:
-                        # example: https://de.serlo.org/mathe/8297/8297
-                        custom_license_str: str = "Quelle: 123mathe.de & serlo.org"
-                        lifecycle_author_loader = LomLifecycleItemloader()
-                        lifecycle_author_loader.add_value("firstName", "Rudolf")
-                        lifecycle_author_loader.add_value("lastName", "Brinkmann")
-                        lifecycle_author_loader.add_value("url", license_url)
-                        lom.add_value("lifecycle", lifecycle_author_loader.load_item())
-                    if "strobl-f.de" in license_url:
-                        # example: https://de.serlo.org/mathe/10359/10359
-                        custom_license_str: str = "Quelle: strobl-f.de & serlo.org"
-                        lifecycle_author_loader = LomLifecycleItemloader()
-                        lifecycle_author_loader.add_value("firstName", "Franz")
-                        lifecycle_author_loader.add_value("lastName", "Strobl")
-                        lifecycle_author_loader.add_value("url", license_url)
-                        lom.add_value("lifecycle", lifecycle_author_loader.load_item())
-                    if "raschweb.de" in license_url:
-                        # example: https://de.serlo.org/mathe/254590/254590
-                        custom_license_str: str = "Quelle: raschweb.de & serlo.org"
-                        lifecycle_author_loader = LomLifecycleItemloader()
-                        lifecycle_author_loader.add_value("firstName", "Günther")
-                        lifecycle_author_loader.add_value("lastName", "Rasch")
-                        lifecycle_author_loader.add_value("url", license_url)
-                        lom.add_value("lifecycle", lifecycle_author_loader.load_item())
-                    if "schule-bw.de" in license_url:
-                        # example: https://de.serlo.org/mathe/181820/181820
-                        custom_license_str: str = (
-                            "Quelle: Ausgangsmaterialien des Landesbildungsservers "
-                            "Baden-Württemberg (www.schule-bw.de) am Institut für "
-                            "Bildungsanalysen Baden-Württemberg (IBBW) "
-                            "(https://ibbw.kultus-bw.de)"
-                        )
-                        lifecycle_author_loader = LomLifecycleItemloader()
-                        lifecycle_author_loader.add_value("firstName", "Landesbildungsserver Baden-Württemberg")
-                        lifecycle_author_loader.add_value("url", license_url)
-                        lom.add_value("lifecycle", lifecycle_author_loader.load_item())
-                    if custom_license_str:
-                        lic.add_value("internal", Constants.LICENSE_CUSTOM)
-                        lic.add_value("description", custom_license_str)
 
         base.add_value("lom", lom.load_item())
         base.add_value("license", lic.load_item())
@@ -698,15 +657,35 @@ class SerloSpider(scrapy.Spider, LomBase):
                 # 			}
                 # While the "affiliation" needs to be handled within the lifecycle_publisher item, we can use the 'name'
                 # and 'id'-field for author information. (the 'id'-field leads to the user-profile on Serlo)
-                lifecycle_author = LomLifecycleItemloader()
-                lifecycle_author.add_value("role", "author")
-                if "name" in creator:
-                    # the "name"-property will hold a Serlo username
-                    lifecycle_author.add_value("firstName", creator["name"])
-                if "id" in creator:
-                    # the "id"-property will point towards a serlo profile
-                    lifecycle_author.add_value("url", creator["id"])
-                lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
+                creator_type: str = creator["type"]
+                if creator_type and creator_type == "Person":
+                    # this is usually the case for Serlo authors
+                    lifecycle_author = LomLifecycleItemloader()
+                    lifecycle_author.add_value("role", "author")
+                    if "name" in creator:
+                        # the "name"-property will hold a Serlo username
+                        lifecycle_author.add_value("firstName", creator["name"])
+                    if "id" in creator:
+                        # the "id"-property will point towards a serlo profile
+                        lifecycle_author.add_value("url", creator["id"])
+                    lom_base_item_loader.add_value("lifecycle", lifecycle_author.load_item())
+                elif creator_type == "Organization":
+                    # Prior to Serlo's API v1.2.0 there were some edge-cases in Serlo's "license"-property, which
+                    # provided URLs to a creator's website in the wrong Serlo API property ("license").
+                    # Those (previous) edge-cases are now provided as a "creator"-object of type "Organization" and
+                    # typically look like this:
+                    # {
+                    # 		"type": "Organization",
+                    # 		"id": "http://www.strobl-f.de/",
+                    # 		"name": "http://www.strobl-f.de/"
+                    # 	},
+                    lifecycle_org = LomLifecycleItemloader()
+                    lifecycle_org.add_value("role", "author")
+                    if "name" in creator:
+                        lifecycle_org.add_value("organization", creator["name"])
+                    if "id" in creator:
+                        lifecycle_org.add_value("url", creator["id"])
+                    lom_base_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
     @staticmethod
     def get_lifecycle_metadata_providers(graphql_json, lom_base_item_loader):
