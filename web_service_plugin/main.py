@@ -10,6 +10,7 @@ import json
 class Data(pd.BaseModel):
     url: str
 
+
 class Result(pd.BaseModel):
     title: str = ""
     description: str = ""
@@ -22,7 +23,6 @@ class Result(pd.BaseModel):
 
 
 def create_app() -> fapi.FastAPI:
-
     app = fapi.FastAPI()
 
     origins = ['*']
@@ -39,7 +39,6 @@ def create_app() -> fapi.FastAPI:
     def _ping():
         pass
 
-
     @app.post("/metadata")
     async def metadata(data: Data) -> Result:
         print("TARGET_URL", data.url)
@@ -48,8 +47,8 @@ def create_app() -> fapi.FastAPI:
                                  'crawl',
                                  'generic_spider',
                                  '-a',
-                                 'urltocrawl='+data.url, '-o', '-:json'],
-                        cwd='../', capture_output=True)
+                                 'urltocrawl=' + data.url, '-o', '-:json'],
+                                cwd='../', capture_output=True)
 
         bytes_result = result.stdout
         str_result = bytes_result.decode('utf-8')
@@ -62,7 +61,7 @@ def create_app() -> fapi.FastAPI:
         if 'author' in dict_license.keys():
             license_author = dict_license['author']
         else:
-            license = [ k+" : "+v for (k, v) in dict_license.items() ]
+            license = [k + " : " + v for (k, v) in dict_license.items()]
 
         title = json_result['lom']['general']['title']
         description = json_result['lom']['general']['description']
@@ -74,17 +73,18 @@ def create_app() -> fapi.FastAPI:
         new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
 
         return Result(
-            title = title,
-            description = description,
-            keywords = keywords,
-            disciplines = disciplines,
-            educationalContext = educational_context,
-            license = license,
-            license_author = license_author,
-            new_lrt = new_lrt
+            title=title,
+            description=description,
+            keywords=keywords,
+            disciplines=disciplines,
+            educationalContext=educational_context,
+            license=license,
+            license_author=license_author,
+            new_lrt=new_lrt
         )
 
     return app
+
 
 async def start_ws_service():
     config = uvicorn.Config("web_service_plugin.main:create_app", port=5500, log_level="info")
@@ -93,4 +93,5 @@ async def start_ws_service():
 
 
 if __name__ == "__main__":
-    asyncio.run(start_ws_service())
+    print("MAIN---------------------------------------------------------------")
+    # asyncio.run(start_ws_service())
