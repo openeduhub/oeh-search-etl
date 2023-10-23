@@ -1,12 +1,9 @@
 # Open Edu Hub Search ETL
 
-## Step 1: Project Setup - Python (manual approach)
-
 - make sure you have python3 installed (<https://docs.python-guide.org/starting/installation/>)
-  - (Python 3.10 or newer is required)
+- (Python 3.9.1 or newer is required)
 - go to project root
-- Run the following commands:
-
+- Run
 ```
 sudo apt install python3-dev python3-pip python3-venv libpq-dev -y
 python3 -m venv .venv
@@ -18,41 +15,28 @@ python3 -m venv .venv
 
 `pip3 install -r requirements.txt`
 
-## Step 1 (alternative): Project Setup - Python (automated, via `poetry`)
-
-- Step 1: Make sure that you have [Poetry](https://python-poetry.org) v1.5.0+ installed
-- Step 2: Open your terminal in the project root directory:
-  - Step 2.1: (this is an optional, strictly personal preference) If you want to have your `.venv` to be created in the project root directory: 
-    - `poetry config virtualenvs.in-project true`
-- Step 3: Install dependencies (according to `pyproject.toml`) by running: `poetry install`
-
-## Step 2: Project Setup - required Docker Containers
-If you have Docker installed, use `docker-compose up` to start up the multi-container for `Splash` and `Playwright`-integration.
+If you have Docker installed, use `docker-compose up` to start up the multi-container for `Splash` and `Pyppeteer`-integration. 
 
 As a last step, set up your config variables by copying the `.env.example`-file and modifying it if necessary: 
 
 `cp converter/.env.example converter/.env`
 
-# Running crawlers
-
-- A crawler can be run with `scrapy crawl <spider-name>`. 
-  - (It assumes that you have an edu-sharing v6.0+ instance in your `.env` settings configured which can accept the data.)
+- A crawler can be run with `scrapy crawl <spider-name>`. It assumes that you have an edu-sharing 6.0 instance in your `.env` settings configured which can accept the data.
 - If a crawler has [Scrapy Spider Contracts](https://docs.scrapy.org/en/latest/topics/contracts.html#spiders-contracts) implemented, you can test those by running `scrapy check <spider-name>`
 
 
-## Running crawlers via Docker
-
+## Run via Docker
 ```bash
 git clone https://github.com/openeduhub/oeh-search-etl
 cd oeh-search-etl
-cp converter/.env.example .env
+cp .env.example .env
 # modify .env with your edu sharing instance
-export CRAWLER=your_crawler_id_spider # i.e. wirlernenonline_spider
 docker compose build scrapy
+export CRAWLER=your_crawler_id_spider # i.e. wirlernenonline_spider
 docker compose up
 ```
 
-# Building a Crawler
+## Building a Crawler
 
 - We use Scrapy as a framework. Please check out the guides for Scrapy spider (https://docs.scrapy.org/en/latest/intro/tutorial.html)
 - To create a new spider, create a file inside `converter/spiders/<myname>_spider.py`
@@ -61,5 +45,20 @@ docker compose up
 - As a sample/template, please take a look at the `sample_spider.py`
 - To learn more about the LOM standard we're using, you'll find useful information at https://en.wikipedia.org/wiki/Learning_object_metadata
 
-# Still have questions? Check out our GitHub-Wiki!
+## Run the web service for the generic crawler
+
+A web service that implements the FastAPI web framework is added to the project. In order to start the web service it is enough setting API_MODE=True for that new variable.
+The web service is started at localhost at the 5500 port.
+```bash
+git clone https://github.com/openeduhub/oeh-search-etl
+cd oeh-search-etl
+cp converter/.env.example .env
+# modify .env with your edu sharing instance
+docker compose build scrapy
+export $API_MODE=True
+docker compose up
+```
+
+
+## Still have questions? Check out our GitHub-Wiki!
 If you need help getting started or setting up your work environment, please don't hesitate to visit our GitHub Wiki at https://github.com/openeduhub/oeh-search-etl/wiki
