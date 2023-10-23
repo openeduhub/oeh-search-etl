@@ -1,4 +1,4 @@
-FROM python:3.7-alpine as base
+FROM python:3.12 as base
 
 COPY web_service_plugin/requirements.txt /requirements.txt
 
