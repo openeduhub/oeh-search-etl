@@ -45,5 +45,20 @@ docker compose up
 - As a sample/template, please take a look at the `sample_spider.py`
 - To learn more about the LOM standard we're using, you'll find useful information at https://en.wikipedia.org/wiki/Learning_object_metadata
 
+## Run the web service for the generic crawler
+
+A web service that implements the FastAPI web framework is added to the project. In order to start the web service it is enough setting API_MODE=True for that new variable.
+The web service is started at localhost at the 5500 port.
+```bash
+git clone https://github.com/openeduhub/oeh-search-etl
+cd oeh-search-etl
+cp .env.example .env
+# modify .env with your edu sharing instance
+docker compose build scrapy
+export $API_MODE=True
+docker compose up
+```
+
+
 ## Still have questions? Check out our GitHub-Wiki!
 If you need help getting started or setting up your work environment, please don't hesitate to visit our GitHub Wiki at https://github.com/openeduhub/oeh-search-etl/wiki
