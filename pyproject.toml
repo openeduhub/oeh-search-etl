@@ -88,6 +88,8 @@ vobject="0.9.6.1"
 w3lib="2.1.1"
 xmltodict="0.13.0"
 trafilatura = "^1.6.1"
+babel = "2.13.1"
+langcodes = {extras = ["data"], version = "^3.3.0"}
 
 [tool.poetry.group.dev.dependencies]
 
