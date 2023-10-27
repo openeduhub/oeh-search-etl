@@ -159,7 +159,7 @@ class LomEducationalItem(Item):
     interactivityType = Field()
     """Corresponding edu-sharing property: 'ccm:educationalinteractivitytype'"""
     # ToDo: 'ccm:educationalinteractivitytype' is currently not used anywhere in edu-sharing
-    language = Field()
+    language = Field(output_processor=JoinMultivalues())
     # ToDo: "Educational language" seems to be unused in edu-sharing.
     semanticDensity = Field()
     # ToDo: 'semanticDensity' is not used anywhere and there doesn't appear to be an edu-sharing property for it

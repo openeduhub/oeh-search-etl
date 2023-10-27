@@ -32,6 +32,7 @@ from converter import env
 from converter.constants import *
 from converter.es_connector import EduSharing
 from converter.items import BaseItem
+from converter.util.language_mapper import LanguageMapper
 from converter.web_tools import WebTools, WebEngine
 from valuespace_converter.app.valuespaces import Valuespaces
 
@@ -155,6 +156,33 @@ class FilterSparsePipeline(BasicPipeline):
             )
         except KeyError:
             raise DropItem(f'Item {item} was dropped for not providing enough metadata')
+
+
+class NormLanguagePipeline(BasicPipeline):
+    """Normalize raw or ambiguous language strings to 2-letter-language-codes (ISO 639-1)."""
+    def process_item(self, item, spider):
+        item_adapter = ItemAdapter(item)
+        try:
+            lom_general_languages: list[str] = item_adapter["lom"]["general"]["language"]
+            if lom_general_languages:
+                language_mapper = LanguageMapper(languages=lom_general_languages)
+                normalized_language_codes: list[str] | None = language_mapper.normalize_list_of_language_strings()
+                if normalized_language_codes:
+                    item_adapter["lom"]["general"]["language"] = normalized_language_codes
+        except KeyError:
+            # happens when the "language" field does not exist within lom.general
+            pass
+        try:
+            lom_educational_languages: list[str] = item_adapter["lom"]["educational"]["language"]
+            if lom_educational_languages:
+                language_mapper = LanguageMapper(languages=lom_educational_languages)
+                normalized_language_codes: list[str] | None = language_mapper.normalize_list_of_language_strings()
+                if normalized_language_codes:
+                    item_adapter["lom"]["general"]["language"] = normalized_language_codes
+        except KeyError:
+            # happens when the "language" field does not exist within lom.educational
+            pass
+        return item
 
 
 class NormLicensePipeline(BasicPipeline):
