@@ -16,7 +16,7 @@ cd tmp || exit
 #
 # make sure that you have the OpenAPI Generator installed (and the PATH exposed within your ".profile")
 # before running this command, otherwise the following steps WILL NOT WORK:
-openapi-generator generate -g python -o z_api -i https://ai-prompt-service.staging.openeduhub.net/v3/api-docs --package-name z_api
+openapi-generator generate -g python -o z_api -i https://ai-prompt-service.staging.openeduhub.net/v3/api-docs --package-name z_api --skip-validate-spec
 cd z_api && python3 setup.py install --user
 # change directories to project root:
 cd ../../
