@@ -21,6 +21,8 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.DOCKERHUB_PASSWORD }}
     - uses: rlespinasse/github-slug-action@v2.x
+    - name: Build Z-API
+      run: ./generate-z-api.sh
     - name: Build Docker image
       run: docker build --tag ${{ github.repository }}:${{ env.GITHUB_REF_SLUG }} .
     - name: Publish to DockerHub
