@@ -38,7 +38,7 @@ class GenericSpider(Spider, LrmiBase):
     version = "0.1.4"
     start_urls = [
         # "https://www.planet-schule.de/schwerpunkt/total-phaenomenal-energie/sonnenenergie-film-100.html",  # the original Hackathon example URL
-        "https://de.serlo.org/informatik/158541/definitionen-von-%E2%80%9Ebig-data%E2%80%9C",
+        # "https://de.serlo.org/informatik/158541/definitionen-von-%E2%80%9Ebig-data%E2%80%9C",
         # "https://de.serlo.org/mathe/62630/aufgaben-zum-volumen-eines-quaders",
         # "https://www.planet-schule.de/schwerpunkt/dichter-dran/fontane-film-100.html",
         # "https://www.planet-schule.de/thema/fridays-for-future-was-steckt-hinter-den-klima-streiks-film-100.html",
@@ -52,7 +52,7 @@ class GenericSpider(Spider, LrmiBase):
         # "https://www.bpb.de/themen/kolonialismus-imperialismus/postkolonialismus-und-globalgeschichte/236617/kolonialismus-und-postkolonialismus-schluesselbegriffe-der-aktuellen-debatte/",
         # "https://www.geschichtsquellen.de/werk/3402",
         # "https://www.geschichtsquellen.de/werk/4799",
-        # "https://www.weltderphysik.de/gebiet/teilchen/quanteneffekte/",
+        "https://www.weltderphysik.de/gebiet/teilchen/quanteneffekte/",
         # "https://www.weltderphysik.de/mediathek/podcast/geothermie/",
         # "https://histomania.com/app/Saralee_Thungthongkam_W468573",
         # "https://histomania.com/app/Anna_Maria_von_Anhalt_W527486",
@@ -95,6 +95,7 @@ class GenericSpider(Spider, LrmiBase):
         # self.validated_result = validated_result
         # validated_result = '{"url": "https://blog.bitsrc.io/how-to-store-data-on-the-browser-with-javascript-9c57fc0f91b0", "title": "Test 2 How to Store Data in the Browser with JavaScript | Bits and Pieces", "description": "Test How to store data with localStorage and sessionStorage. The benefits of each, and when you should use one instead of the other", "keywords": ["Test JavaScript", "Browser Speicher", "localStorage", "sessionStorage"], "disciplines": ["http://w3id.org/openeduhub/vocabs/discipline/320"], "educational_context": ["http://w3id.org/openeduhub/vocabs/educationalContext/fortbildung"], "license": {"author": ["Pedro Henrique"]}, "new_lrt": ["http://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb", "http://w3id.org/openeduhub/vocabs/new_lrt/345cba59-9fa0-4ec8-ba93-2c75f4a40003"]}'
         # logging.warning("self.validated_result="+self.validated_result)
+
         self.results_dict = {}
         if urltocrawl != "":
             self.start_urls = [urltocrawl]
@@ -103,6 +104,7 @@ class GenericSpider(Spider, LrmiBase):
             urltocrawl = self.results_dict["url"]
             self.start_urls = [urltocrawl]
 
+        logging.warning("self.start_urls=" + self.start_urls[0])
         self.valuespaces = Valuespaces()
         # ToDo: optional .env Feature: "generic_spider" (AI=enabled) <-> "generic_minimal_spider" (AI=disabled)?
         ai_enabled: bool = env.get_bool(key="GENERIC_SPIDER_AI_ENABLED", allow_null=True, default=True)
