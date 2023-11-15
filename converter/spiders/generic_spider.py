@@ -29,6 +29,7 @@ from ..items import (
 )
 from ..util.license_mapper import LicenseMapper
 from ..web_tools import WebEngine, WebTools
+import json
 
 
 class GenericSpider(Spider, LrmiBase):
@@ -37,7 +38,7 @@ class GenericSpider(Spider, LrmiBase):
     version = "0.1.4"
     start_urls = [
         # "https://www.planet-schule.de/schwerpunkt/total-phaenomenal-energie/sonnenenergie-film-100.html",  # the original Hackathon example URL
-        # "https://de.serlo.org/informatik/158541/definitionen-von-%E2%80%9Ebig-data%E2%80%9C",
+        "https://de.serlo.org/informatik/158541/definitionen-von-%E2%80%9Ebig-data%E2%80%9C",
         # "https://de.serlo.org/mathe/62630/aufgaben-zum-volumen-eines-quaders",
         # "https://www.planet-schule.de/schwerpunkt/dichter-dran/fontane-film-100.html",
         # "https://www.planet-schule.de/thema/fridays-for-future-was-steckt-hinter-den-klima-streiks-film-100.html",
@@ -47,7 +48,7 @@ class GenericSpider(Spider, LrmiBase):
         # "https://www.umwelt-im-unterricht.de/hintergrund/die-endlagerung-hochradioaktiver-abfaelle",
         # "https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78",
         # "https://editor.mnweg.org/mnw/sammlung/bruchrechnen-m-10",
-        "https://www.bpb.de/themen/migration-integration/laenderprofile/277555/afghanistan-geschichte-politik-gesellschaft/",
+        # "https://www.bpb.de/themen/migration-integration/laenderprofile/277555/afghanistan-geschichte-politik-gesellschaft/",
         # "https://www.bpb.de/themen/kolonialismus-imperialismus/postkolonialismus-und-globalgeschichte/236617/kolonialismus-und-postkolonialismus-schluesselbegriffe-der-aktuellen-debatte/",
         # "https://www.geschichtsquellen.de/werk/3402",
         # "https://www.geschichtsquellen.de/werk/4799",
@@ -88,11 +89,20 @@ class GenericSpider(Spider, LrmiBase):
     AI_ENABLED: bool = True  # optional .env setting to turn off AI services (-> generic_spider_minimal)
     z_api_text: z_api.AITextPromptsApi
 
-    def __init__(self, urltocrawl="", **kwargs):
+    def __init__(self, urltocrawl="", validated_result="", **kwargs):
         LrmiBase.__init__(self, **kwargs)
 
+        # self.validated_result = validated_result
+        # validated_result = '{"url": "https://blog.bitsrc.io/how-to-store-data-on-the-browser-with-javascript-9c57fc0f91b0", "title": "Test 2 How to Store Data in the Browser with JavaScript | Bits and Pieces", "description": "Test How to store data with localStorage and sessionStorage. The benefits of each, and when you should use one instead of the other", "keywords": ["Test JavaScript", "Browser Speicher", "localStorage", "sessionStorage"], "disciplines": ["http://w3id.org/openeduhub/vocabs/discipline/320"], "educational_context": ["http://w3id.org/openeduhub/vocabs/educationalContext/fortbildung"], "license": {"author": ["Pedro Henrique"]}, "new_lrt": ["http://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb", "http://w3id.org/openeduhub/vocabs/new_lrt/345cba59-9fa0-4ec8-ba93-2c75f4a40003"]}'
+        # logging.warning("self.validated_result="+self.validated_result)
+        self.results_dict = {}
         if urltocrawl != "":
             self.start_urls = [urltocrawl]
+        if validated_result != "":
+            self.results_dict = json.loads(validated_result)
+            urltocrawl = self.results_dict["url"]
+            self.start_urls = [urltocrawl]
+
         self.valuespaces = Valuespaces()
         # ToDo: optional .env Feature: "generic_spider" (AI=enabled) <-> "generic_minimal_spider" (AI=disabled)?
         ai_enabled: bool = env.get_bool(key="GENERIC_SPIDER_AI_ENABLED", allow_null=True, default=True)
@@ -327,6 +337,9 @@ class GenericSpider(Spider, LrmiBase):
         base_loader.add_value("valuespaces", valuespace_loader.load_item())
         base_loader.add_value("permissions", permissions_loader.load_item())
         base_loader.add_value("response", response_loader.load_item())
+
+        if self.results_dict:
+            base_loader = self.modify_base_item(base_loader)
         # once all scrapy.Items are loaded into our "base", we yield the BaseItem by calling the .load_item() method
         yield base_loader.load_item()
 
@@ -394,3 +407,22 @@ class GenericSpider(Spider, LrmiBase):
         ai_prompt_itemloader.add_value("ai_response", result)
         base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
         return result
+
+    def modify_base_item(self, base_loader):
+        title = self.results_dict['title']
+        description = self.results_dict['description']
+        disciplines = self.results_dict['disciplines']
+        educational_context = self.results_dict['educational_context']
+        keywords = self.results_dict['keywords']
+        license = self.results_dict['license']
+        # license_author = self.results_dict['license_author']
+        new_lrt = self.results_dict['new_lrt']
+
+        base_loader.load_item()['lom']['general']['title'] = title
+        base_loader.load_item()['lom']['general']['description'] = description
+        base_loader.load_item()['lom']['general']['keyword'] = keywords
+        base_loader.load_item()['valuespaces']['discipline'] = disciplines
+        base_loader.load_item()['valuespaces']['new_lrt'] = new_lrt
+        base_loader.load_item()['valuespaces']['educationalContext'] = educational_context
+        base_loader.load_item()['license'] = license
+        return base_loader
