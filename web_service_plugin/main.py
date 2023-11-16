@@ -9,6 +9,7 @@ import subprocess
 import json
 from rdflib import Graph
 import rdflib
+import os
 
 class Data(pd.BaseModel):
     url: str
@@ -57,16 +58,14 @@ def create_app() -> fapi.FastAPI:
 
     @app.post("/metadata")
     async def metadata(data: Data) -> Result:
-        result = subprocess.run([f'scrapy',
+        DEVNULL = open(os.devnull, 'wb')
+        bytes_result = subprocess.check_output([f'scrapy',
                                  'crawl',
                                  'generic_spider',
                                  '-a',
                                  'urltocrawl=' + data.url, '-o', '-:json'],
-                                cwd='../', capture_output=True)
+                                  stderr=DEVNULL)
 
-        # logging.warning("result=" + result.stderr.decode('utf-8'))
-
-        bytes_result = result.stdout
         str_result = bytes_result.decode('utf-8')
         json_results = json.loads(str_result)
         json_result = json_results[0]
@@ -126,18 +125,13 @@ def create_app() -> fapi.FastAPI:
     async def set_metadata(data: ValidatedResults) -> SaveResults:
         data_str = json.dumps(dict(data))
         crawl_command = f"scrapy crawl generic_spider -a validated_result='{data_str}'"
-        print("crawl_command=", crawl_command)
-        result = subprocess.run([crawl_command],
-                                cwd='../', capture_output=True, shell=True)
+        DEVNULL = open(os.devnull, 'wb')
+        bytes_result = subprocess.check_output([crawl_command], shell=True,
+                                               stderr=DEVNULL)
 
-        # logging.warning("result="+result.stderr.decode('utf-8'))
-
-        bytes_result = result.stdout
         str_result = bytes_result.decode('utf-8')
-        # json_results = json.loads(str_result)
-        # json_result = json_results[0]
 
-        if result.returncode == 0:
+        if str_result == '':
             return SaveResults(
                 code="0",
                 message="Successfully inserted in Edu-sharing"
@@ -151,10 +145,11 @@ def create_app() -> fapi.FastAPI:
     return app
 
 
-async def start_ws_service():
+def start_ws_service():
     config = uvicorn.Config("web_service_plugin.main:create_app", port=5500, log_level="info")
     server = uvicorn.Server(config)
-    await server.serve()
+    server.run()
+
 
 def mapping_disciplines(discipline_urls):
     graph = Graph()
@@ -211,4 +206,4 @@ def join(array):
 
 
 if __name__ == "__main__":
-    asyncio.run(start_ws_service())
+    start_ws_service()

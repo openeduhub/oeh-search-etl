@@ -1,8 +1,6 @@
 #!/bin/bash
 # Creating a venv within the "venv_z_api"-directory (for easier distinction from our "normal" venv)
 python3 -m venv venv_z_api
-# chmod -R 0755 venv_z_api
-# follow these steps manually:
 # activating the venv:
 source ./venv_z_api/bin/activate
 # confirm that you are within your venv, then install the requirements.txt:
@@ -12,7 +10,6 @@ pip3 install -r requirements.txt
 rm -rf tmp
 # create a temporary "tmp"-directory which will be used by the OpenAPI Generator (API Client)
 mkdir tmp
-# chmod -R 0755 tmp
 # switch to directory (or: exit here if changing directories fails)
 cd tmp || exit
 #
