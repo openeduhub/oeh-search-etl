@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="scrapy.cmdline" />
-    <option name="PARAMETERS" value="crawl generic_spider -a urltocrawl=&quot;https://de.wikipedia.org/wiki/G%C3%B6ttingen&quot; -O &quot;../../logs/generic_spider.json&quot;" />
+    <option name="PARAMETERS" value="crawl generic_spider -O &quot;../../logs/generic_spider.json&quot;" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="true" />
