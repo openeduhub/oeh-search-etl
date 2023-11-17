@@ -45,7 +45,11 @@ docker compose up
 - As a sample/template, please take a look at the `sample_spider.py`
 - To learn more about the LOM standard we're using, you'll find useful information at https://en.wikipedia.org/wiki/Learning_object_metadata
 
-## Run the web service for the generic crawler
+## Run the web service for the generic crawler via Docker
+
+A web service that implements the FastAPI web framework is added to the project. In order to start the web service it is enough to set API_MODE variable in any of this options:
+- export API_MODE=True (to start the webservice into the Docker container)
+- export API_MODE=False (to start the webservice locally in your machine)
 
 A web service that implements the FastAPI web framework is added to the project. In order to start the web service it is enough setting API_MODE=True for that new variable.
 The web service is started at localhost at the 5500 port.
@@ -58,6 +62,23 @@ docker compose build scrapy
 export $API_MODE=True
 docker compose up
 ```
+Then open a new terminal in the same folder (oeh-search-etl) and run the following line in order to start the web service locally:
+```bash
+sudo apt install python3-dev python3-pip python3-venv libpq-dev -y
+python3 -m venv .venv
+source .venv/bin/activate
+pip3 install -r requirements.txt
+sudo apt-get update && \
+    apt-get install -y openjdk-11-jre-headless && \
+    apt-get clean;
+sudo ./generate-z-api.sh
+source .venv/bin/activate
+pip3 install -r web_service_plugin/requirements.txt
+python3 web_service_plugin/main.py
+```
+
+Now you should have access to the FastAPI environment in http://127.0.0.1:5500/docs#
+
 
 
 ## Still have questions? Check out our GitHub-Wiki!
