@@ -45,19 +45,59 @@ docker compose up
 - As a sample/template, please take a look at the `sample_spider.py`
 - To learn more about the LOM standard we're using, you'll find useful information at https://en.wikipedia.org/wiki/Learning_object_metadata
 
-## Run the web service for the generic crawler
+## Run the web service for the generic crawler via Docker
 
-A web service that implements the FastAPI web framework is added to the project. In order to start the web service it is enough setting API_MODE=True for that new variable.
-The web service is started at localhost at the 5500 port.
+A web service that implements the FastAPI web framework is added to the project. In order to start the web service it is enough to set API_MODE variable in any of this options:
+- export API_MODE=0 (to start the webservice into the Docker container). This still needs to be tested.
+- export API_MODE=1 (to start the webservice locally in your machine)
+
+The web service is started at localhost (127.0.0.1) at the 5500 port.
+
+The Dockerfile will perform the following tasks:
+- Copy the source folders, Scrapy configuration files and the requirements.txt file for the python dependencies
+- Install the python dependencies
+- Install the Java JDK version 11 
+- Generate the Z-API python library
+- Copy the web service source folder and install its requirements.txt file which installs FastAPI and Uvicorn
+- Set the entrypoint script file: entrypoint.sh this file is the script which runs the crawler in any of its modes:
+    - Crawl all the URLs that are listed in the generic_spider.py file with or without parameters (arguments that the crawler could need by setting the ARGS variable). To run the crawler in this mode you should delete the API_MODE variable (unset API_MODE)
+    - Start the webservice by setting the API_MODE variable (=0 or 1 as was stated above)
+
+To persist the metadata in the pre-staging edu-sharing repository you should provide this values in the .env.example file beforehand:
+- MODE = "edu-sharing"
+- EDU_SHARING_BASE_URL = "https://repository.pre-staging.openeduhub.net/edu-sharing/"
+- EDU_SHARING_USERNAME = "<your_username>"
+- EDU_SHARING_PASSWORD = "<your_ password>"
+
+Then run the following lines in a terminal:
+
 ```bash
 git clone https://github.com/openeduhub/oeh-search-etl
+git checkout add_web_service_package
 cd oeh-search-etl
-cp .env.example .env
-# modify .env with your edu sharing instance
+gedit converter/.env.example     # edit the variables as stated above in instructions, save it and close it
+cp converter/.env.example converter/.env
 docker compose build scrapy
-export $API_MODE=True
+export API_MODE=1
 docker compose up
 ```
+Then open a new terminal in the same folder (oeh-search-etl) and run the following line in order to start the web service locally:
+```bash
+sudo apt install python3-dev python3-pip python3-venv libpq-dev -y
+python3 -m venv .venv
+source .venv/bin/activate
+pip3 install -r requirements.txt
+sudo apt-get update && \
+    apt-get install -y openjdk-11-jre-headless && \
+    apt-get clean;
+sudo ./generate-z-api.sh
+source .venv/bin/activate
+pip3 install -r web_service_plugin/requirements.txt
+python3 web_service_plugin/main.py
+```
+
+Now you should have access to the FastAPI environment in http://127.0.0.1:5500/docs#
+
 
 
 ## Still have questions? Check out our GitHub-Wiki!
