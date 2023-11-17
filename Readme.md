@@ -64,6 +64,7 @@ Then run the following lines in a terminal:
 
 ```bash
 git clone https://github.com/openeduhub/oeh-search-etl
+cd oeh-search-etl
 git checkout add_web_service_package
 cd oeh-search-etl
 git checkout add_KIdra_services
