@@ -64,6 +64,7 @@ Then run the following lines in a terminal:
 
 ```bash
 git clone https://github.com/openeduhub/oeh-search-etl
+git checkout add_web_service_package
 cd oeh-search-etl
 git checkout add_KIdra_services
 # vi or gedit converter/.env.example (Make sure that Z_API_KEY=<your_z_api_key> and MODE = "edu-sharing" variables are set in converter/.env.example)
