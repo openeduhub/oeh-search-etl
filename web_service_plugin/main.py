@@ -79,18 +79,20 @@ def create_app() -> fapi.FastAPI:
         disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
         new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
 
-        # if len(disciplines) > 0:
-        #     disciplines = mapping_disciplines(disciplines)
-        # if len(educational_context) > 0:
-        #     educational_context = mapping_eduContext(educational_context)
-        # if len(new_lrt) > 0:
-        #     new_lrt = mapping_lrt(new_lrt)
-
         keywords = join(keywords)
         disciplines = join(disciplines)
         educational_context = join(educational_context)
         new_lrt = join(new_lrt)
 
+        """
+        title = "Giza pyramid complex - Wikipedia"
+        description = "Der Gizeh-Pyramidenkomplex in Ägypten beherbergt die Große Pyramide, die Pyramide von Khafre und die Pyramide von Menkaure, zusammen mit ihren zugehörigen Pyramidengruppen und der Großen Sphinx, allesamt erbaut in der 4. Dynastie des Alten Königreichs von etwa 2600 bis 2500 v.Chr. Der Standort, der mehrere Tempel, Friedhöfe und die Überreste eines Arbeiterdorfes umfasst, befindet sich am Rande der Westlichen Wüste, etwa 9 km westlich des Nil in der Stadt Gizeh und etwa 13 km südwestlich des Stadtzentrums von Kairo. Es bildet den nördlichsten Teil des 16.000 Hektar großen Pyramidenfeldes der UNESCO-Welterbestätte \"Memphis und seine Nekropole\", insbeschrieben 1979, zu dem auch die Pyramidenkomplexe Abusir, Saqqara und Dahshur gehören, die alle in der Nähe der alten Hauptstadt Ägyptens, Memphis, erbaut wurden."
+        keywords = "Ägypten, Gizeh-Pyramidenkomplex, Archäologie, UNESCO-Weltkulturerbe"
+        disciplines = "http://w3id.org/openeduhub/vocabs/discipline/220, http://w3id.org/openeduhub/vocabs/discipline/240"
+        educational_context = "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1, http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1"
+        license = {}
+        new_lrt = "http://w3id.org/openeduhub/vocabs/new_lrt/e0ddbb5f-9400-4d7a-89c9-dc1a18a4d576, http://w3id.org/openeduhub/vocabs/new_lrt/e0ddbb5f-9400-4d7a-89c9-dc1a18a4d576"
+"""
 
         """
         keywords = ["http://w3id.org/openeduhub/vocabs/discipline/120",
