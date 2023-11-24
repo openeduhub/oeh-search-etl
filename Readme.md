@@ -78,9 +78,9 @@ cd oeh-search-etl
 git checkout add_web_service_package
 gedit converter/.env.example     # edit the variables as stated above in instructions, save it and close it
 cp converter/.env.example converter/.env
-docker compose build scrapy
-export API_MODE=1
+docker compose build --no-cache scrapy
 docker compose up
+
 ```
 Then open a new terminal in the same folder (oeh-search-etl) and run the following line in order to start the web service locally:
 ```bash
