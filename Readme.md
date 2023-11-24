@@ -78,6 +78,7 @@ export EDU_SHARING_BASE_URL=https://repository.pre-staging.openeduhub.net/edu-sh
 export EDU_SHARING_USERNAME=<your_username>
 export EDU_SHARING_PASSWORD=<your_password>
 docker compose up
+
 ```
 And each time the web service is required you have to run the three `export` command lines and the `docker compose up` line. Now you should have access to the FastAPI environment in http://0.0.0.0:80/docs# because this ip address (http://0.0.0.0) and port (80) is exposed to outside the container, then the same port in the container can be accessed by the host.
 
