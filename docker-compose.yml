@@ -29,9 +29,9 @@ services:
       - scrapy
   scrapy:
     # extra_hosts is only required if your need to access an edu-sharing instance on the host that runs docker
-    # host.docker.internal points to the ip address of the host docker network interface 
+    # host.docker.internal points to the ip address of the host docker network interface
     extra_hosts:
-      host.docker.internal: host-gateway
+      - "host.docker.internal:host-gateway"
     image: openeduhub/oeh-search-etl:develop
     build:
       context: .
@@ -51,3 +51,20 @@ services:
       - "EDU_SHARING_USERNAME=${EDU_SHARING_USERNAME}"
       - "EDU_SHARING_PASSWORD=${EDU_SHARING_PASSWORD}"
       - "API_MODE=${API_MODE}"
+    command: uvicorn web_service_plugin.main:create_app --host 0.0.0.0
+    ports:
+      - "0.0.0.0:80:80"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://0.0.0.0:80/_ping" ]
+
+#  web:
+#    command: uvicorn web_service_plugin.main:create_app --host 0.0.0.0
+#    volumes:
+#      - .:/app
+#    ports:
+#      - 80:80
+#    build:
+#      context: .
+#      network: host
+#    networks:
+#      - scrapy
