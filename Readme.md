@@ -76,11 +76,13 @@ Then run the following lines in a terminal:
 git clone https://github.com/openeduhub/oeh-search-etl
 cd oeh-search-etl
 git checkout add_web_service_package
-gedit converter/.env.example     # edit the variables as stated above in instructions, save it and close it
+# Make sure that MODE = "edu-sharing" in converter/.env.example
 cp converter/.env.example converter/.env
 docker compose build --no-cache scrapy
+export EDU_SHARING_BASE_URL=https://repository.pre-staging.openeduhub.net/edu-sharing/
+export EDU_SHARING_USERNAME=<your_username>
+export EDU_SHARING_PASSWORD=<your_password>
 docker compose up
-
 ```
 Then open a new terminal in the same folder (oeh-search-etl) and run the following line in order to start the web service locally:
 ```bash
@@ -99,7 +101,7 @@ export PYTHONPATH="${PYTHONPATH}/z_api"
 python3 web_service_plugin/main.py
 ```
 
-Now you should have access to the FastAPI environment in http://127.0.0.1:5500/docs# and you can test it by opening the Web extension (https://github.com/openeduhub/metadata-browser-plugin/tree/add_metadata_form and clone the `add_metadata_form` branch ) and press the first button (`Meine Empfehlungen`) to get the metadata from the web service. You can edit those metadata values and send them to the pre-staging edu-sharing repository by pressing `Weiter` button.
+Now you should have access to the FastAPI environment in http://0.0.0.0:80/docs# and you can test it by opening the Web extension (https://github.com/openeduhub/metadata-browser-plugin/tree/add_metadata_form and clone the `add_metadata_form` branch ) and press the first button (`Meine Empfehlungen`) to get the metadata from the web service. You can edit those metadata values and send them to the pre-staging edu-sharing repository by pressing `Weiter` button.
 
 Each request to the generic crawler takes a long time to retrieve results, and in any case, the terminals get updated status of the web services that are runnung.
 

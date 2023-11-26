@@ -29,4 +29,4 @@ COPY web_service_plugin/ /web_service_plugin
 
 EXPOSE 80
 
-ENTRYPOINT ["/entrypoint.sh"]
+# ENTRYPOINT ["/entrypoint.sh"]
