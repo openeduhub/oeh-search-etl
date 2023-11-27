@@ -1,4 +1,4 @@
-FROM python:3.10.9-slim-buster
+FROM python:3.11.6-slim-bookworm
 
 # ENV CRAWLER wirlernenonline_spider
 
