@@ -31,6 +31,8 @@ configure_logging(settings = {
     "LOG_FORMATTER": LOG_FORMATTER
 })
 
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+
 # Default behaviour for regular crawlers of non-license-controlled content
 # When set True, every item will have GROUP_EVERYONE attached in edu-sharing
 # When set False, no permissions are set at all, which can be helpful if you want to control them later (e.g. via inherition)
