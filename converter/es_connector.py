@@ -6,6 +6,7 @@ import uuid
 from enum import Enum
 from typing import List
 
+import httpx
 import requests
 import vobject
 from requests.auth import HTTPBasicAuth
@@ -117,11 +118,13 @@ class EduSharing:
             self.init_api_client()
 
     def get_headers(self, content_type: str | None = "application/json"):
-        return {
-            "COOKIE": EduSharing.cookie,
-            "Accept": "application/json",
-            "Content-Type": content_type,
-        }
+        header_dict: dict = dict()  # result dict that only contains values, no NoneTypes!
+        header_dict.update({"Accept": "application/json"})
+        if EduSharing.cookie:
+            header_dict.update({"COOKIE": EduSharing.cookie})
+        if content_type:
+            header_dict.update({"Content-Type": content_type})
+        return header_dict
 
     def sync_node(self, spider, type, properties):
         groupBy = []
@@ -156,17 +159,19 @@ class EduSharing:
             raise e
         return response["node"]
 
-    def set_node_text(self, uuid, item) -> bool:
+    async def set_node_text(self, uuid, item) -> bool:
         if "fulltext" in item:
-            response = requests.post(
-                get_project_settings().get("EDU_SHARING_BASE_URL")
-                + "rest/node/v1/nodes/-home-/"
-                + uuid
-                + "/textContent?mimetype=text/plain",
-                headers=self.get_headers("multipart/form-data"),
-                data=item["fulltext"].encode("utf-8"),
-            )
-            return response.status_code == 200
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    get_project_settings().get("EDU_SHARING_BASE_URL")
+                    + "rest/node/v1/nodes/-home-/"
+                    + uuid
+                    + "/textContent?mimetype=text/plain",
+                    headers=self.get_headers("multipart/form-data"),
+                    data=item["fulltext"].encode("utf-8"),
+                    timeout=30,
+                )
+                return response.status_code == 200
             # does currently not store data
             # try:
             #     EduSharing.nodeApi.change_content_as_text(EduSharingConstants.HOME, uuid, 'text/plain',item['fulltext'])
@@ -188,44 +193,48 @@ class EduSharing:
         except ApiException as e:
             return False
 
-    def set_node_binary_data(self, uuid, item) -> bool:
+    async def set_node_binary_data(self, uuid, item) -> bool:
         if "binary" in item:
-            logging.info(
-                get_project_settings().get("EDU_SHARING_BASE_URL")
-                + "rest/node/v1/nodes/-home-/"
-                + uuid
-                + "/content?mimetype="
-                + item["lom"]["technical"]["format"]
-            )
-            files = {"file": item["binary"]}
-            response = requests.post(
-                get_project_settings().get("EDU_SHARING_BASE_URL")
-                + "rest/node/v1/nodes/-home-/"
-                + uuid
-                + "/content?mimetype="
-                + item["lom"]["technical"]["format"],
-                headers=self.get_headers(None),
-                files=files,
-            )
-            return response.status_code == 200
-        else:
-            return False
-
-    def set_node_preview(self, uuid, item) -> bool:
-        if "thumbnail" in item:
-            key = "large" if "large" in item["thumbnail"] else "small" if "small" in item["thumbnail"] else None
-            if key:
-                files = {"image": base64.b64decode(item["thumbnail"][key])}
-                response = requests.post(
+            async with httpx.AsyncClient() as client:
+                logging.info(
                     get_project_settings().get("EDU_SHARING_BASE_URL")
                     + "rest/node/v1/nodes/-home-/"
                     + uuid
-                    + "/preview?mimetype="
-                    + item["thumbnail"]["mimetype"],
+                    + "/content?mimetype="
+                    + item["lom"]["technical"]["format"]
+                )
+                files = {"file": item["binary"]}
+                response = await client.post(
+                    get_project_settings().get("EDU_SHARING_BASE_URL")
+                    + "rest/node/v1/nodes/-home-/"
+                    + uuid
+                    + "/content?mimetype="
+                    + item["lom"]["technical"]["format"],
                     headers=self.get_headers(None),
                     files=files,
+                    timeout=30,
                 )
                 return response.status_code == 200
+        else:
+            return False
+
+    async def set_node_preview(self, uuid, item) -> bool:
+        if "thumbnail" in item:
+            async with httpx.AsyncClient() as client:
+                key = "large" if "large" in item["thumbnail"] else "small" if "small" in item["thumbnail"] else None
+                if key:
+                    files = {"image": base64.b64decode(item["thumbnail"][key])}
+                    response = await client.post(
+                        get_project_settings().get("EDU_SHARING_BASE_URL")
+                        + "rest/node/v1/nodes/-home-/"
+                        + uuid
+                        + "/preview?mimetype="
+                        + item["thumbnail"]["mimetype"],
+                        headers=self.get_headers(None),
+                        files=files,
+                        timeout=30,
+                    )
+                    return response.status_code == 200
         else:
             logging.warning("No thumbnail provided for " + uuid)
 
@@ -612,15 +621,15 @@ class EduSharing:
                 )
                 logging.error(item["permissions"])
 
-    def insert_item(self, spider, uuid, item):
+    async def insert_item(self, spider, uuid, item):
         node = self.sync_node(spider, "ccm:io", self.transform_item(uuid, spider, item))
         self.set_node_permissions(node["ref"]["id"], item)
-        self.set_node_preview(node["ref"]["id"], item)
-        if not self.set_node_binary_data(node["ref"]["id"], item):
-            self.set_node_text(node["ref"]["id"], item)
+        await self.set_node_preview(node["ref"]["id"], item)
+        if not await self.set_node_binary_data(node["ref"]["id"], item):
+            await self.set_node_text(node["ref"]["id"], item)
 
-    def update_item(self, spider, uuid, item):
-        self.insert_item(spider, uuid, item)
+    async def update_item(self, spider, uuid, item):
+        await self.insert_item(spider, uuid, item)
 
     @staticmethod
     def init_cookie():
@@ -740,7 +749,7 @@ class EduSharing:
                 try:
                     error_dict: dict = json.loads(e.body)
                     error_name: str = error_dict["error"]
-                    if error_name and error_name == 'org.edu_sharing.restservices.DAOMissingException':
+                    if error_name and error_name == "org.edu_sharing.restservices.DAOMissingException":
                         # when there is no already existing node in the edu-sharing repository, edu-sharing returns
                         # a "DAOMissingException". The following debug message is commented out to reduce log-spam:
                         # error_message: str = error_dict["message"]
