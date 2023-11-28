@@ -90,6 +90,7 @@ xmltodict="0.13.0"
 trafilatura = "^1.6.1"
 babel = "2.13.1"
 langcodes = {extras = ["data"], version = "^3.3.0"}
+httpx = "^0.25.2"
 
 [tool.poetry.group.dev.dependencies]
 
