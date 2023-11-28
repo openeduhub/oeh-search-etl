@@ -109,7 +109,13 @@ DOWNLOAD_DELAY = 0
 EXTENSIONS = {
     #  'scrapy.extensions.telnet.TelnetConsole': None,
     #  'scrapy.extensions.closespider.CLOSESPIDER_PAGECOUNT': 4,
+    "scrapy.extensions.periodic_log.PeriodicLog": 0,
 }
+# PeriodicLog Extension Settings
+# (see: https://docs.scrapy.org/en/latest/topics/extensions.html#periodic-log-extension)
+PERIODIC_LOG_STATS = True
+PERIODIC_LOG_DELTA = True
+PERIODIC_LOG_TIMING_ENABLED = True
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
