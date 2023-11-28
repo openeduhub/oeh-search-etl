@@ -1,9 +1,10 @@
 import asyncio
 import json
+from asyncio import Semaphore
 from enum import Enum
 
 import html2text
-import requests
+import httpx
 from playwright.async_api import async_playwright
 from scrapy.utils.project import get_project_settings
 
@@ -19,17 +20,20 @@ class WebEngine(Enum):
 
 class WebTools:
     @staticmethod
-    def getUrlData(url: str, engine=WebEngine.Splash):
-        if engine == WebEngine.Splash:
-            return WebTools.__getUrlDataSplash(url)
-        elif engine == WebEngine.Playwright:
-            return WebTools.__getUrlDataPlaywright(url)
+    async def getUrlData(url: str, engine=WebEngine.Splash):
+        sem: Semaphore = asyncio.Semaphore(value=10)
+        # the headless browser can only handle 5 concurrent sessions and 5 items in the queue by default
+        async with sem:
+            if engine == WebEngine.Splash:
+                return await WebTools.__getUrlDataSplash(url)
+            elif engine == WebEngine.Playwright:
+                return await WebTools.__getUrlDataPlaywright(url)
 
         raise Exception("Invalid engine")
 
     @staticmethod
-    def __getUrlDataPlaywright(url: str):
-        playwright_dict = asyncio.run(WebTools.fetchDataPlaywright(url))
+    async def __getUrlDataPlaywright(url: str):
+        playwright_dict = await WebTools.fetchDataPlaywright(url)
         html = playwright_dict.get("content")
         screenshot_bytes = playwright_dict.get("screenshot_bytes")
         return {"html": html,
@@ -39,35 +43,37 @@ class WebTools:
                 "screenshot_bytes": screenshot_bytes}
 
     @staticmethod
-    def __getUrlDataSplash(url: str):
+    async def __getUrlDataSplash(url: str):
         settings = get_project_settings()
         # html = None
         if settings.get("SPLASH_URL") and not url.endswith(".pdf") and not url.endswith(".docx"):
             # Splash can't handle some binary direct-links (Splash will throw "LUA Error 400: Bad Request" as a result)
             # ToDo: which additional filetypes need to be added to the exclusion list? - media files (.mp3, mp4 etc.?)
-            result = requests.post(
-                settings.get("SPLASH_URL") + "/render.json",
-                json={
-                    "html": 1,
-                    "iframes": 1,
-                    "url": url,
-                    "wait": settings.get("SPLASH_WAIT"),
-                    "headers": settings.get("SPLASH_HEADERS"),
-                    "script": 1,
-                    "har": 1,
-                    "response_body": 1,
-                },
-            )
-            data = result.content.decode("UTF-8")
-            j = json.loads(data)
-            html = j['html'] if 'html' in j else ''
-            text = html
-            text += '\n'.join(list(map(lambda x: x["html"], j["childFrames"]))) if 'childFrames' in j else ''
-            cookies = result.cookies.get_dict()
-            return {"html": html,
-                    "text": WebTools.html2Text(text),
-                    "cookies": cookies,
-                    "har": json.dumps(j["har"])}
+            async with httpx.AsyncClient() as client:
+                result = await client.post(
+                    settings.get("SPLASH_URL") + "/render.json",
+                    json={
+                        "html": 1,
+                        "iframes": 1,
+                        "url": url,
+                        "wait": settings.get("SPLASH_WAIT"),
+                        "headers": settings.get("SPLASH_HEADERS"),
+                        "script": 1,
+                        "har": 1,
+                        "response_body": 1,
+                    },
+                    timeout=30
+                )
+                data = result.content.decode("UTF-8")
+                j = json.loads(data)
+                html = j['html'] if 'html' in j else ''
+                text = html
+                text += '\n'.join(list(map(lambda x: x["html"], j["childFrames"]))) if 'childFrames' in j else ''
+                cookies = dict(result.cookies)
+                return {"html": html,
+                        "text": WebTools.html2Text(text),
+                        "cookies": cookies,
+                        "har": json.dumps(j["har"])}
         else:
             return {"html": None, "text": None, "cookies": None, "har": None}
 
