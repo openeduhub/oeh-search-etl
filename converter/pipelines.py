@@ -17,8 +17,8 @@ from typing import BinaryIO, TextIO, Optional
 
 import dateparser
 import dateutil.parser
+import httpx
 import isodate
-import requests
 import scrapy
 import scrapy.crawler
 from PIL import Image
@@ -348,7 +348,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
             h *= 0.9
         return img.resize((int(w), int(h)), Image.Resampling.LANCZOS).convert("RGB")
 
-    def process_item(self, raw_item, spider):
+    async def process_item(self, raw_item, spider):
         """
         By default the thumbnail-pipeline handles several cases:
         - if there is a URL-string inside the "BaseItem.thumbnail"-field:
@@ -367,100 +367,108 @@ class ProcessThumbnailPipeline(BasicPipeline):
         settings = get_settings_for_crawler(spider)
         # checking if the (optional) attribute WEB_TOOLS exists:
         web_tools = settings.get("WEB_TOOLS", WebEngine.Splash)
-        # if screenshot_bytes is provided (the crawler has already a binary representation of the image
-        # the pipeline will convert/scale the given image
-        if "screenshot_bytes" in item:
-            # in case we are already using playwright in a spider, we can skip one additional HTTP Request by
-            # accessing the (temporary available) "screenshot_bytes"-field
-            img = Image.open(BytesIO(item["screenshot_bytes"]))
-            self.create_thumbnails_from_image_bytes(img, item, settings)
-            # the final BaseItem data model doesn't use screenshot_bytes,
-            # therefore we delete it after we're done processing it
-            del item["screenshot_bytes"]
-
-            # a thumbnail (url) is given - we will try to fetch it from the url
-        elif "thumbnail" in item:
-            url = item["thumbnail"]
-            response = requests.get(url)
-            log.debug(
-                "Loading thumbnail took " + str(response.elapsed.total_seconds()) + "s"
-            )
-            # nothing was given, we try to screenshot the page either via Splash or Playwright
-        elif (
-                "location" in item["lom"]["technical"]
-                and len(item["lom"]["technical"]["location"]) > 0
-                and "format" in item["lom"]["technical"]
-                and item["lom"]["technical"]["format"] == "text/html"
-        ):
-            if settings.get("SPLASH_URL") and web_tools == WebEngine.Splash:
-                response = requests.post(
-                    settings.get("SPLASH_URL") + "/render.png",
-                    json={
-                        "url": item["lom"]["technical"]["location"][0],
-                        # since there can be multiple "technical.location"-values, the first URL is used for thumbnails
-                        "wait": settings.get("SPLASH_WAIT"),
-                        "html5_media": 1,
-                        "headers": settings.get("SPLASH_HEADERS"),
-                    },
-                )
-            if env.get("PLAYWRIGHT_WS_ENDPOINT") and web_tools == WebEngine.Playwright:
-                # if the attribute "WEB_TOOLS" doesn't exist as an attribute within a specific spider,
-                # it will default back to "splash"
-
-                # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
-                # but don't use playwright within the spider itself (e.g. serlo_spider)
-                playwright_dict = WebTools.getUrlData(url=item["lom"]["technical"]["location"][0],
-                                                      engine=WebEngine.Playwright)
-                screenshot_bytes = playwright_dict.get("screenshot_bytes")
-                img = Image.open(BytesIO(screenshot_bytes))
+        async with httpx.AsyncClient() as client:
+            # if screenshot_bytes is provided (the crawler has already a binary representation of the image
+            # the pipeline will convert/scale the given image
+            if "screenshot_bytes" in item:
+                # in case we are already using playwright in a spider, we can skip one additional HTTP Request by
+                # accessing the (temporary available) "screenshot_bytes"-field
+                img = Image.open(BytesIO(item["screenshot_bytes"]))
                 self.create_thumbnails_from_image_bytes(img, item, settings)
-            else:
-                if settings.get("DISABLE_SPLASH") is False:
-                    log.warning(
-                        "No thumbnail provided and SPLASH_URL was not configured for screenshots!"
+                # the final BaseItem data model doesn't use screenshot_bytes,
+                # therefore we delete it after we're done processing it
+                del item["screenshot_bytes"]
+
+                # a thumbnail (url) is given - we will try to fetch it from the url
+            elif "thumbnail" in item:
+                url = item["thumbnail"]
+                try:
+                    response = await client.get(url=url, follow_redirects=True, timeout=60)
+                    log.debug(
+                        "Loading thumbnail took " + str(response.elapsed.total_seconds()) + "s"
                     )
-        if response is None:
-            if settings.get("DISABLE_SPLASH") is False:
-                log.error(
-                    "Neither thumbnail or technical.location (and technical.format) provided! Please provide at least one of them"
-                )
-        else:
-            try:
-                if response.headers["Content-Type"] == "image/svg+xml":
-                    if len(response.content) > settings.get("THUMBNAIL_MAX_SIZE"):
-                        raise Exception(
-                            "SVG images can't be converted, and the given image exceeds the maximum allowed size ("
-                            + str(len(response.content))
-                            + " > "
-                            + str(settings.get("THUMBNAIL_MAX_SIZE"))
-                            + ")"
-                        )
-                    item["thumbnail"] = {}
-                    item["thumbnail"]["mimetype"] = response.headers["Content-Type"]
-                    item["thumbnail"]["small"] = base64.b64encode(
-                        response.content
-                    ).decode()
-                else:
-                    img = Image.open(BytesIO(response.content))
+                except httpx.ConnectError:
+                    # some website hosts are super slow or throttle connections
+                    log.warning(f"Thumbnail-Pipeline failed to establish a connection with URL {url}")
+                except httpx.ReadError:
+                    log.warning(f"Thumbnail-Pipeline could not read data from URL {url}")
+                # nothing was given, we try to screenshot the page either via Splash or Playwright
+            elif (
+                    "location" in item["lom"]["technical"]
+                    and len(item["lom"]["technical"]["location"]) > 0
+                    and "format" in item["lom"]["technical"]
+                    and item["lom"]["technical"]["format"] == "text/html"
+            ):
+                if settings.get("SPLASH_URL") and web_tools == WebEngine.Splash:
+                    response = await client.post(
+                        settings.get("SPLASH_URL") + "/render.png",
+                        json={
+                            "url": item["lom"]["technical"]["location"][0],
+                            # since there can be multiple "technical.location"-values, the first URL is used for thumbnails
+                            "wait": settings.get("SPLASH_WAIT"),
+                            "html5_media": 1,
+                            "headers": settings.get("SPLASH_HEADERS"),
+                        },
+                        timeout=30,
+                    )
+                if env.get("PLAYWRIGHT_WS_ENDPOINT") and web_tools == WebEngine.Playwright:
+                    # if the attribute "WEB_TOOLS" doesn't exist as an attribute within a specific spider,
+                    # it will default back to "splash"
+
+                    # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
+                    # but don't use playwright within the spider itself (e.g. serlo_spider)
+                    playwright_dict = await WebTools.getUrlData(url=item["lom"]["technical"]["location"][0],
+                                                                engine=WebEngine.Playwright)
+                    screenshot_bytes = playwright_dict.get("screenshot_bytes")
+                    img = Image.open(BytesIO(screenshot_bytes))
                     self.create_thumbnails_from_image_bytes(img, item, settings)
-            except Exception as e:
-                if url is not None:
-                    log.warning(
-                        "Could not read thumbnail at "
-                        + url
-                        + ": "
-                        + str(e)
-                        + " (falling back to screenshot)"
-                    )
-                if "thumbnail" in item:
-                    del item["thumbnail"]
-                    return self.process_item(raw_item, spider)
                 else:
-                    # item['thumbnail']={}
-                    raise DropItem(
-                        "No thumbnail provided or ressource was unavailable for fetching"
+                    if settings.get("DISABLE_SPLASH") is False:
+                        log.warning(
+                            "No thumbnail provided and SPLASH_URL was not configured for screenshots!"
+                        )
+            if response is None:
+                if settings.get("DISABLE_SPLASH") is False:
+                    log.error(
+                        "Neither thumbnail or technical.location (and technical.format) provided! Please provide at least one of them"
                     )
-        return raw_item
+            else:
+                try:
+                    if response.headers["Content-Type"] == "image/svg+xml":
+                        if len(response.content) > settings.get("THUMBNAIL_MAX_SIZE"):
+                            raise Exception(
+                                "SVG images can't be converted, and the given image exceeds the maximum allowed size ("
+                                + str(len(response.content))
+                                + " > "
+                                + str(settings.get("THUMBNAIL_MAX_SIZE"))
+                                + ")"
+                            )
+                        item["thumbnail"] = {}
+                        item["thumbnail"]["mimetype"] = response.headers["Content-Type"]
+                        item["thumbnail"]["small"] = base64.b64encode(
+                            response.content
+                        ).decode()
+                    else:
+                        img = Image.open(BytesIO(response.content))
+                        self.create_thumbnails_from_image_bytes(img, item, settings)
+                except Exception as e:
+                    if url is not None:
+                        log.warning(
+                            "Could not read thumbnail at "
+                            + url
+                            + ": "
+                            + str(e)
+                            + " (falling back to screenshot)"
+                        )
+                    if "thumbnail" in item:
+                        del item["thumbnail"]
+                        return self.process_item(raw_item, spider)
+                    else:
+                        # item['thumbnail']={}
+                        raise DropItem(
+                            "No thumbnail provided or ressource was unavailable for fetching"
+                        )
+            return raw_item
 
     # override the project settings with the given ones from the current spider
     # see PR 56 for details
@@ -617,13 +625,13 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         super().__init__()
         self.counter = 0
 
-    def process_item(self, raw_item, spider):
+    async def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
         title = "<no title>"
         if "title" in item["lom"]["general"]:
             title = str(item["lom"]["general"]["title"])
         entryUUID = EduSharing.build_uuid(item["response"]["url"] if "url" in item["response"] else item["hash"])
-        self.insert_item(spider, entryUUID, item)
+        await self.insert_item(spider, entryUUID, item)
         logging.info("item " + entryUUID + " inserted/updated")
 
         # @TODO: We may need to handle Collections
