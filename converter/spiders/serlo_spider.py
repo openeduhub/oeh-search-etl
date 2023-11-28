@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import json
 import logging
@@ -38,6 +39,7 @@ class SerloSpider(scrapy.Spider, LomBase):
     }
     GRAPHQL_MODIFIED_AFTER_PARAMETER: str = ""
     GRAPHQL_INSTANCE_PARAMETER: str = ""
+    sem = asyncio.Semaphore(value=10)  # used to control the amount of concurrent requests in "parse"-method
 
     graphql_items = list()
     # Mapping from EducationalAudienceRole (LRMI) to IntendedEndUserRole(LOM), see:
@@ -318,17 +320,18 @@ class SerloSpider(scrapy.Spider, LomBase):
             drop_item_flag = True
             return drop_item_flag
 
-    def parse(self, response, **kwargs):
+    async def parse(self, response, **kwargs):
         graphql_json: dict = kwargs.get("graphql_item")
 
         drop_item_flag = self.check_if_item_should_be_dropped(response, graphql_json)
         if drop_item_flag is True:
-            return None
+            return
 
         json_ld = response.xpath('//*[@type="application/ld+json"]/text()').get()
         json_ld = json.loads(json_ld)
 
-        playwright_dict = WebTools.getUrlData(response.url, WebEngine.Playwright)
+        async with self.sem:
+            playwright_dict = await WebTools.getUrlData(response.url, WebEngine.Playwright)
         html_body = playwright_dict.get("html")
         screenshot_bytes = playwright_dict.get("screenshot_bytes")
         html_text = playwright_dict.get("text")
@@ -345,7 +348,7 @@ class SerloSpider(scrapy.Spider, LomBase):
                     f"Robot Meta Tag {robot_meta_tags} identified. Robot Meta Tags 'noindex' or 'none' should "
                     f"be skipped by the crawler. Dropping item {response.url} ."
                 )
-                return None
+                return
 
         base = BaseItemLoader()
 
