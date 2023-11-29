@@ -269,7 +269,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                         license_loader.add_value("author", full_name)
         return license_loader
 
-    def getLOMGeneral(self, response=None):
+    async def getLOMGeneral(self, response=None):
         general = LomBase.getLOMGeneral(self, response)
         general.add_value("title", response.meta["item"]["name"])
         item_description = None
@@ -287,7 +287,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
             general.add_value("description", meta_og_description)
         else:
             # this is where the (expensive) calls to our headless browser start
-            playwright_dict = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
+            playwright_dict = await WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
             playwright_html = playwright_dict["html"]
             # ToDo: if we need DOM data from Playwright in another method, move the call to Playwright into parse()
             #  and parametrize the result

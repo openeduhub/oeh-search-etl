@@ -756,7 +756,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         else:
             lifecycle_item_loader.add_value("firstName", name_string)
 
-    def parse(self, response: scrapy.http.Response, **kwargs):
+    async def parse(self, response: scrapy.http.Response, **kwargs):
         elastic_item: dict = kwargs.get("elastic_item")
         elastic_item_source: dict = elastic_item.get("_source")
         # _source is the original JSON body passed for the document at index time
@@ -1080,7 +1080,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         if not thumbnail_url:
             # only use the headless browser if we need to take a website screenshot, otherwise skip this (expensive)
             # part of the program flow completely
-            url_data = WebTools.getUrlData(url=response.url, engine=WebEngine.Playwright)
+            url_data = await WebTools.getUrlData(url=response.url, engine=WebEngine.Playwright)
             if "html" in url_data:
                 response_loader.add_value("html", url_data["html"])
             if "text" in url_data:
