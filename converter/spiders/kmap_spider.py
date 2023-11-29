@@ -55,7 +55,7 @@ class KMapSpider(CrawlSpider, LomBase):
     def getHash(self, response=None) -> str:
         pass
 
-    def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
+    async def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
         """
 
         Scrapy Contracts:
@@ -63,7 +63,7 @@ class KMapSpider(CrawlSpider, LomBase):
         @returns item 1
         """
         last_modified = kwargs.get("lastModified")
-        url_data_web_tools_dict = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
+        url_data_web_tools_dict = await WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
         splash_html_string = url_data_web_tools_dict.get('html')
         json_ld_string: str = Selector(text=splash_html_string).xpath('//*[@id="ld"]/text()').get()
         json_ld: dict = json.loads(json_ld_string)
