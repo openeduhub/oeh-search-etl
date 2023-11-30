@@ -91,6 +91,7 @@ trafilatura = "^1.6.1"
 babel = "2.13.1"
 langcodes = {extras = ["data"], version = "^3.3.0"}
 httpx = "^0.25.2"
+async-lru = "2.0.4"
 
 [tool.poetry.group.dev.dependencies]
 
