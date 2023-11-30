@@ -48,6 +48,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
     custom_settings = {
         "ROBOTSTXT_OBEY": False  # returns an 401-error anyway, we might as well skip this scrapy.Request
     }
+    SESSION = requests.Session()
     OER_FILTER = False  # flag used for controlling the crawling process between two modes
     # - by default (OER_FILTER=False), ALL entries from the GraphQL API are crawled.
     # - If OER_FILTER=TRUE, only materials with OER-compatible licenses are crawled (everything else gets skipped)
@@ -227,7 +228,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             )
 
     def start_request(self, page=0):
-        access_token = requests.post(
+        access_token = self.SESSION.post(
             "https://api.sodix.de/gql/auth/login",
             None,
             {
@@ -379,7 +380,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
                 logging.info(f"matching requested id: {self.remoteId}")
                 return True
             return False
-        db = EduSharing().find_item(identifier, self)
+        db = EduSharing().find_item(id=identifier, spider=self)
         changed = db is None or db[1] != hash_str
         if not changed:
             logging.info(f"Item {identifier} (uuid: {db[0]}) has not changed")
@@ -921,7 +922,7 @@ class SodixSpider(scrapy.Spider, LomBase, JSONBase):
             logging.error(f"Cannot parse SODIX item from callback arguments. Aborting parse()-method.")
             return None
 
-        if LomBase.shouldImport(response) is False:
+        if self.shouldImport(response) is False:
             self.logger.debug(
                 f"Skipping entry {str(self.getId(response, sodix_item=sodix_item))} because shouldImport() returned "
                 f"false"
