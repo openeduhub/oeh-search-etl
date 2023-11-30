@@ -47,11 +47,7 @@ docker compose up
 
 ## Run the web service for the generic crawler via Docker
 
-A web service that implements the FastAPI web framework is added to the project. In order to start the web service it is enough to set API_MODE variable in any of this options:
-- export API_MODE=0 (to start the webservice into the Docker container). This still needs to be tested.
-- export API_MODE=1 (to start the webservice locally in your machine)
-
-The web service is started at localhost (127.0.0.1) at the 5500 port.
+A web service that implements the FastAPI web framework is added to the project.
 
 The Dockerfile will perform the following tasks:
 - Copy the source folders, Scrapy configuration files and the requirements.txt file for the python dependencies
@@ -63,12 +59,6 @@ The Dockerfile will perform the following tasks:
     - Crawl all the URLs that are listed in the generic_spider.py file with or without parameters (arguments that the crawler could need by setting the ARGS variable). To run the crawler in this mode you should delete the API_MODE variable (unset API_MODE)
     - Start the webservice by setting the API_MODE variable (=0 or 1 as was stated above)
 
-To persist the metadata in the pre-staging edu-sharing repository you should provide this values in the .env.example file beforehand:
-- MODE = "edu-sharing"
-- EDU_SHARING_BASE_URL = "https://repository.pre-staging.openeduhub.net/edu-sharing/"
-- EDU_SHARING_USERNAME = "<your_username>"
-- EDU_SHARING_PASSWORD = "<your_password>"
-- Z_API_KEY="<the_Z_API_key>"
 
 Then run the following lines in a terminal:
 
@@ -84,6 +74,23 @@ export EDU_SHARING_USERNAME=<your_username>
 export EDU_SHARING_PASSWORD=<your_password>
 docker compose up
 ```
+And each time the web service is required you have to run the three `export` command lines and the `docker compose up` line. Now you should have access to the FastAPI environment in http://0.0.0.0:80/docs# because this ip address (http://0.0.0.0) and port (80) is exposed to outside the container, then the same port in the container can be accessed by the host.
+
+### Use the web extension
+
+When you deploy the web service for the generic crawler you can test it by opening the Web extension (https://github.com/openeduhub/metadata-browser-plugin/tree/add_metadata_form and clone the `add_metadata_form` branch ) and press the first button `Meine Empfehlungen` (`My recommendations`) to get the metadata from the web service. You can edit the metadata values that the crawler generates and send them to the pre-staging edu-sharing repository by pressing `Weiter` button.
+
+
+### Debugging the generic crawler or web service locally
+
+The instructions below (using Docker) should have been run also for this section because the containers for the headless browser (`image: browserless/chrome`) and the splash server (`image: scrapinghub/splash:master`) should be running.
+
+To persist the metadata in the pre-staging edu-sharing repository you should provide this values in the .env.example right before running the line `cp converter/.env.example converter/.env`:
+- MODE = "edu-sharing"
+- EDU_SHARING_BASE_URL = "https://repository.pre-staging.openeduhub.net/edu-sharing/"
+- EDU_SHARING_USERNAME = "<your_username>"
+- EDU_SHARING_PASSWORD = "<your_password>"
+
 Then open a new terminal in the same folder (oeh-search-etl) and run the following line in order to start the web service locally:
 ```bash
 sudo apt install python3-dev python3-pip python3-venv libpq-dev -y
@@ -98,12 +105,14 @@ source .venv/bin/activate
 pip3 install -r web_service_plugin/requirements.txt
 export PYTHONPATH=$PYTHONPATH:`pwd`
 export PYTHONPATH="${PYTHONPATH}/z_api"
+# Modify the variables (MODE, EDU_SHARING_BASE_URL, EDU_SHARING_USERNAME, EDU_SHARING_PASSWORD) in converter/.env.example as is shown above
+cp converter/.env.example converter/.env
 python3 web_service_plugin/main.py
 ```
 
-Now you should have access to the FastAPI environment in http://0.0.0.0:80/docs# and you can test it by opening the Web extension (https://github.com/openeduhub/metadata-browser-plugin/tree/add_metadata_form and clone the `add_metadata_form` branch ) and press the first button (`Meine Empfehlungen`) to get the metadata from the web service. You can edit those metadata values and send them to the pre-staging edu-sharing repository by pressing `Weiter` button.
+By running the last line `python3 web_service_plugin/main.py` you should have access to the FastAPI environment in the localhost by http://127.0.0.1:5500/docs#. Note that this "local" IP address and port is different that if you use Docker compose (http://0.0.0.0:80/docs#).
 
-Each request to the generic crawler takes a long time to retrieve results, and in any case, the terminals get updated status of the web services that are runnung.
+Each request to the generic crawler takes a long time to fetch the crawled metadata, and in any case, the terminals get updated status of the web services that are runnung.
 
 If the web service fails consider to stop and restart the services by pressing `Ctrl+C` in each terminal:
 - The first terminal with the Headless-chrome and Splash instances. Then press `Ctrl+C` and restart the instances: `docker compose up`
