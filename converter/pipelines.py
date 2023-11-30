@@ -8,25 +8,30 @@ import base64
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 import csv
+import datetime
 import logging
 import re
 import time
 from abc import ABCMeta
+from asyncio import Future
 from io import BytesIO
 from typing import BinaryIO, TextIO, Optional
 
 import dateparser
 import dateutil.parser
-import httpx
 import isodate
 import scrapy
 import scrapy.crawler
 from PIL import Image
+from async_lru import alru_cache
 from itemadapter import ItemAdapter
 from scrapy import settings
 from scrapy.exceptions import DropItem
 from scrapy.exporters import JsonItemExporter
+from scrapy.http.request import NO_CALLBACK
+from scrapy.utils.defer import maybe_deferred_to_future
 from scrapy.utils.project import get_project_settings
+from twisted.internet.defer import Deferred
 
 from converter import env
 from converter.constants import *
@@ -338,7 +343,6 @@ class ProcessThumbnailPipeline(BasicPipeline):
     """
     generate thumbnails
     """
-    _client_async = httpx.AsyncClient()
 
     @staticmethod
     def scale_image(img, max_size):
@@ -363,35 +367,36 @@ class ProcessThumbnailPipeline(BasicPipeline):
         -- alternatively, on-demand: use Playwright to take a screenshot, rescale and save (as above)
         """
         item = ItemAdapter(raw_item)
-        response = None
-        url = None
-        settings = get_settings_for_crawler(spider)
+        response: scrapy.http.Response | None = None
+        url: str | None = None
+        settings_crawler = get_settings_for_crawler(spider)
         # checking if the (optional) attribute WEB_TOOLS exists:
-        web_tools = settings.get("WEB_TOOLS", WebEngine.Splash)
+        web_tools = settings_crawler.get("WEB_TOOLS", default=WebEngine.Splash)
+        _splash_success: bool = True  # control flag flips to False if Splash can't handle a URL
         # if screenshot_bytes is provided (the crawler has already a binary representation of the image
         # the pipeline will convert/scale the given image
         if "screenshot_bytes" in item:
             # in case we are already using playwright in a spider, we can skip one additional HTTP Request by
             # accessing the (temporary available) "screenshot_bytes"-field
             img = Image.open(BytesIO(item["screenshot_bytes"]))
-            self.create_thumbnails_from_image_bytes(img, item, settings)
+            self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
             # The final BaseItem data model doesn't use screenshot_bytes.
             # Therefore, we delete it after we're done with processing it
             del item["screenshot_bytes"]
-
-            # a thumbnail (url) is given - we will try to fetch it from the url
         elif "thumbnail" in item:
-            url = item["thumbnail"]
-            try:
-                response = await self._client_async.get(url=url, follow_redirects=True, timeout=60)
-                log.debug(
-                    "Loading thumbnail took " + str(response.elapsed.total_seconds()) + "s"
-                )
-            except httpx.ConnectError:
-                # some website hosts are super slow or throttle connections
-                log.warning(f"Thumbnail-Pipeline failed to establish a connection with URL {url}")
-            except httpx.ReadError:
-                log.warning(f"Thumbnail-Pipeline could not read data from URL {url}")
+            # a thumbnail (url) is given - we will try to fetch it from the url
+            url: str = item["thumbnail"]
+            # ToDo: Log time before the request
+            time_start = datetime.datetime.now()
+            response: scrapy.http.Response = await self.download_thumbnail_url(url, spider)
+            time_end = datetime.datetime.now()
+            log.debug(f"Loading thumbnail from {url} took {time_end - time_start}.")
+            # ToDo: log time after response
+            if response.status != 200:
+                log.debug(f"Thumbnail-Pipeline received unexpected response (status: {response.status}) from {url}")
+                # ToDo: Error-handling necessary
+                pass
+            log.debug(f"Thumbnail-URL-Cache after trying to query {url}: {self.download_thumbnail_url.cache_info()}")
             # nothing was given, we try to screenshot the page either via Splash or Playwright
         elif (
                 "location" in item["lom"]["technical"]
@@ -399,58 +404,84 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 and "format" in item["lom"]["technical"]
                 and item["lom"]["technical"]["format"] == "text/html"
         ):
-            if settings.get("SPLASH_URL") and web_tools == WebEngine.Splash:
-                response = await self._client_async.post(
-                    settings.get("SPLASH_URL") + "/render.png",
-                    json={
-                        "url": item["lom"]["technical"]["location"][0],
-                        # since there can be multiple "technical.location"-values, the first URL is used for thumbnails
-                        "wait": settings.get("SPLASH_WAIT"),
-                        "html5_media": 1,
-                        "headers": settings.get("SPLASH_HEADERS"),
-                    },
-                    timeout=30,
+            if settings_crawler.get("SPLASH_URL") and web_tools == WebEngine.Splash:
+                target_url: str = item["lom"]["technical"]["location"][0]
+                _splash_url: str = f"{settings_crawler.get('SPLASH_URL')}/render.png"
+                _splash_parameter_wait: str = f"{settings_crawler.get('SPLASH_WAIT')}"
+                _splash_parameter_html5media: str = str(1)
+                _splash_headers: dict = settings_crawler.get("SPLASH_HEADERS")
+                _splash_dict: dict = {
+                    "url": target_url,
+                    "wait": _splash_parameter_wait,
+                    "html5_media": _splash_parameter_wait,
+                    "headers": _splash_headers
+                }
+                request_splash = scrapy.FormRequest(
+                    url=_splash_url,
+                    formdata=_splash_dict,
+                    callback=NO_CALLBACK
                 )
-            if env.get("PLAYWRIGHT_WS_ENDPOINT") and web_tools == WebEngine.Playwright:
+                splash_response: scrapy.http.Response = await maybe_deferred_to_future(
+                    spider.crawler.engine.download(request_splash)
+                )
+                if splash_response and splash_response.status != 200:
+                    log.debug(f"SPLASH could not handle the requested website. "
+                              f"(Splash returned HTTP Status {splash_response.status} for {target_url} !)")
+                    _splash_success = False
+                    # ToDo: Error-Handling for unsupported URLs
+                    if splash_response.status == 415:
+                        log.debug(f"SPLASH (HTTP Status {splash_response.status} -> Unsupported Media Type): "
+                                  f"Could not render target url {target_url}")
+                elif splash_response:
+                    response: scrapy.http.Response = splash_response
+                else:
+                    # ToDo: if Splash error's out -> Fallback to Playwright?
+                    log.debug(f"SPLASH returned {splash_response.status} for {target_url} ")
+
+            if (_splash_success is False and env.get("PLAYWRIGHT_WS_ENDPOINT")
+                    or env.get("PLAYWRIGHT_WS_ENDPOINT") and web_tools == WebEngine.Playwright):
                 # if the attribute "WEB_TOOLS" doesn't exist as an attribute within a specific spider,
                 # it will default back to "splash"
 
                 # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
                 # but don't use playwright within the spider itself (e.g. serlo_spider)
-                playwright_dict = await WebTools.getUrlData(url=item["lom"]["technical"]["location"][0],
+                # ToDo: change to scrapy.FormRequest?
+                target_url: str = item["lom"]["technical"]["location"][0]
+                playwright_dict = await WebTools.getUrlData(url=target_url,
                                                             engine=WebEngine.Playwright)
                 screenshot_bytes = playwright_dict.get("screenshot_bytes")
                 img = Image.open(BytesIO(screenshot_bytes))
-                self.create_thumbnails_from_image_bytes(img, item, settings)
+                self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
             else:
-                if settings.get("DISABLE_SPLASH") is False:
+                if settings_crawler.get("DISABLE_SPLASH") is False:
                     log.warning(
                         "No thumbnail provided and SPLASH_URL was not configured for screenshots!"
                     )
         if response is None:
-            if settings.get("DISABLE_SPLASH") is False:
+            if settings_crawler.get("DISABLE_SPLASH") is False:
                 log.error(
-                    "Neither thumbnail or technical.location (and technical.format) provided! Please provide at least one of them"
+                    "Neither thumbnail or technical.location (and technical.format) provided! "
+                    "Please provide at least one of them"
                 )
         else:
             try:
                 if response.headers["Content-Type"] == "image/svg+xml":
-                    if len(response.content) > settings.get("THUMBNAIL_MAX_SIZE"):
+                    if len(response.body) > settings_crawler.get("THUMBNAIL_MAX_SIZE"):
                         raise Exception(
                             "SVG images can't be converted, and the given image exceeds the maximum allowed size ("
-                            + str(len(response.content))
+                            + str(len(response.body))
                             + " > "
-                            + str(settings.get("THUMBNAIL_MAX_SIZE"))
+                            + str(settings_crawler.get("THUMBNAIL_MAX_SIZE"))
                             + ")"
                         )
                     item["thumbnail"] = {}
                     item["thumbnail"]["mimetype"] = response.headers["Content-Type"]
                     item["thumbnail"]["small"] = base64.b64encode(
-                        response.content
+                        response.body
                     ).decode()
                 else:
-                    img = Image.open(BytesIO(response.content))
-                    self.create_thumbnails_from_image_bytes(img, item, settings)
+                    img = Image.open(BytesIO(response.body))
+                    self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
             except Exception as e:
                 if url is not None:
                     log.warning(
@@ -466,9 +497,35 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 else:
                     # item['thumbnail']={}
                     raise DropItem(
-                        "No thumbnail provided or ressource was unavailable for fetching"
+                        "No thumbnail provided or resource was unavailable for fetching"
                     )
         return raw_item
+
+    @alru_cache(maxsize=128)
+    async def download_thumbnail_url(self, url: str, spider: scrapy.Spider):
+        """
+        Download a thumbnail URL and **caches** the result.
+
+        The cache works similarly to Python's built-in `functools.lru_cache`-decorator and discards the
+        least recently used items first.
+        (see: https://github.com/aio-libs/async-lru)
+
+        Typical use-case:
+        Some webhosters serve generic placeholder images as their default thumbnail.
+        By caching the response of such URLs, we can save a significant amount of time and traffic.
+
+        :param spider: The spider process that collected the URL.
+        :param url: URL of a thumbnail/image.
+        :return: Response or None
+        """
+        try:
+            request = scrapy.Request(url=url, callback=NO_CALLBACK)
+            response: Deferred | Future = await maybe_deferred_to_future(
+                spider.crawler.engine.download(request)
+            )
+            return response
+        except ValueError:
+            log.debug(f"Thumbnail-Pipeline received an invalid URL: {url}")
 
     # override the project settings with the given ones from the current spider
     # see PR 56 for details
@@ -498,7 +555,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
         ).decode()
 
 
-def get_settings_for_crawler(spider):
+def get_settings_for_crawler(spider) -> scrapy.settings.Settings:
     all_settings = get_project_settings()
     crawler_settings = settings.BaseSettings(getattr(spider, "custom_settings") or {}, 'spider')
     if type(crawler_settings) == dict:
