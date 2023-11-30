@@ -107,6 +107,7 @@ class EduSharing:
     nodeApi: NODEV1Api
     groupCache: List[str]
     enabled: bool
+    client_async = httpx.AsyncClient()
 
     def __init__(self):
         cookie_threshold = env.get("EDU_SHARING_COOKIE_REBUILD_THRESHOLD", True)
@@ -161,24 +162,23 @@ class EduSharing:
 
     async def set_node_text(self, uuid, item) -> bool:
         if "fulltext" in item:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    get_project_settings().get("EDU_SHARING_BASE_URL")
-                    + "rest/node/v1/nodes/-home-/"
-                    + uuid
-                    + "/textContent?mimetype=text/plain",
-                    headers=self.get_headers("multipart/form-data"),
-                    data=item["fulltext"].encode("utf-8"),
-                    timeout=30,
-                )
-                return response.status_code == 200
-            # does currently not store data
-            # try:
-            #     EduSharing.nodeApi.change_content_as_text(EduSharingConstants.HOME, uuid, 'text/plain',item['fulltext'])
-            #     return True
-            # except ApiException as e:
-            #     print(e)
-            #     return False
+            response = await self.client_async.post(
+                get_project_settings().get("EDU_SHARING_BASE_URL")
+                + "rest/node/v1/nodes/-home-/"
+                + uuid
+                + "/textContent?mimetype=text/plain",
+                headers=self.get_headers("multipart/form-data"),
+                data=item["fulltext"].encode("utf-8"),
+                timeout=30,
+            )
+            return response.status_code == 200
+        # does currently not store data
+        # try:
+        #     EduSharing.nodeApi.change_content_as_text(EduSharingConstants.HOME, uuid, 'text/plain',item['fulltext'])
+        #     return True
+        # except ApiException as e:
+        #     print(e)
+        #     return False
 
     def set_permissions(self, uuid, permissions) -> bool:
         try:
@@ -195,46 +195,44 @@ class EduSharing:
 
     async def set_node_binary_data(self, uuid, item) -> bool:
         if "binary" in item:
-            async with httpx.AsyncClient() as client:
-                logging.info(
-                    get_project_settings().get("EDU_SHARING_BASE_URL")
-                    + "rest/node/v1/nodes/-home-/"
-                    + uuid
-                    + "/content?mimetype="
-                    + item["lom"]["technical"]["format"]
-                )
-                files = {"file": item["binary"]}
-                response = await client.post(
-                    get_project_settings().get("EDU_SHARING_BASE_URL")
-                    + "rest/node/v1/nodes/-home-/"
-                    + uuid
-                    + "/content?mimetype="
-                    + item["lom"]["technical"]["format"],
-                    headers=self.get_headers(None),
-                    files=files,
-                    timeout=30,
-                )
-                return response.status_code == 200
+            logging.info(
+                get_project_settings().get("EDU_SHARING_BASE_URL")
+                + "rest/node/v1/nodes/-home-/"
+                + uuid
+                + "/content?mimetype="
+                + item["lom"]["technical"]["format"]
+            )
+            files = {"file": item["binary"]}
+            response = await self.client_async.post(
+                get_project_settings().get("EDU_SHARING_BASE_URL")
+                + "rest/node/v1/nodes/-home-/"
+                + uuid
+                + "/content?mimetype="
+                + item["lom"]["technical"]["format"],
+                headers=self.get_headers(None),
+                files=files,
+                timeout=30,
+            )
+            return response.status_code == 200
         else:
             return False
 
     async def set_node_preview(self, uuid, item) -> bool:
         if "thumbnail" in item:
-            async with httpx.AsyncClient() as client:
-                key = "large" if "large" in item["thumbnail"] else "small" if "small" in item["thumbnail"] else None
-                if key:
-                    files = {"image": base64.b64decode(item["thumbnail"][key])}
-                    response = await client.post(
-                        get_project_settings().get("EDU_SHARING_BASE_URL")
-                        + "rest/node/v1/nodes/-home-/"
-                        + uuid
-                        + "/preview?mimetype="
-                        + item["thumbnail"]["mimetype"],
-                        headers=self.get_headers(None),
-                        files=files,
-                        timeout=30,
-                    )
-                    return response.status_code == 200
+            key = "large" if "large" in item["thumbnail"] else "small" if "small" in item["thumbnail"] else None
+            if key:
+                files = {"image": base64.b64decode(item["thumbnail"][key])}
+                response = await self.client_async.post(
+                    get_project_settings().get("EDU_SHARING_BASE_URL")
+                    + "rest/node/v1/nodes/-home-/"
+                    + uuid
+                    + "/preview?mimetype="
+                    + item["thumbnail"]["mimetype"],
+                    headers=self.get_headers(None),
+                    files=files,
+                    timeout=30,
+                )
+                return response.status_code == 200
         else:
             logging.warning("No thumbnail provided for " + uuid)
 
