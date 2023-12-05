@@ -319,7 +319,7 @@ class EduSharing:
                     )
         if "internal" in license:
             match license["internal"]:
-                case "CC_0" | "CC_BY" | "CC_BY_NC" | "CC_BY_NC_ND" | "CC_BY_NC_SA" | "CC_BY_ND" | "CC_BY_SA" | "PDM" | Constants.LICENSE_COPYRIGHT_LAW | Constants.LICENSE_SCHULFUNK | Constants.LICENSE_UNTERRICHTS_UND_SCHULMEDIEN:
+                case "CC_0" | "CC_BY" | "CC_BY_NC" | "CC_BY_NC_ND" | "CC_BY_NC_SA" | "CC_BY_ND" | "CC_BY_SA" | "PDM" | Constants.LICENSE_COPYRIGHT_FREE | Constants.LICENSE_COPYRIGHT_LAW | Constants.LICENSE_SCHULFUNK | Constants.LICENSE_UNTERRICHTS_UND_SCHULMEDIEN:
                     spaces["ccm:commonlicense_key"] = license["internal"]
                 case Constants.LICENSE_CUSTOM:
                     spaces["ccm:commonlicense_key"] = "CUSTOM"
