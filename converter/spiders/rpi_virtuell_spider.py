@@ -1,4 +1,3 @@
-import html
 import re
 from typing import Optional
 
@@ -22,7 +21,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
     friendlyName = "rpi-virtuell"
     start_urls = ['https://material.rpi-virtuell.de/wp-json/mymaterial/v1/material/']
 
-    version = "0.0.6"
+    version = "0.0.7"
 
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
@@ -68,12 +67,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
     #   rpi-virtuell has clarified their license-description:
     #   'Zur Wiederverwendung und Veränderung gekennzeichnet' can be both CC_BY and CC_BY_SA
     #       since CC_BY_SA is slightly more restricting, we choose this mapping rather than the more liberal CC_BY
-    mapping_copyright = {
-        'Zur Wiederverwendung und Veränderung gekennzeichnet': Constants.LICENSE_CC_BY_SA_40,
-        'Zur nicht kommerziellen Wiederverwendung gekennzeichnet': Constants.LICENSE_CC_BY_NC_ND_40,
-        'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet': Constants.LICENSE_CC_BY_NC_SA_30,
-    }
-
     mapping_copyright_url = {
         '?fwp_lizenz=non-commercial-remixable': Constants.LICENSE_CC_BY_NC_SA_30,
         '?fwp_lizenz=non-commercial-copyable': Constants.LICENSE_CC_BY_NC_ND_40,
@@ -148,7 +141,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
             elif (url.split('/')[-2] == 'material') and (url.split('/') != ''):
                 yield scrapy.Request(url=url, callback=self.parse)
 
-    def parse(self, response, **kwargs):
+    def parse(self, response: scrapy.http.TextResponse, **kwargs):
         """
         Checks how many pages need to be parsed with the currently set parameters (per_page items) first
         then yields all following scrapy.http.Requests that are needed to iterate through all wp_json pages.
@@ -274,7 +267,6 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # logging.debug("DEBUG inside get_metadata_from_review_url: response type = ", type(response),
         #               "url =", response.url)
 
-
         base = BaseItemLoader()
         base.add_value("sourceId", response.url)
         date_modified: str = response.xpath('//meta[@property="og:article:modified_time"]/@content').get()
@@ -371,26 +363,21 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
         lic = LicenseItemLoader()
 
-        license_regex_nc_reuse = re.compile(r'Zur nicht kommerziellen Wiederverwendung gekennzeichnet')
-        license_regex_nc_reuse_and_change = re.compile(
-            r'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet')
-
         # important clarification from rpi-virtuell:
         #   'frei zugänglich' describes 'ungeklärte Lizenz' / 'volles Urheberrecht'
         #   CC licenses > 'frei zugänglich' if both values are found in the license description
-        license_regex_free_access = re.compile(r'frei zugänglich')
-        license_regex_free_after_signup = re.compile(r'kostenfrei nach Anmeldung')
-        license_regex_with_costs = re.compile(r'kostenpflichtig')
 
         for key in self.mapping_copyright_url:
             if response.xpath('//a[contains(@href,"' + key + '")]').get():
-                lic.add_value("url", self.mapping_copyright_url[key])
+                # the mapping table holds "INTERNAL"-constants, which need to be saved to another field than urls:
+                if self.mapping_copyright_url[key] == Constants.LICENSE_COPYRIGHT_LAW:
+                    lic.add_value("internal", self.mapping_copyright_url[key])
+                else:
+                    lic.add_value("url", self.mapping_copyright_url[key])
                 break
 
         # by default, all materials should be CC_BY_SA - according to the rpi-virtuell ToS
         # changed/decided on 2022-10-13: We can't assume that this license is correct and will not set any license
-        #lic.replace_value("url", Constants.LICENSE_CC_BY_SA_40)
-
 
         if response.xpath('//a[contains(@href,"' + "?fwp_verfuegbarkeit=kostenpflichtig" + '")]').get():
             vs.add_value("price", "yes")
