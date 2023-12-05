@@ -54,6 +54,7 @@ class TestLicenseMapper:
         [
             ("Copyright Zweites Deutsches Fernsehen, ZDF", Constants.LICENSE_COPYRIGHT_LAW),
             (" © ", Constants.LICENSE_COPYRIGHT_LAW),
+            # ToDo: find valid test-cases for LICENSE.COPYRIGHT_FREE
             # ToDo: regularly check if new enums for the 'internal' field need to be added here or in Constants.py
             ("jemand erwähnt CC0 in einem Freitext", "CC_0"),
             ("CC-0", "CC_0"),
