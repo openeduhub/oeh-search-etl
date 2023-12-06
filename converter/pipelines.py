@@ -372,7 +372,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
         settings_crawler = get_settings_for_crawler(spider)
         # checking if the (optional) attribute WEB_TOOLS exists:
         web_tools = settings_crawler.get("WEB_TOOLS", default=WebEngine.Splash)
-        _splash_success: bool = True  # control flag flips to False if Splash can't handle a URL
+        _splash_success: bool | None = None  # control flag flips to False if Splash can't handle a URL
         # if screenshot_bytes is provided (the crawler has already a binary representation of the image
         # the pipeline will convert/scale the given image
         if "screenshot_bytes" in item:
@@ -386,12 +386,10 @@ class ProcessThumbnailPipeline(BasicPipeline):
         elif "thumbnail" in item:
             # a thumbnail (url) is given - we will try to fetch it from the url
             url: str = item["thumbnail"]
-            # ToDo: Log time before the request
             time_start = datetime.datetime.now()
             response: scrapy.http.Response = await self.download_thumbnail_url(url, spider)
             time_end = datetime.datetime.now()
             log.debug(f"Loading thumbnail from {url} took {time_end - time_start}.")
-            # ToDo: log time after response
             if response.status != 200:
                 log.debug(f"Thumbnail-Pipeline received unexpected response (status: {response.status}) from {url}")
                 # ToDo: Error-handling necessary
@@ -428,24 +426,22 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     log.debug(f"SPLASH could not handle the requested website. "
                               f"(Splash returned HTTP Status {splash_response.status} for {target_url} !)")
                     _splash_success = False
-                    # ToDo: Error-Handling for unsupported URLs
+                    # ToDo (optional): more granular Error-Handling for unsupported URLs?
                     if splash_response.status == 415:
                         log.debug(f"SPLASH (HTTP Status {splash_response.status} -> Unsupported Media Type): "
                                   f"Could not render target url {target_url}")
                 elif splash_response:
                     response: scrapy.http.Response = splash_response
                 else:
-                    # ToDo: if Splash error's out -> Fallback to Playwright?
-                    log.debug(f"SPLASH returned {splash_response.status} for {target_url} ")
+                    log.debug(f"SPLASH returned HTTP Status {splash_response.status} for {target_url} ")
 
-            if (_splash_success is False and env.get("PLAYWRIGHT_WS_ENDPOINT")
+            if (_splash_success and _splash_success is False and env.get("PLAYWRIGHT_WS_ENDPOINT")
                     or env.get("PLAYWRIGHT_WS_ENDPOINT") and web_tools == WebEngine.Playwright):
                 # if the attribute "WEB_TOOLS" doesn't exist as an attribute within a specific spider,
                 # it will default back to "splash"
 
                 # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
                 # but don't use playwright within the spider itself (e.g. serlo_spider)
-                # ToDo: change to scrapy.FormRequest?
                 target_url: str = item["lom"]["technical"]["location"][0]
                 playwright_dict = await WebTools.getUrlData(url=target_url,
                                                             engine=WebEngine.Playwright)
@@ -465,7 +461,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 )
         else:
             try:
-                if response.headers["Content-Type"] == "image/svg+xml":
+                if response.headers["Content-Type"] == b"image/svg+xml":
                     if len(response.body) > settings_crawler.get("THUMBNAIL_MAX_SIZE"):
                         raise Exception(
                             "SVG images can't be converted, and the given image exceeds the maximum allowed size ("
@@ -475,7 +471,11 @@ class ProcessThumbnailPipeline(BasicPipeline):
                             + ")"
                         )
                     item["thumbnail"] = {}
-                    item["thumbnail"]["mimetype"] = response.headers["Content-Type"]
+                    _mimetype: bytes = response.headers["Content-Type"]
+                    if _mimetype and isinstance(_mimetype, bytes):
+                        item["thumbnail"]["mimetype"] = _mimetype.decode()
+                    elif _mimetype and isinstance(_mimetype, str):
+                        item["thumbnail"]["mimetype"] = _mimetype
                     item["thumbnail"]["small"] = base64.b64encode(
                         response.body
                     ).decode()
@@ -493,7 +493,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     )
                 if "thumbnail" in item:
                     del item["thumbnail"]
-                    return self.process_item(raw_item, spider)
+                    return await self.process_item(raw_item, spider)
                 else:
                     # item['thumbnail']={}
                     raise DropItem(
