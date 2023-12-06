@@ -1,4 +1,3 @@
-import asyncio
 import json
 from asyncio import Semaphore
 from enum import Enum
@@ -19,16 +18,27 @@ class WebEngine(Enum):
 
 
 class WebTools:
-    @staticmethod
-    async def getUrlData(url: str, engine=WebEngine.Splash):
-        sem: Semaphore = asyncio.Semaphore(value=10)
-        # the headless browser can only handle 5 concurrent sessions and 5 items in the queue by default
-        async with sem:
-            if engine == WebEngine.Splash:
-                return await WebTools.__getUrlDataSplash(url)
-            elif engine == WebEngine.Playwright:
-                return await WebTools.__getUrlDataPlaywright(url)
+    _sem_splash: Semaphore = Semaphore(10)
+    _sem_playwright: Semaphore = Semaphore(10)
 
+    @classmethod
+    async def __safely_get_splash_response(cls, url: str):
+        # ToDo: Docs
+        async with cls._sem_splash:
+            return await WebTools.__getUrlDataSplash(url)
+
+    @classmethod
+    async def __safely_get_playwright_response(cls, url: str):
+        # ToDo: Docs
+        async with cls._sem_playwright:
+            return await WebTools.__getUrlDataPlaywright(url)
+
+    @classmethod
+    async def getUrlData(cls, url: str, engine: WebEngine = WebEngine.Splash):
+        if engine == WebEngine.Splash:
+            return await cls.__safely_get_splash_response(url)
+        elif engine == WebEngine.Playwright:
+            return await cls.__safely_get_playwright_response(url)
         raise Exception("Invalid engine")
 
     @staticmethod
