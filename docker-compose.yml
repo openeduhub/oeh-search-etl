@@ -19,10 +19,10 @@ services:
       retries: 3
       start_period: 40s
   headless_chrome:
-    image: browserless/chrome
+    image: ghcr.io/browserless/chrome
     restart: always
     environment:
-      - "DEFAULT_LAUNCH_ARGS:[\"--disable-dev-shm-usage\"]"
+      - CONNECTION_TIMEOUT=60000
     ports:
       - "127.0.0.1:3000:3000"
     networks:
