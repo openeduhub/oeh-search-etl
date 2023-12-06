@@ -1,8 +1,10 @@
+import asyncio
 import base64
 import json
 import logging
 import time
 import uuid
+from asyncio import Semaphore
 from enum import Enum
 from typing import List
 
@@ -107,7 +109,8 @@ class EduSharing:
     nodeApi: NODEV1Api
     groupCache: List[str]
     enabled: bool
-    client_async = httpx.AsyncClient()
+    _client_async = httpx.AsyncClient()
+    _sem: Semaphore = asyncio.Semaphore(25)
 
     def __init__(self):
         cookie_threshold = env.get("EDU_SHARING_COOKIE_REBUILD_THRESHOLD", True)
@@ -162,14 +165,14 @@ class EduSharing:
 
     async def set_node_text(self, uuid, item) -> bool:
         if "fulltext" in item:
-            response = await self.client_async.post(
+            response = await self._client_async.post(
                 get_project_settings().get("EDU_SHARING_BASE_URL")
                 + "rest/node/v1/nodes/-home-/"
                 + uuid
                 + "/textContent?mimetype=text/plain",
                 headers=self.get_headers("multipart/form-data"),
                 data=item["fulltext"].encode("utf-8"),
-                timeout=30,
+                timeout=None,
             )
             return response.status_code == 200
         # does currently not store data
@@ -203,7 +206,7 @@ class EduSharing:
                 + item["lom"]["technical"]["format"]
             )
             files = {"file": item["binary"]}
-            response = await self.client_async.post(
+            response = await self._client_async.post(
                 get_project_settings().get("EDU_SHARING_BASE_URL")
                 + "rest/node/v1/nodes/-home-/"
                 + uuid
@@ -211,7 +214,7 @@ class EduSharing:
                 + item["lom"]["technical"]["format"],
                 headers=self.get_headers(None),
                 files=files,
-                timeout=30,
+                timeout=None,
             )
             return response.status_code == 200
         else:
@@ -222,7 +225,7 @@ class EduSharing:
             key = "large" if "large" in item["thumbnail"] else "small" if "small" in item["thumbnail"] else None
             if key:
                 files = {"image": base64.b64decode(item["thumbnail"][key])}
-                response = await self.client_async.post(
+                response = await self._client_async.post(
                     get_project_settings().get("EDU_SHARING_BASE_URL")
                     + "rest/node/v1/nodes/-home-/"
                     + uuid
@@ -230,7 +233,7 @@ class EduSharing:
                     + item["thumbnail"]["mimetype"],
                     headers=self.get_headers(None),
                     files=files,
-                    timeout=30,
+                    timeout=None,
                 )
                 return response.status_code == 200
         else:
@@ -620,11 +623,14 @@ class EduSharing:
                 logging.error(item["permissions"])
 
     async def insert_item(self, spider, uuid, item):
-        node = self.sync_node(spider, "ccm:io", self.transform_item(uuid, spider, item))
-        self.set_node_permissions(node["ref"]["id"], item)
-        await self.set_node_preview(node["ref"]["id"], item)
-        if not await self.set_node_binary_data(node["ref"]["id"], item):
-            await self.set_node_text(node["ref"]["id"], item)
+        async with self._sem:
+            # inserting items is controlled with a Semaphore, otherwise we'd get PoolTimeout Exceptions when there's a
+            # temporary burst of items that need to be inserted
+            node = self.sync_node(spider, "ccm:io", self.transform_item(uuid, spider, item))
+            self.set_node_permissions(node["ref"]["id"], item)
+            await self.set_node_preview(node["ref"]["id"], item)
+            if not await self.set_node_binary_data(node["ref"]["id"], item):
+                await self.set_node_text(node["ref"]["id"], item)
 
     async def update_item(self, spider, uuid, item):
         await self.insert_item(spider, uuid, item)
