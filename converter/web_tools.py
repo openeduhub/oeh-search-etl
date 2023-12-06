@@ -4,6 +4,7 @@ from enum import Enum
 
 import html2text
 import httpx
+import trafilatura
 from playwright.async_api import async_playwright
 from scrapy.utils.project import get_project_settings
 
@@ -34,7 +35,7 @@ class WebTools:
             return await WebTools.__getUrlDataPlaywright(url)
 
     @classmethod
-    async def getUrlData(cls, url: str, engine: WebEngine = WebEngine.Splash):
+    async def getUrlData(cls, url: str, engine: WebEngine = WebEngine.Playwright):
         if engine == WebEngine.Splash:
             return await cls.__safely_get_splash_response(url)
         elif engine == WebEngine.Playwright:
@@ -44,10 +45,17 @@ class WebTools:
     @staticmethod
     async def __getUrlDataPlaywright(url: str):
         playwright_dict = await WebTools.fetchDataPlaywright(url)
-        html = playwright_dict.get("content")
-        screenshot_bytes = playwright_dict.get("screenshot_bytes")
+        html: str = playwright_dict.get("content")
+        screenshot_bytes: bytes = playwright_dict.get("screenshot_bytes")
+        fulltext: str = WebTools.html2Text(html)
+        if html and isinstance(html, str):
+            html_bytes: bytes = html.encode()
+            trafilatura_text: str | None = trafilatura.extract(html_bytes)
+            if trafilatura_text:
+                # trafilatura text extraction is (in general) more precise than html2Text, so we'll use it if available
+                fulltext = trafilatura_text
         return {"html": html,
-                "text": WebTools.html2Text(html),
+                "text": fulltext,
                 "cookies": None,
                 "har": None,
                 "screenshot_bytes": screenshot_bytes}
@@ -99,10 +107,10 @@ class WebTools:
             # since waiting for 'networkidle' seems to cause timeouts
             content = await page.content()
             screenshot_bytes = await page.screenshot()
-            # ToDo: HAR / text / cookies
-            #  if we are able to replicate the Splash response with all its fields, we could save traffic/Requests
-            #  that are currently still being handled by Splash
-            # await page.close()
+            # ToDo: HAR / cookies
+            #  if we are able to replicate the Splash response with all its fields,
+            #  we could save traffic/requests that are currently still being handled by Splash
+            #  see: https://playwright.dev/python/docs/api/class-browsercontext#browser-context-cookies
             return {
                 "content": content,
                 "screenshot_bytes": screenshot_bytes
