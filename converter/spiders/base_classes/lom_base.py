@@ -1,8 +1,6 @@
-import html2text
 import logging
 
 from scrapy import settings
-from scrapy.utils.project import get_project_settings
 
 from converter.constants import Constants
 from converter.es_connector import EduSharing
@@ -87,7 +85,7 @@ class LomBase:
     def shouldImport(self, response=None) -> bool:
         return True
 
-    def parse(self, response):
+    async def parse(self, response):
         if self.shouldImport(response) is False:
             logging.debug(
                 "Skipping entry {} because shouldImport() returned false".format(str(self.getId(response)))
@@ -102,7 +100,8 @@ class LomBase:
         main.add_value("license", self.getLicense(response).load_item())
         main.add_value("permissions", self.getPermissions(response).load_item())
         # logging.debug(main.load_item())
-        main.add_value("response", self.mapResponse(response).load_item())
+        response_itemloader = await self.mapResponse(response)
+        main.add_value("response", response_itemloader.load_item())
         return main.load_item()
 
     # @deprecated
@@ -112,21 +111,25 @@ class LomBase:
 
     # @deprecated
     # directly use WebTools instead
-    def getUrlData(self, url):
-        return WebTools.getUrlData(url)
+    async def getUrlData(self, url):
+        return await WebTools.getUrlData(url)
 
-    def mapResponse(self, response, fetchData=True):
+    async def mapResponse(self, response, fetchData=True):
         r = ResponseItemLoader(response=response)
         r.add_value("status", response.status)
         # r.add_value('body',response.body.decode('utf-8'))
 
-        # render via splash to also get the full javascript rendered content.
         if fetchData:
-            data = self.getUrlData(response.url)
-            r.add_value("html", data["html"])
-            r.add_value("text", data["text"])
-            r.add_value("cookies", data["cookies"])
-            r.add_value("har", data["har"])
+            # render via splash or playwright to also get the full javascript rendered content.
+            data = await self.getUrlData(response.url)
+            if "html" in data:
+                r.add_value("html", data["html"])
+            if "text" in data:
+                r.add_value("text", data["text"])
+            if "cookies" in data:
+                r.add_value("cookies", data["cookies"])
+            if "har" in data:
+                r.add_value("har", data["har"])
         r.add_value("headers", response.headers)
         r.add_value("url", self.getUri(response))
         return r
