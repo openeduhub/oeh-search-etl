@@ -1,16 +1,25 @@
 from __future__ import annotations
 
+import logging
 from urllib import parse
 
 import scrapy
 from extruct.jsonld import JsonLdExtractor
 
 from converter.constants import Constants
-from converter.items import LomGeneralItemloader, LomBaseItemloader, LomTechnicalItemLoader, \
-    LicenseItemLoader, ResponseItemLoader, LomEducationalItemLoader, ValuespaceItemLoader, \
-    LomLifecycleItemloader
+from converter.items import (
+    LomGeneralItemloader,
+    LomBaseItemloader,
+    LomTechnicalItemLoader,
+    LicenseItemLoader,
+    ResponseItemLoader,
+    LomEducationalItemLoader,
+    ValuespaceItemLoader,
+    LomLifecycleItemloader,
+)
 from converter.spiders.base_classes import LomBase
 from converter.util.sitemap import SitemapEntry, from_xml_response
+from converter.web_tools import WebEngine
 
 jslde = JsonLdExtractor()
 
@@ -21,9 +30,10 @@ class FobizzSpider(scrapy.Spider, LomBase):
     https://plattform.fobizz.com/sitemap
     """
 
-    start_urls = ['https://plattform.fobizz.com/sitemap']
-    name = 'fobizz_spider'
-    version = '0.0.4'  # last update: 2023-08-12
+    start_urls = ["https://plattform.fobizz.com/sitemap"]
+    name = "fobizz_spider"
+    version = "0.0.5"  # last update: 2023-12-06
+    custom_settings = {"WEB_TOOLS": WebEngine.Playwright}
 
     overview_pages_without_a_json_ld = [
         "https://plattform.fobizz.com/unterrichtsmaterialien/faecher/Religion",
@@ -81,7 +91,7 @@ class FobizzSpider(scrapy.Spider, LomBase):
     def getHash(self, response: scrapy.http.Response = None) -> str:
         return response.meta["sitemap_entry"].lastmod + self.version
 
-    def parse(self, response: scrapy.http.XmlResponse, **kwargs):
+    async def parse(self, response: scrapy.http.XmlResponse, **kwargs):
         """
         one url element usually looks like this:
         <url>
@@ -106,15 +116,25 @@ class FobizzSpider(scrapy.Spider, LomBase):
             if self.hasChanged:
                 yield response.follow(item.loc, callback=self.parse_site, cb_kwargs={'sitemap_entry': item})
 
-    def parse_site(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None):
-        # extract the jsonld
-        data = jslde.extract(response.text)[0]
-        response.meta['sitemap_entry'] = sitemap_entry
+    async def parse_site(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None):
+        # extract the JSON-LD
+        json_ld_extract: list[dict] = jslde.extract(response.text)
+        if json_ld_extract and isinstance(json_ld_extract, list):
+            data = json_ld_extract[0]
+        else:
+            logging.warning(f"'jslde' could not parse JSON-LD for item {response.url} . Dropping Item.")
+            return
+
+        response.meta["sitemap_entry"] = sitemap_entry
         base = super().getBase(response=response)
-        base.add_value("response", super().mapResponse(response).load_item())
+        response_itemloader: ResponseItemLoader = await super().mapResponse(response)
+        base.add_value("response", response_itemloader.load_item())
         # we assume that content is imported. Please use replace_value if you import something different
-        base.add_value('thumbnail', data.get("thumbnailUrl", None))
-        base.add_value('lastModified', data.get("dateModified", None))
+        thumbnail_url: str | None = data.get("thumbnailUrl", None)
+        if thumbnail_url and isinstance(thumbnail_url, str):
+            # do not fill the 'thumbnail'-field with None -> this would cause unnecessary Splash/Playwright requests
+            base.add_value("thumbnail", thumbnail_url)
+        base.add_value("lastModified", data.get("dateModified", None))
         for publisher in data.get("publisher", []):
             # TODO add type, e.g. organization
             base.add_value("publisher", publisher.get("name"))
