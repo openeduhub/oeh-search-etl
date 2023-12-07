@@ -22,7 +22,7 @@ services:
     image: ghcr.io/browserless/chrome
     restart: always
     environment:
-      - CONNECTION_TIMEOUT=60000
+      - TIMEOUT=120000
     ports:
       - "127.0.0.1:3000:3000"
     networks:
