@@ -373,7 +373,9 @@ class ProcessThumbnailPipeline(BasicPipeline):
         # checking if the (optional) attribute WEB_TOOLS exists:
         web_tools = settings_crawler.get("WEB_TOOLS", default=WebEngine.Splash)
         _splash_success: bool | None = None  # control flag flips to False if Splash can't handle a URL
-        # if screenshot_bytes is provided (the crawler has already a binary representation of the image
+        _thumbnail_url_success: bool | None = None  # flips to False if there was an error during thumbnail download
+
+        # if screenshot_bytes is provided (the crawler has already a binary representation of the image,
         # the pipeline will convert/scale the given image
         if "screenshot_bytes" in item:
             # in case we are already using playwright in a spider, we can skip one additional HTTP Request by
@@ -392,9 +394,9 @@ class ProcessThumbnailPipeline(BasicPipeline):
             log.debug(f"Loading thumbnail from {url} took {time_end - time_start}.")
             if response.status != 200:
                 log.debug(f"Thumbnail-Pipeline received unexpected response (status: {response.status}) from {url}")
-                # ToDo: Error-handling necessary
-                pass
-            log.debug(f"Thumbnail-URL-Cache after trying to query {url}: {self.download_thumbnail_url.cache_info()}")
+                _thumbnail_url_success = False
+                # flipping the thumbnail flag to False triggers a website screenshot by Playwright (fallback)
+            log.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
             # nothing was given, we try to screenshot the page either via Splash or Playwright
         elif (
                 "location" in item["lom"]["technical"]
@@ -435,13 +437,17 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 else:
                     log.debug(f"SPLASH returned HTTP Status {splash_response.status} for {target_url} ")
 
-            if (_splash_success and _splash_success is False and env.get("PLAYWRIGHT_WS_ENDPOINT")
-                    or env.get("PLAYWRIGHT_WS_ENDPOINT") and web_tools == WebEngine.Playwright):
-                # if the attribute "WEB_TOOLS" doesn't exist as an attribute within a specific spider,
-                # it will default back to "splash"
+            playwright_websocket_endpoint: str | None = env.get("PLAYWRIGHT_WS_ENDPOINT")
+            if (not bool(_splash_success) and playwright_websocket_endpoint
+                    or not bool(_thumbnail_url_success) and playwright_websocket_endpoint
+                    or playwright_websocket_endpoint and web_tools == WebEngine.Playwright):
+                # we're using Playwright to take a website screenshot if:
+                # - the spider explicitly defined Playwright in its 'custom_settings'-dict
+                # - or: Splash failed to render a website (= fallback)
+                # - or: the thumbnail URL could not be downloaded (= fallback)
 
                 # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
-                # but don't use playwright within the spider itself (e.g. serlo_spider)
+                # but don't use playwright within the spider itself
                 target_url: str = item["lom"]["technical"]["location"][0]
                 playwright_dict = await WebTools.getUrlData(url=target_url,
                                                             engine=WebEngine.Playwright)
