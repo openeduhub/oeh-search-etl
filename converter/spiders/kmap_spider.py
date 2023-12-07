@@ -7,7 +7,7 @@ from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
+    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
 from converter.spiders.base_classes import LomBase
 from converter.util.sitemap import from_xml_response
 from converter.web_tools import WebEngine, WebTools
@@ -130,7 +130,8 @@ class KMapSpider(CrawlSpider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value("permissions", permissions.load_item())
 
-        base.add_value('response', super().mapResponse(response).load_item())
+        response_itemloader: ResponseItemLoader = await super().mapResponse(response)
+        base.add_value('response', response_itemloader.load_item())
         # KMap doesn't deliver fulltext to neither splash nor playwright, the fulltext object will be showing up as
         #   'text': 'JavaScript wird benötigt!\n\n',
         # in the final "scrapy.Item". As long as KMap doesn't change the way it's delivering its JavaScript content,

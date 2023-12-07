@@ -39,8 +39,8 @@ class LrmiBase(LomBase, JSONBase):
                 return html.unescape(value)
         return None
 
-    def parse(self, response):
-        return LomBase.parse(self, response)
+    async def parse(self, response):
+        return await LomBase.parse(self, response)
 
     def getId(self, response):
         return self.getLRMI("identifier", "url", "name", response=response)

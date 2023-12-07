@@ -107,7 +107,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
                 parsed_urls.add(url)
         self.topic_urls_parsed.update(parsed_urls)
 
-    def parse(self, response: scrapy.http.Response, **kwargs):
+    async def parse(self, response: scrapy.http.Response, **kwargs):
         """
         Parses an individual topic url for metadata and yields a BaseItem.
 
@@ -211,7 +211,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         if "/hintergrund/" in current_url:
             # vs.add_value('learningResourceType', 'Text')    # ToDo
             vs.add_value('new_lrt', ['b98c0c8c-5696-4537-82fa-dded7236081e', '7381f17f-50a6-4ce1-b3a0-9d85a482eec0'])
-            # "Artikel und Einzelpublikation" , "Unterrichtsplanung"
+            # "Artikel und Einzelpublikation", "Unterrichtsplanung"
         if "/medien/dateien/" in current_url:
             # topics categorized as "Arbeitsmaterial" offer customizable worksheets to teachers, most of the time
             # consisting of both an "Unterrichtsvorschlag" and a worksheet
@@ -222,13 +222,13 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
             # each video is served together with one or several "Unterrichtsvorschlag"-documents
             # vs.add_value('learningResourceType', 'video')   # ToDo
             vs.add_value('new_lrt', ['7a6e9608-2554-4981-95dc-47ab9ba924de', '7381f17f-50a6-4ce1-b3a0-9d85a482eec0'])
-            # "Video (Material)" ,"Unterrichtsplanung"
+            # "Video (Material)", "Unterrichtsplanung"
         if "/medien/bilder/" in current_url:
             # topics categorized as "Bilderserie" hold several images in a gallery (with individual licenses),
             # they also come with one or several "Unterrichtsvorschlag"-documents that are linked to further below
             # vs.add_value('learningResourceType', 'image')   # ToDo
             vs.add_value('new_lrt', ["a6d1ac52-c557-4151-bc6f-0d99b0b96fb9", "7381f17f-50a6-4ce1-b3a0-9d85a482eec0"])
-            # "Bild (Material)" , "Unterrichtsplanung"
+            # "Bild (Material)", "Unterrichtsplanung"
         # ToDo: once new_lrt goes live:
         #  - remove the old learningResourceType with the next crawler update
         vs.add_value('price', 'no')
@@ -307,7 +307,7 @@ class UmweltImUnterrichtSpider(CrawlSpider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value('permissions', permissions.load_item())
 
-        response_loader = super().mapResponse(response)
+        response_loader = await super().mapResponse(response)
         base.add_value('response', response_loader.load_item())
 
         yield base.load_item()

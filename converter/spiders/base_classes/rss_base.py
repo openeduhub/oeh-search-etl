@@ -24,11 +24,11 @@ class RSSBase(CrawlSpider, LomBase):
         self.response = response
         return self.startHandler(response)
 
-    def startHandler(self, response):
+    async def startHandler(self, response):
         for item in response.xpath("//rss/channel/item"):
             responseCopy = response.replace(url=item.xpath("link//text()").get())
             responseCopy.meta["item"] = item
-            yield LomBase.parse(self, responseCopy)
+            yield await LomBase.parse(self, responseCopy)
 
     def getId(self, response):
         return response.meta["item"].xpath("link//text()").get()
@@ -36,8 +36,8 @@ class RSSBase(CrawlSpider, LomBase):
     def getHash(self, response):
         return self.version + str(response.meta["item"].xpath("pubDate//text()").get())
 
-    def mapResponse(self, response):
-        r = LomBase.mapResponse(self, response)
+    async def mapResponse(self, response):
+        r = await LomBase.mapResponse(self, response)
         return r
 
     def getBase(self, response):
