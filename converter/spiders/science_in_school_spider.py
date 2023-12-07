@@ -109,7 +109,7 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
                 date_published = datetime.datetime.now()
         return date_published
 
-    def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
+    async def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
         """
         Crawls an individual article and extracts metadata. Afterward creates a BaseItem by filling up metadata-fields
         by calling .load_item() on the respective ItemLoaders.
@@ -385,7 +385,7 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value("permissions", permissions.load_item())
 
-        response_loader = super().mapResponse(response)
+        response_loader = await super().mapResponse(response)
         base.add_value("response", response_loader.load_item())
 
         yield base.load_item()

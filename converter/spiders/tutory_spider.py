@@ -8,7 +8,7 @@ from scrapy.selector import Selector
 from scrapy.spiders import CrawlSpider
 
 from .base_classes import LomBase, JSONBase
-from ..items import LomBaseItemloader, BaseItemLoader
+from ..items import LomBaseItemloader, BaseItemLoader, ResponseItemLoader
 from ..web_tools import WebEngine, WebTools
 
 
@@ -116,7 +116,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                 drop_item_flag = True
             return drop_item_flag
 
-    def parse(self, response, **kwargs):
+    async def parse(self, response, **kwargs):
         try:
             item_dict_from_api: dict = kwargs["item_dict"]
             response.meta["item"] = item_dict_from_api
@@ -125,7 +125,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
 
         drop_item_flag: bool = self.check_if_item_should_be_dropped(response)
         if drop_item_flag is True:
-            return None
+            return
         # if we need more metadata from the DOM, this could be a suitable place to move up the call to Playwright
         base_loader: BaseItemLoader = self.getBase(response)
         lom_loader: LomBaseItemloader = self.getLOM(response)
@@ -136,7 +136,8 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
         base_loader.add_value("valuespaces", self.getValuespaces(response).load_item())
         base_loader.add_value("license", self.getLicense(response).load_item())
         base_loader.add_value("permissions", self.getPermissions(response).load_item())
-        base_loader.add_value("response", self.mapResponse(response, fetchData=False).load_item())
+        response_itemloader: ResponseItemLoader = await self.mapResponse(response, fetchData=False)
+        base_loader.add_value("response", response_itemloader.load_item())
         yield base_loader.load_item()
 
     def getBase(self, response=None):

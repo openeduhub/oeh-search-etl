@@ -52,9 +52,9 @@ class GeoGebraSpider(CrawlSpider, LomBase, JSONBase):
             )
             i += 1
 
-    def parseEntry(self, response):
+    async def parseEntry(self, response):
         if self.get("language", response=response) == "de":
-            return LomBase.parse(self, response)
+            return await LomBase.parse(self, response)
         logging.info(
             "Skpping entry with language " + self.get("language", response=response)
         )

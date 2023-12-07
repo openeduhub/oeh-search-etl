@@ -7,7 +7,7 @@ from scrapy import Selector
 
 from converter.constants import Constants
 from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, LomLifecycleItemloader, \
-    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
+    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
 from converter.spiders.base_classes import LomBase
 from converter.web_tools import WebTools, WebEngine
 
@@ -175,7 +175,7 @@ class ZumMatheAppsSpider(scrapy.Spider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value('permissions', permissions.load_item())
 
-        # TODO: fix super().mapResponse
-        base.add_value('response', super().mapResponse(response).load_item())
+        response_itemloader: ResponseItemLoader = await super().mapResponse(response)
+        base.add_value('response', response_itemloader.load_item())
 
         yield base.load_item()

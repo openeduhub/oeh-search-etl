@@ -85,14 +85,14 @@ class EduSharingBase(Spider, LomBase):
     def start_requests(self):
         yield self.search()
 
-    def parse(self, response):
+    async def parse(self, response):
         data = json.loads(response.text)
         if len(data["nodes"]) > 0:
             for item in data["nodes"]:
                 copyResponse = response.replace(url=item["content"]["url"])
                 copyResponse.meta["item"] = item
                 if self.hasChanged(copyResponse):
-                    yield LomBase.parse(self, copyResponse)
+                    yield await LomBase.parse(self, copyResponse)
             yield self.search(data["pagination"]["from"] + data["pagination"]["count"])
 
     def getBase(self, response):
@@ -137,8 +137,8 @@ class EduSharingBase(Spider, LomBase):
         return base
 
     # fulltext is handled in base, response is not necessary
-    def mapResponse(self, response, fetchData=True):
-        return LomBase.mapResponse(self, response, False)
+    async def mapResponse(self, response, fetchData=True):
+        return await LomBase.mapResponse(self, response, False)
 
     def getId(self, response=None) -> str:
         return response.meta["item"]["ref"]["id"]

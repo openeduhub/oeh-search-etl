@@ -7,7 +7,7 @@ import w3lib.html
 from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
     LomLifecycleItemloader, LomEducationalItemLoader, LomClassificationItemLoader, ValuespaceItemLoader, \
-    LicenseItemLoader
+    LicenseItemLoader, ResponseItemLoader
 from converter.spiders.base_classes import LomBase
 
 
@@ -56,7 +56,7 @@ class EdulabsSpider(scrapy.Spider, LomBase):
     def getHash(self, response=None) -> str:
         pass
 
-    def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
+    async def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
         """
 
         Scrapy Contracts:
@@ -133,7 +133,7 @@ class EdulabsSpider(scrapy.Spider, LomBase):
             json_ld: str = response.xpath('//script[@type="application/ld+json"]/text()').get()
             json_ld: dict = json.loads(json_ld)
 
-        type_str: str = response.xpath('//head/meta[@property="og:type"]/@content').get()
+        # og_type: str = response.xpath('//head/meta[@property="og:type"]/@content').get()
         date_published: str = response.xpath('//head/meta[@property="article:published_time"]/@content').get()
 
         language: str = response.xpath('//head/meta[@property="og:locale"]/@content').get()
@@ -257,7 +257,7 @@ class EdulabsSpider(scrapy.Spider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value('permissions', permissions.load_item())
 
-        response_loader = super().mapResponse(response)
+        response_loader: ResponseItemLoader = await super().mapResponse(response)
         base.add_value('response', response_loader.load_item())
 
         yield base.load_item()

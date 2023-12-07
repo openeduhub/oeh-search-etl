@@ -50,8 +50,8 @@ class LearningAppsSpider(scrapy.Spider, LomBase):
         offset += len(response.xpath('//results/app'))
         yield self.startRequest(response.meta['cat'], response.meta['subcat'], offset)
 
-    def parse(self, response):
-        return LomBase.parse(self, response)
+    async def parse(self, response):
+        return await LomBase.parse(self, response)
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)

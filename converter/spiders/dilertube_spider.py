@@ -5,10 +5,9 @@ import scrapy
 import w3lib.html
 from scrapy.spiders import CrawlSpider
 
-from converter.constants import Constants
 from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
     LomLifecycleItemloader, LomEducationalItemLoader, LomClassificationItemLoader, ValuespaceItemLoader, \
-    LicenseItemLoader
+    LicenseItemLoader, ResponseItemLoader
 from converter.spiders.base_classes import LomBase
 from converter.util.sitemap import from_xml_response
 
@@ -126,7 +125,7 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
     def getHash(self, response=None) -> str:
         pass
 
-    def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
+    async def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
         """
         Gathers metadata from a video-url, nests the metadata within a BaseItemLoader and yields a complete BaseItem by
         calling the .load_item()-method.
@@ -330,7 +329,7 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value('permissions', permissions.load_item())
 
-        response_loader = super().mapResponse(response)
+        response_loader: ResponseItemLoader = await super().mapResponse(response)
         base.add_value('response', response_loader.load_item())
 
         yield base.load_item()
