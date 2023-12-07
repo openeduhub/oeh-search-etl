@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import json
 import logging
@@ -39,7 +38,6 @@ class SerloSpider(scrapy.Spider, LomBase):
     }
     GRAPHQL_MODIFIED_AFTER_PARAMETER: str = ""
     GRAPHQL_INSTANCE_PARAMETER: str = ""
-    sem = asyncio.Semaphore(value=10)  # used to control the amount of concurrent requests in "parse"-method
 
     graphql_items = list()
     # Mapping from EducationalAudienceRole (LRMI) to IntendedEndUserRole(LOM), see:
@@ -330,8 +328,7 @@ class SerloSpider(scrapy.Spider, LomBase):
         json_ld = response.xpath('//*[@type="application/ld+json"]/text()').get()
         json_ld = json.loads(json_ld)
 
-        async with self.sem:
-            playwright_dict = await WebTools.getUrlData(response.url, WebEngine.Playwright)
+        playwright_dict = await WebTools.getUrlData(response.url, WebEngine.Playwright)
         html_body = playwright_dict.get("html")
         screenshot_bytes = playwright_dict.get("screenshot_bytes")
         html_text = playwright_dict.get("text")
