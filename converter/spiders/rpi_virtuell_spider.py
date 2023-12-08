@@ -10,6 +10,7 @@ from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnica
     LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader, \
     BaseItemLoader, LomAgeRangeItemLoader
 from converter.spiders.base_classes import LomBase
+from converter.web_tools import WebEngine
 
 
 class RpiVirtuellSpider(CrawlSpider, LomBase):
@@ -21,11 +22,15 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
     friendlyName = "rpi-virtuell"
     start_urls = ['https://material.rpi-virtuell.de/wp-json/mymaterial/v1/material/']
 
-    version = "0.0.7"
+    version = "0.0.8"  # last update: 2023-12-08
 
     custom_settings = {
         'ROBOTSTXT_OBEY': False,
-        # 'AUTOTHROTTLE_ENABLED': False,
+        'AUTOTHROTTLE_ENABLED': True,
+        'AUTOTHROTTLE_DEBUG': True,
+        'AUTOTHROTTLE_TARGET_CONCURRENCY': 12,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 6,
+        'WEB_TOOLS': WebEngine.Playwright,
         # 'DUPEFILTER_DEBUG': True
     }
     wp_json_pagination_parameters = {
