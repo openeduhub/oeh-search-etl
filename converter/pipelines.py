@@ -444,7 +444,8 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 request_splash = scrapy.FormRequest(
                     url=_splash_url,
                     formdata=_splash_dict,
-                    callback=NO_CALLBACK
+                    callback=NO_CALLBACK,
+                    priority=1
                 )
                 splash_response: scrapy.http.Response = await maybe_deferred_to_future(
                     spider.crawler.engine.download(request_splash)
@@ -550,7 +551,9 @@ class ProcessThumbnailPipeline(BasicPipeline):
         :return: Response or None
         """
         try:
-            request = scrapy.Request(url=url, callback=NO_CALLBACK)
+            request = scrapy.Request(url=url, callback=NO_CALLBACK, priority=1)
+            # Thumbnail downloads will be executed with a slightly higher priority (default: 0), so there's less delay
+            # between metadata processing and thumbnail retrieval steps in the pipelines
             response: Deferred | Future = await maybe_deferred_to_future(
                 spider.crawler.engine.download(request)
             )
