@@ -293,7 +293,7 @@ class ConvertTimePipeline(BasicPipeline):
                             duration = int(duration)
                         except:
                             duration = None
-                            logging.warning("duration {} could not be normalized to seconds".format(raw_duration))
+                            log.warning("duration {} could not be normalized to seconds".format(raw_duration))
                     item["lom"]["technical"]["duration"] = duration
         return raw_item
 
@@ -389,13 +389,38 @@ class ProcessThumbnailPipeline(BasicPipeline):
             # a thumbnail (url) is given - we will try to fetch it from the url
             url: str = item["thumbnail"]
             time_start = datetime.datetime.now()
-            response: scrapy.http.Response = await self.download_thumbnail_url(url, spider)
+            thumbnail_response: scrapy.http.Response = await self.download_thumbnail_url(url, spider)
             time_end = datetime.datetime.now()
             log.debug(f"Loading thumbnail from {url} took {time_end - time_start}.")
-            if response.status != 200:
-                log.debug(f"Thumbnail-Pipeline received unexpected response (status: {response.status}) from {url}")
+
+            if thumbnail_response.status != 200:
+                log.debug(f"Thumbnail-Pipeline received a unexpected response (status: {thumbnail_response.status}) "
+                          f"from {url} (-> resolved URL: {thumbnail_response.url}")
                 _thumbnail_url_success = False
                 # flipping the thumbnail flag to False triggers a website screenshot by Playwright (fallback)
+            else:
+                # Some web-servers 'lie' in regard to their HTTP status, e.g., they forward to a 404 HTML page and still
+                # respond with a '200' code.
+                try:
+                    # We need to do additional checks before accepting the response object as a valid candidate for the
+                    # image transformation
+                    _mimetype: bytes = thumbnail_response.headers["Content-Type"]
+                    _mimetype: str = _mimetype.decode()
+                    if _mimetype.startswith("image/"):
+                        # we expect thumbnail URLs to be of MIME-Type 'image/...'
+                        # see: https://www.iana.org/assignments/media-types/media-types.xhtml#image
+                        response = thumbnail_response
+                        _thumbnail_url_success = True
+                    else:
+                        log.warning(f"Thumbnail URL {url} does not seem to be an image! "
+                                    f"Header contained Content-Type '{_mimetype}' instead.")
+                        _thumbnail_url_success = False
+                except KeyError:
+                    log.warning(f"Thumbnail URL response did not contain a Content-Type / MIME-Type! "
+                                f"Thumbnail URL queried: {url} "
+                                f"-> resolved URL: {thumbnail_response.url} "
+                                f"(HTTP Status: {thumbnail_response.status}")
+                    _thumbnail_url_success = False
             log.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
             # nothing was given, we try to screenshot the page either via Splash or Playwright
         elif (
@@ -695,7 +720,7 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
             title = str(item["lom"]["general"]["title"])
         entryUUID = EduSharing.build_uuid(item["response"]["url"] if "url" in item["response"] else item["hash"])
         await self.insert_item(spider, entryUUID, item)
-        logging.info("item " + entryUUID + " inserted/updated")
+        log.info("item " + entryUUID + " inserted/updated")
 
         # @TODO: We may need to handle Collections
         # if 'collection' in item:
@@ -910,7 +935,7 @@ class LisumPipeline(BasicPipeline):
                             case _:
                                 # due to having the 'custom'-field as a (raw) list of all eafCodes, this mainly serves
                                 # the purpose of reminding us if a 'discipline'-value couldn't be mapped to Lisum
-                                logging.debug(f"LisumPipeline failed to map from eafCode {discipline_eaf_code} "
+                                log.debug(f"LisumPipeline failed to map from eafCode {discipline_eaf_code} "
                                               f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback...")
                         match discipline_eaf_code:
                             # catching edge-cases where OEH 'discipline'-vocab-keys don't line up with eafsys.txt values
@@ -924,24 +949,24 @@ class LisumPipeline(BasicPipeline):
                                 discipline_eafcodes.add("2600103")  # Körperpflege
                         if eaf_code_digits_only_regex.search(discipline_eaf_code):
                             # each numerical eafCode must have a length of (minimum) 3 digits to be considered valid
-                            logging.debug(f"LisumPipeline: Writing eafCode {discipline_eaf_code} to buffer. (Wil be "
+                            log.debug(f"LisumPipeline: Writing eafCode {discipline_eaf_code} to buffer. (Wil be "
                                           f"used later for 'ccm:taxonentry').")
                             if discipline_eaf_code not in self.EAFCODE_EXCLUSIONS:
                                 # making sure to only save eafCodes that are part of the standard eafsys.txt
                                 discipline_eafcodes.add(discipline_eaf_code)
                             else:
-                                logging.debug(f"LisumPipeline: eafCode {discipline_eaf_code} is not part of 'EAF "
+                                log.debug(f"LisumPipeline: eafCode {discipline_eaf_code} is not part of 'EAF "
                                               f"Sachgebietssystematik' (see: eafsys.txt), therefore skipping this "
                                               f"value.")
                         else:
                             # our 'discipline.ttl'-vocab holds custom keys (e.g. 'niederdeutsch', 'oeh04010') which
                             # shouldn't be saved into 'ccm:taxonentry' (since they are not part of the regular
                             # "EAF Sachgebietssystematik"
-                            logging.debug(f"LisumPipeline eafCode fallback for {discipline_eaf_code} to "
+                            log.debug(f"LisumPipeline eafCode fallback for {discipline_eaf_code} to "
                                           f"'ccm:taxonentry' was not possible. Only eafCodes with a minimum length "
                                           f"of 3+ digits are valid. (Please confirm if the provided value is part of "
                                           f"the 'EAF Sachgebietssystematik' (see: eafsys.txt))")
-                logging.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
+                log.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
                               f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
                 valuespaces["discipline"] = list()  # clearing 'discipline'-field, so we don't accidentally write the
                 # remaining OEH w3id-URLs to Lisum's 'ccm:taxonid'-field
@@ -962,7 +987,7 @@ class LisumPipeline(BasicPipeline):
                                     educational_context_w3id_key)
                                 educational_context_lisum_keys.add(educational_context_w3id_key)
                             case _:
-                                logging.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key} "
+                                log.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key} "
                                               f"not found in mapping table.")
                 educational_context_list = list(educational_context_lisum_keys)
                 educational_context_list.sort()
@@ -1049,14 +1074,14 @@ class LisumPipeline(BasicPipeline):
                             taxon_set = set(taxon_entries)
                             taxon_set.update(discipline_eafcodes)
                             taxon_entries = list(taxon_set)
-                            logging.debug(f"LisumPipeline: Saving eafCodes {taxon_entries} to 'ccm:taxonentry'.")
+                            log.debug(f"LisumPipeline: Saving eafCodes {taxon_entries} to 'ccm:taxonentry'.")
                             base_item_adapter["custom"]["ccm:taxonentry"] = taxon_entries
                 else:
                     # oeh_spider typically won't have neither the 'custom'-field nor the 'ccm:taxonentry'-field
                     # Therefore we have to create and fill it with the eafCodes that we gathered from our
                     # 'discipline'-vocabulary-keys.
                     discipline_eafcodes_list = list(discipline_eafcodes)
-                    logging.debug(f"LisumPipeline: Saving eafCodes {discipline_eafcodes_list} to 'ccm:taxonentry'.")
+                    log.debug(f"LisumPipeline: Saving eafCodes {discipline_eafcodes_list} to 'ccm:taxonentry'.")
                     base_item_adapter.update(
                         {'custom': {
                             'ccm:taxonentry': discipline_eafcodes_list}})
