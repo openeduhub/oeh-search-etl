@@ -373,7 +373,6 @@ class ProcessThumbnailPipeline(BasicPipeline):
         # checking if the (optional) attribute WEB_TOOLS exists:
         web_tools = settings_crawler.get("WEB_TOOLS", default=WebEngine.Splash)
         _splash_success: bool | None = None  # control flag flips to False if Splash can't handle a URL
-        _thumbnail_url_success: bool | None = None  # flips to False if there was an error during thumbnail download
 
         # if screenshot_bytes is provided (the crawler has already a binary representation of the image,
         # the pipeline will convert/scale the given image
@@ -386,18 +385,19 @@ class ProcessThumbnailPipeline(BasicPipeline):
             # Therefore, we delete it after we're done with processing it
             del item["screenshot_bytes"]
         elif "thumbnail" in item:
-            # a thumbnail (url) is given - we will try to fetch it from the url
+            # a thumbnail (url) was provided within the item -> we will try to fetch it from the url
             url: str = item["thumbnail"]
-            time_start = datetime.datetime.now()
+            time_start: datetime = datetime.datetime.now()
             thumbnail_response: scrapy.http.Response = await self.download_thumbnail_url(url, spider)
-            time_end = datetime.datetime.now()
-            log.debug(f"Loading thumbnail from {url} took {time_end - time_start}.")
-
+            time_end: datetime = datetime.datetime.now()
+            log.debug(f"Loading thumbnail from {url} took {time_end - time_start} (incl. awaiting).")
+            log.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
             if thumbnail_response.status != 200:
                 log.debug(f"Thumbnail-Pipeline received a unexpected response (status: {thumbnail_response.status}) "
                           f"from {url} (-> resolved URL: {thumbnail_response.url}")
-                _thumbnail_url_success = False
-                # flipping the thumbnail flag to False triggers a website screenshot by Playwright (fallback)
+                # fall back to website screenshot
+                del item["thumbnail"]
+                return await self.process_item(raw_item, spider)
             else:
                 # Some web-servers 'lie' in regard to their HTTP status, e.g., they forward to a 404 HTML page and still
                 # respond with a '200' code.
@@ -410,19 +410,20 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         # we expect thumbnail URLs to be of MIME-Type 'image/...'
                         # see: https://www.iana.org/assignments/media-types/media-types.xhtml#image
                         response = thumbnail_response
-                        _thumbnail_url_success = True
+                        # only set the response if thumbnail retrieval was successful!
                     else:
                         log.warning(f"Thumbnail URL {url} does not seem to be an image! "
-                                    f"Header contained Content-Type '{_mimetype}' instead.")
-                        _thumbnail_url_success = False
+                                    f"Header contained Content-Type '{_mimetype}' instead. "
+                                    f"(Falling back to screenshot)")
+                        del item["thumbnail"]
+                        return await self.process_item(raw_item, spider)
                 except KeyError:
                     log.warning(f"Thumbnail URL response did not contain a Content-Type / MIME-Type! "
                                 f"Thumbnail URL queried: {url} "
                                 f"-> resolved URL: {thumbnail_response.url} "
                                 f"(HTTP Status: {thumbnail_response.status}")
-                    _thumbnail_url_success = False
-            log.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
-            # nothing was given, we try to screenshot the page either via Splash or Playwright
+                    del item["thumbnail"]
+                    return await self.process_item(raw_item, spider)
         elif (
                 "location" in item["lom"]["technical"]
                 and len(item["lom"]["technical"]["location"]) > 0
@@ -465,7 +466,6 @@ class ProcessThumbnailPipeline(BasicPipeline):
 
             playwright_websocket_endpoint: str | None = env.get("PLAYWRIGHT_WS_ENDPOINT")
             if (not bool(_splash_success) and playwright_websocket_endpoint
-                    or not bool(_thumbnail_url_success) and playwright_websocket_endpoint
                     or playwright_websocket_endpoint and web_tools == WebEngine.Playwright):
                 # we're using Playwright to take a website screenshot if:
                 # - the spider explicitly defined Playwright in its 'custom_settings'-dict
@@ -483,7 +483,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
             else:
                 if settings_crawler.get("DISABLE_SPLASH") is False:
                     log.warning(
-                        "No thumbnail provided and SPLASH_URL was not configured for screenshots!"
+                        "No thumbnail provided (and .env variable 'SPLASH_URL' was not configured for screenshots!)"
                     )
         if response is None:
             if settings_crawler.get("DISABLE_SPLASH") is False:
@@ -516,13 +516,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
             except Exception as e:
                 if url is not None:
-                    log.warning(
-                        "Could not read thumbnail at "
-                        + url
-                        + ": "
-                        + str(e)
-                        + " (falling back to screenshot)"
-                    )
+                    log.warning(f"Could not read thumbnail at {url}: {str(e)} (falling back to screenshot)")
                 if "thumbnail" in item:
                     del item["thumbnail"]
                     return await self.process_item(raw_item, spider)
