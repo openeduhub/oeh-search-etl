@@ -44,8 +44,8 @@ class OersiSpider(scrapy.Spider, LomBase):
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 20,
-        "CONCURRENT_REQUESTS_PER_DOMAIN": 4,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 60,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 6,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
