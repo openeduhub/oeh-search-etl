@@ -1,4 +1,5 @@
 import json
+import logging
 from asyncio import Semaphore
 from enum import Enum
 
@@ -9,6 +10,9 @@ from playwright.async_api import async_playwright
 from scrapy.utils.project import get_project_settings
 
 from converter import env
+
+log = logging.getLogger(__name__)
+logging.getLogger('trafilatura').setLevel(logging.INFO)  # trafilatura is quite spammy
 
 
 class WebEngine(Enum):
