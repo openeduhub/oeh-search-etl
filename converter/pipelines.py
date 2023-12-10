@@ -22,6 +22,7 @@ import dateutil.parser
 import isodate
 import scrapy
 import scrapy.crawler
+import twisted.internet.error
 from PIL import Image
 from async_lru import alru_cache
 from itemadapter import ItemAdapter
@@ -388,7 +389,21 @@ class ProcessThumbnailPipeline(BasicPipeline):
             # a thumbnail (url) was provided within the item -> we will try to fetch it from the url
             url: str = item["thumbnail"]
             time_start: datetime = datetime.datetime.now()
-            thumbnail_response: scrapy.http.Response = await self.download_thumbnail_url(url, spider)
+            try:
+                thumbnail_response: scrapy.http.Response = await self.download_thumbnail_url(url, spider)
+                # we expect that some thumbnail URLs will be wrong, outdated or already offline, which is why we catch
+                # the most common Exceptions while trying to dwonload the image.
+            except twisted.internet.error.TCPTimedOutError:
+                log.warning(f"Thumbnail download of URL {url} failed due to TCPTimedOutError. "
+                            f"(You might see this error if the image is unavailable under that specific URL.) "
+                            f"Falling back to website screenshot.")
+                del item["thumbnail"]
+                return await self.process_item(raw_item, spider)
+            except twisted.internet.error.DNSLookupError:
+                log.warning(f"Thumbnail download of URL {url} failed due to DNSLookupError. "
+                            f"(The webserver might be offline.) Falling back to website screenshot.")
+                del item["thumbnail"]
+                return await self.process_item(raw_item, spider)
             time_end: datetime = datetime.datetime.now()
             log.debug(f"Loading thumbnail from {url} took {time_end - time_start} (incl. awaiting).")
             log.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
