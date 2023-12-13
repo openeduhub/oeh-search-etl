@@ -426,6 +426,13 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         # see: https://www.iana.org/assignments/media-types/media-types.xhtml#image
                         response = thumbnail_response
                         # only set the response if thumbnail retrieval was successful!
+                    elif _mimetype == "application/octet-stream":
+                        # ToDo: special handling for 'application/octet-stream' necessary?
+                        log.debug(f"Thumbnail URL of MIME-Type 'image/...' expected, "
+                                 f"but received '{_mimetype}' instead. "
+                                 f"(If thumbnail conversion throws unexpected errors further down the line, "
+                                 f"the Thumbnail-Pipeline needs to be re-visited! URL: {url} )")
+                        response = thumbnail_response
                     else:
                         log.warning(f"Thumbnail URL {url} does not seem to be an image! "
                                     f"Header contained Content-Type '{_mimetype}' instead. "
