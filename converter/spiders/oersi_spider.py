@@ -39,7 +39,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.5"  # last update: 2023-08-12
+    version = "0.1.6"  # last update: 2023-12-13
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -634,11 +634,12 @@ class OersiSpider(scrapy.Spider, LomBase):
                 lifecycle_metadata_provider.add_value("url", metadata_provider_url)
             lom_base_item_loader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
 
-    def get_lifecycle_publisher(
-        self, lom_base_item_loader: LomBaseItemloader, elastic_item_source: dict, date_published: Optional[str] = None
-    ):
+    def get_lifecycle_publisher(self, lom_base_item_loader: LomBaseItemloader, elastic_item_source: dict,
+                                organizations_from_publisher_fields: set[str], date_published: Optional[str] = None):
         """
-        Collects metadata from OERSI's "publisher"-field and stores it within a LomLifecycleItemLoader.
+        Collects metadata from OERSI's "publisher"-field and stores it within a LomLifecycleItemLoader. Successfully
+        collected 'publisher.name'-strings are added to an organizations set for duplicate detection in the
+        'sourceOrganization' field.
         """
         if "publisher" in elastic_item_source:
             # see: https://dini-ag-kim.github.io/amb/draft/#publisher
@@ -651,6 +652,10 @@ class OersiSpider(scrapy.Spider, LomBase):
                     publisher_name: str = publisher_item.get("name")
                     if publisher_type == "Organization":
                         lifecycle_publisher.add_value("organization", publisher_name)
+                        # to avoid duplicate entries in 'publisher'-lifecycle items, we need to keep a set of previously
+                        # collected publisher names to compare them later in the 'sourceOrganization'-method for the
+                        # WLO-BIRD-Connector v2
+                        organizations_from_publisher_fields.add(publisher_name)
                     elif publisher_type == "Person":
                         self.split_names_if_possible_and_add_to_lifecycle(
                             name_string=publisher_name,
@@ -704,6 +709,26 @@ class OersiSpider(scrapy.Spider, LomBase):
                 if "url" in source_org_item:
                     org_url: str = source_org_item.get("url")
                     lifecycle_org.add_value("url", org_url)
+                lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
+
+    def get_lifecycle_publisher_from_source_organization(
+        self, lom_item_loader: LomBaseItemloader, elastic_item_source: dict, previously_collected_publishers: set[str]
+    ):
+        source_organizations: list[dict] = elastic_item_source.get("sourceOrganization")
+        for so in source_organizations:
+            if "name" in so and "name" not in previously_collected_publishers:
+                source_org_name: str = so.get("name")
+                lifecycle_org = LomLifecycleItemloader()
+                lifecycle_org.add_value("role", "publisher")
+                lifecycle_org.add_value("organization", source_org_name)
+                if "id" in so:
+                    self.lifecycle_determine_type_of_identifier_and_save_uri(
+                        item_dictionary=so, lifecycle_item_loader=lifecycle_org
+                    )
+                if "url" in so:
+                    org_url: str = so.get("url")
+                    if org_url:
+                        lifecycle_org.add_value("url", org_url)
                 lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
     @staticmethod
@@ -875,15 +900,24 @@ class OersiSpider(scrapy.Spider, LomBase):
             author_list=authors,
         )
 
-        self.get_lifecycle_publisher(
-            lom_base_item_loader=lom, elastic_item_source=elastic_item_source, date_published=date_published
-        )
+        organizations_from_publisher_fields: set[str] = set()
+        self.get_lifecycle_publisher(lom_base_item_loader=lom, elastic_item_source=elastic_item_source,
+                                     organizations_from_publisher_fields=organizations_from_publisher_fields,
+                                     date_published=date_published)
 
         if "sourceOrganization" in elastic_item_source:
+            # ToDo: this fallback might no longer be necessary:
             self.get_lifecycle_organization_from_source_organization_fallback(
                 elastic_item_source=elastic_item_source,
                 lom_item_loader=lom,
                 organization_fallback=organizations_from_affiliation_fields,
+            )
+            # ToDo: WLO-BIRD-Connector v2 REQUIREMENT:
+            # 'sourceOrganization' -> 'ccm:lifecyclecontributer_publisher'
+            self.get_lifecycle_publisher_from_source_organization(
+                lom_item_loader=lom,
+                elastic_item_source=elastic_item_source,
+                previously_collected_publishers=organizations_from_publisher_fields,
             )
 
         educational = LomEducationalItemLoader()
