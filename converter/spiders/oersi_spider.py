@@ -39,13 +39,14 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.6"  # last update: 2023-12-13
+    version = "0.1.7"  # last update: 2023-12-14
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "AUTOTHROTTLE_TARGET_CONCURRENCY": 60,
         "CONCURRENT_REQUESTS_PER_DOMAIN": 6,
+        "DUPEFILTER_DEBUG": True,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
@@ -60,6 +61,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     # ToDo: regularly check if new providers need to be added to the list below (and insert/sort them alphabetically!)
     ELASTIC_PROVIDERS_TO_CRAWL: list = [
         # "BC Campus",  # ToDo: BC Campus website cannot be crawled at the moment, needs further investigation
+        # "ComeIn",  # should not be crawled, datasets were exported to OERSI from WLO
         "detmoldMusicTools",
         "digiLL",
         "DuEPublico",
@@ -75,11 +77,12 @@ class OersiSpider(scrapy.Spider, LomBase):
         "HOOU",
         "iMoox",
         "KI Campus",
-        # "langSci Press",  # new provider as of 2023-04-27 - disappeared on 2023-05-04
+        "langSci Press",  # new provider as of 2023-04-27
+        "lecture2go (Hamburg)",  # new provider as of 2023-12-14
         "MIT OpenCourseWare",
         "OEPMS",  # new provider as of 2023-04-27
         "OER Portal Uni Graz",
-        "oncampus",
+        "oncampus",  # (temporarily) not available? (2023-12-14)
         "Open Music Academy",
         "Open Textbook Library",
         "Opencast Universität Osnabrück",
@@ -88,6 +91,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         "OpenRub",
         "ORCA.nrw",
         "Phaidra Uni Wien",
+        "Pressbooks Directory",  # new provider as of 2023-12-14
         "RWTH Aachen GitLab",
         "TIB AV-Portal",
         "TU Delft OpenCourseWare",
@@ -177,7 +181,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                 if not self.hasChanged(None, elastic_item=elastic_item):
                     return None
             # by omitting the callback parameter, individual requests are yielded to the parse-method
-            yield scrapy.Request(url=item_url, cb_kwargs={"elastic_item": elastic_item})
+            yield scrapy.Request(url=item_url, cb_kwargs={"elastic_item": elastic_item}, dont_filter=True)
 
     def elastic_pit_create(self) -> dict:
         """
@@ -347,24 +351,17 @@ class OersiSpider(scrapy.Spider, LomBase):
         return EduSharing.build_uuid(item_url)
 
     @staticmethod
-    def get_item_url(elastic_item) -> str:
+    def get_item_url(elastic_item: dict) -> str | None:
         """
-        Tries to gather the to-be-parsed URL from OERSI's 'MainEntityOfPage'-field and if that field is not available,
-        falls back to the '_source.id'-field. Returns an URL-string.
+        Retrieves the to-be-parsed URL from OERSI's '_source.id'-field.
+        If that (REQUIRED) field was not available, returns None.
         """
-        main_entity_of_page: list[dict] = elastic_item["_source"]["mainEntityOfPage"]
-        if main_entity_of_page:
-            item_url: str = main_entity_of_page[0]["id"]
-            # "id" is a REQUIRED sub-field of MainEntityOfPage and will always contain more stable URLs than
-            # '_source.id'
+        item_url: str = elastic_item["_source"]["id"]
+        if item_url:
             return item_url
         else:
-            item_url: str = elastic_item["_source"]["id"]
-            logging.debug(
-                f"get_uuid fallback activated: The field 'MainEntityOfPage.id' for '{elastic_item['_id']}' was not "
-                f"available. Using fallback value '_source.id': {item_url} instead."
-            )
-            return item_url
+            logging.warning(f"OERSI Item {elastic_item['_id']} did not provide a URL string. Dropping item.")
+            return None
 
     def hasChanged(self, response=None, elastic_item: dict = dict) -> bool:
         elastic_item = elastic_item
@@ -634,8 +631,13 @@ class OersiSpider(scrapy.Spider, LomBase):
                 lifecycle_metadata_provider.add_value("url", metadata_provider_url)
             lom_base_item_loader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
 
-    def get_lifecycle_publisher(self, lom_base_item_loader: LomBaseItemloader, elastic_item_source: dict,
-                                organizations_from_publisher_fields: set[str], date_published: Optional[str] = None):
+    def get_lifecycle_publisher(
+        self,
+        lom_base_item_loader: LomBaseItemloader,
+        elastic_item_source: dict,
+        organizations_from_publisher_fields: set[str],
+        date_published: Optional[str] = None,
+    ):
         """
         Collects metadata from OERSI's "publisher"-field and stores it within a LomLifecycleItemLoader. Successfully
         collected 'publisher.name'-strings are added to an organizations set for duplicate detection in the
@@ -716,20 +718,21 @@ class OersiSpider(scrapy.Spider, LomBase):
     ):
         source_organizations: list[dict] = elastic_item_source.get("sourceOrganization")
         for so in source_organizations:
-            if "name" in so and "name" not in previously_collected_publishers:
+            if "name" in so:
                 source_org_name: str = so.get("name")
-                lifecycle_org = LomLifecycleItemloader()
-                lifecycle_org.add_value("role", "publisher")
-                lifecycle_org.add_value("organization", source_org_name)
-                if "id" in so:
-                    self.lifecycle_determine_type_of_identifier_and_save_uri(
-                        item_dictionary=so, lifecycle_item_loader=lifecycle_org
-                    )
-                if "url" in so:
-                    org_url: str = so.get("url")
-                    if org_url:
-                        lifecycle_org.add_value("url", org_url)
-                lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
+                if source_org_name not in previously_collected_publishers:
+                    lifecycle_org = LomLifecycleItemloader()
+                    lifecycle_org.add_value("role", "publisher")
+                    lifecycle_org.add_value("organization", source_org_name)
+                    if "id" in so:
+                        self.lifecycle_determine_type_of_identifier_and_save_uri(
+                            item_dictionary=so, lifecycle_item_loader=lifecycle_org
+                        )
+                    if "url" in so:
+                        org_url: str = so.get("url")
+                        if org_url:
+                            lifecycle_org.add_value("url", org_url)
+                    lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
     @staticmethod
     def lifecycle_determine_type_of_identifier_and_save_uri(
@@ -901,9 +904,12 @@ class OersiSpider(scrapy.Spider, LomBase):
         )
 
         organizations_from_publisher_fields: set[str] = set()
-        self.get_lifecycle_publisher(lom_base_item_loader=lom, elastic_item_source=elastic_item_source,
-                                     organizations_from_publisher_fields=organizations_from_publisher_fields,
-                                     date_published=date_published)
+        self.get_lifecycle_publisher(
+            lom_base_item_loader=lom,
+            elastic_item_source=elastic_item_source,
+            organizations_from_publisher_fields=organizations_from_publisher_fields,
+            date_published=date_published,
+        )
 
         if "sourceOrganization" in elastic_item_source:
             # ToDo: this fallback might no longer be necessary:
