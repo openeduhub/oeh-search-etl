@@ -48,7 +48,9 @@ class OersiSpider(scrapy.Spider, LomBase):
         "CONCURRENT_REQUESTS_PER_DOMAIN": 6,
         "DUPEFILTER_DEBUG": True,
         "WEB_TOOLS": WebEngine.Playwright,
+        "ROBOTSTXT_OBEY": False,
     }
+    # if robots.txt is obeyed, the thumbnail downloads fail on some metadata-providers (e.g., DuEPublico)
 
     ELASTIC_PARAMETER_KEEP_ALIVE: str = "1m"
     # for reference: https://www.elastic.co/guide/en/elasticsearch/reference/current/api-conventions.html#time-units
