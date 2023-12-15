@@ -80,7 +80,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         "langSci Press",  # new provider as of 2023-04-27
         "lecture2go (Hamburg)",  # new provider as of 2023-12-14
         "MIT OpenCourseWare",
-        "OEPMS",  # new provider as of 2023-04-27
+        # "OEPMS",  # new provider as of 2023-04-27 # ToDo: cannot be crawled
         "OER Portal Uni Graz",
         "oncampus",  # (temporarily) not available? (2023-12-14)
         "Open Music Academy",
@@ -297,7 +297,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                         if "sort" in last_entry:
                             last_sort_result: list = last_entry.get("sort")
                             if last_sort_result:
-                                logging.info(f"The last_sort_result is {last_sort_result}")
                                 has_next_page = True
                                 pagination_parameter = last_sort_result
                             else:
@@ -776,12 +775,15 @@ class OersiSpider(scrapy.Spider, LomBase):
         Afterward saves the split values to their respective 'lifecycle'-fields or saves the string as a whole.
         """
         if " " in name_string:
+            # clean up empty / erroneous whitespace-only strings before trying to split the string
+            name_string = name_string.strip()
+        if " " in name_string:
             name_parts = name_string.split(maxsplit=1)
             first_name = name_parts[0]
             last_name = name_parts[1]
             lifecycle_item_loader.add_value("firstName", first_name)
             lifecycle_item_loader.add_value("lastName", last_name)
-        else:
+        elif name_string:
             lifecycle_item_loader.add_value("firstName", name_string)
 
     async def parse(self, response: scrapy.http.Response, **kwargs):
