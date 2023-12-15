@@ -90,7 +90,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         "Opencast Universität Osnabrück",
         "openHPI",
         "OpenLearnWare",
-        "OpenRub",
+        # "OpenRub",  # all OpenRub URLs are deadlinks (as of 2023-12-15)
         "ORCA.nrw",
         "Phaidra Uni Wien",
         "Pressbooks Directory",  # new provider as of 2023-12-14
