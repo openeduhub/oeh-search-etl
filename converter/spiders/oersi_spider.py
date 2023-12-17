@@ -39,7 +39,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.7"  # last update: 2023-12-14
+    version = "0.1.7"  # last update: 2023-12-17
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -62,7 +62,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     # the provider-filter at https://oersi.org/resources/ shows you which String values can be used as a provider-name
     # ToDo: regularly check if new providers need to be added to the list below (and insert/sort them alphabetically!)
     ELASTIC_PROVIDERS_TO_CRAWL: list = [
-        # "BC Campus",  # ToDo: BC Campus website cannot be crawled at the moment, needs further investigation
+        "BC Campus",  # BC Campus website cannot be crawled at the moment, needs further investigation
         # "ComeIn",  # should not be crawled, datasets were exported to OERSI from WLO
         "detmoldMusicTools",
         "digiLL",
@@ -70,7 +70,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         "eaDNURT",
         "eCampusOntario",
         "eGov-Campus",
-        # "Finnish Library of Open Educational Resources",  # ToDo: URLs of this metadata-provider cannot be resolved
+        "Finnish Library of Open Educational Resources",  # URLs of this metadata-provider cannot be resolved
         "GitHub",
         "GitLab",
         "Helmholtz Codebase",
@@ -306,7 +306,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                 break
                     else:
                         logging.info(
-                            f"reached the end of the ElasticSearch results for '{provider_name}' // "
+                            f"Reached the end of the ElasticSearch results for '{provider_name}' // "
                             f"Total amount of items collected (across all metadata-providers): {len(all_items)}"
                         )
                         break
