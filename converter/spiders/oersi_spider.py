@@ -22,9 +22,8 @@ from converter.items import (
     ResponseItemLoader,
 )
 from converter.spiders.base_classes import LomBase
-from converter.util.edu_sharing_precheck import EduSharingPreCheck
 from converter.util.license_mapper import LicenseMapper
-from converter.web_tools import WebEngine, WebTools
+from converter.web_tools import WebEngine
 
 
 class OersiSpider(scrapy.Spider, LomBase):
@@ -39,7 +38,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.7"  # last update: 2023-12-17
+    version = "0.1.8"  # last update: 2023-12-20
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -90,7 +89,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         "Opencast Universität Osnabrück",
         "openHPI",
         "OpenLearnWare",
-        # "OpenRub",  # all OpenRub URLs are deadlinks (as of 2023-12-15)
+        "OpenRub",
         "ORCA.nrw",
         "Phaidra Uni Wien",
         "Pressbooks Directory",  # new provider as of 2023-12-14
@@ -137,29 +136,15 @@ class OersiSpider(scrapy.Spider, LomBase):
             logging.info(f"ElasticSearch API response (upon PIT delete): {json_response}")
 
     def start_requests(self):
+        # yield dummy request, so that Scrapy's start_item method requirement is satisfied,
+        # then use callback method to crawl all items
+        yield scrapy.Request(url="https://oersi.org", callback=self.handle_collected_elastic_items)
+
+    def handle_collected_elastic_items(self, response: scrapy.http.Response):
         random.shuffle(self.ELASTIC_ITEMS_ALL)  # shuffling the list of ElasticSearch items to improve concurrency and
         # distribute the load between several target domains.
-        continue_from_previous_crawl = env.get_bool("CONTINUE_CRAWL", True, False)
-        # checking if a previously aborted crawl should be completed (by skipping updates of previously collected items)
-        if continue_from_previous_crawl:
-            # ToDo: for time-stable results this feature needs to be reworked: uuids need to be used to keep consistent
-            #  results across longer crawling processes
-            es_id_collector = EduSharingPreCheck()
-            previously_crawled_replication_source_ids: list[str] = es_id_collector.get_replication_source_id_list()
-            for elastic_item in self.ELASTIC_ITEMS_ALL:
-                elastic_item_identifier: str = elastic_item["_id"]
-                if elastic_item_identifier in previously_crawled_replication_source_ids:
-                    logging.debug(
-                        f"Found Elastic item '_id': {elastic_item_identifier} within previously crawled "
-                        f"results in the edu-sharing repository. Skipping item because '.env'-setting "
-                        f"'CONTINUE_CRAWL' is enabled."
-                    )
-                    continue
-                else:
-                    yield from self.check_item_and_yield_to_parse_method(elastic_item)
-        else:
-            for elastic_item in self.ELASTIC_ITEMS_ALL:
-                yield from self.check_item_and_yield_to_parse_method(elastic_item)
+        for elastic_item in self.ELASTIC_ITEMS_ALL:
+            yield from self.check_item_and_yield_to_parse_method(elastic_item)
 
     def check_item_and_yield_to_parse_method(self, elastic_item: dict) -> scrapy.Request | None:
         """
@@ -182,8 +167,11 @@ class OersiSpider(scrapy.Spider, LomBase):
             ):
                 if not self.hasChanged(None, elastic_item=elastic_item):
                     return None
+            # ToDo: implement crawling mode toggle?
+            #  (online) crawl vs. "offline"-import (without making requests to the item urls)
             # by omitting the callback parameter, individual requests are yielded to the parse-method
-            yield scrapy.Request(url=item_url, cb_kwargs={"elastic_item": elastic_item}, dont_filter=True)
+            # yield scrapy.Request(url=item_url, cb_kwargs={"elastic_item": elastic_item}, dont_filter=True)
+            yield from self.parse(elastic_item=elastic_item)
 
     def elastic_pit_create(self) -> dict:
         """
@@ -788,7 +776,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         elif name_string:
             lifecycle_item_loader.add_value("firstName", name_string)
 
-    async def parse(self, response: scrapy.http.Response, **kwargs):
+    def parse(self, response=None, **kwargs):
         elastic_item: dict = kwargs.get("elastic_item")
         elastic_item_source: dict = elastic_item.get("_source")
         # _source is the original JSON body passed for the document at index time
@@ -839,7 +827,14 @@ class OersiSpider(scrapy.Spider, LomBase):
 
         base.add_value("sourceId", self.getId(response, elastic_item=elastic_item))
         base.add_value("hash", self.getHash(response, elastic_item_source=elastic_item_source))
-        thumbnail_url = str()
+        try:
+            thumbnail_url: str = elastic_item_source.get("image")
+            # see: https://dini-ag-kim.github.io/amb/draft/#image
+            if thumbnail_url:
+                base.add_value("thumbnail", thumbnail_url)
+        except KeyError:
+            logging.debug(f"OERSI Item {elastic_item['_id']} "
+                          f"(name: {elastic_item_source['name']}) did not provide a thumbnail.")
         if "image" in elastic_item_source:
             thumbnail_url = elastic_item_source.get("image")  # thumbnail
             if thumbnail_url:
@@ -848,7 +843,6 @@ class OersiSpider(scrapy.Spider, LomBase):
             # every item gets sorted into a /<provider_name>/-subfolder to make QA more feasable
             base.add_value("origin", provider_name)
 
-        general.add_value("identifier", response.url)
         if "keywords" in elastic_item_source:
             keywords: list = elastic_item_source.get("keywords")
             if keywords:
@@ -871,19 +865,16 @@ class OersiSpider(scrapy.Spider, LomBase):
         lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
-        identifier_url: str = str()
-        if "id" in elastic_item_source:
-            identifier_url: str = elastic_item_source.get("id")  # this URL is REQUIRED and should always be available
+        try:
+            identifier_url: str = self.get_item_url(elastic_item=elastic_item)
+            # this URL is REQUIRED and should always be available
             # see https://dini-ag-kim.github.io/amb/draft/#id
-            if identifier_url:
-                general.replace_value("identifier", identifier_url)
-                technical.add_value("location", identifier_url)
-                if identifier_url != response.url:
-                    # the identifier_url should be more stable/robust than the (resolved) response.url in the long run,
-                    # so we will save both URLs in case the resolved URL is different
-                    technical.add_value("location", response.url)
-        elif not identifier_url:
-            technical.add_value("location", response.url)
+        except KeyError:
+            logging.warning(f"Item {elastic_item['_id']} did not have an item URL (AMB 'id' was missing)!")
+            return
+        if identifier_url:
+            general.replace_value("identifier", identifier_url)
+            technical.add_value("location", identifier_url)
         lom.add_value("technical", technical.load_item())
 
         organizations_from_affiliation_fields: set[str] = set()
@@ -916,13 +907,14 @@ class OersiSpider(scrapy.Spider, LomBase):
         )
 
         if "sourceOrganization" in elastic_item_source:
-            # ToDo: this fallback might no longer be necessary:
-            self.get_lifecycle_organization_from_source_organization_fallback(
-                elastic_item_source=elastic_item_source,
-                lom_item_loader=lom,
-                organization_fallback=organizations_from_affiliation_fields,
-            )
-            # ToDo: WLO-BIRD-Connector v2 REQUIREMENT:
+            # # ToDo: this fallback might no longer be necessary:
+            # self.get_lifecycle_organization_from_source_organization_fallback(
+            #     elastic_item_source=elastic_item_source,
+            #     lom_item_loader=lom,
+            #     organization_fallback=organizations_from_affiliation_fields,
+            # )
+
+            # WLO-BIRD-Connector v2 REQUIREMENT:
             # 'sourceOrganization' -> 'ccm:lifecyclecontributer_publisher'
             self.get_lifecycle_publisher_from_source_organization(
                 lom_item_loader=lom,
@@ -1119,28 +1111,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         base.add_value("permissions", permissions.load_item())
 
         response_loader = ResponseItemLoader()
-        # ToDo: skip the scrapy.Request altogether? (-> would be a huge time benefit)
-        response_loader.add_value("status", response.status)
-        if not thumbnail_url:
-            # only use the headless browser if we need to take a website screenshot, otherwise skip this (expensive)
-            # part of the program flow completely
-            url_data = await WebTools.getUrlData(url=response.url, engine=WebEngine.Playwright)
-            if "html" in url_data:
-                response_loader.add_value("html", url_data["html"])
-            if "text" in url_data:
-                response_loader.add_value("text", url_data["text"])
-            if "cookies" in url_data:
-                response_loader.add_value("cookies", url_data["cookies"])
-            if "har" in url_data:
-                response_loader.add_value("har", url_data["har"])
-            if not thumbnail_url and "screenshot_bytes" in url_data:
-                # if a thumbnail was provided, use that first - otherwise try to use Playwright website screenshot
-                # ToDo: optional feature - control which thumbnail is used, depending on the metadata-provider?
-                #  metadata-provider 'Open Music Academy' serves generic thumbnails, which is why a screenshot of the
-                #  website will always be more interesting to users than the same generic image across ~650 materials
-                base.add_value("screenshot_bytes", url_data["screenshot_bytes"])
-        response_loader.add_value("headers", response.headers)
-        response_loader.add_value("url", response.url)
+        response_loader.add_value("url", identifier_url)
         base.add_value("response", response_loader.load_item())
 
         yield base.load_item()
