@@ -12,14 +12,63 @@ from scrapy.utils.project import get_project_settings
 from converter import env
 
 log = logging.getLogger(__name__)
-logging.getLogger('trafilatura').setLevel(logging.INFO)  # trafilatura is quite spammy
+logging.getLogger("trafilatura").setLevel(logging.INFO)  # trafilatura is quite spammy
+
+ignored_file_extensions: list[str] = [
+    # file extensions that cause unexpected behavior when trying to render them with a headless browser
+    ".aac",
+    ".avi",
+    ".bin",
+    ".bmp",
+    ".bz",
+    ".cda",
+    ".csv",
+    ".doc",
+    ".docx",
+    ".epub",
+    ".gz",
+    ".mbz",
+    ".mid",
+    ".midi",
+    ".mp3",
+    ".mp4",
+    ".mpeg",
+    ".mpkg",
+    ".odp",
+    ".ods",
+    ".odt",
+    ".oga",
+    ".ogx",
+    ".opus",
+    ".otf",
+    ".pdf",
+    ".pptx",
+    ".rar",
+    ".rtf",
+    ".sh",
+    ".tar",
+    ".ts",
+    ".ttf",
+    ".txt",
+    ".vsd",
+    ".wav",
+    ".weba",
+    ".webm",
+    ".webp",
+    ".xls",
+    ".xlsx",
+    ".zip",
+    ".3gp",
+    ".3g2",
+    ".7z",
+]
 
 
 class WebEngine(Enum):
     # Splash (default engine)
-    Splash = 'splash',
+    Splash = "splash"
     # Playwright is controlling a headless Chrome browser
-    Playwright = 'playwright'
+    Playwright = "playwright"
 
 
 class WebTools:
@@ -39,7 +88,37 @@ class WebTools:
             return await WebTools.__getUrlDataPlaywright(url)
 
     @classmethod
+    def url_cant_be_rendered_by_headless_browsers(cls, url: str) -> bool:
+        # ToDo:
+        #  - extend the list of problematic file extensions as they occur during debugging
+        #  - implement check for parametrized URLs (e.g. "<URL>/image.png?token=..." and other edge-cases
+        if isinstance(url, str) and url:
+            # checking if the provided URL is actually a string
+            for file_extension in ignored_file_extensions:
+                if url.endswith(file_extension):
+                    log.warning(
+                        f"Problematic file extension {file_extension} detected in URL {url} ! "
+                        f"Headless browsers can't render this file type."
+                    )
+                    return True
+        else:
+            log.debug(f"URL {url} does not appear to be a string value. WebTools REQUIRE an URL string.")
+            return False
+
+    @classmethod
     async def getUrlData(cls, url: str, engine: WebEngine = WebEngine.Playwright):
+        url_contains_problematic_file_extension: bool = cls.url_cant_be_rendered_by_headless_browsers(url=url)
+        if url_contains_problematic_file_extension:
+            # most binary files cannot be rendered by Playwright or Splash and would cause unexpected behavior in the
+            # Thumbnail Pipeline
+            # ToDo: handle websites that redirect to binary downloads gracefully
+            #   - maybe by checking the MIME-Type in response headers first?
+            log.warning(
+                f"File extension in URL {url} detected which cannot be rendered by headless browsers. "
+                f"Skipping WebTools rendering for this url..."
+            )
+            return
+
         if engine == WebEngine.Splash:
             return await cls.__safely_get_splash_response(url)
         elif engine == WebEngine.Playwright:
