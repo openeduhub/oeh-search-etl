@@ -26,6 +26,8 @@ from edu_sharing_client.api_client import ApiClient
 from edu_sharing_client.configuration import Configuration
 from edu_sharing_client.rest import ApiException
 
+log = logging.getLogger(__name__)
+
 
 class EduSharingConstants:
     HOME = "-home-"
@@ -115,7 +117,7 @@ class EduSharing:
     def __init__(self):
         cookie_threshold = env.get("EDU_SHARING_COOKIE_REBUILD_THRESHOLD", True)
         if cookie_threshold:
-            logging.info("Setting COOKIE_REBUILD_THRESHOLD to " + str(cookie_threshold) + " seconds")
+            log.info("Setting COOKIE_REBUILD_THRESHOLD to " + str(cookie_threshold) + " seconds")
             self.COOKIE_REBUILD_THRESHOLD = cookie_threshold
         self.enabled = env.get("MODE", default="edu-sharing") == "edu-sharing"
         if self.enabled:
@@ -149,12 +151,12 @@ class EduSharing:
             try:
                 json_error: dict = json.loads(e.body)
                 if json_error["error"] == "java.lang.IllegalStateException":
-                    logging.warning(
+                    log.warning(
                         "Node '" + properties["cm:name"][0] + "' probably blocked for sync: " + json_error["message"]
                     )
                     return None
             except json.JSONDecodeError:
-                logging.error(
+                log.error(
                     f"ES_CONNECTOR: edu-sharing ApiException 'body'-attribute was't a deserializable JSON "
                     f"String for item '{properties['cm:name'][0]}' "
                     f"(replicationsourceid: '{properties['ccm:replicationsourceid']}'). "
@@ -198,7 +200,7 @@ class EduSharing:
 
     async def set_node_binary_data(self, uuid, item) -> bool:
         if "binary" in item:
-            logging.info(
+            log.info(
                 get_project_settings().get("EDU_SHARING_BASE_URL")
                 + "rest/node/v1/nodes/-home-/"
                 + uuid
@@ -237,7 +239,7 @@ class EduSharing:
                 )
                 return response.status_code == 200
         else:
-            logging.warning("No thumbnail provided for " + uuid)
+            log.warning("No thumbnail provided for " + uuid)
 
     def map_license(self, spaces, license):
         if "url" in license:
@@ -312,7 +314,7 @@ class EduSharing:
                 case Constants.LICENSE_PDM:
                     spaces["ccm:commonlicense_key"] = "PDM"
                 case _:
-                    logging.warning(
+                    log.warning(
                         f"License.url {license['url']} could not be mapped to a license from Constants.\n"
                         f"If you are sure that you provided a correct URL to a license, "
                         f"please check if the license-mapping within es_connector.py is up-to-date."
@@ -326,7 +328,7 @@ class EduSharing:
                     if "description" in license:
                         spaces["cclom:rights_description"] = license["description"]
                 case _:
-                    logging.warning(
+                    log.warning(
                         f"Received a value for license['internal'] that is not recognized by es_connector. "
                         f"Please double-check if the provided value {license['internal']} is correctly "
                         f"mapped within Constants AND es_connector."
@@ -383,7 +385,7 @@ class EduSharing:
                     # edusharing requires milliseconds
                     duration = int(float(duration) * 1000)
                 except:
-                    logging.debug(
+                    log.debug(
                         f"The supplied 'technical.duration'-value {duration} could not be converted from "
                         f"seconds to milliseconds. ('cclom:duration' expects ms)"
                     )
@@ -395,7 +397,7 @@ class EduSharing:
                 if "role" not in person:
                     continue
                 if not person["role"].lower() in EduSharingConstants.LIFECYCLE_ROLES_MAPPING:
-                    logging.warning(
+                    log.warning(
                         "The lifecycle role "
                         + person["role"]
                         + " is currently not supported by the edu-sharing connector"
@@ -498,9 +500,9 @@ class EduSharing:
         if mdsId != "default":
             spaces["cm:edu_metadataset"] = mdsId
             spaces["cm:edu_forcemetadataset"] = "true"
-            logging.debug("Using metadataset " + mdsId)
+            log.debug("Using metadataset " + mdsId)
         else:
-            logging.debug("Using default metadataset")
+            log.debug("Using default metadataset")
 
         for key in spaces:
             if type(spaces[key]) is tuple:
@@ -517,16 +519,16 @@ class EduSharing:
             else:
                 uuid = EduSharingConstants.GROUP_PREFIX + group
             if uuid in EduSharing.groupCache:
-                logging.debug("Group " + uuid + " is existing in cache, no need to create")
+                log.debug("Group " + uuid + " is existing in cache, no need to create")
                 continue
-            logging.debug("Group " + uuid + " is not in cache, checking consistency...")
+            log.debug("Group " + uuid + " is not in cache, checking consistency...")
             try:
                 group = EduSharing.iamApi.get_group(EduSharingConstants.HOME, uuid)
-                logging.info("Group " + uuid + " was found in edu-sharing (cache inconsistency), no need to create")
+                log.info("Group " + uuid + " was found in edu-sharing (cache inconsistency), no need to create")
                 EduSharing.groupCache.append(uuid)
                 continue
             except ApiException as e:
-                logging.info("Group " + uuid + " was not found in edu-sharing, creating it")
+                log.info("Group " + uuid + " was not found in edu-sharing, creating it")
                 pass
 
             if type == EduSharing.CreateGroupType.MediaCenter:
@@ -542,7 +544,7 @@ class EduSharing:
 
     def set_node_permissions(self, uuid, item):
         if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is False:
-            logging.debug("Skipping permissions, EDU_SHARING_PERMISSION_CONTROL is set to false")
+            log.debug("Skipping permissions, EDU_SHARING_PERMISSION_CONTROL is set to false")
             return
         if "permissions" in item:
             permissions = {
@@ -552,7 +554,7 @@ class EduSharing:
             public = item["permissions"]["public"]
             if public is True:
                 if "groups" in item["permissions"] or "mediacenters" in item["permissions"]:
-                    logging.error(
+                    log.error(
                         "Invalid state detected: Permissions public is set to true but groups or mediacenters are also set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!"
                     )
                     return
@@ -571,7 +573,7 @@ class EduSharing:
             else:
                 # Makes not much sense, may no permissions at all should be set
                 # if not 'groups' in item['permissions'] and not 'mediacenters' in item['permissions']:
-                #    logging.error('Invalid state detected: Permissions public is set to false but neither groups or mediacenters are set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!')
+                #    log.error('Invalid state detected: Permissions public is set to false but neither groups or mediacenters are set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!')
                 #    return
                 mergedGroups = []
                 if "groups" in item["permissions"]:
@@ -617,10 +619,10 @@ class EduSharing:
                         }
                     )
             if not self.set_permissions(uuid, permissions):
-                logging.error(
+                log.error(
                     "Failed to set permissions, please check that the given groups/mediacenters are existing in the repository or set the autoCreate mode to true"
                 )
-                logging.error(item["permissions"])
+                log.error(item["permissions"])
 
     async def insert_item(self, spider, uuid, item):
         async with self._sem:
@@ -637,7 +639,7 @@ class EduSharing:
 
     @staticmethod
     def init_cookie():
-        logging.debug("Init edu sharing cookie...")
+        log.debug("Init edu sharing cookie...")
         settings = get_project_settings()
         auth = requests.get(
             settings.get("EDU_SHARING_BASE_URL") + "rest/authentication/v1/validateSession",
@@ -648,7 +650,7 @@ class EduSharing:
             headers={"Accept": "application/json"},
         )
         isAdmin = json.loads(auth.text)["isAdmin"]
-        logging.info("Got edu sharing cookie, admin status: " + str(isAdmin))
+        log.info("Got edu sharing cookie, admin status: " + str(isAdmin))
         if isAdmin:
             cookies = []
             for cookie in auth.headers["SET-COOKIE"].split(","):
@@ -695,7 +697,7 @@ class EduSharing:
                 ):
                     raise Exception(f"Given repository api version is unsupported: " + version_str)
                 else:
-                    logging.info("Detected edu-sharing bulk api with version " + version_str)
+                    log.info("Detected edu-sharing bulk api with version " + version_str)
                 if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is True:
                     EduSharing.groupCache = list(
                         map(
@@ -703,11 +705,11 @@ class EduSharing:
                             EduSharing.iamApi.search_groups(EduSharingConstants.HOME, "", max_items=1000000)["groups"],
                         )
                     )
-                    logging.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
+                    log.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
                     return
                 else:
                     return
-            logging.warning(auth.text)
+            log.warning(auth.text)
             raise Exception(
                 "Could not authentify as admin at edu-sharing. Please check your settings for repository "
                 + settings.get("EDU_SHARING_BASE_URL")
@@ -741,12 +743,12 @@ class EduSharing:
             if e.status == 401:
                 # Typically happens when the edu-sharing session cookie is lost and needs to be renegotiated.
                 # (edu-sharing error-message: "Admin rights are required for this endpoint")
-                logging.info(
+                log.info(
                     f"ES_CONNECTOR: edu-sharing returned HTTP-statuscode {e.status} for (replicationsourceid "
                     f"'{id}')."
                 )
-                logging.debug(f"(HTTP-Body: '{e.body}\n')" f"Reason: {e.reason}\n" f"HTTP Headers: {e.headers}")
-                logging.info("ES_CONNECTOR: Re-initializing edu-sharing API Client...")
+                log.debug(f"(HTTP-Body: '{e.body}\n')" f"Reason: {e.reason}\n" f"HTTP Headers: {e.headers}")
+                log.info("ES_CONNECTOR: Re-initializing edu-sharing API Client...")
                 self.init_api_client()
                 return None
             if e.status == 404:
@@ -757,12 +759,12 @@ class EduSharing:
                         # when there is no already existing node in the edu-sharing repository, edu-sharing returns
                         # a "DAOMissingException". The following debug message is commented out to reduce log-spam:
                         # error_message: str = error_dict["message"]
-                        # logging.debug(f"ES_CONNECTOR 'find_item': edu-sharing returned HTTP-statuscode 404 "
+                        # log.debug(f"ES_CONNECTOR 'find_item': edu-sharing returned HTTP-statuscode 404 "
                         #               f"('{error_message}') for\n '{id}'. \n(This typically means that there was no "
                         #               f"existing node in the edu-sharing repository. Continuing...)")
                         return None
                     else:
-                        logging.debug(
+                        log.debug(
                             f"ES_CONNECTOR 'find_item': edu-sharing returned HTTP-statuscode {e.status} "
                             f"(replicationsourceid '{id}'):\n"
                             f"HTTP Body: {e.body}\n"
@@ -770,7 +772,7 @@ class EduSharing:
                         )
                         return None
                 except json.JSONDecodeError:
-                    logging.debug(
+                    log.debug(
                         f"ES_CONNECTOR 'find_item': edu-sharing returned HTTP-statuscode {e.status} "
                         f"(replicationsourceid '{id}'):\n"
                         f"HTTP Body: {e.body}\n"
