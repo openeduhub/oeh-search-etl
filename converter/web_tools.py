@@ -74,21 +74,43 @@ class WebEngine(Enum):
 class WebTools:
     _sem_splash: Semaphore = Semaphore(10)
     _sem_playwright: Semaphore = Semaphore(10)
+    # reminder: if you increase this Semaphore value, you NEED to change the "browserless v2"-docker-container
+    # configuration accordingly! (e.g., by increasing the MAX_CONCURRENT_SESSIONS and MAX_QUEUE_LENGTH configuration
+    # settings, see: https://www.browserless.io/docs/docker)
 
     @classmethod
     async def __safely_get_splash_response(cls, url: str):
-        # ToDo: Docs
+        """Send a URL string to the Splash container for HTTP / Screenshot rendering if a Semaphore can be acquired.
+
+        (The Semaphore is used to control / throttle the number of concurrent pending requests to the Splash container,
+        which is necessary because Splash can only handle a specific number of connections at the same time.)
+        """
         async with cls._sem_splash:
             return await WebTools.__getUrlDataSplash(url)
 
     @classmethod
     async def __safely_get_playwright_response(cls, url: str):
-        # ToDo: Docs
+        """Send a URL string to the Playwright container ("browserless v2") for HTTP / Screenshot rendering if a
+        Semaphore can be acquired.
+
+        (The Semaphore is used to control / throttle the number of concurrent pending requests to the Playwright
+        container, which is necessary because Playwright only allows a specific number of connections / requests in the
+        queue at the same time.
+        browserless v2 defaults to: 5 concurrent requests // 5 requests in the queue
+        => Semaphore value of 10 should guarantee that neither the crawler nor the pipelines make more requests than the
+        container is able to handle.)
+
+        For details, see:
+        https://www.browserless.io/docs/docker#max-concurrent-sessions
+        https://www.browserless.io/docs/docker#max-queue-length
+        """
         async with cls._sem_playwright:
             return await WebTools.__getUrlDataPlaywright(url)
 
     @classmethod
     def url_cant_be_rendered_by_headless_browsers(cls, url: str) -> bool:
+        """Rudimentary check for problematic file extensions within a provided URL string.
+        Returns True if a problematic extension was detected."""
         # ToDo:
         #  - extend the list of problematic file extensions as they occur during debugging
         #  - implement check for parametrized URLs (e.g. "<URL>/image.png?token=..." and other edge-cases
@@ -149,7 +171,6 @@ class WebTools:
         # html = None
         if settings.get("SPLASH_URL") and not url.endswith(".pdf") and not url.endswith(".docx"):
             # Splash can't handle some binary direct-links (Splash will throw "LUA Error 400: Bad Request" as a result)
-            # ToDo: which additional filetypes need to be added to the exclusion list? - media files (.mp3, mp4 etc.?)
             async with httpx.AsyncClient() as client:
                 result = await client.post(
                     settings.get("SPLASH_URL") + "/render.json",
