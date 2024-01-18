@@ -449,8 +449,6 @@ class ProcessThumbnailPipeline(BasicPipeline):
         elif (
                 "location" in item["lom"]["technical"]
                 and len(item["lom"]["technical"]["location"]) > 0
-                and "format" in item["lom"]["technical"]
-                and item["lom"]["technical"]["format"] == "text/html"
         ):
             if settings_crawler.get("SPLASH_URL") and web_tools == WebEngine.Splash:
                 target_url: str = item["lom"]["technical"]["location"][0]
@@ -539,6 +537,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
             except Exception as e:
                 if url is not None:
                     log.warning(f"Could not read thumbnail at {url}: {str(e)} (falling back to screenshot)")
+                    raise e
                 if "thumbnail" in item:
                     del item["thumbnail"]
                     return await self.process_item(raw_item, spider)
@@ -580,29 +579,46 @@ class ProcessThumbnailPipeline(BasicPipeline):
     # override the project settings with the given ones from the current spider
     # see PR 56 for details
 
-    def create_thumbnails_from_image_bytes(self, image, item, settings):
-        small = BytesIO()
-        self.scale_image(image, settings.get("THUMBNAIL_SMALL_SIZE")).save(
-            small,
-            "JPEG",
-            mode="RGB",
-            quality=settings.get("THUMBNAIL_SMALL_QUALITY"),
-        )
-        large = BytesIO()
-        self.scale_image(image, settings.get("THUMBNAIL_LARGE_SIZE")).save(
-            large,
-            "JPEG",
-            mode="RGB",
-            quality=settings.get("THUMBNAIL_LARGE_QUALITY"),
-        )
-        item["thumbnail"] = {}
-        item["thumbnail"]["mimetype"] = "image/jpeg"
-        item["thumbnail"]["small"] = base64.b64encode(
-            small.getvalue()
-        ).decode()
-        item["thumbnail"]["large"] = base64.b64encode(
-            large.getvalue()
-        ).decode()
+    def create_thumbnails_from_image_bytes(self, image: Image.Image, item, settings):
+        small_buffer: BytesIO = BytesIO()
+        large_buffer: BytesIO = BytesIO()
+        if image.format == "PNG":
+            # PNG images with image.mode == "RGBA" cannot be converted cleanly to JPEG,
+            # which is why we're handling PNGs separately
+            small_copy = image.copy()
+            large_copy = image.copy()
+            # Pillow modifies the image object in place -> remember to use the correct copy
+            small_copy.thumbnail(size=(250, 250))
+            large_copy.thumbnail(size=(800, 800))
+            # ToDo:
+            #  Rework settings.py thumbnail config to retrieve values as width & height instead of sum(int)
+            small_copy.save(small_buffer, format="PNG")
+            large_copy.save(large_buffer, format="PNG")
+            item["thumbnail"] = {}
+            item["thumbnail"]["mimetype"] = "image/png"
+            item["thumbnail"]["small"] = base64.b64encode(large_buffer.getvalue()).decode()
+            item["thumbnail"]["large"] = base64.b64encode(large_buffer.getvalue()).decode()
+        else:
+            self.scale_image(image, settings.get("THUMBNAIL_SMALL_SIZE")).save(
+                small_buffer,
+                "JPEG",
+                mode="RGB",
+                quality=settings.get("THUMBNAIL_SMALL_QUALITY"),
+            )
+            self.scale_image(image, settings.get("THUMBNAIL_LARGE_SIZE")).save(
+                large_buffer,
+                "JPEG",
+                mode="RGB",
+                quality=settings.get("THUMBNAIL_LARGE_QUALITY"),
+            )
+            item["thumbnail"] = {}
+            item["thumbnail"]["mimetype"] = "image/jpeg"
+            item["thumbnail"]["small"] = base64.b64encode(
+                small_buffer.getvalue()
+            ).decode()
+            item["thumbnail"]["large"] = base64.b64encode(
+                large_buffer.getvalue()
+            ).decode()
 
 
 def get_settings_for_crawler(spider) -> scrapy.settings.Settings:

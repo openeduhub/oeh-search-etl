@@ -23,7 +23,7 @@ class LomBase:
     # you can specify custom settings which will later influence the behaviour of the pipelines for your crawler
     custom_settings = settings.BaseSettings({
         # web tools to use, relevant for screenshots/thumbnails
-        "WEB_TOOLS": WebEngine.Splash,
+        "WEB_TOOLS": WebEngine.Playwright,
     }, 'spider')
 
     def __init__(self, **kwargs):
