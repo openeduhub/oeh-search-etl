@@ -17,6 +17,7 @@ from asyncio import Future
 from io import BytesIO
 from typing import BinaryIO, TextIO, Optional
 
+import PIL
 import dateparser
 import dateutil.parser
 import isodate
@@ -534,6 +535,13 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 else:
                     img = Image.open(BytesIO(response.body))
                     self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
+            except PIL.UnidentifiedImageError:
+                # this error can be observed when a website serves broken / malformed images
+                if url:
+                    log.warning(f"Thumbnail download of image file {url} failed: image file could not be identified "
+                                f"(Image might be broken or corrupt). Falling back to website-screenshot.")
+                del item["thumbnail"]
+                return await self.process_item(raw_item, spider)
             except Exception as e:
                 if url is not None:
                     log.warning(f"Could not read thumbnail at {url}: {str(e)} (falling back to screenshot)")
