@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Optional
 
@@ -6,11 +7,22 @@ import w3lib.html
 from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
-from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader, \
-    BaseItemLoader, LomAgeRangeItemLoader
+from converter.items import (
+    LomBaseItemloader,
+    LomGeneralItemloader,
+    LomTechnicalItemLoader,
+    LomLifecycleItemloader,
+    LomEducationalItemLoader,
+    ValuespaceItemLoader,
+    LicenseItemLoader,
+    ResponseItemLoader,
+    BaseItemLoader,
+    LomAgeRangeItemLoader,
+)
 from converter.spiders.base_classes import LomBase
 from converter.web_tools import WebEngine
+
+logger = logging.getLogger(__name__)
 
 
 class RpiVirtuellSpider(CrawlSpider, LomBase):
@@ -18,112 +30,121 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
     scrapes materials from https://material.rpi-virtuell.de
     via wp-json API: https://material.rpi-virtuell.de/wp-json/
     """
+
     name = "rpi_virtuell_spider"
     friendlyName = "rpi-virtuell"
-    start_urls = ['https://material.rpi-virtuell.de/wp-json/mymaterial/v1/material/']
+    start_urls = ["https://material.rpi-virtuell.de/wp-json/mymaterial/v1/material/"]
 
-    version = "0.0.8"  # last update: 2023-12-08
+    version = "0.0.9"  # last update: 2024-01-24
 
     custom_settings = {
-        'ROBOTSTXT_OBEY': False,
-        'AUTOTHROTTLE_ENABLED': True,
-        'AUTOTHROTTLE_DEBUG': True,
-        'AUTOTHROTTLE_TARGET_CONCURRENCY': 12,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 6,
-        'WEB_TOOLS': WebEngine.Playwright,
+        "ROBOTSTXT_OBEY": False,
+        "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_DEBUG": True,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 12,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 6,
+        "WEB_TOOLS": WebEngine.Playwright,
         # 'DUPEFILTER_DEBUG': True
     }
     wp_json_pagination_parameters = {
         # wp-json API returns up to 100 records per request, with the amount of pages in total depending on the chosen
         # pagination parameters, see https://developer.wordpress.org/rest-api/using-the-rest-api/pagination/
-        'start_page_number': 0,
+        "start_page_number": 0,
         # number of records that should be returned per request:
-        'per_page_elements': 100
+        "per_page_elements": 100,
     }
     # Mapping "material_bildungsstufe" -> SkoHub:
     # see https://vocabs.openeduhub.de/w3id.org/openeduhub/vocabs/educationalContext/index.html
 
     mapping_edu_context = {
-        'Arbeit mit Jugendlichen': "", 'Arbeit mit Kindern': "",
-        'Ausbildung': "http://w3id.org/openeduhub/vocabs/educationalContext/berufliche_bildung",
-        'Berufsschule': "http://w3id.org/openeduhub/vocabs/educationalContext/berufliche_bildung",
-        'Elementarbereich': "http://w3id.org/openeduhub/vocabs/educationalContext/elementarbereich",
-        'Erwachsenenbildung': "http://w3id.org/openeduhub/vocabs/educationalContext/erwachsenenbildung", 'Gemeinde': "",
-        'Grundschule': "http://w3id.org/openeduhub/vocabs/educationalContext/grundschule", 'Kindergottesdienst': "",
-        'Konfirmandenarbeit': "",
-        'Oberstufe': "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_2",
-        'Schulstufen': "",  # alle Schulstufen? age range?
-        'Sekundarstufe': "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1", 'Unterrichtende': ""
+        "Arbeit mit Jugendlichen": "",
+        "Arbeit mit Kindern": "",
+        "Ausbildung": "http://w3id.org/openeduhub/vocabs/educationalContext/berufliche_bildung",
+        "Berufsschule": "http://w3id.org/openeduhub/vocabs/educationalContext/berufliche_bildung",
+        "Elementarbereich": "http://w3id.org/openeduhub/vocabs/educationalContext/elementarbereich",
+        "Erwachsenenbildung": "http://w3id.org/openeduhub/vocabs/educationalContext/erwachsenenbildung",
+        "Gemeinde": "",
+        "Grundschule": "http://w3id.org/openeduhub/vocabs/educationalContext/grundschule",
+        "Kindergottesdienst": "",
+        "Konfirmandenarbeit": "",
+        "Oberstufe": "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_2",
+        "Schulstufen": "",  # alle Schulstufen? age range?
+        "Sekundarstufe": "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1",
+        "Unterrichtende": "",
     }
     # copyright is only available as a String (description) on the material_review_url itself, this debug list could be
     # deleted once it's confirmed with rpi-virtuell which OER model they actually use here:
     copyright_debug_list = {
-        'Zur Wiederverwendung und Veränderung gekennzeichnet': "",
-        'Zur Wiederverwendung und Veränderung gekennzeichnet\t        \t        \t\t        frei zugänglich': "",
-        'Zur nicht kommerziellen Wiederverwendung gekennzeichnet': "",
-        'Zur nicht kommerziellen Wiederverwendung gekennzeichnet\t        \t        \t\t        frei zugänglich': "",
-        'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet': "",
-        'Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet'
-        '\t        \t        \t\t        frei zugänglich': "",
-        'frei zugänglich': "",
-        'kostenfrei nach Anmeldung': "",
-        'kostenpflichtig': ""
+        "Zur Wiederverwendung und Veränderung gekennzeichnet": "",
+        "Zur Wiederverwendung und Veränderung gekennzeichnet\t        \t        \t\t        frei zugänglich": "",
+        "Zur nicht kommerziellen Wiederverwendung gekennzeichnet": "",
+        "Zur nicht kommerziellen Wiederverwendung gekennzeichnet\t        \t        \t\t        frei zugänglich": "",
+        "Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet": "",
+        "Zur nicht kommerziellen Wiederverwendung und Veränderung gekennzeichnet"
+        "\t        \t        \t\t        frei zugänglich": "",
+        "frei zugänglich": "",
+        "kostenfrei nach Anmeldung": "",
+        "kostenpflichtig": "",
     }
     #   rpi-virtuell has clarified their license-description:
     #   'Zur Wiederverwendung und Veränderung gekennzeichnet' can be both CC_BY and CC_BY_SA
     #       since CC_BY_SA is slightly more restricting, we choose this mapping rather than the more liberal CC_BY
     mapping_copyright_url = {
-        '?fwp_lizenz=non-commercial-remixable': Constants.LICENSE_CC_BY_NC_SA_30,
-        '?fwp_lizenz=non-commercial-copyable': Constants.LICENSE_CC_BY_NC_ND_40,
-        '?fwp_lizenz=remixable': Constants.LICENSE_CC_BY_SA_40,
-        '?fwp_verfuegbarkeit=kostenpflichtig': Constants.LICENSE_COPYRIGHT_LAW
+        "?fwp_lizenz=non-commercial-remixable": Constants.LICENSE_CC_BY_NC_SA_30,
+        "?fwp_lizenz=non-commercial-copyable": Constants.LICENSE_CC_BY_NC_ND_40,
+        "?fwp_lizenz=remixable": Constants.LICENSE_CC_BY_SA_40,
+        "?fwp_verfuegbarkeit=kostenpflichtig": Constants.LICENSE_COPYRIGHT_LAW
         # unclear to map to anything
         # '?fwp_lizenz=copyable': Constants.
     }
 
-    mapping_media_types = {'Anforderungssituation': "",
-                           'Arbeitsblatt': "worksheet",
-                           'Audio': "audio",
-                           'Aufgabenstellung': "",
-                           'Bild': "image",
-                           'Dossier': "",
-                           'E-Learning': "",
-                           'Erzählung': "",
-                           'Fachinformation': "",  # reference (Primärquelle?)
-                           'Gamification': "",  # maybe map to educational game ?
-                           'Gebet/Lied': "",
-                           'Gottesdienstentwurf': "",
-                           'Internetportal': "web page",
-                           'Lernorte': "",
-                           'Lernstationen': "",
-                           'Lokale Einrichtung': "",
-                           'Medien': "audiovisual medium",
-                           'Online Lesson': "",
-                           'Praxishilfen': "",
-                           'Projektplanung': "",
-                           'Präsentation': "presentation",
-                           'Text/Aufsatz': "text",
-                           'Unterrichtsentwurf': "lesson plan",
-                           'Video': "video",
-                           'Video im Medienportal': "video",
-                           'Virtueller Lernort': "",
-                           'Vorbereitung': "lesson plan",
-                           'Zeitschrift/Buch': "text"}
+    mapping_media_types = {
+        "Anforderungssituation": "",
+        "Arbeitsblatt": "worksheet",
+        "Audio": "audio",
+        "Aufgabenstellung": "",
+        "Bild": "image",
+        "Dossier": "",
+        "E-Learning": "",
+        "Erzählung": "",
+        "Fachinformation": "",  # reference (Primärquelle?)
+        "Gamification": "",  # maybe map to educational game ?
+        "Gebet/Lied": "",
+        "Gottesdienstentwurf": "",
+        "Internetportal": "web page",
+        "Lernorte": "",
+        "Lernstationen": "",
+        "Lokale Einrichtung": "",
+        "Medien": "audiovisual medium",
+        "Online Lesson": "",
+        "Praxishilfen": "",
+        "Projektplanung": "",
+        "Präsentation": "presentation",
+        "Text/Aufsatz": "text",
+        "Unterrichtsentwurf": "lesson plan",
+        "Video": "video",
+        "Video im Medienportal": "video",
+        "Virtueller Lernort": "",
+        "Vorbereitung": "lesson plan",
+        "Zeitschrift/Buch": "text",
+    }
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
     def getId(self, response=None) -> str:
         """
-        returns the review_url of the element
+        Return the current item URL (resolved "review_url") as a string.
         """
-        pass
+        return response.url
 
     def getHash(self, response=None) -> Optional[str]:
         """
-        returns a string of the date + version of the crawler
+        Return a string of the last modified date and the version of the crawler as a string.
         """
-        pass
+        date_modified: str = response.xpath('//meta[@property="og:article:modified_time"]/@content').get()
+        hash_temp: str = f"{date_modified}v{self.version}"
+        return hash_temp
 
     def start_requests(self):
         """
@@ -137,13 +158,13 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         # or
         # with [...]/material/?parameters
         for url in self.start_urls:
-            if (url.split('/')[-2] == 'material') and (url.split('/')[-1] == ''):
+            if (url.split("/")[-2] == "material") and (url.split("/")[-1] == ""):
                 # making sure that the crawler is at the correct url and starting at whatever page we choose:
                 first_page_number = self.get_first_page_parameter()
                 per_page = self.get_per_page_parameter()
-                first_url = url + f'?page={first_page_number}&per_page={per_page}'
+                first_url = url + f"?page={first_page_number}&per_page={per_page}"
                 yield scrapy.Request(url=first_url, callback=self.parse)
-            elif (url.split('/')[-2] == 'material') and (url.split('/') != ''):
+            elif (url.split("/")[-2] == "material") and (url.split("/") != ""):
                 yield scrapy.Request(url=url, callback=self.parse)
 
     def parse(self, response: scrapy.http.TextResponse, **kwargs):
@@ -168,8 +189,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
                 i += 1
                 yield from self.parse_page(response)
             else:
-                url_temp = response.urljoin(
-                    f'?page={i}&per_page={self.get_per_page_parameter()}')
+                url_temp = response.urljoin(f"?page={i}&per_page={self.get_per_page_parameter()}")
                 yield response.follow(url=url_temp, callback=self.parse_page)
 
         # only use this iteration method if you want to (slowly) go through pages one-by-one:
@@ -183,7 +203,7 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         next_page_number = current_page_number + 1
         if current_page_number < last_page:
             # logging.debug(f"Next Page #: {next_page_number}")
-            next_url = response.urljoin(f'?page={next_page_number}&per_page={self.get_per_page_parameter()}')
+            next_url = response.urljoin(f"?page={next_page_number}&per_page={self.get_per_page_parameter()}")
             # logging.debug(f"Next URL will be: {next_url}")
             yield response.follow(next_url, callback=self.parse)
 
@@ -212,8 +232,8 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         :return: number of the current "wp_json"-page as Integer
         """
         # last part of the current url will look like this: '?page=1&per_page=10'
-        last_part_of_url = response.url.split('/')[-1]
-        page_regex = re.compile(r'(\?page=)(\d+)')
+        last_part_of_url = response.url.split("/")[-1]
+        page_regex = re.compile(r"(\?page=)(\d+)")
         current_page_number = int(page_regex.search(last_part_of_url).group(2))
         print("Current Page #: ", current_page_number)
         return current_page_number
@@ -250,14 +270,9 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
 
         for item in current_page_json:
             item_copy: dict = item
-            wp_json_item = {
-                "id": item_copy.get("material_review_url"),
-                "item": item_copy
-            }
+            wp_json_item = {"id": item_copy.get("material_review_url"), "item": item_copy}
             review_url = item_copy.get("material_review_url")
-            yield scrapy.Request(url=review_url,
-                                 callback=self.get_metadata_from_review_url,
-                                 cb_kwargs=wp_json_item)
+            yield scrapy.Request(url=review_url, callback=self.get_metadata_from_review_url, cb_kwargs=wp_json_item)
 
     def get_metadata_from_review_url(self, response: scrapy.http.Response, **kwargs):
         """
@@ -269,18 +284,19 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         """
         # logging.debug("DEBUG inside get_metadata_from_review_url: wp_json_item id", kwargs.get("id"))
         wp_json_item = kwargs.get("item")
-        # logging.debug("DEBUG inside get_metadata_from_review_url: response type = ", type(response),
-        #               "url =", response.url)
+
+        if self.shouldImport(response) is False:
+            logger.debug(f"Skipping entry {response.url} because shouldImport() returned False")
+            return None
+        if self.getId(response) is not None and self.getHash(response) is not None:
+            if not self.hasChanged(response):
+                return None
 
         base = BaseItemLoader()
-        base.add_value("sourceId", response.url)
+        base.add_value("sourceId", self.getId(response=response))
         date_modified: str = response.xpath('//meta[@property="og:article:modified_time"]/@content').get()
-        hash_temp = date_modified + self.version
-        base.add_value("hash", hash_temp)
+        base.add_value("hash", self.getHash(response=response))
 
-        # base.add_value("response", super().mapResponse(response).load_item())
-
-        # base.add_value("type", Constants.TYPE_MATERIAL)
         base.add_value("thumbnail", wp_json_item.get("material_screenshot"))
         # base.add_value("lastModified", wp_json_item.get("date"))  # is "date" from wp_json for lastModified correct?
         base.add_value("lastModified", date_modified)  # or is this one better (grabbed from material_review_url)?
@@ -319,16 +335,19 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
         if wp_json_item.get("material_altersstufe") is not None:
             # age range is returned as a list of <from_age>-<to_age>-Strings, possible return values are:
             # e.g. "01-05", "05-10", "10-13", "13-15", "15-19" and "18-99"
-            age_regex = re.compile(r'(\d{1,2})-(\d{1,2})')
+            age_regex = re.compile(r"(\d{1,2})-(\d{1,2})")
             age_range = set()
             age_range_item_loader = LomAgeRangeItemLoader()
             for item in wp_json_item.get("material_altersstufe"):
-                age_range_temp = item.get("name")
-                age_from = str(age_regex.search(age_range_temp).group(1))
-                age_to = str(age_regex.search(age_range_temp).group(2))
-                age_range.add(age_from)
-                age_range.add(age_to)
-            # print("FINAL AGE_RANGE: min = ", min(age_range), " max = ", max(age_range))
+                age_range_raw: str = item.get("name")
+                match_age_from: re.Match[str] | None = age_regex.search(age_range_raw)
+                match_age_to: re.Match[str] | None = age_regex.search(age_range_raw)
+                if match_age_from:
+                    age_from: str = match_age_from.group(1)
+                    age_range.add(age_from)
+                if match_age_to:
+                    age_to: str = match_age_to.group(2)
+                    age_range.add(age_to)
             if len(age_range) != 0:
                 age_range_item_loader.add_value("fromRange", min(age_range))
                 age_range_item_loader.add_value("toRange", max(age_range))
@@ -381,7 +400,8 @@ class RpiVirtuellSpider(CrawlSpider, LomBase):
                     lic.add_value("url", self.mapping_copyright_url[key])
                 break
 
-        # by default, all materials should be CC_BY_SA - according to the rpi-virtuell ToS
+        # (original assumption during the initial development of this crawler in regard to licenses:
+        # by default, all materials should be CC_BY_SA - according to the rpi-virtuell ToS)
         # changed/decided on 2022-10-13: We can't assume that this license is correct and will not set any license
 
         if response.xpath('//a[contains(@href,"' + "?fwp_verfuegbarkeit=kostenpflichtig" + '")]').get():
