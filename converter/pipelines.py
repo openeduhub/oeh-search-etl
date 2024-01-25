@@ -772,7 +772,7 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
             est_helper: EduSharingSourceTemplateHelper = EduSharingSourceTemplateHelper(crawler_name=spider.name)
             whitelisted_properties: dict | None = est_helper.get_whitelisted_metadata_properties()
             if whitelisted_properties:
-                setattr(spider, "EST_WHITELIST", whitelisted_properties)
+                setattr(spider, "edu_sharing_source_template_whitelist", whitelisted_properties)
                 logging.debug(f"Edu-sharing source template retrieval was successful. "
                               f"The following metadata properties will be whitelisted for all items:\n"
                               f"{whitelisted_properties}")

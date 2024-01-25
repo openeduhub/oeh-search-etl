@@ -113,8 +113,6 @@ class EduSharing:
     enabled: bool
     _client_async = httpx.AsyncClient()
     _sem: Semaphore = asyncio.Semaphore(25)
-    source_template_properties: dict  # whitelisted crawler source metadata properties
-    # (from a "Quellen-Datensatz" / crawler source template) which should be attached to each processed item
 
     def __init__(self):
         cookie_threshold = env.get("EDU_SHARING_COOKIE_REBUILD_THRESHOLD", True)
@@ -366,10 +364,10 @@ class EduSharing:
         if "origin" in item:
             spaces["ccm:replicationsourceorigin"] = item["origin"]  # TODO currently not mapped in edu-sharing
 
-        if hasattr(spider, "EST_WHITELIST"):
+        if hasattr(spider, "edu_sharing_source_template_whitelist"):
             # check if there were whitelisted metadata properties in the edu-sharing source template
             # (= "Quellen-Datensatz"-Template) that need to be attached to all items
-            whitelisted_properties: dict = getattr(spider, "EST_WHITELIST")
+            whitelisted_properties: dict = getattr(spider, "edu_sharing_source_template_whitelist")
             if whitelisted_properties:
                 # if whitelisted properties exist, we re-use the 'custom' field in our data model (if possible).
                 # by inserting the whitelisted metadata properties early in the program flow, they should automatically
