@@ -649,7 +649,10 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
         item = ItemAdapter(raw_item)
         if "hash" not in item:
             log.error(
-                "The spider did not provide a hash on the base object. The hash is required to detect changes on an element. May use the last modified date or something similar"
+                "The spider did not provide a hash on the base object. "
+                "The hash is required to detect changes on an element. "
+                "(You should use the last modified date or something similar, "
+                "e.g. '<date_modified_str>v<crawler_version>')"
             )
             item["hash"] = time.time()
 
@@ -661,9 +664,9 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
         db_item = self.find_item(item["sourceId"], spider)
         if db_item:
             if item["hash"] != db_item[1]:
-                log.debug("hash has changed, continuing pipelines")
+                log.debug(f"hash has changed, continuing pipelines for item {item['sourceId']}")
             else:
-                log.debug("hash unchanged, skip item")
+                log.debug(f"hash unchanged, skipping item {item['sourceId']}")
                 # self.update(item['sourceId'], spider)
                 # for tests, we update everything for now
                 # activate this later
