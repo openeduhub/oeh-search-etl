@@ -364,6 +364,30 @@ class EduSharing:
         if "origin" in item:
             spaces["ccm:replicationsourceorigin"] = item["origin"]  # TODO currently not mapped in edu-sharing
 
+        if hasattr(spider, "edu_sharing_source_template_whitelist"):
+            # check if there were whitelisted metadata properties in the edu-sharing source template
+            # (= "Quellen-Datensatz"-Template) that need to be attached to all items
+            whitelisted_properties: dict = getattr(spider, "edu_sharing_source_template_whitelist")
+            if whitelisted_properties:
+                # if whitelisted properties exist, we re-use the 'custom' field in our data model (if possible).
+                # by inserting the whitelisted metadata properties early in the program flow, they should automatically
+                # be overwritten by the "real" metadata fields (if metadata was scraped for the specific field by the
+                # crawler)
+                if hasattr(item, "custom"):
+                    custom: dict = item["custom"]
+                    if custom:
+                        # if 'BaseItem.custom' already exists -> update the dict
+                        custom.update(whitelisted_properties)
+                        item["custom"] = custom
+                else:
+                    # otherwise create the 'BaseItem.custom'-field
+                    item["custom"] = whitelisted_properties
+
+        # map custom fields directly into the edu-sharing properties:
+        if "custom" in item:
+            for key in item["custom"]:
+                spaces[key] = item["custom"][key]
+
         self.map_license(spaces, item["license"])
         if "description" in item["lom"]["general"]:
             spaces["cclom:general_description"] = item["lom"]["general"]["description"]
@@ -485,11 +509,6 @@ class EduSharing:
                 spaces["ccm:educationaltypicalagerange_from"] = tar["fromRange"]
             if "toRange" in tar:
                 spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
-
-        # map custom fields directly into the edu-sharing properties
-        if "custom" in item:
-            for key in item["custom"]:
-                spaces[key] = item["custom"][key]
 
         # intendedEndUserRole = Field(output_processor=JoinMultivalues())
         # discipline = Field(output_processor=JoinMultivalues())

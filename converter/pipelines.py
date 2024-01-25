@@ -39,6 +39,7 @@ from converter import env
 from converter.constants import *
 from converter.es_connector import EduSharing
 from converter.items import BaseItem
+from converter.util.edu_sharing_source_template_helper import EduSharingSourceTemplateHelper
 from converter.util.language_mapper import LanguageMapper
 from converter.web_tools import WebTools, WebEngine
 from valuespace_converter.app.valuespaces import Valuespaces
@@ -755,6 +756,31 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
     def __init__(self):
         super().__init__()
         self.counter = 0
+
+    def open_spider(self, spider):
+        logging.debug("Entering EduSharingStorePipeline...\n"
+                      "Checking if 'crawler source template' ('Quellendatensatz-Template') should be used "
+                      "(see: 'EDU_SHARING_SOURCE_TEMPLATE_ENABLED' .env setting)...")
+        est_enabled: bool = env.get_bool("EDU_SHARING_SOURCE_TEMPLATE_ENABLED", allow_null=True, default=False)
+        # defaults to False for backwards-compatibility.
+        # (The EduSharingSourceTemplateHelper class is explicitly set to throw errors and abort a crawl if this setting
+        # is enabled! Activate this setting on a per-crawler basis!)
+        if est_enabled:
+            # "Quellendatensatz-Templates" might not be available on every edu-sharing instance. This feature is only
+            # active if explicitly set via the .env file. (This choice was made to avoid errors with
+            # old or unsupported crawlers.)
+            est_helper: EduSharingSourceTemplateHelper = EduSharingSourceTemplateHelper(crawler_name=spider.name)
+            whitelisted_properties: dict | None = est_helper.get_whitelisted_metadata_properties()
+            if whitelisted_properties:
+                setattr(spider, "edu_sharing_source_template_whitelist", whitelisted_properties)
+                logging.debug(f"Edu-sharing source template retrieval was successful. "
+                              f"The following metadata properties will be whitelisted for all items:\n"
+                              f"{whitelisted_properties}")
+            else:
+                logging.error(f"Edu-Sharing Source Template retrieval failed. "
+                              f"(Does a 'Quellendatensatz' exist in the edu-sharing repository for this spider?)")
+        else:
+            log.debug(f"Edu-Sharing Source Template feature is NOT ENABLED. Continuing EduSharingStorePipeline...")
 
     async def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
