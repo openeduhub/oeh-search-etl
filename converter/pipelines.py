@@ -8,30 +8,38 @@ import base64
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 import csv
+import datetime
 import logging
 import re
 import time
 from abc import ABCMeta
+from asyncio import Future
 from io import BytesIO
 from typing import BinaryIO, TextIO, Optional
 
+import PIL
 import dateparser
 import dateutil.parser
 import isodate
-import requests
 import scrapy
 import scrapy.crawler
+import twisted.internet.error
 from PIL import Image
+from async_lru import alru_cache
 from itemadapter import ItemAdapter
 from scrapy import settings
 from scrapy.exceptions import DropItem
 from scrapy.exporters import JsonItemExporter
+from scrapy.http.request import NO_CALLBACK
+from scrapy.utils.defer import maybe_deferred_to_future
 from scrapy.utils.project import get_project_settings
+from twisted.internet.defer import Deferred
 
 from converter import env
 from converter.constants import *
 from converter.es_connector import EduSharing
 from converter.items import BaseItem
+from converter.util.edu_sharing_source_template_helper import EduSharingSourceTemplateHelper
 from converter.util.language_mapper import LanguageMapper
 from converter.web_tools import WebTools, WebEngine
 from valuespace_converter.app.valuespaces import Valuespaces
@@ -288,7 +296,7 @@ class ConvertTimePipeline(BasicPipeline):
                             duration = int(duration)
                         except:
                             duration = None
-                            logging.warning("duration {} could not be normalized to seconds".format(raw_duration))
+                            log.warning("duration {} could not be normalized to seconds".format(raw_duration))
                     item["lom"]["technical"]["duration"] = duration
         return raw_item
 
@@ -348,149 +356,281 @@ class ProcessThumbnailPipeline(BasicPipeline):
             h *= 0.9
         return img.resize((int(w), int(h)), Image.Resampling.LANCZOS).convert("RGB")
 
-    def process_item(self, raw_item, spider):
+    async def process_item(self, raw_item, spider):
         """
-        By default the thumbnail-pipeline handles several cases:
+        By default, the thumbnail-pipeline handles several cases:
         - if there is a URL-string inside the "BaseItem.thumbnail"-field:
         -- download image from URL; rescale it into different sizes (small/large);
         --- save the thumbnails as base64 within
         ---- "BaseItem.thumbnail.small", "BaseItem.thumbnail.large"
-        --- (afterwards delete the URL from "BaseItem.thumbnail")
+        --- (afterward delete the URL from "BaseItem.thumbnail")
 
         - if there is NO "BaseItem.thumbnail"-field:
         -- default: take a screenshot of the URL from "technical.location" with Splash, rescale and save (as above)
         -- alternatively, on-demand: use Playwright to take a screenshot, rescale and save (as above)
         """
         item = ItemAdapter(raw_item)
-        response = None
-        url = None
-        settings = get_settings_for_crawler(spider)
+        response: scrapy.http.Response | None = None
+        url: str | None = None
+        settings_crawler = get_settings_for_crawler(spider)
         # checking if the (optional) attribute WEB_TOOLS exists:
-        web_tools = settings.get("WEB_TOOLS", WebEngine.Splash)
-        # if screenshot_bytes is provided (the crawler has already a binary representation of the image
+        web_tools = settings_crawler.get("WEB_TOOLS", default=WebEngine.Splash)
+        _splash_success: bool | None = None  # control flag flips to False if Splash can't handle a URL
+
+        # if screenshot_bytes is provided (the crawler has already a binary representation of the image,
         # the pipeline will convert/scale the given image
         if "screenshot_bytes" in item:
             # in case we are already using playwright in a spider, we can skip one additional HTTP Request by
             # accessing the (temporary available) "screenshot_bytes"-field
             img = Image.open(BytesIO(item["screenshot_bytes"]))
-            self.create_thumbnails_from_image_bytes(img, item, settings)
-            # the final BaseItem data model doesn't use screenshot_bytes,
-            # therefore we delete it after we're done processing it
+            self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
+            # The final BaseItem data model doesn't use screenshot_bytes.
+            # Therefore, we delete it after we're done with processing it
             del item["screenshot_bytes"]
-
-            # a thumbnail (url) is given - we will try to fetch it from the url
         elif "thumbnail" in item:
-            url = item["thumbnail"]
-            response = requests.get(url)
-            log.debug(
-                "Loading thumbnail took " + str(response.elapsed.total_seconds()) + "s"
-            )
-            # nothing was given, we try to screenshot the page either via Splash or Playwright
+            # a thumbnail (url) was provided within the item -> we will try to fetch it from the url
+            url: str = item["thumbnail"]
+            time_start: datetime = datetime.datetime.now()
+            try:
+                thumbnail_response: scrapy.http.Response = await self.download_thumbnail_url(url, spider)
+                # we expect that some thumbnail URLs will be wrong, outdated or already offline, which is why we catch
+                # the most common Exceptions while trying to dwonload the image.
+            except twisted.internet.error.TCPTimedOutError:
+                log.warning(f"Thumbnail download of URL {url} failed due to TCPTimedOutError. "
+                            f"(You might see this error if the image is unavailable under that specific URL.) "
+                            f"Falling back to website screenshot.")
+                del item["thumbnail"]
+                return await self.process_item(raw_item, spider)
+            except twisted.internet.error.DNSLookupError:
+                log.warning(f"Thumbnail download of URL {url} failed due to DNSLookupError. "
+                            f"(The webserver might be offline.) Falling back to website screenshot.")
+                del item["thumbnail"]
+                return await self.process_item(raw_item, spider)
+            time_end: datetime = datetime.datetime.now()
+            log.debug(f"Loading thumbnail from {url} took {time_end - time_start} (incl. awaiting).")
+            log.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
+            if thumbnail_response.status != 200:
+                log.debug(f"Thumbnail-Pipeline received a unexpected response (status: {thumbnail_response.status}) "
+                          f"from {url} (-> resolved URL: {thumbnail_response.url}")
+                # fall back to website screenshot
+                del item["thumbnail"]
+                return await self.process_item(raw_item, spider)
+            else:
+                # Some web-servers 'lie' in regard to their HTTP status, e.g., they forward to a 404 HTML page and still
+                # respond with a '200' code.
+                try:
+                    # We need to do additional checks before accepting the response object as a valid candidate for the
+                    # image transformation
+                    _mimetype: bytes = thumbnail_response.headers["Content-Type"]
+                    _mimetype: str = _mimetype.decode()
+                    if _mimetype.startswith("image/"):
+                        # we expect thumbnail URLs to be of MIME-Type 'image/...'
+                        # see: https://www.iana.org/assignments/media-types/media-types.xhtml#image
+                        response = thumbnail_response
+                        # only set the response if thumbnail retrieval was successful!
+                    elif _mimetype == "application/octet-stream":
+                        # ToDo: special handling for 'application/octet-stream' necessary?
+                        log.debug(f"Thumbnail URL of MIME-Type 'image/...' expected, "
+                                 f"but received '{_mimetype}' instead. "
+                                 f"(If thumbnail conversion throws unexpected errors further down the line, "
+                                 f"the Thumbnail-Pipeline needs to be re-visited! URL: {url} )")
+                        response = thumbnail_response
+                    else:
+                        log.warning(f"Thumbnail URL {url} does not seem to be an image! "
+                                    f"Header contained Content-Type '{_mimetype}' instead. "
+                                    f"(Falling back to screenshot)")
+                        del item["thumbnail"]
+                        return await self.process_item(raw_item, spider)
+                except KeyError:
+                    log.warning(f"Thumbnail URL response did not contain a Content-Type / MIME-Type! "
+                                f"Thumbnail URL queried: {url} "
+                                f"-> resolved URL: {thumbnail_response.url} "
+                                f"(HTTP Status: {thumbnail_response.status}")
+                    del item["thumbnail"]
+                    return await self.process_item(raw_item, spider)
         elif (
                 "location" in item["lom"]["technical"]
                 and len(item["lom"]["technical"]["location"]) > 0
-                and "format" in item["lom"]["technical"]
-                and item["lom"]["technical"]["format"] == "text/html"
         ):
-            if settings.get("SPLASH_URL") and web_tools == WebEngine.Splash:
-                response = requests.post(
-                    settings.get("SPLASH_URL") + "/render.png",
-                    json={
-                        "url": item["lom"]["technical"]["location"][0],
-                        # since there can be multiple "technical.location"-values, the first URL is used for thumbnails
-                        "wait": settings.get("SPLASH_WAIT"),
-                        "html5_media": 1,
-                        "headers": settings.get("SPLASH_HEADERS"),
-                    },
+            if settings_crawler.get("SPLASH_URL") and web_tools == WebEngine.Splash:
+                target_url: str = item["lom"]["technical"]["location"][0]
+                _splash_url: str = f"{settings_crawler.get('SPLASH_URL')}/render.png"
+                _splash_parameter_wait: str = f"{settings_crawler.get('SPLASH_WAIT')}"
+                _splash_parameter_html5media: str = str(1)
+                _splash_headers: dict = settings_crawler.get("SPLASH_HEADERS")
+                _splash_dict: dict = {
+                    "url": target_url,
+                    "wait": _splash_parameter_wait,
+                    "html5_media": _splash_parameter_wait,
+                    "headers": _splash_headers
+                }
+                request_splash = scrapy.FormRequest(
+                    url=_splash_url,
+                    formdata=_splash_dict,
+                    callback=NO_CALLBACK,
+                    priority=1
                 )
-            if env.get("PLAYWRIGHT_WS_ENDPOINT") and web_tools == WebEngine.Playwright:
-                # if the attribute "WEB_TOOLS" doesn't exist as an attribute within a specific spider,
-                # it will default back to "splash"
+                splash_response: scrapy.http.Response = await maybe_deferred_to_future(
+                    spider.crawler.engine.download(request_splash)
+                )
+                if splash_response and splash_response.status != 200:
+                    log.debug(f"SPLASH could not handle the requested website. "
+                              f"(Splash returned HTTP Status {splash_response.status} for {target_url} !)")
+                    _splash_success = False
+                    # ToDo (optional): more granular Error-Handling for unsupported URLs?
+                    if splash_response.status == 415:
+                        log.debug(f"SPLASH (HTTP Status {splash_response.status} -> Unsupported Media Type): "
+                                  f"Could not render target url {target_url}")
+                elif splash_response:
+                    response: scrapy.http.Response = splash_response
+                else:
+                    log.debug(f"SPLASH returned HTTP Status {splash_response.status} for {target_url} ")
+
+            playwright_websocket_endpoint: str | None = env.get("PLAYWRIGHT_WS_ENDPOINT")
+            if (not bool(_splash_success) and playwright_websocket_endpoint
+                    or playwright_websocket_endpoint and web_tools == WebEngine.Playwright):
+                # we're using Playwright to take a website screenshot if:
+                # - the spider explicitly defined Playwright in its 'custom_settings'-dict
+                # - or: Splash failed to render a website (= fallback)
+                # - or: the thumbnail URL could not be downloaded (= fallback)
 
                 # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
-                # but don't use playwright within the spider itself (e.g. serlo_spider)
-                playwright_dict = WebTools.getUrlData(url=item["lom"]["technical"]["location"][0],
-                                                      engine=WebEngine.Playwright)
+                # but don't use playwright within the spider itself
+                target_url: str = item["lom"]["technical"]["location"][0]
+                playwright_dict = await WebTools.getUrlData(url=target_url,
+                                                            engine=WebEngine.Playwright)
                 screenshot_bytes = playwright_dict.get("screenshot_bytes")
                 img = Image.open(BytesIO(screenshot_bytes))
-                self.create_thumbnails_from_image_bytes(img, item, settings)
+                self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
             else:
-                if settings.get("DISABLE_SPLASH") is False:
+                if settings_crawler.get("DISABLE_SPLASH") is False:
                     log.warning(
-                        "No thumbnail provided and SPLASH_URL was not configured for screenshots!"
+                        "No thumbnail provided (and .env variable 'SPLASH_URL' was not configured for screenshots!)"
                     )
         if response is None:
-            if settings.get("DISABLE_SPLASH") is False:
+            if settings_crawler.get("DISABLE_SPLASH") is False:
                 log.error(
-                    "Neither thumbnail or technical.location (and technical.format) provided! Please provide at least one of them"
+                    "Neither thumbnail or technical.location (and technical.format) provided! "
+                    "Please provide at least one of them"
                 )
         else:
             try:
-                if response.headers["Content-Type"] == "image/svg+xml":
-                    if len(response.content) > settings.get("THUMBNAIL_MAX_SIZE"):
+                if response.headers["Content-Type"] == b"image/svg+xml":
+                    if len(response.body) > settings_crawler.get("THUMBNAIL_MAX_SIZE"):
                         raise Exception(
                             "SVG images can't be converted, and the given image exceeds the maximum allowed size ("
-                            + str(len(response.content))
+                            + str(len(response.body))
                             + " > "
-                            + str(settings.get("THUMBNAIL_MAX_SIZE"))
+                            + str(settings_crawler.get("THUMBNAIL_MAX_SIZE"))
                             + ")"
                         )
                     item["thumbnail"] = {}
-                    item["thumbnail"]["mimetype"] = response.headers["Content-Type"]
+                    _mimetype: bytes = response.headers["Content-Type"]
+                    if _mimetype and isinstance(_mimetype, bytes):
+                        item["thumbnail"]["mimetype"] = _mimetype.decode()
+                    elif _mimetype and isinstance(_mimetype, str):
+                        item["thumbnail"]["mimetype"] = _mimetype
                     item["thumbnail"]["small"] = base64.b64encode(
-                        response.content
+                        response.body
                     ).decode()
                 else:
-                    img = Image.open(BytesIO(response.content))
-                    self.create_thumbnails_from_image_bytes(img, item, settings)
+                    img = Image.open(BytesIO(response.body))
+                    self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
+            except PIL.UnidentifiedImageError:
+                # this error can be observed when a website serves broken / malformed images
+                if url:
+                    log.warning(f"Thumbnail download of image file {url} failed: image file could not be identified "
+                                f"(Image might be broken or corrupt). Falling back to website-screenshot.")
+                del item["thumbnail"]
+                return await self.process_item(raw_item, spider)
             except Exception as e:
                 if url is not None:
-                    log.warning(
-                        "Could not read thumbnail at "
-                        + url
-                        + ": "
-                        + str(e)
-                        + " (falling back to screenshot)"
-                    )
+                    log.warning(f"Could not read thumbnail at {url}: {str(e)} (falling back to screenshot)")
+                    raise e
                 if "thumbnail" in item:
                     del item["thumbnail"]
-                    return self.process_item(raw_item, spider)
+                    return await self.process_item(raw_item, spider)
                 else:
                     # item['thumbnail']={}
                     raise DropItem(
-                        "No thumbnail provided or ressource was unavailable for fetching"
+                        "No thumbnail provided or resource was unavailable for fetching"
                     )
         return raw_item
+
+    @alru_cache(maxsize=128)
+    async def download_thumbnail_url(self, url: str, spider: scrapy.Spider):
+        """
+        Download a thumbnail URL and **caches** the result.
+
+        The cache works similarly to Python's built-in `functools.lru_cache`-decorator and discards the
+        least recently used items first.
+        (see: https://github.com/aio-libs/async-lru)
+
+        Typical use-case:
+        Some webhosters serve generic placeholder images as their default thumbnail.
+        By caching the response of such URLs, we can save a significant amount of time and traffic.
+
+        :param spider: The spider process that collected the URL.
+        :param url: URL of a thumbnail/image.
+        :return: Response or None
+        """
+        try:
+            request = scrapy.Request(url=url, callback=NO_CALLBACK, priority=1)
+            # Thumbnail downloads will be executed with a slightly higher priority (default: 0), so there's less delay
+            # between metadata processing and thumbnail retrieval steps in the pipelines
+            response: Deferred | Future = await maybe_deferred_to_future(
+                spider.crawler.engine.download(request)
+            )
+            return response
+        except ValueError:
+            log.debug(f"Thumbnail-Pipeline received an invalid URL: {url}")
 
     # override the project settings with the given ones from the current spider
     # see PR 56 for details
 
-    def create_thumbnails_from_image_bytes(self, image, item, settings):
-        small = BytesIO()
-        self.scale_image(image, settings.get("THUMBNAIL_SMALL_SIZE")).save(
-            small,
-            "JPEG",
-            mode="RGB",
-            quality=settings.get("THUMBNAIL_SMALL_QUALITY"),
-        )
-        large = BytesIO()
-        self.scale_image(image, settings.get("THUMBNAIL_LARGE_SIZE")).save(
-            large,
-            "JPEG",
-            mode="RGB",
-            quality=settings.get("THUMBNAIL_LARGE_QUALITY"),
-        )
-        item["thumbnail"] = {}
-        item["thumbnail"]["mimetype"] = "image/jpeg"
-        item["thumbnail"]["small"] = base64.b64encode(
-            small.getvalue()
-        ).decode()
-        item["thumbnail"]["large"] = base64.b64encode(
-            large.getvalue()
-        ).decode()
+    def create_thumbnails_from_image_bytes(self, image: Image.Image, item, settings):
+        small_buffer: BytesIO = BytesIO()
+        large_buffer: BytesIO = BytesIO()
+        if image.format == "PNG":
+            # PNG images with image.mode == "RGBA" cannot be converted cleanly to JPEG,
+            # which is why we're handling PNGs separately
+            small_copy = image.copy()
+            large_copy = image.copy()
+            # Pillow modifies the image object in place -> remember to use the correct copy
+            small_copy.thumbnail(size=(250, 250))
+            large_copy.thumbnail(size=(800, 800))
+            # ToDo:
+            #  Rework settings.py thumbnail config to retrieve values as width & height instead of sum(int)
+            small_copy.save(small_buffer, format="PNG")
+            large_copy.save(large_buffer, format="PNG")
+            item["thumbnail"] = {}
+            item["thumbnail"]["mimetype"] = "image/png"
+            item["thumbnail"]["small"] = base64.b64encode(large_buffer.getvalue()).decode()
+            item["thumbnail"]["large"] = base64.b64encode(large_buffer.getvalue()).decode()
+        else:
+            self.scale_image(image, settings.get("THUMBNAIL_SMALL_SIZE")).save(
+                small_buffer,
+                "JPEG",
+                mode="RGB",
+                quality=settings.get("THUMBNAIL_SMALL_QUALITY"),
+            )
+            self.scale_image(image, settings.get("THUMBNAIL_LARGE_SIZE")).save(
+                large_buffer,
+                "JPEG",
+                mode="RGB",
+                quality=settings.get("THUMBNAIL_LARGE_QUALITY"),
+            )
+            item["thumbnail"] = {}
+            item["thumbnail"]["mimetype"] = "image/jpeg"
+            item["thumbnail"]["small"] = base64.b64encode(
+                small_buffer.getvalue()
+            ).decode()
+            item["thumbnail"]["large"] = base64.b64encode(
+                large_buffer.getvalue()
+            ).decode()
 
 
-def get_settings_for_crawler(spider):
+def get_settings_for_crawler(spider) -> scrapy.settings.Settings:
     all_settings = get_project_settings()
     crawler_settings = settings.BaseSettings(getattr(spider, "custom_settings") or {}, 'spider')
     if type(crawler_settings) == dict:
@@ -617,14 +757,39 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         super().__init__()
         self.counter = 0
 
-    def process_item(self, raw_item, spider):
+    def open_spider(self, spider):
+        logging.debug("Entering EduSharingStorePipeline...\n"
+                      "Checking if 'crawler source template' ('Quellendatensatz-Template') should be used "
+                      "(see: 'EDU_SHARING_SOURCE_TEMPLATE_ENABLED' .env setting)...")
+        est_enabled: bool = env.get_bool("EDU_SHARING_SOURCE_TEMPLATE_ENABLED", allow_null=True, default=False)
+        # defaults to False for backwards-compatibility.
+        # (The EduSharingSourceTemplateHelper class is explicitly set to throw errors and abort a crawl if this setting
+        # is enabled! Activate this setting on a per-crawler basis!)
+        if est_enabled:
+            # "Quellendatensatz-Templates" might not be available on every edu-sharing instance. This feature is only
+            # active if explicitly set via the .env file. (This choice was made to avoid errors with
+            # old or unsupported crawlers.)
+            est_helper: EduSharingSourceTemplateHelper = EduSharingSourceTemplateHelper(crawler_name=spider.name)
+            whitelisted_properties: dict | None = est_helper.get_whitelisted_metadata_properties()
+            if whitelisted_properties:
+                setattr(spider, "edu_sharing_source_template_whitelist", whitelisted_properties)
+                logging.debug(f"Edu-sharing source template retrieval was successful. "
+                              f"The following metadata properties will be whitelisted for all items:\n"
+                              f"{whitelisted_properties}")
+            else:
+                logging.error(f"Edu-Sharing Source Template retrieval failed. "
+                              f"(Does a 'Quellendatensatz' exist in the edu-sharing repository for this spider?)")
+        else:
+            log.debug(f"Edu-Sharing Source Template feature is NOT ENABLED. Continuing EduSharingStorePipeline...")
+
+    async def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
         title = "<no title>"
         if "title" in item["lom"]["general"]:
             title = str(item["lom"]["general"]["title"])
         entryUUID = EduSharing.build_uuid(item["response"]["url"] if "url" in item["response"] else item["hash"])
-        self.insert_item(spider, entryUUID, item)
-        logging.info("item " + entryUUID + " inserted/updated")
+        await self.insert_item(spider, entryUUID, item)
+        log.info("item " + entryUUID + " inserted/updated")
 
         # @TODO: We may need to handle Collections
         # if 'collection' in item:
@@ -839,7 +1004,7 @@ class LisumPipeline(BasicPipeline):
                             case _:
                                 # due to having the 'custom'-field as a (raw) list of all eafCodes, this mainly serves
                                 # the purpose of reminding us if a 'discipline'-value couldn't be mapped to Lisum
-                                logging.debug(f"LisumPipeline failed to map from eafCode {discipline_eaf_code} "
+                                log.debug(f"LisumPipeline failed to map from eafCode {discipline_eaf_code} "
                                               f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback...")
                         match discipline_eaf_code:
                             # catching edge-cases where OEH 'discipline'-vocab-keys don't line up with eafsys.txt values
@@ -853,24 +1018,24 @@ class LisumPipeline(BasicPipeline):
                                 discipline_eafcodes.add("2600103")  # Körperpflege
                         if eaf_code_digits_only_regex.search(discipline_eaf_code):
                             # each numerical eafCode must have a length of (minimum) 3 digits to be considered valid
-                            logging.debug(f"LisumPipeline: Writing eafCode {discipline_eaf_code} to buffer. (Wil be "
+                            log.debug(f"LisumPipeline: Writing eafCode {discipline_eaf_code} to buffer. (Wil be "
                                           f"used later for 'ccm:taxonentry').")
                             if discipline_eaf_code not in self.EAFCODE_EXCLUSIONS:
                                 # making sure to only save eafCodes that are part of the standard eafsys.txt
                                 discipline_eafcodes.add(discipline_eaf_code)
                             else:
-                                logging.debug(f"LisumPipeline: eafCode {discipline_eaf_code} is not part of 'EAF "
+                                log.debug(f"LisumPipeline: eafCode {discipline_eaf_code} is not part of 'EAF "
                                               f"Sachgebietssystematik' (see: eafsys.txt), therefore skipping this "
                                               f"value.")
                         else:
                             # our 'discipline.ttl'-vocab holds custom keys (e.g. 'niederdeutsch', 'oeh04010') which
                             # shouldn't be saved into 'ccm:taxonentry' (since they are not part of the regular
                             # "EAF Sachgebietssystematik"
-                            logging.debug(f"LisumPipeline eafCode fallback for {discipline_eaf_code} to "
+                            log.debug(f"LisumPipeline eafCode fallback for {discipline_eaf_code} to "
                                           f"'ccm:taxonentry' was not possible. Only eafCodes with a minimum length "
                                           f"of 3+ digits are valid. (Please confirm if the provided value is part of "
                                           f"the 'EAF Sachgebietssystematik' (see: eafsys.txt))")
-                logging.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
+                log.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
                               f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
                 valuespaces["discipline"] = list()  # clearing 'discipline'-field, so we don't accidentally write the
                 # remaining OEH w3id-URLs to Lisum's 'ccm:taxonid'-field
@@ -891,7 +1056,7 @@ class LisumPipeline(BasicPipeline):
                                     educational_context_w3id_key)
                                 educational_context_lisum_keys.add(educational_context_w3id_key)
                             case _:
-                                logging.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key} "
+                                log.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key} "
                                               f"not found in mapping table.")
                 educational_context_list = list(educational_context_lisum_keys)
                 educational_context_list.sort()
@@ -978,14 +1143,14 @@ class LisumPipeline(BasicPipeline):
                             taxon_set = set(taxon_entries)
                             taxon_set.update(discipline_eafcodes)
                             taxon_entries = list(taxon_set)
-                            logging.debug(f"LisumPipeline: Saving eafCodes {taxon_entries} to 'ccm:taxonentry'.")
+                            log.debug(f"LisumPipeline: Saving eafCodes {taxon_entries} to 'ccm:taxonentry'.")
                             base_item_adapter["custom"]["ccm:taxonentry"] = taxon_entries
                 else:
                     # oeh_spider typically won't have neither the 'custom'-field nor the 'ccm:taxonentry'-field
                     # Therefore we have to create and fill it with the eafCodes that we gathered from our
                     # 'discipline'-vocabulary-keys.
                     discipline_eafcodes_list = list(discipline_eafcodes)
-                    logging.debug(f"LisumPipeline: Saving eafCodes {discipline_eafcodes_list} to 'ccm:taxonentry'.")
+                    log.debug(f"LisumPipeline: Saving eafCodes {discipline_eafcodes_list} to 'ccm:taxonentry'.")
                     base_item_adapter.update(
                         {'custom': {
                             'ccm:taxonentry': discipline_eafcodes_list}})

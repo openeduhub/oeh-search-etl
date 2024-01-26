@@ -88,7 +88,8 @@ class Constants:
         "PDM": [LICENSE_PDM],
     }
 
-    LICENSE_COPYRIGHT_LAW: Final[str] = "COPYRIGHT_FREE"
+    LICENSE_COPYRIGHT_FREE: Final[str] = "COPYRIGHT_FREE"  # edu-sharing Frontend: "Copyright, freier Zugang"
+    LICENSE_COPYRIGHT_LAW: Final[str] = "COPYRIGHT_LICENSE"  # edu-sharing Frontend: "Copyright, lizenzpflichtig"
     LICENSE_CUSTOM: Final[str] = "CUSTOM"  # Custom License, use the license description field for arbitrary values
     LICENSE_NONPUBLIC: Final[str] = "NONPUBLIC"
     LICENSE_SCHULFUNK: Final[str] = "SCHULFUNK"  # "Schulfunk (§47 UrhG)"

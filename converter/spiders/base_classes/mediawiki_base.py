@@ -182,7 +182,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
             return
         yield self.query_for_pages(jmes_continue.search(data))
 
-    def parse_page_data(self, response: scrapy.http.Response, extra=None):
+    async def parse_page_data(self, response: scrapy.http.Response, extra=None):
         data = json.loads(response.body)
         response.meta["item"] = data
         response.meta["item_extra"] = extra
@@ -196,7 +196,7 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
             )
             return None
 
-        return super().parse(response)
+        return await super().parse(response)
 
     def getId(self, response=None):
         data = response.meta["item"]
@@ -205,8 +205,8 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
     def getHash(self, response=None):
         return str(jmes_revid.search(response.meta["item"])) + self.version
 
-    def mapResponse(self, response, fetchData=True):
-        mr = super().mapResponse(response, fetchData=False)
+    async def mapResponse(self, response, fetchData=True):
+        mr = await super().mapResponse(response, fetchData=False)
         data = json.loads(response.body)
         title: str = jmes_title.search(data)
         title_underscored: str = title.replace(" ", "_")

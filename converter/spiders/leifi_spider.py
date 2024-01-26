@@ -50,8 +50,8 @@ class LeifiSpider(scrapy.Spider, LomBase):
                 copy_response.meta["item"] = item
                 yield self.parse(copy_response)
 
-    def parse(self, response):
-        return LomBase.parse(self, response)
+    async def parse(self, response):
+        return await LomBase.parse(self, response)
 
     def getValuespaces(self, response):
         valuespaces = LomBase.getValuespaces(self, response)

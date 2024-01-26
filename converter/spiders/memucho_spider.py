@@ -40,8 +40,8 @@ class MemuchoSpider(CrawlSpider, LomBase, JSONBase):
             yield Request(url=url, callback=self.parse_sitemap)
         pass
 
-    def mapResponse(self, response):
-        return LomBase.mapResponse(self, response)
+    async def mapResponse(self, response):
+        return await LomBase.mapResponse(self, response)
 
     def getId(self, response):
         return response.meta["item"].get("TopicId")
@@ -65,8 +65,8 @@ class MemuchoSpider(CrawlSpider, LomBase, JSONBase):
                     meta={"item": item},
                 )
 
-    def parse(self, response):
-        return LomBase.parse(self, response)
+    async def parse(self, response):
+        return await LomBase.parse(self, response)
 
     # thumbnail is always the same, do not use the one from rss
     def getBase(self, response):

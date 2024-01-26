@@ -72,7 +72,7 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
             if self.hasChanged(response) and skip_check is False:
                 yield response.follow(item.loc, callback=self.parse_site, cb_kwargs={'sitemap_entry': item})
 
-    def parse_site(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None) -> BaseItem:
+    async def parse_site(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None) -> BaseItem:
         """
         parses metadata from an individual item both by its HtmlResponse and its sitemap tags
 
@@ -82,7 +82,8 @@ class KindoergartenSpider(scrapy.Spider, LomBase):
         """
         response.meta['sitemap_entry'] = sitemap_entry
         base = super().getBase(response=response)
-        base.add_value("response", super().mapResponse(response).load_item())
+        response_itemloader: ResponseItemLoader = await super().mapResponse(response)
+        base.add_value("response", response_itemloader.load_item())
         # we assume that content is imported. Please use replace_value if you import something different
         # thumbnail_href = response.css('.post-thumbnail img::attr(src)').get()
         base.add_value('thumbnail', response.css('.post-thumbnail img::attr(src)').get())

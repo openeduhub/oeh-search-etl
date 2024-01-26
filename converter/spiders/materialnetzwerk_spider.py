@@ -84,7 +84,7 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
             bundle_urls.append(current_url)
             yield scrapy.Request(url=current_url, callback=self.parse_bundle_overview)
 
-    def parse_bundle_overview(self, response: scrapy.http.Response):
+    async def parse_bundle_overview(self, response: scrapy.http.Response):
         """
 
         Spider Contracts:
@@ -98,7 +98,7 @@ class MaterialNetzwerkSpider(CrawlSpider, LomBase):
         bundle_dict = dict()
         bundle_dict["bundle_url"] = response.url
         # render the web page to execute js and copy to the response
-        body = WebTools.getUrlData(response.url, WebEngine.Playwright)
+        body = await WebTools.getUrlData(response.url, WebEngine.Playwright)
         response = response.replace(body=body['html'])
 
         # a typical bundle_overview looks like this: https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78

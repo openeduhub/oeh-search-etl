@@ -7,7 +7,7 @@ from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
 from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, LomLifecycleItemloader, \
-    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
+    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
 from converter.spiders.base_classes import LomBase
 
 
@@ -118,7 +118,7 @@ class DwuSpider(CrawlSpider, LomBase):
         # making sure that we don't crawl the overview-page more than once:
         self.parsed_urls.add(response.url)
 
-    def parse(self, response: scrapy.http.Response, **kwargs):
+    async def parse(self, response: scrapy.http.Response, **kwargs):
         base = super().getBase(response=response)
         lom = LomBaseItemloader()
         general = LomGeneralItemloader(response=response)
@@ -273,7 +273,8 @@ class DwuSpider(CrawlSpider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value('permissions', permissions.load_item())
 
-        base.add_value('response', super().mapResponse(response).load_item())
+        response_itemloader: ResponseItemLoader = await super().mapResponse(response)
+        base.add_value('response', response_itemloader.load_item())
 
         # print(self.parsed_urls)
         # print("debug_url_set length:", len(self.parsed_urls))

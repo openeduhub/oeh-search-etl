@@ -80,7 +80,7 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
             # following each video_url to the dedicated video-subpage to grab metadata
             yield response.follow(url=video_full_url, callback=self.parse_video_page)
 
-    def parse_video_page(self, response: scrapy.http.Response = None):
+    async def parse_video_page(self, response: scrapy.http.Response = None):
         """
         parses a video-page (e.g. https://vimeo.com/videoID whereby videoID is a number) for metadata
         (condition: only if there is a "json+ld"-script found within the video-page).
@@ -101,7 +101,7 @@ class SchuleImAufbruchSpider(scrapy.Spider, LomBase):
             # response.xpath('//*[@id="wrap"]/div[2]/script[1]/text()').get()
             # might have to access it and split it up with regEx
 
-            return LomBase.parse(self, response)
+            return await LomBase.parse(self, response)
         else:
             logging.debug("Could not find ld+json script, skipping entry: " + response.url)
 
