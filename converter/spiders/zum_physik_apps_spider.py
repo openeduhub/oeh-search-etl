@@ -6,7 +6,7 @@ from scrapy import Selector
 
 from converter.constants import Constants
 from converter.items import LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, LomLifecycleItemloader, \
-    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader
+    LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader
 from converter.spiders.base_classes import LomBase
 from converter.web_tools import WebTools, WebEngine
 
@@ -21,7 +21,7 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         # "https://www.zum.de/ma/fendt/phde/"
     ]
     version = "0.0.6"  # last update: 2022-05-23
-    # expected amount of items after a successful crawl: 55
+    # expected number of items after a successful crawl: 55
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         # "AUTOTHROTTLE_DEBUG": True
@@ -54,7 +54,7 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
             topic_url = response.urljoin(topic_url)
             yield scrapy.Request(url=topic_url, callback=self.parse)
 
-    def parse(self, response: scrapy.http.Response, **kwargs):
+    async def parse(self, response: scrapy.http.Response, **kwargs):
         """
         Populates a BaseItemLoader with metadata and yields the individual BaseItem via BaseItemLoader.load_item()
         afterwards.
@@ -64,7 +64,7 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
         @returns item 1
         """
         # fetching publication date and lastModified from dynamically loaded <p class="Ende">-element:
-        url_data_splash_dict = WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
+        url_data_splash_dict = await WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
         splash_html_string = url_data_splash_dict.get('html')
         page_end_element = Selector(text=splash_html_string).xpath('//p[@class="Ende"]').get()
         line_regex = re.compile(r'<br>')
@@ -152,6 +152,7 @@ class ZumPhysikAppsSpider(scrapy.Spider, LomBase):
 
         permissions = super().getPermissions(response)
         base.add_value('permissions', permissions.load_item())
-        base.add_value('response', super().mapResponse(response).load_item())
+        response_itemloader: ResponseItemLoader = await super().mapResponse(response)
+        base.add_value('response', response_itemloader.load_item())
 
         yield base.load_item()

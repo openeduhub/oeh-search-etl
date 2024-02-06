@@ -32,7 +32,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         for url in self.start_urls:
             yield Request(url=url, callback=self.parse)
 
-    def parse(self, response: scrapy.http.TextResponse, **kwargs):
+    async def parse(self, response: scrapy.http.TextResponse, **kwargs):
         data = self.getUrlData(response.url)
         response.meta["rendered_data"] = data
         # as of Scrapy 2.2 the JSON of a TextResponse can be loaded like this,
@@ -42,7 +42,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             copy_response = response.copy()
             # Passing the dictionary for easier access to its attributes.
             copy_response.meta["item"] = element
-            yield LomBase.parse(self, response=copy_response)
+            yield await LomBase.parse(self, response=copy_response)
 
     # def _if_exists_add(self, edu_dict: dict, element_dict: dict, edu_attr: str, element_attr: str):
     #     if element_attr in element_dict:

@@ -65,7 +65,7 @@ class LernprogrammeSpiderBase(metaclass=ABCMeta):
             else None
         )
 
-    def parse(self, response):
+    async def parse(self, response):
         reader = csv.DictReader(
             StringIO(response.text),  # DictReader expects a file handle
             ["title", "description", "keywords", "thumbnail", "url", "width", "height"],
@@ -76,7 +76,7 @@ class LernprogrammeSpiderBase(metaclass=ABCMeta):
             row = self.map_row(row)
             response_copy = response.replace(url=row["url"])
             response_copy.meta["row"] = row
-            yield self.loader.parse(response_copy)
+            yield await self.loader.parse(response_copy)
             if self.exercise_loader is not None:
                 yield self.request_exercise(row)
 

@@ -36,8 +36,8 @@ class PlanetSchuleSpider(RSSBase):
         for url in self.start_urls:
             yield scrapy.Request(url=url, callback=self.parse)
 
-    def mapResponse(self, response):
-        return LomBase.mapResponse(self, response)
+    async def mapResponse(self, response):
+        return await LomBase.mapResponse(self, response)
 
     def startHandler(self, response):
         for item in response.xpath("//rss/channel/item"):
@@ -56,8 +56,8 @@ class PlanetSchuleSpider(RSSBase):
                     # })
                 )
 
-    def handleLink(self, response):
-        return LomBase.parse(self, response)
+    async def handleLink(self, response):
+        return await LomBase.parse(self, response)
 
     # thumbnail is always the same, do not use the one from rss
     def getBase(self, response):

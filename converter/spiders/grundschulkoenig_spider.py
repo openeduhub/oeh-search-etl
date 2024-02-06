@@ -100,7 +100,7 @@ class GrundSchulKoenigSpider(CrawlSpider, LomBase):
             if skip_url is False:
                 yield response.follow(item.loc, callback=self.parse, cb_kwargs={'sitemap_entry': item})
 
-    def parse(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None):
+    async def parse(self, response: scrapy.http.HtmlResponse, sitemap_entry: SitemapEntry = None):
         title = response.xpath('//span[@class="nav__crumb nav__crumb--current"]/span/text()').get()
         # content = response.xpath('//div[@class="page__content"]')
         # Worksheets are grouped, sometimes several worksheet-containers per page exist
@@ -196,7 +196,7 @@ class GrundSchulKoenigSpider(CrawlSpider, LomBase):
         permissions = super().getPermissions(response)
         base.add_value("permissions", permissions.load_item())
 
-        response_loader = super().mapResponse(response)
+        response_loader = await super().mapResponse(response)
         base.add_value('response', response_loader.load_item())
 
         yield base.load_item()

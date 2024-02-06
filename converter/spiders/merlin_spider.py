@@ -37,7 +37,7 @@ class MerlinSpider(CrawlSpider, LomBase):
             headers={"Accept": "application/xml", "Content-Type": "application/xml"},
         )
 
-    def parse(self, response: scrapy.http.Response):
+    async def parse(self, response: scrapy.http.Response):
         print("Parsing URL: " + response.url)
 
         # Call Splash only once per page (that contains multiple XML elements).
@@ -78,7 +78,7 @@ class MerlinSpider(CrawlSpider, LomBase):
                     yield self.handleEntry(copyResponse)
 
                 # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
-                LomBase.parse(self, copyResponse)
+                await LomBase.parse(self, copyResponse)
 
         # TODO: To not stress the Rest APIs.
         # time.sleep(0.1)
@@ -123,8 +123,8 @@ class MerlinSpider(CrawlSpider, LomBase):
         r.add_value("url", self.getUri(response))
         return r
 
-    def handleEntry(self, response):
-        return LomBase.parse(self, response)
+    async def handleEntry(self, response):
+        return await LomBase.parse(self, response)
 
     def getBase(self, response):
         base = LomBase.getBase(self, response)

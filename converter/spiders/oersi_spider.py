@@ -22,9 +22,8 @@ from converter.items import (
     ResponseItemLoader,
 )
 from converter.spiders.base_classes import LomBase
-from converter.util.edu_sharing_precheck import EduSharingPreCheck
 from converter.util.license_mapper import LicenseMapper
-from converter.web_tools import WebEngine, WebTools
+from converter.web_tools import WebEngine
 
 
 class OersiSpider(scrapy.Spider, LomBase):
@@ -39,15 +38,18 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.5"  # last update: 2023-08-12
+    version = "0.1.8"  # last update: 2023-12-20
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 20,
-        "CONCURRENT_REQUESTS_PER_DOMAIN": 4,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 60,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 6,
+        "DUPEFILTER_DEBUG": True,
         "WEB_TOOLS": WebEngine.Playwright,
+        "ROBOTSTXT_OBEY": False,
     }
+    # if robots.txt is obeyed, the thumbnail downloads fail on some metadata-providers (e.g., DuEPublico)
 
     ELASTIC_PARAMETER_KEEP_ALIVE: str = "1m"
     # for reference: https://www.elastic.co/guide/en/elasticsearch/reference/current/api-conventions.html#time-units
@@ -59,14 +61,15 @@ class OersiSpider(scrapy.Spider, LomBase):
     # the provider-filter at https://oersi.org/resources/ shows you which String values can be used as a provider-name
     # ToDo: regularly check if new providers need to be added to the list below (and insert/sort them alphabetically!)
     ELASTIC_PROVIDERS_TO_CRAWL: list = [
-        # "BC Campus",  # ToDo: BC Campus website cannot be crawled at the moment, needs further investigation
+        "BC Campus",  # BC Campus website cannot be crawled at the moment, needs further investigation
+        # "ComeIn",  # should not be crawled, datasets were exported to OERSI from WLO
         "detmoldMusicTools",
         "digiLL",
         "DuEPublico",
         "eaDNURT",
         "eCampusOntario",
         "eGov-Campus",
-        # "Finnish Library of Open Educational Resources",  # ToDo: URLs of this metadata-provider cannot be resolved
+        "Finnish Library of Open Educational Resources",  # URLs of this metadata-provider cannot be resolved
         "GitHub",
         "GitLab",
         "Helmholtz Codebase",
@@ -75,11 +78,12 @@ class OersiSpider(scrapy.Spider, LomBase):
         "HOOU",
         "iMoox",
         "KI Campus",
-        # "langSci Press",  # new provider as of 2023-04-27 - disappeared on 2023-05-04
+        "langSci Press",  # new provider as of 2023-04-27
+        "lecture2go (Hamburg)",  # new provider as of 2023-12-14
         "MIT OpenCourseWare",
-        "OEPMS",  # new provider as of 2023-04-27
+        # "OEPMS",  # new provider as of 2023-04-27 # ToDo: cannot be crawled
         "OER Portal Uni Graz",
-        "oncampus",
+        "oncampus",  # (temporarily) not available? (2023-12-14)
         "Open Music Academy",
         "Open Textbook Library",
         "Opencast Universität Osnabrück",
@@ -88,6 +92,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         "OpenRub",
         "ORCA.nrw",
         "Phaidra Uni Wien",
+        "Pressbooks Directory",  # new provider as of 2023-12-14
         "RWTH Aachen GitLab",
         "TIB AV-Portal",
         "TU Delft OpenCourseWare",
@@ -131,29 +136,15 @@ class OersiSpider(scrapy.Spider, LomBase):
             logging.info(f"ElasticSearch API response (upon PIT delete): {json_response}")
 
     def start_requests(self):
+        # yield dummy request, so that Scrapy's start_item method requirement is satisfied,
+        # then use callback method to crawl all items
+        yield scrapy.Request(url="https://oersi.org", callback=self.handle_collected_elastic_items)
+
+    def handle_collected_elastic_items(self, response: scrapy.http.Response):
         random.shuffle(self.ELASTIC_ITEMS_ALL)  # shuffling the list of ElasticSearch items to improve concurrency and
         # distribute the load between several target domains.
-        continue_from_previous_crawl = env.get_bool("CONTINUE_CRAWL", True, False)
-        # checking if a previously aborted crawl should be completed (by skipping updates of previously collected items)
-        if continue_from_previous_crawl:
-            # ToDo: for time-stable results this feature needs to be reworked: uuids need to be used to keep consistent
-            #  results across longer crawling processes
-            es_id_collector = EduSharingPreCheck()
-            previously_crawled_replication_source_ids: list[str] = es_id_collector.get_replication_source_id_list()
-            for elastic_item in self.ELASTIC_ITEMS_ALL:
-                elastic_item_identifier: str = elastic_item["_id"]
-                if elastic_item_identifier in previously_crawled_replication_source_ids:
-                    logging.debug(
-                        f"Found Elastic item '_id': {elastic_item_identifier} within previously crawled "
-                        f"results in the edu-sharing repository. Skipping item because '.env'-setting "
-                        f"'CONTINUE_CRAWL' is enabled."
-                    )
-                    continue
-                else:
-                    yield from self.check_item_and_yield_to_parse_method(elastic_item)
-        else:
-            for elastic_item in self.ELASTIC_ITEMS_ALL:
-                yield from self.check_item_and_yield_to_parse_method(elastic_item)
+        for elastic_item in self.ELASTIC_ITEMS_ALL:
+            yield from self.check_item_and_yield_to_parse_method(elastic_item)
 
     def check_item_and_yield_to_parse_method(self, elastic_item: dict) -> scrapy.Request | None:
         """
@@ -176,8 +167,11 @@ class OersiSpider(scrapy.Spider, LomBase):
             ):
                 if not self.hasChanged(None, elastic_item=elastic_item):
                     return None
+            # ToDo: implement crawling mode toggle?
+            #  (online) crawl vs. "offline"-import (without making requests to the item urls)
             # by omitting the callback parameter, individual requests are yielded to the parse-method
-            yield scrapy.Request(url=item_url, cb_kwargs={"elastic_item": elastic_item})
+            # yield scrapy.Request(url=item_url, cb_kwargs={"elastic_item": elastic_item}, dont_filter=True)
+            yield from self.parse(elastic_item=elastic_item)
 
     def elastic_pit_create(self) -> dict:
         """
@@ -293,7 +287,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                         if "sort" in last_entry:
                             last_sort_result: list = last_entry.get("sort")
                             if last_sort_result:
-                                logging.info(f"The last_sort_result is {last_sort_result}")
                                 has_next_page = True
                                 pagination_parameter = last_sort_result
                             else:
@@ -301,7 +294,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                 break
                     else:
                         logging.info(
-                            f"reached the end of the ElasticSearch results for '{provider_name}' // "
+                            f"Reached the end of the ElasticSearch results for '{provider_name}' // "
                             f"Total amount of items collected (across all metadata-providers): {len(all_items)}"
                         )
                         break
@@ -347,24 +340,17 @@ class OersiSpider(scrapy.Spider, LomBase):
         return EduSharing.build_uuid(item_url)
 
     @staticmethod
-    def get_item_url(elastic_item) -> str:
+    def get_item_url(elastic_item: dict) -> str | None:
         """
-        Tries to gather the to-be-parsed URL from OERSI's 'MainEntityOfPage'-field and if that field is not available,
-        falls back to the '_source.id'-field. Returns an URL-string.
+        Retrieves the to-be-parsed URL from OERSI's '_source.id'-field.
+        If that (REQUIRED) field was not available, returns None.
         """
-        main_entity_of_page: list[dict] = elastic_item["_source"]["mainEntityOfPage"]
-        if main_entity_of_page:
-            item_url: str = main_entity_of_page[0]["id"]
-            # "id" is a REQUIRED sub-field of MainEntityOfPage and will always contain more stable URLs than
-            # '_source.id'
+        item_url: str = elastic_item["_source"]["id"]
+        if item_url:
             return item_url
         else:
-            item_url: str = elastic_item["_source"]["id"]
-            logging.debug(
-                f"get_uuid fallback activated: The field 'MainEntityOfPage.id' for '{elastic_item['_id']}' was not "
-                f"available. Using fallback value '_source.id': {item_url} instead."
-            )
-            return item_url
+            logging.warning(f"OERSI Item {elastic_item['_id']} did not provide a URL string. Dropping item.")
+            return None
 
     def hasChanged(self, response=None, elastic_item: dict = dict) -> bool:
         elastic_item = elastic_item
@@ -635,10 +621,16 @@ class OersiSpider(scrapy.Spider, LomBase):
             lom_base_item_loader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
 
     def get_lifecycle_publisher(
-        self, lom_base_item_loader: LomBaseItemloader, elastic_item_source: dict, date_published: Optional[str] = None
+        self,
+        lom_base_item_loader: LomBaseItemloader,
+        elastic_item_source: dict,
+        organizations_from_publisher_fields: set[str],
+        date_published: Optional[str] = None,
     ):
         """
-        Collects metadata from OERSI's "publisher"-field and stores it within a LomLifecycleItemLoader.
+        Collects metadata from OERSI's "publisher"-field and stores it within a LomLifecycleItemLoader. Successfully
+        collected 'publisher.name'-strings are added to an organizations set for duplicate detection in the
+        'sourceOrganization' field.
         """
         if "publisher" in elastic_item_source:
             # see: https://dini-ag-kim.github.io/amb/draft/#publisher
@@ -651,6 +643,10 @@ class OersiSpider(scrapy.Spider, LomBase):
                     publisher_name: str = publisher_item.get("name")
                     if publisher_type == "Organization":
                         lifecycle_publisher.add_value("organization", publisher_name)
+                        # to avoid duplicate entries in 'publisher'-lifecycle items, we need to keep a set of previously
+                        # collected publisher names to compare them later in the 'sourceOrganization'-method for the
+                        # WLO-BIRD-Connector v2
+                        organizations_from_publisher_fields.add(publisher_name)
                     elif publisher_type == "Person":
                         self.split_names_if_possible_and_add_to_lifecycle(
                             name_string=publisher_name,
@@ -706,6 +702,27 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lifecycle_org.add_value("url", org_url)
                 lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
+    def get_lifecycle_publisher_from_source_organization(
+        self, lom_item_loader: LomBaseItemloader, elastic_item_source: dict, previously_collected_publishers: set[str]
+    ):
+        source_organizations: list[dict] = elastic_item_source.get("sourceOrganization")
+        for so in source_organizations:
+            if "name" in so:
+                source_org_name: str = so.get("name")
+                if source_org_name not in previously_collected_publishers:
+                    lifecycle_org = LomLifecycleItemloader()
+                    lifecycle_org.add_value("role", "publisher")
+                    lifecycle_org.add_value("organization", source_org_name)
+                    if "id" in so:
+                        self.lifecycle_determine_type_of_identifier_and_save_uri(
+                            item_dictionary=so, lifecycle_item_loader=lifecycle_org
+                        )
+                    if "url" in so:
+                        org_url: str = so.get("url")
+                        if org_url:
+                            lifecycle_org.add_value("url", org_url)
+                    lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
+
     @staticmethod
     def lifecycle_determine_type_of_identifier_and_save_uri(
         item_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
@@ -748,15 +765,18 @@ class OersiSpider(scrapy.Spider, LomBase):
         Afterward saves the split values to their respective 'lifecycle'-fields or saves the string as a whole.
         """
         if " " in name_string:
+            # clean up empty / erroneous whitespace-only strings before trying to split the string
+            name_string = name_string.strip()
+        if " " in name_string:
             name_parts = name_string.split(maxsplit=1)
             first_name = name_parts[0]
             last_name = name_parts[1]
             lifecycle_item_loader.add_value("firstName", first_name)
             lifecycle_item_loader.add_value("lastName", last_name)
-        else:
+        elif name_string:
             lifecycle_item_loader.add_value("firstName", name_string)
 
-    def parse(self, response: scrapy.http.Response, **kwargs):
+    def parse(self, response=None, **kwargs):
         elastic_item: dict = kwargs.get("elastic_item")
         elastic_item_source: dict = elastic_item.get("_source")
         # _source is the original JSON body passed for the document at index time
@@ -807,7 +827,14 @@ class OersiSpider(scrapy.Spider, LomBase):
 
         base.add_value("sourceId", self.getId(response, elastic_item=elastic_item))
         base.add_value("hash", self.getHash(response, elastic_item_source=elastic_item_source))
-        thumbnail_url = str()
+        try:
+            thumbnail_url: str = elastic_item_source.get("image")
+            # see: https://dini-ag-kim.github.io/amb/draft/#image
+            if thumbnail_url:
+                base.add_value("thumbnail", thumbnail_url)
+        except KeyError:
+            logging.debug(f"OERSI Item {elastic_item['_id']} "
+                          f"(name: {elastic_item_source['name']}) did not provide a thumbnail.")
         if "image" in elastic_item_source:
             thumbnail_url = elastic_item_source.get("image")  # thumbnail
             if thumbnail_url:
@@ -816,7 +843,6 @@ class OersiSpider(scrapy.Spider, LomBase):
             # every item gets sorted into a /<provider_name>/-subfolder to make QA more feasable
             base.add_value("origin", provider_name)
 
-        general.add_value("identifier", response.url)
         if "keywords" in elastic_item_source:
             keywords: list = elastic_item_source.get("keywords")
             if keywords:
@@ -839,19 +865,16 @@ class OersiSpider(scrapy.Spider, LomBase):
         lom.add_value("general", general.load_item())
 
         technical = LomTechnicalItemLoader()
-        identifier_url: str = str()
-        if "id" in elastic_item_source:
-            identifier_url: str = elastic_item_source.get("id")  # this URL is REQUIRED and should always be available
+        try:
+            identifier_url: str = self.get_item_url(elastic_item=elastic_item)
+            # this URL is REQUIRED and should always be available
             # see https://dini-ag-kim.github.io/amb/draft/#id
-            if identifier_url:
-                general.replace_value("identifier", identifier_url)
-                technical.add_value("location", identifier_url)
-                if identifier_url != response.url:
-                    # the identifier_url should be more stable/robust than the (resolved) response.url in the long run,
-                    # so we will save both URLs in case the resolved URL is different
-                    technical.add_value("location", response.url)
-        elif not identifier_url:
-            technical.add_value("location", response.url)
+        except KeyError:
+            logging.warning(f"Item {elastic_item['_id']} did not have an item URL (AMB 'id' was missing)!")
+            return
+        if identifier_url:
+            general.replace_value("identifier", identifier_url)
+            technical.add_value("location", identifier_url)
         lom.add_value("technical", technical.load_item())
 
         organizations_from_affiliation_fields: set[str] = set()
@@ -875,15 +898,28 @@ class OersiSpider(scrapy.Spider, LomBase):
             author_list=authors,
         )
 
+        organizations_from_publisher_fields: set[str] = set()
         self.get_lifecycle_publisher(
-            lom_base_item_loader=lom, elastic_item_source=elastic_item_source, date_published=date_published
+            lom_base_item_loader=lom,
+            elastic_item_source=elastic_item_source,
+            organizations_from_publisher_fields=organizations_from_publisher_fields,
+            date_published=date_published,
         )
 
         if "sourceOrganization" in elastic_item_source:
-            self.get_lifecycle_organization_from_source_organization_fallback(
-                elastic_item_source=elastic_item_source,
+            # # ToDo: this fallback might no longer be necessary:
+            # self.get_lifecycle_organization_from_source_organization_fallback(
+            #     elastic_item_source=elastic_item_source,
+            #     lom_item_loader=lom,
+            #     organization_fallback=organizations_from_affiliation_fields,
+            # )
+
+            # WLO-BIRD-Connector v2 REQUIREMENT:
+            # 'sourceOrganization' -> 'ccm:lifecyclecontributer_publisher'
+            self.get_lifecycle_publisher_from_source_organization(
                 lom_item_loader=lom,
-                organization_fallback=organizations_from_affiliation_fields,
+                elastic_item_source=elastic_item_source,
+                previously_collected_publishers=organizations_from_publisher_fields,
             )
 
         educational = LomEducationalItemLoader()
@@ -1075,28 +1111,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         base.add_value("permissions", permissions.load_item())
 
         response_loader = ResponseItemLoader()
-        # ToDo: skip the scrapy.Request altogether? (-> would be a huge time benefit)
-        response_loader.add_value("status", response.status)
-        if not thumbnail_url:
-            # only use the headless browser if we need to take a website screenshot, otherwise skip this (expensive)
-            # part of the program flow completely
-            url_data = WebTools.getUrlData(url=response.url, engine=WebEngine.Playwright)
-            if "html" in url_data:
-                response_loader.add_value("html", url_data["html"])
-            if "text" in url_data:
-                response_loader.add_value("text", url_data["text"])
-            if "cookies" in url_data:
-                response_loader.add_value("cookies", url_data["cookies"])
-            if "har" in url_data:
-                response_loader.add_value("har", url_data["har"])
-            if not thumbnail_url and "screenshot_bytes" in url_data:
-                # if a thumbnail was provided, use that first - otherwise try to use Playwright website screenshot
-                # ToDo: optional feature - control which thumbnail is used, depending on the metadata-provider?
-                #  metadata-provider 'Open Music Academy' serves generic thumbnails, which is why a screenshot of the
-                #  website will always be more interesting to users than the same generic image across ~650 materials
-                base.add_value("screenshot_bytes", url_data["screenshot_bytes"])
-        response_loader.add_value("headers", response.headers)
-        response_loader.add_value("url", response.url)
+        response_loader.add_value("url", identifier_url)
         base.add_value("response", response_loader.load_item())
 
         yield base.load_item()

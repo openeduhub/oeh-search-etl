@@ -19,8 +19,8 @@ class SeguSpider(CrawlSpider, LomBase, JSONBase):
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
-    def mapResponse(self, response, **kwargs):
-        r = LomBase.mapResponse(self, response, fetchData=False)
+    async def mapResponse(self, response, **kwargs):
+        r = await LomBase.mapResponse(self, response, fetchData=False)
         r.replace_value("text", "")
         r.replace_value("html", "")
         r.replace_value("url", response.meta["item"].get("link"))

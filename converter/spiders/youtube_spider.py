@@ -210,13 +210,13 @@ class YoutubeSpider(Spider):
         )
         return Request(request_url, meta=meta, callback=self.parse_videos)
 
-    def parse_videos(self, response: Response):
+    async def parse_videos(self, response: Response):
         body = json.loads(response.body)
         assert body["kind"] == "youtube#videoListResponse"
         for item in body["items"]:
             response_copy = response.replace(url=self.get_video_url(item))
             response_copy.meta["item"] = item
-            yield self.lomLoader.parse(response_copy)
+            yield await self.lomLoader.parse(response_copy)
 
     def parse_custom_url(self, response: Response) -> Request:
         match = re.search('<meta itemprop="channelId" content="(.+?)">', response.text)
@@ -260,8 +260,8 @@ class YoutubeLomLoader(LomBase):
         return self.version + response.meta["item"]["snippet"]["publishedAt"]
 
     @overrides  # LomBase
-    def mapResponse(self, response) -> items.ResponseItemLoader:
-        return LomBase.mapResponse(self, response, False)
+    async def mapResponse(self, response) -> items.ResponseItemLoader:
+        return await LomBase.mapResponse(self, response, False)
 
     @overrides  # LomBase
     def getBase(self, response: Response) -> items.BaseItemLoader:

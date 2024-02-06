@@ -8,7 +8,7 @@ from scrapy.spiders import CrawlSpider
 from converter.constants import Constants
 from converter.valuespace_helper import ValuespaceHelper
 from .base_classes import LrmiBase, LomBase
-from ..items import LicenseItemLoader, LomLifecycleItemloader
+from ..items import LicenseItemLoader, LomLifecycleItemloader, ResponseItemLoader
 from ..util.license_mapper import LicenseMapper
 
 
@@ -36,8 +36,8 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
     def __init__(self, **kwargs):
         LrmiBase.__init__(self, **kwargs)
 
-    def mapResponse(self, response, **kwargs):
-        return LrmiBase.mapResponse(self, response)
+    async def mapResponse(self, response, **kwargs):
+        return await LrmiBase.mapResponse(self, response)
 
     def getId(self, response):
         return response.meta["item"].get("id")
@@ -236,7 +236,7 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
             pass
         return valuespaces
 
-    def parse(self, response, **kwargs):
+    async def parse(self, response, **kwargs):
         if self.shouldImport(response) is False:
             logging.debug(
                 "Skipping entry {} because shouldImport() returned false".format(str(self.getId(response)))
@@ -268,7 +268,9 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
         base.add_value("lom", lom.load_item())
         base.add_value("license", self.getLicense(response).load_item())
         base.add_value("permissions", self.getPermissions(response).load_item())
-        base.add_value("response", self.mapResponse(response).load_item())
+
+        response_itemloader: ResponseItemLoader = await self.mapResponse(response)
+        base.add_value("response", response_itemloader.load_item())
         base.add_value("valuespaces", self.getValuespaces(response).load_item())
 
         return base.load_item()
