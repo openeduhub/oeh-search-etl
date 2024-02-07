@@ -26,7 +26,14 @@ class LicenseMapper:
     )
 
     # ToDo:
-    #  - gather more license string edge-cases from debug crawlers for test cases
+    #  - gather more license string edge-cases from debug crawlers for test cases:
+    #    - DiLerTube edge-cases that cannot be handled by the above RegEx yet:
+    #      - "Creative Commons (CC) BY-NC-ND Namensnennung-Nicht kommerziell-Keine Bearbeitungen 4.0 International"
+    #      - "Creative Commons (CC) BY-SA Namensnennung-Weitergabe unter gleichen Bedingungen 4.0 International"
+    #      - "Creative Commons (CC) BY Namensnennung 4.0 International"
+    #    - add these edge-cases to the test-suite before trying to improve the RegEx!
+
+    # ToDo:
     #  - feature-idea: fill up provided 'LicenseItemLoader' automatically?
     #       flow: try 'url'
     #           -> fallback: try 'internal'
@@ -173,7 +180,7 @@ class LicenseMapper:
                     return valid_license_url
         elif license_string:
             license_string = license_string.lower()
-            logging.debug(f"LicenseMapper: Recognized license string '{license_string}'")
+            logging.debug(f"LicenseMapper: Received license string '{license_string}'")
             if self.cc_pattern.search(license_string):
                 result_dict: dict = self.cc_pattern.search(license_string).groupdict()
                 cc_type = result_dict.get("CC_TYPE")
