@@ -30,15 +30,16 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
     url = "https://www.tutory.de/"
     objectUrl = "https://www.tutory.de/bereitstellung/dokument/"
     baseUrl = "https://www.tutory.de/api/v1/share/"
-    version = "0.2.0"  # last update: 2024-01-26
+    version = "0.2.1"  # last update: 2024-02-08
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 3,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 6,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
     API_PAGESIZE_LIMIT = 250
+
     # the old API pageSize of 999999 (which was used in 2021) doesn't work anymore and throws a 502 Error (Bad Gateway).
     # 2023-03: setting pageSize to 5000 appeared to be a reasonable value with an API response time of 12-15s
     # 2023-08-15: every setting above 500 appears to always return a '502'-Error now. Current response times during api
@@ -51,9 +52,9 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
 
     def start_requests(self):
         first_url: str = self.assemble_tutory_api_url(api_page=0)
-        # by increasing the priority of these requests, we're making sure to parse all API pages first and only crawl
-        # individual items once we've got the complete list of URLs
-        yield scrapy.Request(url=first_url, callback=self.parse_api_page, priority=5)
+        # we need to lower the priority of subsequent API page requests because each response takes about 21s while
+        # individual documents load within <300 ms
+        yield scrapy.Request(url=first_url, callback=self.parse_api_page, priority=-1)
 
     def parse_api_page(self, response: scrapy.http.TextResponse) -> scrapy.Request:
         """
@@ -122,6 +123,13 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
         drop_item_flag: bool = False
         identifier: str = self.getId(response)
         hash_str: str = self.getHash(response)
+        robot_meta_tags: str = response.xpath("//meta[@name='robots']/@content").get()
+        if robot_meta_tags:
+            if "noindex" in robot_meta_tags or "none" in robot_meta_tags:
+                drop_item_flag = True
+                logger.info(f"Robot Meta Tag {robot_meta_tags} identified: Tags 'noindex' or 'none' indicate that this "
+                            f"item should not be indexed by the crawler. Dropping item...")
+                return drop_item_flag
         if self.shouldImport(response) is False:
             logger.debug(f"Skipping entry {identifier} because shouldImport() returned false")
             drop_item_flag = True
@@ -287,7 +295,15 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                 # the 'publishName'-field seems to indicate whether the username or the full name appears on top of a
                 # worksheet as author metadata.
                 publish_decision: str = user_dict["publishName"]
-                if publish_decision == "username":
+                if publish_decision and publish_decision.startswith("custom:"):
+                    # there are edge-cases where "publishName" starts with "custom:<...name of person>", which means
+                    # that a custom string shall be used. (e.g., document id "1cdf1514-af66-475e-956c-b8487588e095"
+                    # -> https://www.tutory.de/entdecken/dokument/class-test-checkliste-englisch )
+                    custom_name: str = publish_decision
+                    custom_name = custom_name.replace("custom:", "")
+                    if custom_name:
+                        license_loader.add_value("author", custom_name)
+                elif publish_decision == "username":
                     if "username" in user_dict:
                         username: str = user_dict["username"]
                         if username:
@@ -313,7 +329,15 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                 # the 'publishName'-field seems to indicate whether the username or the full name appears on top of a
                 # worksheet as author metadata.
                 publish_decision: str = user_dict["publishName"]
-                if publish_decision == "username":
+                if publish_decision and publish_decision.startswith("custom:"):
+                    # there are edge-cases where "publishName" starts with "custom:<...name of person>", which means
+                    # that a custom string shall be used. (e.g., document id "1cdf1514-af66-475e-956c-b8487588e095"
+                    # -> https://www.tutory.de/entdecken/dokument/class-test-checkliste-englisch )
+                    custom_name: str = publish_decision
+                    custom_name = custom_name.replace("custom:", "")
+                    if custom_name:
+                        lifecycle_loader.add_value("firstName", custom_name)
+                elif publish_decision == "username":
                     if "username" in user_dict:
                         username: str = user_dict["username"]
                         if username:
