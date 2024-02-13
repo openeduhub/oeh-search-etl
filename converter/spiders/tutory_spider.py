@@ -34,7 +34,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 6,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 2,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
