@@ -1,10 +1,15 @@
 import html
 import logging
-from typing import Any, Union
+from io import BytesIO
+from typing import Any, Iterable, Union
 
 import extruct
+import scrapy
+from lxml import objectify
+from lxml.etree import ElementTree
+from lxml.objectify import ObjectifiedElement
+from scrapy import Request
 from scrapy.http import Response
-from scrapy.spiders import SitemapSpider
 from twisted.internet.defer import Deferred
 
 from converter.spiders.base_classes import LomBase
@@ -28,25 +33,26 @@ from ..web_tools import WebEngine
 logger = logging.getLogger(__name__)
 
 
-class BpbSpider(SitemapSpider, LomBase):
+class BpbSpider(scrapy.Spider, LomBase):
     name = "bpb_spider"
     url = "https://www.bpb.de"
     friendlyName = "Bundeszentrale für politische Bildung"
-    sitemap_urls = [
-        "https://www.bpb.de/robots.txt",
-        # "https://www.bpb.de/sites/default/files/xmlsitemap/oWx2Pl033k1XFmYJFOs7sO0G3JasH0cjDbduvDwKuwo/index.xml"
-    ]
-    # the most-current sitemap can be found at the bottom of the robots.txt file and contains a sitemap-index.
-    # the human-readable sitemap can be found at: https://www.bpb.de/sitemap/
+    start_urls = ["https://www.bpb.de/sitemap.xml?page=1", "https://www.bpb.de/sitemap.xml?page=2"]
+    # the most-current sitemap can be found at the bottom of the robots.txt file (see: https://www.bpb.de/robots.txt )
+    # and contains a sitemap-index,
+    # e.g.: https://www.bpb.de/sites/default/files/xmlsitemap/oWx2Pl033k1XFmYJFOs7sO0G3JasH0cjDbduvDwKuwo/index.xml
+    # an additional, human-readable sitemap (HTML) can be found at: https://www.bpb.de/sitemap/
     allowed_domains = ["bpb.de"]
     sitemap_rules = [
         ("/themen/", "parse"),
         ("/mediathek/", "parse"),
         ("/lernen/", "parse"),
         ("/kurz-knapp/", "parse"),
-        ("/shop/", "drop_item"),
-        ("/veranstaltungen/", "drop_item"),  # ToDo: implement custom handling for events in a future version
-        ("/die-bpb/", "drop_item"),
+    ]
+    deny_list: list[str] = [
+        "/shop/",
+        "/veranstaltungen/",  # ToDo: implement custom handling for events in a future version
+        "/die-bpb/",
     ]
     version = "0.2.1"  # last update: 2024-02-14
     # (first version of the crawler after bpb.de completely relaunched their website in 2022-02)
@@ -56,29 +62,61 @@ class BpbSpider(SitemapSpider, LomBase):
         "AUTOTHROTTLE_DEBUG": True,
     }
     DEBUG_DROPPED_ITEMS: list[str] = list()
+    DEBUG_XML_COUNT: int = 0
 
     def __init__(self, **kwargs):
-        SitemapSpider.__init__(self, **kwargs)
+        scrapy.Spider.__init__(self, **kwargs)
         LomBase.__init__(self, **kwargs)
 
     def close(self, reason: str) -> Union[Deferred, None]:
         # ToDo (optional): extend functionality by counting filtered duplicates as well
         #  (-> extend Scrapy Dupefilter logging)
+        logger.info(f"Closing spider (reason: {reason} )...")
+        if self.DEBUG_XML_COUNT:
+            logger.info(f"Summary: The sitemap index contained {self.DEBUG_XML_COUNT} (unfiltered) items in total.")
         if self.DEBUG_DROPPED_ITEMS:
             logger.info(
-                f"Summary: Items dropped in total (due to sitemap rules / robot meta tags etc.): "
+                f"Summary: Items dropped (due to sitemap rules / robot meta tags etc.): "
                 f"{len(self.DEBUG_DROPPED_ITEMS)}"
             )
-        return
+        return None
 
-    def drop_item(self, response: Response) -> None:
-        """
-        URLs which should not be crawled are dropped and logged. At the end of the crawl process, a counter will
-        display the amount of dropped items for debugging purposes.
-        """
-        logger.debug(f"Dropping item {response.url} due to specified sitemap rules.")
-        self.DEBUG_DROPPED_ITEMS.append(response.url)
-        return
+    def start_requests(self) -> Iterable[Request]:
+        for url in self.start_urls:
+            yield scrapy.Request(url=url, callback=self.parse_sitemap, priority=2)
+
+    def parse_sitemap(self, response: Response):
+        if response:
+            xml: ElementTree = objectify.parse(BytesIO(response.body))
+            xml_root: ObjectifiedElement = xml.getroot()
+            xml_count: int = len(xml_root.getchildren())
+            if xml_count:
+                logger.info(f"Sitemap {response.url} contained {xml_count} XML elements in total.")
+                self.DEBUG_XML_COUNT += xml_count
+            ns_map = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+            for xml_element in xml_root.findall("ns:url", ns_map):
+                # we're only interested in the <loc> of an <url> element, e.g.:
+                # <url>
+                # 		<loc>https://www.bpb.de/themen/medien-journalismus/netzdebatte/179637/big-data-ein-ungezaehmtes-tier-mit-grossem-potential-ein-interview-mit-frank-schirrmacher/</loc>
+                # 		<lastmod>2022-02-07T16:25Z</lastmod>
+                # 		<changefreq>yearly</changefreq>
+                # 		<priority>0.6</priority>
+                # 	</url>
+                item_url: str = xml_element.loc.text
+                # xml_element.loc is a StringElement -> by calling .text on it, we get the string value
+                drop_item_flag: bool = False
+                for partial_url in self.deny_list:
+                    # since the sitemaps are huge (56.880 urls in total),
+                    # we try to not cause HTTP Requests for items that would be dropped anyway
+                    if item_url and partial_url in item_url:
+                        # URLs which should not be crawled are dropped and logged.
+                        # At the end of the crawl process, a counter will display the amount of dropped items for
+                        # debugging purposes.
+                        drop_item_flag = True
+                        # logger.debug(f"Dropping item {item_url} due to sitemap rules.")  # this one is spammy!
+                        self.DEBUG_DROPPED_ITEMS.append(item_url)
+                if not drop_item_flag:
+                    yield scrapy.Request(url=item_url, callback=self.parse)
 
     @staticmethod
     def get_json_ld_property(json_lds: list[dict], property_name: str) -> Any | None:
