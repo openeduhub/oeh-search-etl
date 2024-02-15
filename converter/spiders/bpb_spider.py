@@ -117,7 +117,12 @@ class BpbSpider(scrapy.Spider, LomBase):
                         # self.logger.debug(f"Dropping item {item_url} due to sitemap rules.")  # this one is spammy!
                         self.DEBUG_DROPPED_ITEMS.append(item_url)
                 if not drop_item_flag:
-                    yield scrapy.Request(url=item_url, callback=self.parse)
+                    yield scrapy.Request(url=item_url, callback=self.parse, meta={
+                        "dont_merge_cookies": True
+                    })
+                    # the flag 'dont_merge_cookies' is necessary because bpb.de apparently uses Drupal's BigPipe
+                    # implementation, which sets a "no-js"-cookie. After receiving that cookie, all subsequent requests
+                    # are 404s and invalid. Invalid responses contain a "/big_pipe/no-js?destination=" path in their URL
 
     @staticmethod
     def get_json_ld_property(json_lds: list[dict], property_name: str) -> Any | None:
