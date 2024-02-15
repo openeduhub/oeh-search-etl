@@ -60,6 +60,8 @@ class BpbSpider(scrapy.Spider, LomBase):
         "WEB_TOOLS": WebEngine.Playwright,
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 5,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 0.5
     }
     DEBUG_DROPPED_ITEMS: list[str] = list()
     DEBUG_XML_COUNT: int = 0
