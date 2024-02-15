@@ -1,5 +1,4 @@
 import html
-import logging
 from io import BytesIO
 from typing import Any, Iterable, Union
 
@@ -30,8 +29,6 @@ from ..items import (
 )
 from ..web_tools import WebEngine
 
-logger = logging.getLogger(__name__)
-
 
 class BpbSpider(scrapy.Spider, LomBase):
     name = "bpb_spider"
@@ -61,7 +58,7 @@ class BpbSpider(scrapy.Spider, LomBase):
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "CONCURRENT_REQUESTS_PER_DOMAIN": 5,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 0.5
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 0.5,
     }
     DEBUG_DROPPED_ITEMS: list[str] = list()
     DEBUG_XML_COUNT: int = 0
@@ -73,11 +70,13 @@ class BpbSpider(scrapy.Spider, LomBase):
     def close(self, reason: str) -> Union[Deferred, None]:
         # ToDo (optional): extend functionality by counting filtered duplicates as well
         #  (-> extend Scrapy Dupefilter logging)
-        logger.info(f"Closing spider (reason: {reason} )...")
+        self.logger.info(f"Closing spider (reason: {reason} )...")
         if self.DEBUG_XML_COUNT:
-            logger.info(f"Summary: The sitemap index contained {self.DEBUG_XML_COUNT} (unfiltered) items in total.")
+            self.logger.info(
+                f"Summary: The sitemap index contained {self.DEBUG_XML_COUNT} (unfiltered) items in total."
+            )
         if self.DEBUG_DROPPED_ITEMS:
-            logger.info(
+            self.logger.info(
                 f"Summary: Items dropped (due to sitemap rules / robot meta tags etc.): "
                 f"{len(self.DEBUG_DROPPED_ITEMS)}"
             )
@@ -93,7 +92,7 @@ class BpbSpider(scrapy.Spider, LomBase):
             xml_root: ObjectifiedElement = xml.getroot()
             xml_count: int = len(xml_root.getchildren())
             if xml_count:
-                logger.info(f"Sitemap {response.url} contained {xml_count} XML elements in total.")
+                self.logger.info(f"Sitemap {response.url} contained {xml_count} XML elements in total.")
                 self.DEBUG_XML_COUNT += xml_count
             ns_map = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
             for xml_element in xml_root.findall("ns:url", ns_map):
@@ -115,7 +114,7 @@ class BpbSpider(scrapy.Spider, LomBase):
                         # At the end of the crawl process, a counter will display the amount of dropped items for
                         # debugging purposes.
                         drop_item_flag = True
-                        # logger.debug(f"Dropping item {item_url} due to sitemap rules.")  # this one is spammy!
+                        # self.logger.debug(f"Dropping item {item_url} due to sitemap rules.")  # this one is spammy!
                         self.DEBUG_DROPPED_ITEMS.append(item_url)
                 if not drop_item_flag:
                     yield scrapy.Request(url=item_url, callback=self.parse)
@@ -188,7 +187,9 @@ class BpbSpider(scrapy.Spider, LomBase):
         if item_url:
             return item_url
         elif response:
-            logger.warning(f"Item {response.url} did not provide a stable ID (url). Falling back to response.url ...")
+            self.logger.warning(
+                f"Item {response.url} did not provide a stable ID (url). Falling back to response.url ..."
+            )
             return response.url
 
     def getHash(self, response: Response = None, json_lds: list[dict] = None) -> str:
@@ -238,18 +239,18 @@ class BpbSpider(scrapy.Spider, LomBase):
             return True
         if self.uuid:
             if uuid_str == self.uuid:
-                logger.info(f"Matched requested uuid: {self.uuid} ({identifier}).")
+                self.logger.info(f"Matched requested uuid: {self.uuid} ({identifier}).")
                 return True
             return False
         if self.remoteId:
             if identifier == self.remoteId:
-                logger.info(f"Matched requested remoteId {self.remoteId} ({identifier}).")
+                self.logger.info(f"Matched requested remoteId {self.remoteId} ({identifier}).")
                 return True
             return False
         db = EduSharing().find_item(identifier, self)
         changed = db is None or db[1] != hash_str
         if not changed:
-            logger.info(f"Item {identifier} has not changed.")
+            self.logger.info(f"Item {identifier} has not changed.")
         return changed
 
     def check_if_item_should_be_dropped(self, response, json_lds, opengraph_dict) -> bool:
@@ -257,7 +258,7 @@ class BpbSpider(scrapy.Spider, LomBase):
         identifier: str = self.getId(response=response, json_lds=json_lds, opengraph=opengraph_dict)
         hash_str: str = self.getHash(response=response, json_lds=json_lds)
         if self.shouldImport(response) is False:
-            logger.info(f"Skipping entry {identifier} because shouldImport() returned 'False'.")
+            self.logger.info(f"Skipping entry {identifier} because shouldImport() returned 'False'.")
             drop_item_flag = True
         if identifier is not None and hash_str is not None:
             if not self.has_changed(response=response, identifier=identifier, hash_str=hash_str):
@@ -266,7 +267,7 @@ class BpbSpider(scrapy.Spider, LomBase):
         if robot_meta_tags:
             # see: https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag
             if "noindex" in robot_meta_tags or "none" in robot_meta_tags:
-                logging.info(
+                self.logger.info(
                     f"Robot Meta Tag {robot_meta_tags} identified. Robot Meta Tags 'noindex' or 'none' should "
                     f"be skipped by the crawler. Dropping item {response.url} ."
                 )
