@@ -47,9 +47,12 @@ class BpbSpider(scrapy.Spider, LomBase):
         ("/kurz-knapp/", "parse"),
     ]
     deny_list: list[str] = [
+        "/die-bpb/",
+        "/impressum/",
+        "/kontakt/",
+        "/redaktion/",
         "/shop/",
         "/veranstaltungen/",  # ToDo: implement custom handling for events in a future version
-        "/die-bpb/",
     ]
     version = "0.2.1"  # last update: 2024-02-14
     # (first version of the crawler after bpb.de completely relaunched their website in 2022-02)
