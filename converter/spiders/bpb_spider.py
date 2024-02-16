@@ -40,12 +40,6 @@ class BpbSpider(scrapy.Spider, LomBase):
     # e.g.: https://www.bpb.de/sites/default/files/xmlsitemap/oWx2Pl033k1XFmYJFOs7sO0G3JasH0cjDbduvDwKuwo/index.xml
     # an additional, human-readable sitemap (HTML) can be found at: https://www.bpb.de/sitemap/
     allowed_domains = ["bpb.de"]
-    sitemap_rules = [
-        ("/themen/", "parse"),
-        ("/mediathek/", "parse"),
-        ("/lernen/", "parse"),
-        ("/kurz-knapp/", "parse"),
-    ]
     deny_list: list[str] = [
         "/die-bpb/",
         "/impressum/",
@@ -61,7 +55,7 @@ class BpbSpider(scrapy.Spider, LomBase):
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "CONCURRENT_REQUESTS_PER_DOMAIN": 5,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 0.5,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 2,
     }
     DEBUG_DROPPED_ITEMS: list[str] = list()
     DEBUG_XML_COUNT: int = 0
