@@ -57,7 +57,8 @@ class BpbSpider(scrapy.Spider, LomBase):
         "CONCURRENT_REQUESTS_PER_DOMAIN": 5,
         "AUTOTHROTTLE_TARGET_CONCURRENCY": 2,
     }
-    DEBUG_DROPPED_ITEMS: list[str] = list()
+    DEBUG_DROPPED_ITEMS: set[str] = set()
+    DEBUG_UNIQUE_URLS_TO_BE_CRAWLED: set[str] = set()
     DEBUG_XML_COUNT: int = 0
 
     def __init__(self, **kwargs):
@@ -70,14 +71,17 @@ class BpbSpider(scrapy.Spider, LomBase):
         self.logger.info(f"Closing spider (reason: {reason} )...")
         if self.DEBUG_XML_COUNT:
             self.logger.info(
-                f"Summary: The sitemap index contained {self.DEBUG_XML_COUNT} (unfiltered) items in total."
+                f"Summary: The sitemap index contained {self.DEBUG_XML_COUNT} (unfiltered) XML elements in total."
             )
+        if self.DEBUG_UNIQUE_URLS_TO_BE_CRAWLED:
+            self.logger.info(f"Summary: Unique URLs to be crawled: {len(self.DEBUG_UNIQUE_URLS_TO_BE_CRAWLED)}")
         if self.DEBUG_DROPPED_ITEMS:
             self.logger.info(
-                f"Summary: Items dropped (due to sitemap rules / robot meta tags etc.): "
+                f"Summary: Items filtered / dropped (due to sitemap rules "
+                f"(see: 'deny_list'-variable / robot meta tags etc.): "
                 f"{len(self.DEBUG_DROPPED_ITEMS)}"
             )
-        return None
+        return
 
     def start_requests(self) -> Iterable[Request]:
         for url in self.start_urls:
@@ -112,14 +116,18 @@ class BpbSpider(scrapy.Spider, LomBase):
                         # debugging purposes.
                         drop_item_flag = True
                         # self.logger.debug(f"Dropping item {item_url} due to sitemap rules.")  # this one is spammy!
-                        self.DEBUG_DROPPED_ITEMS.append(item_url)
+                        self.DEBUG_DROPPED_ITEMS.add(item_url)
                 if not drop_item_flag:
-                    yield scrapy.Request(url=item_url, callback=self.parse, meta={
-                        "dont_merge_cookies": True
-                    })
+                    self.DEBUG_UNIQUE_URLS_TO_BE_CRAWLED.add(item_url)
+                    yield scrapy.Request(url=item_url, callback=self.parse, meta={"dont_merge_cookies": True})
                     # the flag 'dont_merge_cookies' is necessary because bpb.de apparently uses Drupal's BigPipe
                     # implementation, which sets a "no-js"-cookie. After receiving that cookie, all subsequent requests
                     # are 404s and invalid. Invalid responses contain a "/big_pipe/no-js?destination=" path in their URL
+            if self.DEBUG_UNIQUE_URLS_TO_BE_CRAWLED:
+                self.logger.info(
+                    f"Unique URLs to be crawled after parsing sitemap {response.url} : "
+                    f"{len(self.DEBUG_UNIQUE_URLS_TO_BE_CRAWLED)}"
+                )
 
     @staticmethod
     def get_json_ld_property(json_lds: list[dict], property_name: str) -> Any | None:
@@ -283,7 +291,7 @@ class BpbSpider(scrapy.Spider, LomBase):
 
         drop_item_flag = self.check_if_item_should_be_dropped(response, json_lds, opengraph_dict)
         if drop_item_flag:
-            self.DEBUG_DROPPED_ITEMS.append(response.url)
+            self.DEBUG_DROPPED_ITEMS.add(response.url)
             return
 
         base_itemloader: BaseItemLoader = BaseItemLoader()
