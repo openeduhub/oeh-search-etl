@@ -245,6 +245,9 @@ class EduSharing:
         if "url" in license:
             match license["url"]:
                 # ToDo: refactor this ungodly method asap
+                case Constants.LICENSE_CC_BY_10:
+                    spaces["ccm:commonlicense_key"] = "CC_BY"
+                    spaces["ccm:commonlicense_cc_version"] = "1.0"
                 case Constants.LICENSE_CC_BY_20:
                     spaces["ccm:commonlicense_key"] = "CC_BY"
                     spaces["ccm:commonlicense_cc_version"] = "2.0"
@@ -257,6 +260,15 @@ class EduSharing:
                 case Constants.LICENSE_CC_BY_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_NC_10:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC"
+                    spaces["ccm:commonlicense_cc_version"] = "1.0"
+                case Constants.LICENSE_CC_BY_NC_20:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC"
+                    spaces["ccm:commonlicense_cc_version"] = "2.0"
+                case Constants.LICENSE_CC_BY_NC_25:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC"
+                    spaces["ccm:commonlicense_cc_version"] = "2.5"
                 case Constants.LICENSE_CC_BY_NC_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
@@ -275,6 +287,9 @@ class EduSharing:
                 case Constants.LICENSE_CC_BY_NC_ND_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_ND"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_NC_SA_10:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "1.0"
                 case Constants.LICENSE_CC_BY_NC_SA_20:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
                     spaces["ccm:commonlicense_cc_version"] = "2.0"
@@ -287,15 +302,24 @@ class EduSharing:
                 case Constants.LICENSE_CC_BY_NC_SA_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY_NC_SA"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_ND_10:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "1.0"
                 case Constants.LICENSE_CC_BY_ND_20:
                     spaces["ccm:commonlicense_key"] = "CC_BY_ND"
                     spaces["ccm:commonlicense_cc_version"] = "2.0"
+                case Constants.LICENSE_CC_BY_ND_25:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_ND"
+                    spaces["ccm:commonlicense_cc_version"] = "2.5"
                 case Constants.LICENSE_CC_BY_ND_30:
                     spaces["ccm:commonlicense_key"] = "CC_BY_ND"
                     spaces["ccm:commonlicense_cc_version"] = "3.0"
                 case Constants.LICENSE_CC_BY_ND_40:
                     spaces["ccm:commonlicense_key"] = "CC_BY_ND"
                     spaces["ccm:commonlicense_cc_version"] = "4.0"
+                case Constants.LICENSE_CC_BY_SA_10:
+                    spaces["ccm:commonlicense_key"] = "CC_BY_SA"
+                    spaces["ccm:commonlicense_cc_version"] = "1.0"
                 case Constants.LICENSE_CC_BY_SA_20:
                     spaces["ccm:commonlicense_key"] = "CC_BY_SA"
                     spaces["ccm:commonlicense_cc_version"] = "2.0"
