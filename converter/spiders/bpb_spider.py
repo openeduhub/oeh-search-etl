@@ -48,7 +48,8 @@ class BpbSpider(scrapy.Spider, LomBase):
         "/shop/",
         "/veranstaltungen/",  # ToDo: implement custom handling for events in a future version
     ]
-    version = "0.2.1"  # last update: 2024-02-14
+    deny_list_endswith: list[str] = ["/impressum", "/kontakt", "/redaktion"]
+    version = "0.2.1"  # last update: 2024-02-20
     # (first version of the crawler after bpb.de completely relaunched their website in 2022-02)
     custom_settings = {
         "WEB_TOOLS": WebEngine.Playwright,
@@ -116,6 +117,12 @@ class BpbSpider(scrapy.Spider, LomBase):
                         # debugging purposes.
                         drop_item_flag = True
                         # self.logger.debug(f"Dropping item {item_url} due to sitemap rules.")  # this one is spammy!
+                        self.DEBUG_DROPPED_ITEMS.add(item_url)
+                for url_ending_with_str in self.deny_list_endswith:
+                    if item_url and item_url.endswith(url_ending_with_str):
+                        # URLs that end with "/impressum", "/kontakt" or "/redaktion" are "Impressum"-like pages which
+                        # need to be checked separately from the deny_list.
+                        drop_item_flag = True
                         self.DEBUG_DROPPED_ITEMS.add(item_url)
                 if not drop_item_flag:
                     self.DEBUG_UNIQUE_URLS_TO_BE_CRAWLED.add(item_url)
