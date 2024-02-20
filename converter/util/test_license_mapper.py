@@ -43,6 +43,8 @@ class TestLicenseMapper:
             ("https://creativecommons.org/licenses/by/3.0/es/", Constants.LICENSE_CC_BY_30),
             ("https://creativecommons.org/licenses/by/3.0/fr", Constants.LICENSE_CC_BY_30),
             ("http://creativecommons.org/licenses/by-nc-nd/2.5/ch/deed.en", Constants.LICENSE_CC_BY_NC_ND_25),
+            ("https://creativecommons.org/licenses/by/1.0/deed.de", Constants.LICENSE_CC_BY_10),
+            ("https://creativecommons.org/licenses/by-sa/1.0/deed.de", Constants.LICENSE_CC_BY_SA_10),
         ],
     )
     def test_get_license_url(self, test_input, expected_result):
