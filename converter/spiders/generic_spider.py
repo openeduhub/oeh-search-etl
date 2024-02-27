@@ -39,7 +39,7 @@ class GenericSpider(Spider, LrmiBase):
     start_urls = [
         # "https://www.planet-schule.de/schwerpunkt/total-phaenomenal-energie/sonnenenergie-film-100.html",  # the original Hackathon example URL
         # "https://de.serlo.org/informatik/158541/definitionen-von-%E2%80%9Ebig-data%E2%80%9C",
-        "https://de.serlo.org/mathe/62630/aufgaben-zum-volumen-eines-quaders",
+        # "https://de.serlo.org/mathe/62630/aufgaben-zum-volumen-eines-quaders",
         # "https://www.planet-schule.de/schwerpunkt/dichter-dran/fontane-film-100.html",
         # "https://www.planet-schule.de/thema/fridays-for-future-was-steckt-hinter-den-klima-streiks-film-100.html",
         # "https://www.dilertube.de/englisch/oer-video/algeria-in-a-nutshell.html",
@@ -50,7 +50,7 @@ class GenericSpider(Spider, LrmiBase):
         # "https://editor.mnweg.org/mnw/sammlung/bruchrechnen-m-10",
         # "https://www.bpb.de/themen/migration-integration/laenderprofile/277555/afghanistan-geschichte-politik-gesellschaft/",
         # "https://www.bpb.de/themen/kolonialismus-imperialismus/postkolonialismus-und-globalgeschichte/236617/kolonialismus-und-postkolonialismus-schluesselbegriffe-der-aktuellen-debatte/",
-        # "https://www.geschichtsquellen.de/werk/3402",
+        "https://www.geschichtsquellen.de/werk/3402",
         # "https://www.geschichtsquellen.de/werk/4799",
         # "https://www.weltderphysik.de/gebiet/teilchen/quanteneffekte/",
         # "https://www.weltderphysik.de/mediathek/podcast/geothermie/",
@@ -88,6 +88,7 @@ class GenericSpider(Spider, LrmiBase):
     valuespaces: Valuespaces
     AI_ENABLED: bool = True  # optional .env setting to turn off AI services (-> generic_spider_minimal)
     z_api_text: z_api.AITextPromptsApi
+    z_api_kidra: z_api.KidraApi
 
     def __init__(self, urltocrawl="", validated_result="", **kwargs):
         LrmiBase.__init__(self, **kwargs)
@@ -115,6 +116,7 @@ class GenericSpider(Spider, LrmiBase):
             z_api_config.api_key = {"ai-prompt-token": env.get("Z_API_KEY", False)}
             z_api_client = z_api.ApiClient(configuration=z_api_config)
             self.z_api_text = z_api.AITextPromptsApi(z_api_client)
+            self.z_api_kidra = z_api.KidraApi(z_api_client)
         elif ai_enabled is False:
             logging.info(f"Starting generic_spider with MINIMAL settings. AI Services are DISABLED!")
             self.AI_ENABLED = False
@@ -258,6 +260,16 @@ class GenericSpider(Spider, LrmiBase):
             general_loader.add_value(
                 "keyword", self.resolve_z_api("keyword", response, base_itemloader=base_loader, split=True)
             )
+            general_loader.add_value(
+                "curriculum", self.resolve_z_api("curriculum", response, base_itemloader=base_loader, split=True)
+            )
+            general_loader.add_value(
+                "textStatistics", self.resolve_z_api("textStatistics", response, base_itemloader=base_loader, split=True)
+            )
+            general_loader.add_value(
+                "kidraDisciplines",
+                self.resolve_z_api("kidraDisciplines", response, base_itemloader=base_loader, split=True)
+            )
             # ToDo: map/replace the previously set 'language'-value by AI suggestions from Z-API?
 
             # ToDo: keywords will (often) be returned as a list of bullet points by the AI
@@ -386,29 +398,67 @@ class GenericSpider(Spider, LrmiBase):
                 lifecycle_loader.add_value("date", date)
 
     def resolve_z_api(self, field: str, response: scrapy.http.Response, base_itemloader: BaseItemLoader, split=False):
-        ai_prompt_itemloader = AiPromptItemLoader()
-        ai_prompt_itemloader.add_value("field_name", field)
-        prompt = self.prompts[field] % {"text": response.meta["data"]["text"][:4000]}
-        # ToDo: figure out a reasonable cutoff-length
-        # (prompts which are too long get thrown out by the AI services)
-        ai_prompt_itemloader.add_value("ai_prompt", prompt)
+        if field == "curriculum":
+            ai_prompt_itemloader = AiPromptItemLoader()
+            ai_prompt_itemloader.add_value("field_name", field)
+            text = {"text": response.meta["data"]["text"][:4000]}
+            ai_prompt_itemloader.add_value("ai_prompt", text)
+            result = self.z_api_kidra.topics_flat_topics_flat_post(text)
+            result = self.parse_topics(result)
+            result_string = ','.join(result)
+            ai_prompt_itemloader.add_value("ai_response_raw", result_string)
+            ai_prompt_itemloader.add_value("ai_response", result)
+            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
+            return result
+        elif field == "textStatistics":
+            ai_prompt_itemloader = AiPromptItemLoader()
+            ai_prompt_itemloader.add_value("field_name", field)
+            text = response.meta["data"]["text"][:4000]
+            body = {"text": text, "reading_speed": 200, "generate_embeddings": False}
+            ai_prompt_itemloader.add_value("ai_prompt", body)
+            result = self.z_api_kidra.text_stats_analyze_text_post(body)
+            result = self.parse_text_statistics(result)
+            ai_prompt_itemloader.add_value("ai_response_raw", result)
+            ai_prompt_itemloader.add_value("ai_response", result)
+            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
+            return result
+        elif field == "kidraDisciplines":
+            ai_prompt_itemloader = AiPromptItemLoader()
+            ai_prompt_itemloader.add_value("field_name", field)
+            text = response.meta["data"]["text"][:4000]
+            body = {"text": text}
+            ai_prompt_itemloader.add_value("ai_prompt", body)
+            result = self.z_api_kidra.predict_subjects_kidra_predict_subjects_post(body)
+            result = self.parse_kira_disciplines(result, score_threshold=0.6)
+            result_string = ','.join(result)
+            ai_prompt_itemloader.add_value("ai_response_raw", result_string)
+            ai_prompt_itemloader.add_value("ai_response", result)
+            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
+            return result
+        else:
+            ai_prompt_itemloader = AiPromptItemLoader()
+            ai_prompt_itemloader.add_value("field_name", field)
+            prompt = self.prompts[field] % {"text": response.meta["data"]["text"][:4000]}
+            # ToDo: figure out a reasonable cutoff-length
+            # (prompts which are too long get thrown out by the AI services)
+            ai_prompt_itemloader.add_value("ai_prompt", prompt)
 
-        result = self.z_api_text.prompt(body=prompt)
-        logging.info(result)
-        result = result.responses[0].strip()
-        ai_prompt_itemloader.add_value("ai_response_raw", result)
-        # ToDo: error-handling when there is no valid response that we could return as a result
+            result = self.z_api_text.prompt(body=prompt)
+            logging.info(result)
+            result = result.responses[0].strip()
+            ai_prompt_itemloader.add_value("ai_response_raw", result)
+            # ToDo: error-handling when there is no valid response that we could return as a result
 
-        # fix utf-8 chars
-        # result = codecs.decode(result, 'unicode-escape')
-        # data['text'] = data['text'].encode().decode('unicode-escape').encode('latin1').decode('utf-8')
-        if split:
-            result = list(map(lambda x: x.strip(), re.split(r"[,|\n]", result)))
-            # ToDo: fix 'split'-parameter:
-            #  - keyword-strings need to be split up in a cleaner way, this approach isn't precise enough for Serlo URLs
-        ai_prompt_itemloader.add_value("ai_response", result)
-        base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
-        return result
+            # fix utf-8 chars
+            # result = codecs.decode(result, 'unicode-escape')
+            # data['text'] = data['text'].encode().decode('unicode-escape').encode('latin1').decode('utf-8')
+            if split:
+                result = list(map(lambda x: x.strip(), re.split(r"[,|\n]", result)))
+                # ToDo: fix 'split'-parameter:
+                #  - keyword-strings need to be split up in a cleaner way, this approach isn't precise enough for Serlo URLs
+            ai_prompt_itemloader.add_value("ai_response", result)
+            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
+            return result
 
     def modify_base_item(self, base_loader):
         title = self.results_dict['title']
@@ -428,3 +478,29 @@ class GenericSpider(Spider, LrmiBase):
         base_loader.load_item()['valuespaces']['educationalContext'] = educational_context
         base_loader.load_item()['license'] = license
         return base_loader
+
+    def parse_topics(self, topics_result, n_topics = 3, split=False):
+        topics_result = eval(str(topics_result))
+        result_str = json.dumps(topics_result)
+        result_json = json.loads(result_str)
+        topics = result_json["topics"][:n_topics]
+        topic_names = [topic['label'] for topic in topics]
+        return topic_names
+
+    def parse_text_statistics(self, statistics_result, split=False):
+        statistics_result = eval(str(statistics_result))
+        result_str = json.dumps(statistics_result)
+        return result_str
+
+    def parse_kira_disciplines(self, disciplines_result, split=False, score_threshold=0.6):
+        disciplines_result = eval(str(disciplines_result))
+        result_str = json.dumps(disciplines_result)
+        result_json = json.loads(result_str)
+        disciplines = result_json["disciplines"]
+        discipline_names = []
+        for discipline in disciplines:
+            score = discipline['score']
+            if score > score_threshold:
+                discipline_names.append( discipline['id'] )
+
+        return discipline_names
