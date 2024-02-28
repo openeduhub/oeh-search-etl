@@ -58,12 +58,6 @@ class LomGeneralItem(Item):
     # ToDo: 'structure' is currently not used; no equivalent edu-sharing property
     title = Field()
     """Corresponding edu-sharing properties: 'cm:title' & 'cclom:title'"""
-    curriculum = Field(output_processor=JoinMultivalues())
-    """Corresponding edu-sharing property: 'ccm:curriculum'"""
-    textStatistics = Field()
-    """Corresponding not in edu-sharing property"""
-    kidraDisciplines = Field(output_processor=JoinMultivalues())
-    """Corresponding edu-sharing property: 'ccm:taxonid'"""
 
 
 class LomLifecycleItem(Item):
