@@ -24,6 +24,10 @@ class Result(pd.BaseModel):
     license: dict = {}
     # license_author: list = []
     new_lrt: str = ""
+    kidra_disciplines: str = ""
+    curriculum: str = ""
+    text_difficulty: str = ""
+    text_reading_time: str = ""
 
 class ValidatedResults(pd.BaseModel):
     url: str = ""
@@ -78,11 +82,18 @@ def create_app() -> fapi.FastAPI:
         educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
         disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
         new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
+        kidra_raw = json_result['kidra_raw']
+        curriculum = kidra_raw["curriculum"]
+        text_difficulty = kidra_raw["text_difficulty"]
+        text_reading_time = kidra_raw["text_reading_time"]
+        kidraDisciplines = kidra_raw["kidraDisciplines"]
 
         keywords = join(keywords)
         disciplines = join(disciplines)
         educational_context = join(educational_context)
         new_lrt = join(new_lrt)
+        curriculum = join(curriculum)
+        kidraDisciplines = join(kidraDisciplines)
 
         """
         title = "Giza pyramid complex - Wikipedia"
@@ -120,7 +131,11 @@ def create_app() -> fapi.FastAPI:
             educational_context=educational_context,
             license=license,
             # license_author=license_author,
-            new_lrt=new_lrt
+            new_lrt=new_lrt,
+            kidra_disciplines=kidraDisciplines,
+            curriculum=curriculum,
+            text_difficulty=text_difficulty,
+            text_reading_time=text_reading_time
         )
 
     @app.post("/set_metadata")
