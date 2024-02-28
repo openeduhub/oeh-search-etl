@@ -77,6 +77,7 @@ export API_MODE=true
 export EDU_SHARING_BASE_URL=https://repository.pre-staging.openeduhub.net/edu-sharing/
 export EDU_SHARING_USERNAME=<your_username>
 export EDU_SHARING_PASSWORD=<your_password>
+export Z_API_KEY=<your_z_api_key>
 docker compose up
 
 ```
