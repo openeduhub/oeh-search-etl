@@ -453,6 +453,13 @@ class EduSharing:
         if "custom" in item:
             for key in item["custom"]:
                 spaces[key] = item["custom"][key]
+        # TODO: add the new services fields here
+        if "ai_prompts" in item:
+            if "ai_suggested_topics" in item["ai_prompts"]:
+                pass
+            if "ai_reading_time" in item["ai_prompts"]:
+                # ToDo: save to whatever edu-sharing property is used for ai-service suggestions
+                item["ai_prompts"]["ai_reading_time"]
 
         # intendedEndUserRole = Field(output_processor=JoinMultivalues())
         # discipline = Field(output_processor=JoinMultivalues())

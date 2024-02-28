@@ -175,6 +175,7 @@ FEED_EXPORT_FIELDS = [
     "valuespaces",
     "valuespaces_raw",
     "ai_prompts",
+    "kidra_raw",
     # metadata fields which aren't used as often
     "collection",
     "custom",

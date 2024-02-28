@@ -26,6 +26,7 @@ from ..items import (
     ValuespaceItemLoader,
     ResponseItemLoader,
     AiPromptItemLoader,
+    KIdraItemLoader,
 )
 from ..util.license_mapper import LicenseMapper
 from ..web_tools import WebEngine, WebTools
@@ -50,9 +51,9 @@ class GenericSpider(Spider, LrmiBase):
         # "https://editor.mnweg.org/mnw/sammlung/bruchrechnen-m-10",
         # "https://www.bpb.de/themen/migration-integration/laenderprofile/277555/afghanistan-geschichte-politik-gesellschaft/",
         # "https://www.bpb.de/themen/kolonialismus-imperialismus/postkolonialismus-und-globalgeschichte/236617/kolonialismus-und-postkolonialismus-schluesselbegriffe-der-aktuellen-debatte/",
-        "https://www.geschichtsquellen.de/werk/3402",
+        # "https://www.geschichtsquellen.de/werk/3402",
         # "https://www.geschichtsquellen.de/werk/4799",
-        # "https://www.weltderphysik.de/gebiet/teilchen/quanteneffekte/",
+        "https://www.weltderphysik.de/gebiet/teilchen/quanteneffekte/",
         # "https://www.weltderphysik.de/mediathek/podcast/geothermie/",
         # "https://histomania.com/app/Saralee_Thungthongkam_W468573",
         # "https://histomania.com/app/Anna_Maria_von_Anhalt_W527486",
@@ -227,6 +228,7 @@ class GenericSpider(Spider, LrmiBase):
         license_loader = LicenseItemLoader()
         permissions_loader = self.getPermissions(response)
         response_loader = ResponseItemLoader()
+        kidra_loader = KIdraItemLoader()
 
         # ToDo: rework LRMI JSON-LD extraction
         #  - so it can handle websites when there are several JSON-LD containers within a single DOM
@@ -260,16 +262,14 @@ class GenericSpider(Spider, LrmiBase):
             general_loader.add_value(
                 "keyword", self.resolve_z_api("keyword", response, base_itemloader=base_loader, split=True)
             )
-            general_loader.add_value(
+            kidra_loader.add_value(
                 "curriculum", self.resolve_z_api("curriculum", response, base_itemloader=base_loader, split=True)
             )
-            general_loader.add_value(
-                "textStatistics", self.resolve_z_api("textStatistics", response, base_itemloader=base_loader, split=True)
-            )
-            general_loader.add_value(
-                "kidraDisciplines",
-                self.resolve_z_api("kidraDisciplines", response, base_itemloader=base_loader, split=True)
-            )
+            classification, reading_time = self.resolve_z_api("textStatistics", response, base_itemloader=base_loader, split=True)
+            kidra_loader.add_value("text_difficulty", classification)
+            kidra_loader.add_value("text_reading_time", reading_time)
+            ki_disciplines = self.resolve_z_api("kidraDisciplines", response, base_itemloader=base_loader, split=True)
+            kidra_loader.add_value("kidraDisciplines", ki_disciplines )
             # ToDo: map/replace the previously set 'language'-value by AI suggestions from Z-API?
 
             # ToDo: keywords will (often) be returned as a list of bullet points by the AI
@@ -345,6 +345,7 @@ class GenericSpider(Spider, LrmiBase):
                 valuespace_loader.add_value(
                     v, self.valuespaces.findInText(v, self.resolve_z_api(v, response, base_itemloader=base_loader))
                 )
+            base_loader.add_value("kidra_raw", kidra_loader.load_item())
 
         # loading all nested ItemLoaders into our BaseItemLoader:
         base_loader.add_value("license", license_loader.load_item())
@@ -399,19 +400,25 @@ class GenericSpider(Spider, LrmiBase):
 
     def resolve_z_api(self, field: str, response: scrapy.http.Response, base_itemloader: BaseItemLoader, split=False):
         if field == "curriculum":
-            ai_prompt_itemloader = AiPromptItemLoader()
+            """ai_prompt_itemloader = AiPromptItemLoader()
             ai_prompt_itemloader.add_value("field_name", field)
             text = {"text": response.meta["data"]["text"][:4000]}
             ai_prompt_itemloader.add_value("ai_prompt", text)
             result = self.z_api_kidra.topics_flat_topics_flat_post(text)
             result = self.parse_topics(result)
             result_string = ','.join(result)
+            ai_prompt_itemloader.add_value("ai_topics", result)
             ai_prompt_itemloader.add_value("ai_response_raw", result_string)
             ai_prompt_itemloader.add_value("ai_response", result)
-            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
+            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())"""
+
+            text = {"text": response.meta["data"]["text"][:4000]}
+            result = self.z_api_kidra.topics_flat_topics_flat_post(text)
+            result = self.parse_topics(result)
+            result_string = ','.join(result)
             return result
         elif field == "textStatistics":
-            ai_prompt_itemloader = AiPromptItemLoader()
+            """ai_prompt_itemloader = AiPromptItemLoader()
             ai_prompt_itemloader.add_value("field_name", field)
             text = response.meta["data"]["text"][:4000]
             body = {"text": text, "reading_speed": 200, "generate_embeddings": False}
@@ -420,10 +427,15 @@ class GenericSpider(Spider, LrmiBase):
             result = self.parse_text_statistics(result)
             ai_prompt_itemloader.add_value("ai_response_raw", result)
             ai_prompt_itemloader.add_value("ai_response", result)
-            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
-            return result
+            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())"""
+
+            text = response.meta["data"]["text"][:4000]
+            body = {"text": text, "reading_speed": 200, "generate_embeddings": False}
+            result = self.z_api_kidra.text_stats_analyze_text_post(body)
+            classification, reading_time = self.parse_text_statistics(result)
+            return classification, reading_time
         elif field == "kidraDisciplines":
-            ai_prompt_itemloader = AiPromptItemLoader()
+            """ai_prompt_itemloader = AiPromptItemLoader()
             ai_prompt_itemloader.add_value("field_name", field)
             text = response.meta["data"]["text"][:4000]
             body = {"text": text}
@@ -431,9 +443,16 @@ class GenericSpider(Spider, LrmiBase):
             result = self.z_api_kidra.predict_subjects_kidra_predict_subjects_post(body)
             result = self.parse_kira_disciplines(result, score_threshold=0.6)
             result_string = ','.join(result)
+            ai_prompt_itemloader.add_value("ai_suggested_disciplines", result)
             ai_prompt_itemloader.add_value("ai_response_raw", result_string)
             ai_prompt_itemloader.add_value("ai_response", result)
-            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
+            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())"""
+
+            text = response.meta["data"]["text"][:4000]
+            body = {"text": text}
+            result = self.z_api_kidra.predict_subjects_kidra_predict_subjects_post(body)
+            result = self.parse_kira_disciplines(result, score_threshold=0.5)
+            result_string = ','.join(result)
             return result
         else:
             ai_prompt_itemloader = AiPromptItemLoader()
@@ -479,7 +498,7 @@ class GenericSpider(Spider, LrmiBase):
         base_loader.load_item()['license'] = license
         return base_loader
 
-    def parse_topics(self, topics_result, n_topics = 3, split=False):
+    def parse_topics(self, topics_result, n_topics = 3):
         topics_result = eval(str(topics_result))
         result_str = json.dumps(topics_result)
         result_json = json.loads(result_str)
@@ -487,12 +506,17 @@ class GenericSpider(Spider, LrmiBase):
         topic_names = [topic['label'] for topic in topics]
         return topic_names
 
-    def parse_text_statistics(self, statistics_result, split=False):
+    def parse_text_statistics(self, statistics_result):
         statistics_result = eval(str(statistics_result))
         result_str = json.dumps(statistics_result)
-        return result_str
+        result_json = json.loads(result_str)
+        classification = result_json["classification"]
+        reading_time = result_json["reading_time"]
+        reading_time = "{:.2f} seconds".format( reading_time )
+        return classification, str(reading_time)
 
-    def parse_kira_disciplines(self, disciplines_result, split=False, score_threshold=0.6):
+    def parse_kira_disciplines(self, disciplines_result, score_threshold=0.6):
+        uri_discipline = 'http://w3id.org/openeduhub/vocabs/discipline/'
         disciplines_result = eval(str(disciplines_result))
         result_str = json.dumps(disciplines_result)
         result_json = json.loads(result_str)
@@ -501,6 +525,6 @@ class GenericSpider(Spider, LrmiBase):
         for discipline in disciplines:
             score = discipline['score']
             if score > score_threshold:
-                discipline_names.append( discipline['id'] )
+                discipline_names.append( uri_discipline+discipline['id'] )
 
         return discipline_names
