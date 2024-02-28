@@ -51,6 +51,7 @@ services:
       - "EDU_SHARING_USERNAME=${EDU_SHARING_USERNAME}"
       - "EDU_SHARING_PASSWORD=${EDU_SHARING_PASSWORD}"
       - "API_MODE=${API_MODE}"
+      - "Z_API_KEY=${Z_API_KEY}"
     command: uvicorn web_service_plugin.main:create_app --host 0.0.0.0 --port 80
     ports:
       - "0.0.0.0:80:80"
