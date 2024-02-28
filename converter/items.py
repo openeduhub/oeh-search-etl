@@ -58,12 +58,6 @@ class LomGeneralItem(Item):
     # ToDo: 'structure' is currently not used; no equivalent edu-sharing property
     title = Field()
     """Corresponding edu-sharing properties: 'cm:title' & 'cclom:title'"""
-    curriculum = Field(output_processor=JoinMultivalues())
-    """Corresponding edu-sharing property: 'ccm:curriculum'"""
-    textStatistics = Field()
-    """Corresponding not in edu-sharing property"""
-    kidraDisciplines = Field(output_processor=JoinMultivalues())
-    """Corresponding edu-sharing property: 'ccm:taxonid'"""
 
 
 class LomLifecycleItem(Item):
@@ -335,6 +329,20 @@ class AiPromptItem(Item):
     ai_response_raw = Field()
 
 
+class KIdraItem(Item):
+    """
+        New type of item to store AI-generated metadata from KIdra
+    """
+    curriculum = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:curriculum'"""
+    kidraDisciplines = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'ccm:taxonid'"""
+    text_difficulty = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_text_difficulty'"""
+    text_reading_time = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_text_reading_time'"""
+
+
 class BaseItem(Item):
     """
     BaseItem provides the basic data structure for any crawled item.
@@ -407,6 +415,8 @@ class BaseItem(Item):
     screenshot_bytes = Field()
     """screenshot_bytes is a (temporary) field that gets deleted after the thumbnail pipeline processed its byte-data"""
     ai_prompts = Field(output_processor=JoinMultivalues())
+    kidra_raw = Field(serializer=KIdraItem)
+    # kidra_raw = Field(output_processor=JoinMultivalues())
 
 
 class BaseItemLoader(ItemLoader):
@@ -477,4 +487,8 @@ class LomClassificationItemLoader(ItemLoader):
 
 class PermissionItemLoader(ItemLoader):
     default_item_class = PermissionItem
+    default_output_processor = TakeFirst()
+
+class KIdraItemLoader(ItemLoader):
+    default_item_class = KIdraItem
     default_output_processor = TakeFirst()
