@@ -72,6 +72,7 @@ docker compose build --no-cache scrapy
 export EDU_SHARING_BASE_URL=https://repository.pre-staging.openeduhub.net/edu-sharing/
 export EDU_SHARING_USERNAME=<your_username>
 export EDU_SHARING_PASSWORD=<your_password>
+export Z_API_KEY=<your_z_api_key>
 docker compose up
 ```
 And each time the web service is required you have to run the three `export` command lines and the `docker compose up` line. Now you should have access to the FastAPI environment in http://0.0.0.0:80/docs# because this ip address (http://0.0.0.0) and port (80) is exposed to outside the container, then the same port in the container can be accessed by the host.
@@ -90,6 +91,9 @@ To persist the metadata in the pre-staging edu-sharing repository you should pro
 - EDU_SHARING_BASE_URL = "https://repository.pre-staging.openeduhub.net/edu-sharing/"
 - EDU_SHARING_USERNAME = "<your_username>"
 - EDU_SHARING_PASSWORD = "<your_password>"
+
+In order to get authenticate to the Z_API web services (such as AI-prompts) it is mandatory to set the "Z_API_KEY" variable in the .env.example right before running the line `cp converter/.env.example converter/.env`:
+- Z_API_KEY = "<your_z_api_key>"
 
 Then open a new terminal in the same folder (oeh-search-etl) and run the following line in order to start the web service locally:
 ```bash

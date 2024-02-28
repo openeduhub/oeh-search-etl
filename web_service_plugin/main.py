@@ -14,6 +14,8 @@ import os
 class Data(pd.BaseModel):
     url: str
 
+class PingResult(pd.BaseModel):
+    message: str = ""
 
 class Result(pd.BaseModel):
     title: str = ""
@@ -57,11 +59,38 @@ def create_app() -> fapi.FastAPI:
     )
 
     @app.get("/_ping")
-    def _ping():
-        pass
+    def _ping() -> PingResult:
+        """
+            Test
+        """
+        return PingResult(
+            message="Pong"
+        )
 
     @app.post("/metadata")
     async def metadata(data: Data) -> Result:
+        """
+        Fetch metadata
+
+        Parameters
+        ----------
+        url : str
+            The url to be crawled.
+
+        Returns
+        -------
+        title : str
+        description : str
+        keywords : str
+        disciplines : str
+        educational_context : str
+        license : str
+        new_lrt : str
+        kidra_disciplines : str
+        curriculum : str
+        text_difficulty : str
+        text_reading_time : str
+        """
         DEVNULL = open(os.devnull, 'wb')
         bytes_result = subprocess.check_output([f'scrapy',
                                  'crawl',
@@ -95,34 +124,6 @@ def create_app() -> fapi.FastAPI:
         curriculum = join(curriculum)
         kidraDisciplines = join(kidraDisciplines)
 
-        """
-        title = "Giza pyramid complex - Wikipedia"
-        description = "Der Gizeh-Pyramidenkomplex in Ägypten beherbergt die Große Pyramide, die Pyramide von Khafre und die Pyramide von Menkaure, zusammen mit ihren zugehörigen Pyramidengruppen und der Großen Sphinx, allesamt erbaut in der 4. Dynastie des Alten Königreichs von etwa 2600 bis 2500 v.Chr. Der Standort, der mehrere Tempel, Friedhöfe und die Überreste eines Arbeiterdorfes umfasst, befindet sich am Rande der Westlichen Wüste, etwa 9 km westlich des Nil in der Stadt Gizeh und etwa 13 km südwestlich des Stadtzentrums von Kairo. Es bildet den nördlichsten Teil des 16.000 Hektar großen Pyramidenfeldes der UNESCO-Welterbestätte \"Memphis und seine Nekropole\", insbeschrieben 1979, zu dem auch die Pyramidenkomplexe Abusir, Saqqara und Dahshur gehören, die alle in der Nähe der alten Hauptstadt Ägyptens, Memphis, erbaut wurden."
-        keywords = "Ägypten, Gizeh-Pyramidenkomplex, Archäologie, UNESCO-Weltkulturerbe"
-        disciplines = "http://w3id.org/openeduhub/vocabs/discipline/220, http://w3id.org/openeduhub/vocabs/discipline/240"
-        educational_context = "http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1, http://w3id.org/openeduhub/vocabs/educationalContext/sekundarstufe_1"
-        license = {}
-        new_lrt = "http://w3id.org/openeduhub/vocabs/new_lrt/e0ddbb5f-9400-4d7a-89c9-dc1a18a4d576, http://w3id.org/openeduhub/vocabs/new_lrt/e0ddbb5f-9400-4d7a-89c9-dc1a18a4d576"
-"""
-
-        """
-        keywords = ["http://w3id.org/openeduhub/vocabs/discipline/120",
-                       "http://w3id.org/openeduhub/vocabs/discipline/240"]
-        disciplines = ["http://w3id.org/openeduhub/vocabs/discipline/120",
-                       "http://w3id.org/openeduhub/vocabs/discipline/240"]
-        educational_context = ["http://w3id.org/openeduhub/vocabs/discipline/120",
-                       "http://w3id.org/openeduhub/vocabs/discipline/240"]
-        new_lrt = ["http://w3id.org/openeduhub/vocabs/discipline/120",
-                       "http://w3id.org/openeduhub/vocabs/discipline/240"]
-        title = "Test title"
-        description = "Test description"
-        license = {"url": "https://creativecommons.org/licenses/by-sa/3.0/", "oer": "ALL"}
-        keywords = join(keywords)
-        disciplines = join(disciplines)
-        educational_context = join(educational_context)
-        new_lrt = join(new_lrt)
-        """
-
         return Result(
             title=title,
             description=description,
@@ -130,7 +131,6 @@ def create_app() -> fapi.FastAPI:
             disciplines=disciplines,
             educational_context=educational_context,
             license=license,
-            # license_author=license_author,
             new_lrt=new_lrt,
             kidra_disciplines=kidraDisciplines,
             curriculum=curriculum,
@@ -140,6 +140,25 @@ def create_app() -> fapi.FastAPI:
 
     @app.post("/set_metadata")
     async def set_metadata(data: ValidatedResults) -> SaveResults:
+        """
+        Insert metadata into edu-sharing repository
+
+        Parameters
+        ----------
+        url : str
+        title : str
+        description : str
+        keywords : list
+        disciplines : list
+        educational_context : list
+        license : dict
+        new_lrt : list
+
+        Returns
+        -------
+        code : str
+        message : str
+        """
         data_str = json.dumps(dict(data))
         crawl_command = f"scrapy crawl generic_spider -a validated_result='{data_str}'"
         DEVNULL = open(os.devnull, 'wb')
