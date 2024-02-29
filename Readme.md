@@ -65,7 +65,7 @@ Then run the following lines in a terminal:
 ```bash
 git clone https://github.com/openeduhub/oeh-search-etl
 cd oeh-search-etl
-git checkout add_web_service_package
+git checkout add_KIdra_services
 # Make sure that MODE = "edu-sharing" in converter/.env.example
 cp converter/.env.example converter/.env
 docker compose build --no-cache scrapy
