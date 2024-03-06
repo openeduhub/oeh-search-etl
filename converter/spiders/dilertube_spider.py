@@ -31,7 +31,7 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
     name = "dilertube_spider"
     friendlyName = "DiLerTube"
     start_urls = ["https://www.dilertube.de/sitemap.xml"]
-    version = "0.0.2"  # last update: 2024-02-08
+    version = "0.0.3"  # last update: 2024-03-06
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -194,6 +194,7 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
                 cc_pattern: re.Pattern = re.compile(
                     r"\((?P<CC>C{2})\)\s" r"(?P<CC_TYPE>\D{2}(-\D{2})*)" r".*" r"(?<=\s)(?P<CC_VERSION>\d\.\d)?(?=\s)"
                 )
+                license_mapper = LicenseMapper()
                 if cc_pattern.search(license_description):
                     # the LicenseMapper does not recognize this string yet, which is why we need to trim it down in the
                     # crawler first and then let the LicenseMapper do the rest
@@ -203,10 +204,15 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
                         f"{cc_pattern_result_dict.get('CC_TYPE')} "
                         f"{cc_pattern_result_dict.get('CC_VERSION')}"
                     )
-                    license_mapper = LicenseMapper()
                     mapped_license_url: str | None = license_mapper.get_license_url(cc_string_prepared_for_mapping)
                     if mapped_license_url:
                         video_info_dict.update({"cc_url": mapped_license_url})
+                else:
+                    # fallback to string recognition by our license mapper for edge-cases where the above RegEx fails
+                    # e.g. "Creative Commons (CC) CC0 gemeinfrei (public domain - no rights reserved)"
+                    license_internal_mapped = license_mapper.get_license_internal_key(license_description)
+                    if license_internal_mapped:
+                        video_info_dict.update({"license_internal": license_internal_mapped})
 
         video_info_box: list[str] = response.xpath(
             '//ul[@class="list-group mx-0 my-0"]//div[@class="card-body"]/div[@class="mb-2"]'
@@ -357,6 +363,9 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
             lic.add_value("description", video_info_dict.get("license_description"))
             if "cc_url" in video_info_dict:
                 lic.add_value("url", video_info_dict.get("cc_url"))
+            elif "license_internal" in video_info_dict:
+                # fallback for edge-cases when no CC license could be parsed
+                lic.add_value("internal", video_info_dict.get("license_internal"))
         if "author" in video_info_dict:
             lic.add_value("author", video_info_dict.get("author"))
         base.add_value("license", lic.load_item())
