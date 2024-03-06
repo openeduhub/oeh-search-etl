@@ -3,6 +3,8 @@ import re
 
 from converter.constants import Constants
 
+logger = logging.getLogger(__name__)
+
 
 class LicenseMapper:
     """
@@ -48,7 +50,7 @@ class LicenseMapper:
         if license_string:
             return self.identify_cc_license(license_string)
         else:
-            logging.debug(f"LicenseMapper ('url'): The provided '{license_string}' does not seem to be a valid string.")
+            logger.debug(f"LicenseMapper ('url'): The provided '{license_string}' does not seem to be a valid string.")
             return None
 
     def get_license_internal_key(self, license_string: str = None) -> str | None:
@@ -67,9 +69,9 @@ class LicenseMapper:
             if internal_hit:
                 return internal_hit
         else:
-            logging.debug(
-                f"LicenseMapper ('internal'): Could not map '{license_string}' to 'license.internal'-key since it doesn't "
-                f"seem to be a valid string."
+            logger.debug(
+                f"LicenseMapper ('internal'): Could not map '{license_string}' to 'license.internal'-key since it "
+                f"doesn't seem to be a valid string."
             )
             return None
 
@@ -112,12 +114,12 @@ class LicenseMapper:
                 cc_zero = result_dict.get("CC_ZERO")
                 public_domain = result_dict.get("PDM")
                 if cc_zero:
-                    logging.debug(
+                    logger.debug(
                         f"LicenseMapper: Fallback to 'license.internal' for '{license_string}' successful: " f"CC_0"
                     )
                     return "CC_0"
                 if public_domain:
-                    logging.debug(
+                    logger.debug(
                         f"Licensemapper: Fallback to 'license.internal' for '{license_string}' successful: "
                         f"Public Domain "
                     )
@@ -128,13 +130,13 @@ class LicenseMapper:
                         cc_string_internal = cc_string_internal.replace("-", "_")
                         cc_string_internal = cc_string_internal.replace(" ", "_")
                     if cc_string_internal in Constants.LICENSE_MAPPINGS_INTERNAL:
-                        logging.debug(
+                        logger.debug(
                             f"LicenseMapper: Fallback to 'license.internal' for '{license_string}' successful: "
                             f"{cc_string_internal}"
                         )
                         return cc_string_internal
                     else:
-                        logging.debug(
+                        logger.debug(
                             f"LicenseMapper: Fallback to 'license.internal' failed for string "
                             f"'{license_string}' . The extracted string_internal value was: "
                             f"{cc_string_internal}"
@@ -151,7 +153,7 @@ class LicenseMapper:
         license_string_original: str = license_string
         if self.identify_if_string_contains_url_pattern(license_string_original):
             license_url_candidate = license_string_original.lower()
-            logging.debug(f"LicenseMapper: The string '{license_url_candidate}' was recognized as a URL.")
+            logger.debug(f"LicenseMapper: The string '{license_url_candidate}' was recognized as a URL.")
             if "http://" in license_url_candidate:
                 license_url_candidate = license_url_candidate.replace("http://", "https://")
             if "deed" in license_url_candidate:
@@ -180,7 +182,7 @@ class LicenseMapper:
                     return valid_license_url
         elif license_string:
             license_string = license_string.lower()
-            logging.debug(f"LicenseMapper: Received license string '{license_string}'")
+            logger.debug(f"LicenseMapper: Received license string '{license_string}'")
             if self.cc_pattern.search(license_string):
                 result_dict: dict = self.cc_pattern.search(license_string).groupdict()
                 cc_type = result_dict.get("CC_TYPE")
@@ -194,10 +196,10 @@ class LicenseMapper:
                         f"/{str(result_dict.get('CC_TYPE')).lower().strip()}"
                         f"/{str(result_dict.get('CC_VERSION')).lower().strip()}/"
                     )
-                    logging.debug(f"partial_url: {partial_url}")
+                    logger.debug(f"partial_url: {partial_url}")
                     for valid_license_url in Constants.VALID_LICENSE_URLS:
                         if partial_url in valid_license_url:
-                            logging.debug(
+                            logger.debug(
                                 f"LicenseMapper: License string '{license_string}' was recognized as "
                                 f"{valid_license_url}"
                             )
@@ -205,13 +207,13 @@ class LicenseMapper:
                 if public_domain:
                     return Constants.LICENSE_PDM
                 elif cc_type:
-                    logging.debug(
+                    logger.debug(
                         f"LicenseMapper: Couldn't recognize a (valid) CC Version within {license_string} - "
                         f"Trying fallback method for 'license.internal' next..."
                     )
                     return None
         else:
-            logging.debug(f"LicenseMapper: Couldn't detect a CC license within {license_string}")
+            logger.debug(f"LicenseMapper: Couldn't detect a CC license within {license_string}")
             return None
 
 
