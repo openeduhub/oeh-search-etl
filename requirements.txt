@@ -1,4 +1,4 @@
-wheel==0.40.0
+wheel==0.42.0
 image
 dateparser==1.1.8
 isodate==0.6.1
@@ -18,7 +18,7 @@ extruct==0.14.0
 lxml==4.9.2
 w3lib==2.1.1
 itemloaders==1.1.0
-Pillow==9.5.0
+Pillow==10.2.0
 itemadapter==0.8.0
 six==1.16.0
 certifi==2023.5.7
