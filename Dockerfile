@@ -13,6 +13,10 @@ RUN apt-get update && \
     apt-get install -y openjdk-17-jre-headless && \
     apt-get clean;
 
+RUN apt-get update && \
+    apt-get install -y python3-lxml && \
+    apt-get install -y libxml2-dev libxslt-dev;
+
 COPY entrypoint.sh entrypoint.sh
 COPY requirements.txt requirements.txt
 COPY scrapy.cfg scrapy.cfg
