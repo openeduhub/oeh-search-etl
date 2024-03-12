@@ -5,6 +5,7 @@ FROM python:3.10.13-bookworm
 WORKDIR /
 
 RUN apt-get update && \
+    apt-get install -y wget && \
     apt-get install -y python3-lxml && \
     apt-get install -y libxml2-dev libxslt-dev;
 
@@ -20,14 +21,6 @@ RUN pip3 install -r requirements.txt
 
 # Install OpenJDK-11 OR 21
 RUN echo "Install Java 11 ---------------------------- "
-
-# COPY jdk-21_linux-x64_bin.deb jdk-21_linux-x64_bin.deb
-# RUN apt-get -qqy install ./jdk-21_linux-x64_bin.deb
-
-RUN wget https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/7.2.0/openapi-generator-cli-7.2.0.jar -O openapi-generator-cli.jar
-COPY openapi-generator-cli.jar openapi-generator-cli.jar
-# RUN java -jar openapi-generator-cli.jar
-
 RUN apt-get update && \
     apt-get install -y default-jre-headless && \
     apt-get clean;
