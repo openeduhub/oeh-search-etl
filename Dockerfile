@@ -14,6 +14,7 @@ RUN apt-get update && \
     apt-get clean;
 
 RUN apt-get update && \
+    apt-get install -y wget && \
     apt-get install -y python3-lxml && \
     apt-get install -y libxml2-dev libxslt-dev;
 
