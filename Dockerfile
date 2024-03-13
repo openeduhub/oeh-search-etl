@@ -19,7 +19,7 @@ COPY edu_sharing_client/ edu_sharing_client/
 COPY valuespace_converter/ valuespace_converter/
 RUN pip3 install -r requirements.txt
 
-# Install OpenJDK-11 OR 21
+# Install OpenJDK
 RUN echo "Install Java 11 ---------------------------- "
 RUN apt-get update && \
     apt-get install -y default-jre-headless && \

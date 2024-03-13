@@ -18,14 +18,13 @@ extruct==0.14.0
 lxml==4.9.2
 w3lib==2.1.1
 itemloaders==1.1.0
-Pillow==9.5.0
+Pillow==10.2.0
 itemadapter==0.8.0
 six==1.16.0
 certifi==2023.5.7
 urllib3==2.0.3
 playwright==1.35.0
 pyOpenSSL==23.2.0
-openapi-generator-cli==4.3.1
 beautifulsoup4==4.12.2
 trafilatura==1.6.1
 Twisted==22.10.0
