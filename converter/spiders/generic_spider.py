@@ -400,59 +400,24 @@ class GenericSpider(Spider, LrmiBase):
 
     def resolve_z_api(self, field: str, response: scrapy.http.Response, base_itemloader: BaseItemLoader, split=False):
         if field == "curriculum":
-            """ai_prompt_itemloader = AiPromptItemLoader()
-            ai_prompt_itemloader.add_value("field_name", field)
-            text = {"text": response.meta["data"]["text"][:4000]}
-            ai_prompt_itemloader.add_value("ai_prompt", text)
-            result = self.z_api_kidra.topics_flat_topics_flat_post(text)
-            result = self.parse_topics(result)
-            result_string = ','.join(result)
-            ai_prompt_itemloader.add_value("ai_topics", result)
-            ai_prompt_itemloader.add_value("ai_response_raw", result_string)
-            ai_prompt_itemloader.add_value("ai_response", result)
-            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())"""
-
             text = {"text": response.meta["data"]["text"][:4000]}
             result = self.z_api_kidra.topics_flat_topics_flat_post(text)
-            result = self.parse_topics(result)
-            result_string = ','.join(result)
+            result_dict = result.to_dict()
+            result = self.parse_topics(result_dict)
             return result
         elif field == "textStatistics":
-            """ai_prompt_itemloader = AiPromptItemLoader()
-            ai_prompt_itemloader.add_value("field_name", field)
-            text = response.meta["data"]["text"][:4000]
-            body = {"text": text, "reading_speed": 200, "generate_embeddings": False}
-            ai_prompt_itemloader.add_value("ai_prompt", body)
-            result = self.z_api_kidra.text_stats_analyze_text_post(body)
-            result = self.parse_text_statistics(result)
-            ai_prompt_itemloader.add_value("ai_response_raw", result)
-            ai_prompt_itemloader.add_value("ai_response", result)
-            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())"""
-
             text = response.meta["data"]["text"][:4000]
             body = {"text": text, "reading_speed": 200, "generate_embeddings": False}
             result = self.z_api_kidra.text_stats_analyze_text_post(body)
-            classification, reading_time = self.parse_text_statistics(result)
+            result_dict = result.to_dict()
+            classification, reading_time = self.parse_text_statistics(result_dict)
             return classification, reading_time
         elif field == "kidraDisciplines":
-            """ai_prompt_itemloader = AiPromptItemLoader()
-            ai_prompt_itemloader.add_value("field_name", field)
-            text = response.meta["data"]["text"][:4000]
-            body = {"text": text}
-            ai_prompt_itemloader.add_value("ai_prompt", body)
-            result = self.z_api_kidra.predict_subjects_kidra_predict_subjects_post(body)
-            result = self.parse_kira_disciplines(result, score_threshold=0.6)
-            result_string = ','.join(result)
-            ai_prompt_itemloader.add_value("ai_suggested_disciplines", result)
-            ai_prompt_itemloader.add_value("ai_response_raw", result_string)
-            ai_prompt_itemloader.add_value("ai_response", result)
-            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())"""
-
             text = response.meta["data"]["text"][:4000]
             body = {"text": text}
             result = self.z_api_kidra.predict_subjects_kidra_predict_subjects_post(body)
-            result = self.parse_kira_disciplines(result, score_threshold=0.5)
-            result_string = ','.join(result)
+            result_dict = result.to_dict()
+            result = self.parse_kidra_disciplines(result_dict, score_threshold=0.5)
             return result
         else:
             ai_prompt_itemloader = AiPromptItemLoader()
@@ -499,28 +464,19 @@ class GenericSpider(Spider, LrmiBase):
         return base_loader
 
     def parse_topics(self, topics_result, n_topics = 3):
-        topics_result = eval(str(topics_result))
-        result_str = json.dumps(topics_result)
-        result_json = json.loads(result_str)
-        topics = result_json["topics"][:n_topics]
+        topics = topics_result["topics"][:n_topics]
         topic_names = [topic['label'] for topic in topics]
         return topic_names
 
     def parse_text_statistics(self, statistics_result):
-        statistics_result = eval(str(statistics_result))
-        result_str = json.dumps(statistics_result)
-        result_json = json.loads(result_str)
-        classification = result_json["classification"]
-        reading_time = result_json["reading_time"]
+        classification = statistics_result["classification"]
+        reading_time = statistics_result["reading_time"]
         reading_time = "{:.2f} seconds".format( reading_time )
         return classification, str(reading_time)
 
-    def parse_kira_disciplines(self, disciplines_result, score_threshold=0.6):
+    def parse_kidra_disciplines(self, disciplines_result, score_threshold=0.6):
         uri_discipline = 'http://w3id.org/openeduhub/vocabs/discipline/'
-        disciplines_result = eval(str(disciplines_result))
-        result_str = json.dumps(disciplines_result)
-        result_json = json.loads(result_str)
-        disciplines = result_json["disciplines"]
+        disciplines = disciplines_result["disciplines"]
         discipline_names = []
         for discipline in disciplines:
             score = discipline['score']
