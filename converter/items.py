@@ -214,12 +214,22 @@ class ResponseItem(Item):
     """
 
     cookies = Field()
+    # ToDo: 'cookies' are not stored in edu-sharing. This field might be obsolete.
     headers = Field()
+    # ToDo: 'headers' are not stored in edu-sharing. This field might be obsolete.
     har = Field()
+    # ToDo: 'har' logs are not stored in edu-sharing. This field might be obsolete.
     html = Field()
+    # ToDo: The 'raw' HTML body is not stored in edu-sharing at the moment. This field might become relevant in the
+    #  future, but as of 2024-03-15 we can only store one "textContent" per item via the edu-sharing API.
+    #  (see: 'ResponseItem.text')
     status = Field()
+    # ToDo: the HTTP status code is not stored in edu-sharing. This field might be obsolete.
     text = Field()
+    """Corresponding ElasticSearch (!) property: 'content.fulltext'. (The 'full text' of an item is only used for 
+    indexing purposes and not readily available as an edu-sharing property!)"""
     url = Field()
+    # ToDo: This field might be obsolete. URL(s) of items are stored within 'LomTechnicalItem.location'!
 
 
 class ValuespaceItem(Item):
@@ -333,7 +343,8 @@ class BaseItem(Item):
     """A field for custom data which can be used by the target transformer to store data in the native format 
     (i.e. 'ccm:'/'cclom:'-properties in edu-sharing)."""
     fulltext = Field()
-    """The 'fulltext'-attribute gets populated by a 'response.text'-call in the pipelines."""
+    """The 'fulltext'-attribute gets populated by a 'ResponseItem.text'-call in the pipelines and is stored in the 
+    ElasticSearch index within the 'content.fulltext' property."""
     hash = Field()
     """Corresponding edu-sharing property: 'ccm:replicationsourcehash'"""
     lastModified = Field()
