@@ -20,9 +20,9 @@ COPY valuespace_converter/ valuespace_converter/
 RUN pip3 install -r requirements.txt
 
 # Install OpenJDK
-RUN echo "Install Java 11 ---------------------------- "
+RUN echo "Install Java 17 ---------------------------- "
 RUN apt-get update && \
-    apt-get install -y default-jre-headless && \
+    apt-get install -y openjdk-17-jre-headless && \
     apt-get clean;
 
 RUN echo "Install Z-API ---------------------------- "
