@@ -31,12 +31,12 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
     name = "dilertube_spider"
     friendlyName = "DiLerTube"
     start_urls = ["https://www.dilertube.de/sitemap.xml"]
-    version = "0.0.3"  # last update: 2024-03-06
+    version = "0.0.4"  # last update: 2024-03-20
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 3,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 4,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
@@ -46,12 +46,12 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
         "Berufsorientierung": "040",  # "Berufliche Bildung"
         "Bildende Kunst": "060",  # Kunst
         "Gemeinschaftskunde": "48005",  # Gesellschaftskunde / Sozialkunde
-        "Geographie": "220",  # Geografie
-        "Gesundheit und Soziales": "",  # ToDO: cannot be mapped
-        "Informatik und Medienbildung": "900",  # Medienbildung
+        "Geographie": "220",  # Geografie  # ToDo: remove this temporary mapping as soon as the vocabs are updated
+        "Gesundheit und Soziales (GuS)": "260",  # Gesundheit
+        "Informatik & Medienbildung": ["320", "900"],  # Informatik; Medienbildung
         "Lateinisch": "20005",  # Latein
-        "Materie Natur Technik (MNT)": "",  # ToDo: cannot be mapped
-        "Technik": "020",  # Arbeitslehrer
+        # "Materie Natur Technik (MNT)": "",  # ToDo: cannot be mapped
+        "Technik": "020",  # Arbeitslehre
     }
     CATEGORY_IS_ACTUALLY_A_KEYWORD = [
         "DiLer Tutorials",
@@ -62,7 +62,6 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
         "Naturphänomene",
         "Sonstige",
         "Schülerprojekte",
-        "Technik",
     ]
 
     def __init__(self, **kwargs):
@@ -342,10 +341,24 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
         base.add_value("lom", lom.load_item())
 
         vs: ValuespaceItemLoader = ValuespaceItemLoader()
+        # ToDo: use keywords for 'educationalContext' mapping
+        # see: https://www.dilertube.de/component/tags/
+        if keywords and isinstance(keywords, list):
+            # cast keywords to lowercase to make mapping easier:
+            kw_lower: list[str] = [kw.lower() for kw in keywords]
+            if "grundschule" in kw_lower:
+                vs.add_value("educationalContext", "grundschule")
+            if "methoden & erklärvideos" in kw_lower:
+                vs.add_value("new_lrt", "a0218a48-a008-4975-a62a-27b1a83d454f")  # Erklárvideo und
+                # gefilmtes Experiment
         for category_item in categories:
             if category_item in self.DISCIPLINE_MAPPING.keys():
-                discipline = self.DISCIPLINE_MAPPING.get(category_item)
-                vs.add_value("discipline", discipline)
+                discipline_mapped: str | list[str] = self.DISCIPLINE_MAPPING.get(category_item)
+                if isinstance(discipline_mapped, list):
+                    for discipline in discipline_mapped:
+                        vs.add_value("discipline", discipline)
+                if isinstance(discipline_mapped, str):
+                    vs.add_value("discipline", discipline_mapped)
             else:
                 vs.add_value("discipline", category_item)
         vs.add_value("new_lrt", "7a6e9608-2554-4981-95dc-47ab9ba924de")  # Video (Material)
