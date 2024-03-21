@@ -31,7 +31,7 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
     name = "dilertube_spider"
     friendlyName = "DiLerTube"
     start_urls = ["https://www.dilertube.de/sitemap.xml"]
-    version = "0.0.4"  # last update: 2024-03-20
+    version = "0.0.5"  # last update: 2024-03-21
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -341,16 +341,18 @@ class DiLerTubeSpider(CrawlSpider, LomBase):
         base.add_value("lom", lom.load_item())
 
         vs: ValuespaceItemLoader = ValuespaceItemLoader()
-        # ToDo: use keywords for 'educationalContext' mapping
-        # see: https://www.dilertube.de/component/tags/
         if keywords and isinstance(keywords, list):
-            # cast keywords to lowercase to make mapping easier:
-            kw_lower: list[str] = [kw.lower() for kw in keywords]
-            if "grundschule" in kw_lower:
-                vs.add_value("educationalContext", "grundschule")
-            if "methoden & erklärvideos" in kw_lower:
-                vs.add_value("new_lrt", "a0218a48-a008-4975-a62a-27b1a83d454f")  # Erklárvideo und
-                # gefilmtes Experiment
+            # the complete list of keywords (called "tags" on DiLerTube) can be seen here:
+            # https://www.dilertube.de/component/tags/
+            # (attention: DiLerTube tags are freetext strings that can be set by the individual video uploader)
+            keywords_lc: list[str] = [kw.lower() for kw in keywords]
+            # first, we need to cast keywords to lowercase to make mapping individual parts of a string more robust
+            for keyword_lowercase in keywords_lc:
+                if "grundschule" in keyword_lowercase:
+                    vs.add_value("educationalContext", "grundschule")
+                if "erklärvideo" in keyword_lowercase:
+                    vs.add_value("new_lrt", "a0218a48-a008-4975-a62a-27b1a83d454f")  # Erklärvideo und
+                    # gefilmtes Experiment
         for category_item in categories:
             if category_item in self.DISCIPLINE_MAPPING.keys():
                 discipline_mapped: str | list[str] = self.DISCIPLINE_MAPPING.get(category_item)
