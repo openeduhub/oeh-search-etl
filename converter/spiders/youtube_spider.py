@@ -24,11 +24,6 @@ from .base_classes import LomBase, CSVBase
 # TODO: Find out whether `publishedAt` reflects modification
 #   - Find another way to set `hash` if not
 #
-# ToDo: "YouTube Handle" URLs: update URL parsing and implement handle-specific channel request parameter ('forHandle')
-#   - see: https://support.google.com/youtube/answer/6180214
-#     (Example: "youtube.com/@youtubecreators" requires different API parameters when querying "Channels: list"-endpoint
-#     https://developers-dot-devsite-v2-prod.appspot.com/youtube/v3/docs/channels/list )
-#
 # ToDo: YouTube API - Captions for fulltext extraction
 #   - see: https://developers.google.com/youtube/v3/docs/captions
 #   - PREREQUISITE: YouTube's "captions.download"-method REQUIRES OAuth 2.0 authentication (!!!)
@@ -59,7 +54,7 @@ class YoutubeSpider(Spider):
     name = "youtube_spider"
     friendlyName = "Youtube"
     url = "https://www.youtube.com/"
-    version = "0.2.2"  # last update: 2022-12-15
+    version = "0.2.3"  # last update: 2022-04-09
 
     @staticmethod
     def get_video_url(item: dict) -> str:
@@ -123,7 +118,7 @@ class YoutubeSpider(Spider):
                         #  the "real" target might provide some Quality of Life while using this feature.
                         match_found = True
                         logging.debug(
-                            f"Match found in 'csv/youtube.csv' for {singular_crawl_target_url}! Commencing"
+                            f"Match found in 'csv/youtube.csv' for {singular_crawl_target_url}! Commencing "
                             f"SINGULAR crawl process."
                         )
                         request = self.request_row(row)
@@ -147,26 +142,60 @@ class YoutubeSpider(Spider):
 
     def request_row(self, row: dict) -> Request:
         if row["url"].startswith("https://www.youtube.com"):
-            url = urlparse(row["url"])
-            if url.path == "/playlist":
-                playlist_id = dict(parse_qsl(url.query))["list"]
-                return self.request_playlist(playlist_id, meta={"row": row})
-            elif url.path.startswith("/channel/"):
-                channel_id = url.path.split("/")[2]
-                return self.request_channel(channel_id, meta={"row": row})
+            # There can be several types of YouTube URLs which might require different query parameters in
+            # subsequent requests.
+            # (Legacy) Username URLs:
+            #   - https://www.youtube.com/user/<legacy username>
+            #   - https://www.youtube.com/<legacy username>
+            # (New) YouTube Handle URLs:
+            #   - https://www.youtube.com/@<handle_url>
+            # YouTube also offered custom URLs to (popular) channels in two different forms in the past.
+            # Both of these custom URL patterns are considered legacy URLs
+            # and automatically redirect to YouTube Handles as of 2024.
+            #   1) Custom channel URLs:
+            #     - https://www.youtube.com/c/<custom channel URL>
+            #   2) Custom Channel Names:
+            #     - https://www.youtube.com/<custom channel name>
+            yt_url_pattern = re.compile(
+                r"""youtube.com/"""
+                r"""((?P<handle_url>@?[a-zA-Z._-]{3,30}$)"""
+                r"""|playlist\?list=(?P<playlist_id>[\w_-]+$)"""
+                r"""|c/(?P<custom_url>[\w_-]+)(/featured)?/$"""
+                r"""|channel/(?P<channel_id>[\w_-]+)(?:/featured)?$)"""
+            )
+            re_match: re.Match = yt_url_pattern.search(row["url"])
+            if re_match:
+                # see: https://support.google.com/youtube/answer/6180214?hl=en&sjid=8649083492401077263-EU
+                re_match_dict: dict = re_match.groupdict()
+                if "channel_id" in re_match_dict and re_match_dict["channel_id"]:
+                    channel_id: str = re_match_dict["channel_id"]
+                    return self.request_channel(channel_id, meta={"row": row})
+                if "playlist_id" in re_match_dict and re_match_dict["playlist_id"]:
+                    playlist_id = re_match_dict["playlist_id"]
+                    return self.request_playlist(playlist_id, meta={"row": row})
+                if "handle_url" in re_match_dict and re_match_dict["handle_url"]:
+                    yt_handle: str = re_match_dict["handle_url"]
+                    return self.request_channel_by_handle(yt_handle=yt_handle, meta={"row": row})
+                if "custom_url" in re_match_dict and re_match_dict["custom_url"]:
+                    # As of 2024-02 we cannot resolve channel_ids by directly querying a custom_url anymore.
+                    # (YouTube automatically redirects to a Cookie Consent Banner,
+                    # causing response.text to not have the necessary channel_id information).
+                    # see: https://support.google.com/youtube/answer/2657968
+                    self.logger.warning(
+                        f"Failed to extract channel_id because a YouTube custom URL detected! "
+                        f"Please update the .csv entry for {row['url']} to point towards a valid "
+                        f"YouTube handle instead."
+                    )
+                    # We cannot query custom-URLs reliably anymore -> these need to be converted by hand:
+                    # 1) open the custom URL in your browser
+                    # 2) click on "Home" or "Videos"
+                    # 3) Copypaste the URL which should now be in the format "https://www.youtube.com/@<YT_Handle>" to
+                    #    the YouTube table (Google Docs) and export it to csv/youtube.csv
             else:
-                # YouTube offers custom URLs to popular channels of the form
-                #   - https://www.youtube.com/c/<custom channel name>
-                #   - https://www.youtube.com/<custom channel name>
-                #   - https://www.youtube.com/user/<legacy user name>
-                #   - https://www.youtube.com/<legacy username>
-                #
-                # All of these lead to an ordinary channel, but we need to read its ID from the page
-                # body.
-                return Request(
-                    row["url"],
-                    meta={"row": row},
-                    callback=self.parse_custom_url,
+                self.logger.debug(
+                    f"Failed to RegEx parse URL {row['url']} . "
+                    f"(Please check if the RegEx URL pattern needs an update in the "
+                    f"'request_row()'-method!)"
                 )
 
     def request_channel(self, channel_id: str, meta: dict) -> Request:
@@ -174,6 +203,21 @@ class YoutubeSpider(Spider):
         # see: https://developers.google.com/youtube/v3/docs/channels
         request_url = "https://www.googleapis.com/youtube/v3/channels" + "?part={}&id={}&key={}".format(
             "%2C".join(part), channel_id, env.get("YOUTUBE_API_KEY", False)
+        )
+        return Request(url=request_url, meta=meta, callback=self.parse_channel)
+
+    def request_channel_by_handle(self, yt_handle: str, meta: dict) -> Request:
+        # see: https://developers-dot-devsite-v2-prod.appspot.com/youtube/v3/docs/channels/list
+        #  -> use the 'forHandle'-query-parameter to retrieve channel information from a YouTube Handle.
+        # Attention: YouTube Handles and YouTube usernames are two completely different things!
+        # see: https://support.google.com/youtube/answer/11585688?hl=en&sjid=1154139518236355177-EU
+
+        api_url: str = "https://www.googleapis.com/youtube/v3/channels"
+        query_param_part: str = "snippet,contentDetails,statistics"
+        request_url: str = (
+            f"{api_url}?part={query_param_part}"
+            f"&forHandle={yt_handle}"
+            f"&key={env.get('YOUTUBE_API_KEY', allow_null=False)}"
         )
         return Request(url=request_url, meta=meta, callback=self.parse_channel)
 
@@ -239,14 +283,6 @@ class YoutubeSpider(Spider):
             response_copy = response.replace(url=self.get_video_url(item))
             response_copy.meta["item"] = item
             yield await self.lomLoader.parse(response_copy)
-
-    def parse_custom_url(self, response: Response) -> Request:
-        match = re.search('<meta itemprop="channelId" content="(.+?)">', response.text)
-        if match is not None:
-            channel_id = match.group(1)
-            return self.request_channel(channel_id, meta=response.meta)
-        else:
-            logging.warning("Could not extract channel id for {}".format(response.url))
 
 
 class YoutubeLomLoader(LomBase):
