@@ -155,14 +155,35 @@ class YoutubeSpider(Spider):
                 channel_id = url.path.split("/")[2]
                 return self.request_channel(channel_id, meta={"row": row})
             else:
-                # YouTube offers custom URLs to popular channels of the form
-                #   - https://www.youtube.com/c/<custom channel name>
+                # YouTube offers custom URLs to (popular) channels of the form
+                #   Custom channel URLs:
+                #   - https://www.youtube.com/c/<custom channel URL>
+                #   Custom Channel Names:
                 #   - https://www.youtube.com/<custom channel name>
-                #   - https://www.youtube.com/user/<legacy user name>
+                #   (Legacy) Username URLs:
+                #   - https://www.youtube.com/user/<legacy username>
                 #   - https://www.youtube.com/<legacy username>
-                #
+                #   (new) YouTube Handle URLs:
+                #   - https://www.youtube.com/@<handle_url>
                 # All of these lead to an ordinary channel, but we need to read its ID from the page
                 # body.
+                # ToDo: parsing custom URLs by using a HTTP Request and parsing the HTML body DOES NOT work reliably
+                #  anymore!
+                # ToDo: build workaround without HTTP requests
+                #  - RegEx parse the custom URLs without causing a HTTP Request
+                #  - decide / detect YouTube "URL type" a custom URL belongs to
+                #  - use 'forHandle' parameter in YT "channel list"-API-request if it's a "YouTube Handle"-URL
+                #    (e.g. youtube.com/@youtubecreators")
+                custom_url_pattern = re.compile(
+                    r"""(?P<yt_url>youtube.com/)"""
+                    r"""((?P<handle_url>@?[a-zA-Z._-]{3,30}$)"""
+                    r"""|playlist\?list=(?P<playlist_id>[\w_-]+$)"""
+                    r"""|c/(?P<custom_url>[\w_-]+)(/featured)?/$"""
+                    r"""|channel/(?P<channel_id>[\w_-]+)(?:/featured)?$)"""
+                )
+                # ToDo: use RegEx capture groups to determine
+                #  - handle_url -> use 'forHandle'-parameter in subsequent API requests!
+                #  - custom_url -> resolve 'channelId' by using another API endpoint?
                 return Request(
                     row["url"],
                     meta={"row": row},
@@ -241,6 +262,12 @@ class YoutubeSpider(Spider):
             yield await self.lomLoader.parse(response_copy)
 
     def parse_custom_url(self, response: Response) -> Request:
+        # ToDo: YouTube redirects to a cookie-banner pre-page, therefore response.text does not contain the HTML body
+        #  of a channel anymore. This method needs to be reworked!
+        #  e.g. "https://consent.youtube.com/ml?continue=https://www.youtube.com/c/sehenverstehenexperimenteundmeeehr?cbrd%3D1&gl=DE&hl=en&cm=2&pc=yt&src=1"
+        #
+        #   ToDo: detect 'channelId' by RegEx parsing the URL structure
+        #     - do not cause a HTTP request to the channel overview (too unreliable)
         match = re.search('<meta itemprop="channelId" content="(.+?)">', response.text)
         if match is not None:
             channel_id = match.group(1)
