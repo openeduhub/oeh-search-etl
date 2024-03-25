@@ -52,7 +52,7 @@ A web service that implements the FastAPI web framework is added to the project.
 The Dockerfile will perform the following tasks:
 - Copy the source folders, Scrapy configuration files and the requirements.txt file for the python dependencies
 - Install the python dependencies
-- Install the Java JDK version 11 
+- Install the Java JDK version 17 
 - Generate the Z-API python library
 - Copy the web service source folder and install its requirements.txt file which installs FastAPI and Uvicorn
 - Set the entrypoint script file: entrypoint.sh this file is the script which runs the crawler in any of its modes:
@@ -66,13 +66,12 @@ Then run the following lines in a terminal:
 git clone https://github.com/openeduhub/oeh-search-etl
 cd oeh-search-etl
 git checkout add_KIdra_services
-# Make sure that MODE = "edu-sharing" in converter/.env.example
+# vi or gedit converter/.env.example (Make sure that Z_API_KEY=<your_z_api_key> and MODE = "edu-sharing" variables are set in converter/.env.example)
 cp converter/.env.example converter/.env
 docker compose build --no-cache scrapy
 export EDU_SHARING_BASE_URL=https://repository.pre-staging.openeduhub.net/edu-sharing/
 export EDU_SHARING_USERNAME=<your_username>
 export EDU_SHARING_PASSWORD=<your_password>
-export Z_API_KEY=<your_z_api_key>
 docker compose up
 ```
 And each time the web service is required you have to run the three `export` command lines and the `docker compose up` line. Now you should have access to the FastAPI environment in http://0.0.0.0:80/docs# because this ip address (http://0.0.0.0) and port (80) is exposed to outside the container, then the same port in the container can be accessed by the host.
