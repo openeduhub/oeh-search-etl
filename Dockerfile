@@ -13,16 +13,6 @@ RUN apt-get update && \
     apt-get install -y openjdk-17-jre-headless && \
     apt-get clean;
 
-# required for playwright data!
-RUN mkdir tmp/
-
-RUN apt-get update && \
-    apt-get install -y wget && \
-    apt-get install -y python3-lxml && \
-    apt-get install -y libxml2-dev libxslt-dev && \
-    apt-get install -y openjdk-17-jre-headless && \
-    apt-get clean;
-
 COPY entrypoint.sh entrypoint.sh
 COPY requirements.txt requirements.txt
 COPY scrapy.cfg scrapy.cfg
