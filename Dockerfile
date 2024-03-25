@@ -4,6 +4,9 @@ FROM python:3.10.13-bookworm
 
 WORKDIR /
 
+# required for playwright data!
+RUN mkdir tmp/
+
 RUN apt-get update && \
     apt-get install -y wget && \
     apt-get install -y python3-lxml && \
