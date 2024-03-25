@@ -115,7 +115,9 @@ def create_app() -> fapi.FastAPI:
         curriculum = kidra_raw["curriculum"]
         text_difficulty = kidra_raw["text_difficulty"]
         text_reading_time = kidra_raw["text_reading_time"]
-        kidraDisciplines = kidra_raw["kidraDisciplines"]
+        kidraDisciplines = []
+        if 'kidraDisciplines' in kidra_raw:
+            kidraDisciplines = kidra_raw["kidraDisciplines"]
 
         keywords = join(keywords)
         disciplines = join(disciplines)
