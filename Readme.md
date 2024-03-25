@@ -69,6 +69,7 @@ git checkout add_KIdra_services
 # vi or gedit converter/.env.example (Make sure that Z_API_KEY=<your_z_api_key> and MODE = "edu-sharing" variables are set in converter/.env.example)
 cp converter/.env.example converter/.env
 docker compose build --no-cache scrapy
+export API_MODE=true
 export EDU_SHARING_BASE_URL=https://repository.pre-staging.openeduhub.net/edu-sharing/
 export EDU_SHARING_USERNAME=<your_username>
 export EDU_SHARING_PASSWORD=<your_password>
