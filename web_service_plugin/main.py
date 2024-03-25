@@ -9,7 +9,10 @@ import pydantic as pd
 import rdflib
 import uvicorn
 from rdflib import Graph
+import converter.env as env
 
+# verify presence of the key!
+env.get("Z_API_KEY", allow_null=False)
 
 class Data(pd.BaseModel):
     url: str
