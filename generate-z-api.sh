@@ -25,4 +25,4 @@ cd ../../
 # move the only relevant sub-directory to the "z_api"-directory at project root:
 cp -r tmp/z_api/z_api/ z_api
 # delete the temporary folder after everything is done:
-rm -rf tmp
+# rm -rf tmp
