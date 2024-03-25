@@ -71,6 +71,7 @@ cp converter/.env.example converter/.env
 # modify .env with your edu sharing instance
 export $API_MODE=True
 docker compose build --no-cache scrapy
+export API_MODE=true
 export EDU_SHARING_BASE_URL=https://repository.pre-staging.openeduhub.net/edu-sharing/
 export EDU_SHARING_USERNAME=<your_username>
 export EDU_SHARING_PASSWORD=<your_password>
