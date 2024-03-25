@@ -1,15 +1,15 @@
+import json
 import logging
+import os
+import subprocess
 
-import uvicorn
 import fastapi as fapi
 import fastapi.middleware.cors as fapicors
 import pydantic as pd
-import asyncio
-import subprocess
-import json
-from rdflib import Graph
 import rdflib
-import os
+import uvicorn
+from rdflib import Graph
+
 
 class Data(pd.BaseModel):
     url: str
@@ -92,53 +92,62 @@ def create_app() -> fapi.FastAPI:
         text_reading_time : str
         """
         DEVNULL = open(os.devnull, 'wb')
-        bytes_result = subprocess.check_output([f'scrapy',
-                                 'crawl',
-                                 'generic_spider',
-                                 '-a',
-                                 'urltocrawl=' + data.url, '-o', '-:json'],
-                                  stderr=DEVNULL)
+        try:
+            bytes_result = subprocess.check_output([f'scrapy',
+                                                    'crawl',
+                                                    'generic_spider',
+                                                    '-a',
+                                                    'urltocrawl=' + data.url, '-o', '-:json'],
+                                                   stderr=DEVNULL)
+        except subprocess.CalledProcessError as e:
+            logging.error('Call of native spider failed:')
+            logging.error(e.output.decode('utf-8'))
+            return None
 
         str_result = bytes_result.decode('utf-8')
-        json_results = json.loads(str_result)
-        json_result = json_results[0]
+        try:
+            json_results = json.loads(str_result)
+            json_result = json_results[0]
 
-        license = json_result['license']
-        title = json_result['lom']['general']['title']
-        description = json_result['lom']['general']['description']
-        keywords = json_result['lom']['general']['keyword']
-        valuespaces = json_result['valuespaces']
-        educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
-        disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
-        new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
-        kidra_raw = json_result['kidra_raw']
-        curriculum = kidra_raw["curriculum"]
-        text_difficulty = kidra_raw["text_difficulty"]
-        text_reading_time = kidra_raw["text_reading_time"]
-        kidraDisciplines = []
-        if 'kidraDisciplines' in kidra_raw:
-            kidraDisciplines = kidra_raw["kidraDisciplines"]
+            license = json_result['license']
+            title = json_result['lom']['general']['title']
+            description = json_result['lom']['general']['description']
+            keywords = json_result['lom']['general']['keyword']
+            valuespaces = json_result['valuespaces']
+            educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
+            disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
+            new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
+            kidra_raw = json_result['kidra_raw']
+            curriculum = kidra_raw["curriculum"]
+            text_difficulty = kidra_raw["text_difficulty"]
+            text_reading_time = kidra_raw["text_reading_time"]
+            kidraDisciplines = []
+            if 'kidraDisciplines' in kidra_raw:
+                kidraDisciplines = kidra_raw["kidraDisciplines"]
 
-        keywords = join(keywords)
-        disciplines = join(disciplines)
-        educational_context = join(educational_context)
-        new_lrt = join(new_lrt)
-        curriculum = join(curriculum)
-        kidraDisciplines = join(kidraDisciplines)
+            keywords = join(keywords)
+            disciplines = join(disciplines)
+            educational_context = join(educational_context)
+            new_lrt = join(new_lrt)
+            curriculum = join(curriculum)
+            kidraDisciplines = join(kidraDisciplines)
 
-        return Result(
-            title=title,
-            description=description,
-            keywords=keywords,
-            disciplines=disciplines,
-            educational_context=educational_context,
-            license=license,
-            new_lrt=new_lrt,
-            kidra_disciplines=kidraDisciplines,
-            curriculum=curriculum,
-            text_difficulty=text_difficulty,
-            text_reading_time=text_reading_time
-        )
+            return Result(
+                title=title,
+                description=description,
+                keywords=keywords,
+                disciplines=disciplines,
+                educational_context=educational_context,
+                license=license,
+                new_lrt=new_lrt,
+                kidra_disciplines=kidraDisciplines,
+                curriculum=curriculum,
+                text_difficulty=text_difficulty,
+                text_reading_time=text_reading_time
+            )
+        except Exception as ignored:
+            logging.error('Native spider returned invalid json')
+            logging.error(str_result)
 
     @app.post("/set_metadata")
     async def set_metadata(data: ValidatedResults) -> SaveResults:
