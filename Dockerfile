@@ -29,7 +29,7 @@ RUN ./generate-z-api.sh
 
 COPY web_service_plugin/requirements.txt web_service_plugin/requirements.txt
 RUN pip3 install -r web_service_plugin/requirements.txt
-COPY web_service_plugin/ /web_service_plugin
+COPY web_service_plugin/ web_service_plugin
 
 EXPOSE 80
 
