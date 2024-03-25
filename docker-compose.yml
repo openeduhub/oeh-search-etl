@@ -46,6 +46,7 @@ services:
       # optional keyword args, e.g. cleanrun=true
       - "ARGS=${ARGS}"
       - "DRY_RUN=False"
+      - "MODE=json"
       - "LOG_LEVEL=${LOG_LEVEL:-INFO}"
       - "EDU_SHARING_BASE_URL=${EDU_SHARING_BASE_URL}"
       - "EDU_SHARING_USERNAME=${EDU_SHARING_USERNAME}"
