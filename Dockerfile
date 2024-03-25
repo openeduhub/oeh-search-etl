@@ -2,10 +2,9 @@ FROM python:3.10.13-bookworm
 
 # ENV CRAWLER wirlernenonline_spider
 
-WORKDIR /
+RUN mkdir /opt/scrapy
 
-# required for playwright data!
-RUN mkdir tmp/
+WORKDIR /opt/scrapy
 
 RUN apt-get update && \
     apt-get install -y wget && \
@@ -26,7 +25,7 @@ RUN pip3 install -r requirements.txt
 
 RUN echo "Install Z-API ---------------------------- "
 COPY generate-z-api.sh generate-z-api.sh
-RUN /bin/bash -c '/generate-z-api.sh'
+RUN ./generate-z-api.sh
 
 COPY web_service_plugin/requirements.txt web_service_plugin/requirements.txt
 RUN pip3 install -r web_service_plugin/requirements.txt
