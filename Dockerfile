@@ -16,7 +16,7 @@ RUN apt-get update && \
 RUN apt-get update && \
     apt-get install -y wget && \
     apt-get install -y python3-lxml && \
-    apt-get install -y libxml2-dev libxslt-dev \
+    apt-get install -y libxml2-dev libxslt-dev && \
     apt-get install -y openjdk-17-jre-headless && \
     apt-get clean;
 
