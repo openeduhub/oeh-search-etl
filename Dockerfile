@@ -7,7 +7,9 @@ WORKDIR /
 RUN apt-get update && \
     apt-get install -y wget && \
     apt-get install -y python3-lxml && \
-    apt-get install -y libxml2-dev libxslt-dev;
+    apt-get install -y libxml2-dev libxslt-dev \
+    apt-get install -y openjdk-17-jre-headless && \
+    apt-get clean;
 
 COPY entrypoint.sh entrypoint.sh
 COPY requirements.txt requirements.txt
@@ -18,12 +20,6 @@ COPY csv/ csv/
 COPY edu_sharing_client/ edu_sharing_client/
 COPY valuespace_converter/ valuespace_converter/
 RUN pip3 install -r requirements.txt
-
-# Install OpenJDK
-RUN echo "Install Java 17 ---------------------------- "
-RUN apt-get update && \
-    apt-get install -y openjdk-17-jre-headless && \
-    apt-get clean;
 
 RUN echo "Install Z-API ---------------------------- "
 COPY generate-z-api.sh generate-z-api.sh
