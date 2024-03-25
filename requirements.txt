@@ -23,7 +23,7 @@ itemadapter==0.8.0
 six==1.16.0
 certifi==2023.5.7
 urllib3==2.0.3
-playwright==1.35.0
+playwright==1.42.0
 pyOpenSSL==23.2.0
 beautifulsoup4==4.12.2
 trafilatura==1.6.1
