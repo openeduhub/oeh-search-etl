@@ -45,7 +45,7 @@ class GenericSpider(Spider, LrmiBase):
         # "https://www.planet-schule.de/thema/fridays-for-future-was-steckt-hinter-den-klima-streiks-film-100.html",
         # "https://www.dilertube.de/englisch/oer-video/algeria-in-a-nutshell.html",
         # "https://www.dilertube.de/alltagskultur-ernaehrung-soziales-aes/oer-video/erklaerfilm-medikamente-richtig-entsorgen.html",
-        # "https://www.umwelt-im-unterricht.de/unterrichtsvorschlaege/der-mensch-hauptursache-fuer-den-rueckgang-der-biologischen-vielfalt",
+        "https://www.umwelt-im-unterricht.de/unterrichtsvorschlaege/der-mensch-hauptursache-fuer-den-rueckgang-der-biologischen-vielfalt",
         # "https://www.umwelt-im-unterricht.de/hintergrund/die-endlagerung-hochradioaktiver-abfaelle",
         # "https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78",
         # "https://editor.mnweg.org/mnw/sammlung/bruchrechnen-m-10",
@@ -53,7 +53,7 @@ class GenericSpider(Spider, LrmiBase):
         # "https://www.bpb.de/themen/kolonialismus-imperialismus/postkolonialismus-und-globalgeschichte/236617/kolonialismus-und-postkolonialismus-schluesselbegriffe-der-aktuellen-debatte/",
         # "https://www.geschichtsquellen.de/werk/3402",
         # "https://www.geschichtsquellen.de/werk/4799",
-        "https://www.weltderphysik.de/gebiet/teilchen/quanteneffekte/",
+        # "https://www.weltderphysik.de/gebiet/teilchen/quanteneffekte/",
         # "https://www.weltderphysik.de/mediathek/podcast/geothermie/",
         # "https://histomania.com/app/Saralee_Thungthongkam_W468573",
         # "https://histomania.com/app/Anna_Maria_von_Anhalt_W527486",
@@ -417,7 +417,7 @@ class GenericSpider(Spider, LrmiBase):
             body = {"text": text}
             result = self.z_api_kidra.predict_subjects_kidra_predict_subjects_post(body)
             result_dict = result.to_dict()
-            result = self.parse_kidra_disciplines(result_dict, score_threshold=0.5)
+            result = self.parse_kidra_disciplines(result_dict, score_threshold=0.3)
             return result
         else:
             ai_prompt_itemloader = AiPromptItemLoader()
