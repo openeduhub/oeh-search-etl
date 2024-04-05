@@ -5,11 +5,18 @@ import subprocess
 
 import fastapi as fapi
 import fastapi.middleware.cors as fapicors
+from fastapi.responses import JSONResponse
+from fastapi import status
 import pydantic as pd
 import rdflib
 import uvicorn
 from rdflib import Graph
+from starlette.responses import JSONResponse
+
 import converter.env as env
+import sys
+import traceback
+
 
 # verify presence of the key!
 env.get("Z_API_KEY", allow_null=False)
@@ -44,7 +51,7 @@ class ValidatedResults(pd.BaseModel):
     license: dict = {}
     new_lrt: list = []
 
-class SaveResults(pd.BaseModel):
+class StandardResult(pd.BaseModel):
     code: str = ""
     message: str = ""
 
@@ -71,7 +78,7 @@ def create_app() -> fapi.FastAPI:
         )
 
     @app.post("/metadata")
-    async def metadata(data: Data) -> Result:
+    async def metadata(data: Data):
         """
         Fetch metadata
 
@@ -102,10 +109,18 @@ def create_app() -> fapi.FastAPI:
                                                     '-a',
                                                     'urltocrawl=' + data.url, '-o', '-:json'],
                                                    stderr=DEVNULL)
-        except subprocess.CalledProcessError as e:
-            logging.error('Call of native spider failed:')
-            logging.error(e.output.decode('utf-8'))
-            return None
+        except (subprocess.CalledProcessError, Exception) as e:
+            error_traceback = error_logger()
+            error_str = 'Call of native spider failed in metadata web service: '+error_traceback
+            logging.error(error_str)
+            # logging.error(e.output.decode('utf-8'))
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "message": error_str
+                }
+            )
 
         str_result = bytes_result.decode('utf-8')
         try:
@@ -148,12 +163,21 @@ def create_app() -> fapi.FastAPI:
                 text_difficulty=text_difficulty,
                 text_reading_time=text_reading_time
             )
-        except Exception as ignored:
-            logging.error('Native spider returned invalid json')
-            logging.error(str_result)
+        except Exception as e:
+            error_traceback = error_logger()
+            error_str = 'Native spider returned invalid json' + error_traceback
+            logging.error(error_str)
+            # logging.error(e.output.decode('utf-8'))
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "message": error_str
+                }
+            )
 
     @app.post("/set_metadata")
-    async def set_metadata(data: ValidatedResults) -> SaveResults:
+    async def set_metadata(data: ValidatedResults):
         """
         Insert metadata into edu-sharing repository
 
@@ -176,20 +200,37 @@ def create_app() -> fapi.FastAPI:
         data_str = json.dumps(dict(data))
         crawl_command = f"scrapy crawl generic_spider -a validated_result='{data_str}'"
         DEVNULL = open(os.devnull, 'wb')
-        bytes_result = subprocess.check_output([crawl_command], shell=True,
+        try:
+            bytes_result = subprocess.check_output([crawl_command], shell=True,
                                                stderr=DEVNULL)
+
+        except Exception as e:
+            error_traceback = error_logger()
+            error_str = 'Call of native spider failed in set_metadata web service: ' + error_traceback
+            logging.error(error_str)
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "message": error_str
+                }
+            )
 
         str_result = bytes_result.decode('utf-8')
 
         if str_result == '':
-            return SaveResults(
+            return StandardResult(
                 code="0",
                 message="Successfully inserted in Edu-sharing"
             )
         else:
-            return SaveResults(
-                code="1",
-                message="Error inserting data in Edu-sharing"
+            logging.error("Error inserting data in Edu-sharing")
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "message": "Error inserting data in Edu-sharing"
+                }
             )
 
     return app
@@ -257,3 +298,9 @@ def join(array):
 
 if __name__ == "__main__":
     start_ws_service()
+
+def error_logger() -> str:
+    _, value_, traceback_ = sys.exc_info()
+    traceback_list = traceback.extract_tb(traceback_)
+    traceback_list = ''.join(str(t) for t in traceback_list)
+    return str(value_)+'. '+traceback_list
