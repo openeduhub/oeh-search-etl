@@ -49,7 +49,7 @@ class BpbSpider(scrapy.Spider, LomBase):
         "/veranstaltungen/",  # ToDo: implement custom handling for events in a future version
     ]
     deny_list_endswith: list[str] = ["/impressum", "/kontakt", "/redaktion"]
-    version = "0.2.1"  # last update: 2024-02-20
+    version = "0.2.2"  # last update: 2024-04-09
     # (first version of the crawler after bpb.de completely relaunched their website in 2022-02)
     custom_settings = {
         "WEB_TOOLS": WebEngine.Playwright,
@@ -349,6 +349,29 @@ class BpbSpider(scrapy.Spider, LomBase):
         elif og_title:
             general_itemloader.add_value("title", og_title)
 
+        ambiguous_titles: list[str] = [
+            "glossar",
+            "links",
+            "links zum thema",
+            "literatur",
+            "weiterführende links",
+        ]
+        retrieved_titles: list[str] | None = general_itemloader.get_collected_values("title")
+        if retrieved_titles and isinstance(retrieved_titles, list):
+            for retrieved_title in retrieved_titles:
+                if retrieved_title and isinstance(retrieved_title, str):
+                    retrieved_title_lc = retrieved_title.lower()
+                    if retrieved_title_lc and retrieved_title_lc in ambiguous_titles:
+                        # There are edge-cases where the title is too ambiguous to be useful for an end-user.
+                        # If we encounter such "useless" titles,
+                        # we'll try to use the breadcrumbs as a fallback and build a string
+                        breadcrumbs_raw: list[str] = response.xpath(
+                            "//nav[@class='breadcrumbs']//li[" "@class='breadcrumbs__item']//a/text()"
+                        ).getall()
+                        if breadcrumbs_raw and isinstance(breadcrumbs_raw, list):
+                            breadcrumbs_title: str = " > ".join(breadcrumbs_raw)
+                            general_itemloader.replace_value("title", breadcrumbs_title)
+
         keywords: list[str] | None = self.get_keywords(response=response, json_lds=json_lds)
         if keywords:
             general_itemloader.add_value("keyword", keywords)
@@ -482,7 +505,7 @@ class BpbSpider(scrapy.Spider, LomBase):
         license_itemloader: LicenseItemLoader = LicenseItemLoader()
         if json_ld_author:
             license_itemloader.add_value("author", json_ld_author)
-        license_url: str = response.xpath("//a[@rel='license']/@href").get()
+        license_url: str = response.xpath("//div[@class='article-license']//a[@rel='license']/@href").get()
         if license_url:
             license_itemloader.add_value("url", license_url)
 
