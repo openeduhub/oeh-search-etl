@@ -54,7 +54,10 @@ class YoutubeSpider(Spider):
     name = "youtube_spider"
     friendlyName = "Youtube"
     url = "https://www.youtube.com/"
-    version = "0.2.3"  # last update: 2022-04-09
+    version = "0.2.3"  # last update: 2022-04-10
+    custom_settings = {
+        "ROBOTSTXT_OBEY": False
+    }
 
     @staticmethod
     def get_video_url(item: dict) -> str:
