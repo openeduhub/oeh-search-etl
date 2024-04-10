@@ -39,7 +39,7 @@ class Result(pd.BaseModel):
     kidra_disciplines: str = ""
     curriculum: str = ""
     text_difficulty: str = ""
-    text_reading_time: str = ""
+    text_reading_time: float = 0.0
 
 class ValidatedResults(pd.BaseModel):
     url: str = ""
@@ -56,7 +56,33 @@ class StandardResult(pd.BaseModel):
     message: str = ""
 
 def create_app() -> fapi.FastAPI:
-    app = fapi.FastAPI()
+    description = f"""
+                    The web services deployed here exposes the main functions of the generic crawler and are intended to be used by the web extension **https://github.com/openeduhub/metadata-browser-plugin/tree/add_metadata_form**
+                    """
+    tags_metadata = [
+        {
+            "name": "Ping",
+            "description": "Test service",
+        },
+        {
+            "name": "Get metadata",
+            "description": "Get metadata",
+        },
+        {
+            "name": "Save metadata",
+            "description": "Save metadata in the repository specified when in Docker compose.",
+            "externalDocs": {
+                "description": "Github docs",
+                "url": "https://github.com/openeduhub/oeh-search-etl/tree/add_KIdra_services",
+            },
+        },
+    ]
+    app = fapi.FastAPI(
+        title = "Generic crawler",
+        summary = "Web services for the generic crawler",
+        description = description,
+        openapi_tags=tags_metadata
+    )
 
     origins = ['*']
 
@@ -70,9 +96,6 @@ def create_app() -> fapi.FastAPI:
 
     @app.get("/_ping")
     def _ping() -> PingResult:
-        """
-            Test
-        """
         return PingResult(
             message="Pong"
         )

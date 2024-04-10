@@ -535,6 +535,26 @@ class EduSharing:
             if "toRange" in tar:
                 spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
 
+        # map custom fields directly into the edu-sharing properties
+        if "custom" in item:
+            for key in item["custom"]:
+                spaces[key] = item["custom"][key]
+        # TODO: add the new services fields here
+        if "ai_prompts" in item:
+            if "ai_suggested_topics" in item["ai_prompts"]:
+                pass
+            if "ai_reading_time" in item["ai_prompts"]:
+                # ToDo: save to whatever edu-sharing property is used for ai-service suggestions
+                item["ai_prompts"]["ai_reading_time"]
+
+        if "kidra_raw" in item:
+            if "curriculum" in item["kidra_raw"]:
+                spaces["ccm:curriculum"] = item["kidra_raw"]["curriculum"]
+            if "text_difficulty" in item["kidra_raw"]:
+                spaces["ccm:oeh_text_difficulty"] = item["kidra_raw"]["text_difficulty"]
+            if "text_reading_time" in item["kidra_raw"]:
+                spaces["ccm:oeh_text_reading_time"] = item["kidra_raw"]["text_reading_time"]
+
         # intendedEndUserRole = Field(output_processor=JoinMultivalues())
         # discipline = Field(output_processor=JoinMultivalues())
         # educationalContext = Field(output_processor=JoinMultivalues())

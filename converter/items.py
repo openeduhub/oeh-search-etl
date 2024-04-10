@@ -416,7 +416,6 @@ class BaseItem(Item):
     """screenshot_bytes is a (temporary) field that gets deleted after the thumbnail pipeline processed its byte-data"""
     ai_prompts = Field(output_processor=JoinMultivalues())
     kidra_raw = Field(serializer=KIdraItem)
-    # kidra_raw = Field(output_processor=JoinMultivalues())
 
 
 class BaseItemLoader(ItemLoader):
