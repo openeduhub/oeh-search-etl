@@ -49,7 +49,7 @@ class BpbSpider(scrapy.Spider, LomBase):
         "/veranstaltungen/",  # ToDo: implement custom handling for events in a future version
     ]
     deny_list_endswith: list[str] = ["/impressum", "/kontakt", "/redaktion"]
-    version = "0.2.2"  # last update: 2024-04-09
+    version = "0.2.3"  # last update: 2024-04-10
     # (first version of the crawler after bpb.de completely relaunched their website in 2022-02)
     custom_settings = {
         "WEB_TOOLS": WebEngine.Playwright,
@@ -204,7 +204,7 @@ class BpbSpider(scrapy.Spider, LomBase):
         if item_url:
             return item_url
         elif response:
-            self.logger.warning(
+            self.logger.debug(
                 f"Item {response.url} did not provide a stable ID (url). Falling back to response.url ..."
             )
             return response.url
@@ -365,11 +365,20 @@ class BpbSpider(scrapy.Spider, LomBase):
                         # There are edge-cases where the title is too ambiguous to be useful for an end-user.
                         # If we encounter such "useless" titles,
                         # we'll try to use the breadcrumbs as a fallback and build a string
-                        breadcrumbs_raw: list[str] = response.xpath(
-                            "//nav[@class='breadcrumbs']//li[" "@class='breadcrumbs__item']//a/text()"
+                        breadcrumbs_clickable_raw: list[str] | None = response.xpath(
+                            "//nav[@class='breadcrumbs']//li[@class='breadcrumbs__item']//a/text()"
                         ).getall()
-                        if breadcrumbs_raw and isinstance(breadcrumbs_raw, list):
-                            breadcrumbs_title: str = " > ".join(breadcrumbs_raw)
+                        # clickable breadcrumbs items have a different CSS class than the last word and need to be
+                        # extracted separately
+                        breadcrumbs_last_word: str | None = response.xpath(
+                            "//ol[@class='breadcrumbs__list']//li[last()]//*[last()]/text()"
+                        ).get()
+                        if breadcrumbs_clickable_raw and isinstance(breadcrumbs_clickable_raw, list):
+                            breadcrumbs_title: str = " > ".join(breadcrumbs_clickable_raw)
+                            if breadcrumbs_last_word and isinstance(breadcrumbs_last_word, str):
+                                # assemble the final string by appending the last, non-clickable word, e.g.:
+                                # "Themen > Politik > ... > Glossar"
+                                breadcrumbs_title = f"{breadcrumbs_title} > {breadcrumbs_last_word}"
                             general_itemloader.replace_value("title", breadcrumbs_title)
 
         keywords: list[str] | None = self.get_keywords(response=response, json_lds=json_lds)
