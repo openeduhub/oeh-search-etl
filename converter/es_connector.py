@@ -461,6 +461,14 @@ class EduSharing:
                 # ToDo: save to whatever edu-sharing property is used for ai-service suggestions
                 item["ai_prompts"]["ai_reading_time"]
 
+        if "kidra_raw" in item:
+            if "curriculum" in item["kidra_raw"]:
+                spaces["ccm:curriculum"] = item["kidra_raw"]["curriculum"]
+            if "text_difficulty" in item["kidra_raw"]:
+                spaces["ccm:oeh_text_difficulty"] = item["kidra_raw"]["text_difficulty"]
+            if "text_reading_time" in item["kidra_raw"]:
+                spaces["ccm:oeh_text_reading_time"] = item["kidra_raw"]["text_reading_time"]
+
         # intendedEndUserRole = Field(output_processor=JoinMultivalues())
         # discipline = Field(output_processor=JoinMultivalues())
         # educationalContext = Field(output_processor=JoinMultivalues())

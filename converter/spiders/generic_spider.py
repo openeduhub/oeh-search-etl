@@ -95,7 +95,7 @@ class GenericSpider(Spider, LrmiBase):
         LrmiBase.__init__(self, **kwargs)
 
         # self.validated_result = validated_result
-        # validated_result = '{"url": "https://blog.bitsrc.io/how-to-store-data-on-the-browser-with-javascript-9c57fc0f91b0", "title": "Test 2 How to Store Data in the Browser with JavaScript | Bits and Pieces", "description": "Test How to store data with localStorage and sessionStorage. The benefits of each, and when you should use one instead of the other", "keywords": ["Test JavaScript", "Browser Speicher", "localStorage", "sessionStorage"], "disciplines": ["http://w3id.org/openeduhub/vocabs/discipline/320"], "educational_context": ["http://w3id.org/openeduhub/vocabs/educationalContext/fortbildung"], "license": {"author": ["Pedro Henrique"]}, "new_lrt": ["http://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb", "http://w3id.org/openeduhub/vocabs/new_lrt/345cba59-9fa0-4ec8-ba93-2c75f4a40003"]}'
+        # validated_result = '{"curriculum":["http://w3id.org/openeduhub/vocabs/oeh-topics/66e5911e-ba75-4521-adb6-cbe24569500b"], "text_difficulty": "Schwer", "text_reading_time": 262.79, "url": "https://blog.bitsrc.io/how-to-store-data-on-the-browser-with-javascript-9c57fc0f91b0", "title": "Test 2 How to Store Data in the Browser with JavaScript | Bits and Pieces", "description": "Test How to store data with localStorage and sessionStorage. The benefits of each, and when you should use one instead of the other", "keywords": ["Test JavaScript", "Browser Speicher", "localStorage", "sessionStorage"], "disciplines": ["http://w3id.org/openeduhub/vocabs/discipline/320"], "educational_context": ["http://w3id.org/openeduhub/vocabs/educationalContext/fortbildung"], "license": {"author": ["Pedro Henrique"]}, "new_lrt": ["http://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb", "http://w3id.org/openeduhub/vocabs/new_lrt/345cba59-9fa0-4ec8-ba93-2c75f4a40003"]}'
         # logging.warning("self.validated_result="+self.validated_result)
 
         self.results_dict = {}
@@ -262,14 +262,16 @@ class GenericSpider(Spider, LrmiBase):
             general_loader.add_value(
                 "keyword", self.resolve_z_api("keyword", response, base_itemloader=base_loader, split=True)
             )
-            kidra_loader.add_value(
-                "curriculum", self.resolve_z_api("curriculum", response, base_itemloader=base_loader, split=True)
-            )
+            curriculum = self.resolve_z_api("curriculum", response, base_itemloader=base_loader, split=True)
+            kidra_loader.add_value("curriculum", curriculum)
+            # valuespace_loader.add_value(
+            #     "curriculum", self.valuespaces.findInText("curriculum", curriculum)
+            # )
             classification, reading_time = self.resolve_z_api("textStatistics", response, base_itemloader=base_loader, split=True)
             kidra_loader.add_value("text_difficulty", classification)
             kidra_loader.add_value("text_reading_time", reading_time)
             ki_disciplines = self.resolve_z_api("kidraDisciplines", response, base_itemloader=base_loader, split=True)
-            kidra_loader.add_value("kidraDisciplines", ki_disciplines )
+            kidra_loader.add_value("kidraDisciplines", ki_disciplines)
             # ToDo: map/replace the previously set 'language'-value by AI suggestions from Z-API?
 
             # ToDo: keywords will (often) be returned as a list of bullet points by the AI
@@ -453,6 +455,9 @@ class GenericSpider(Spider, LrmiBase):
         license = self.results_dict['license']
         # license_author = self.results_dict['license_author']
         new_lrt = self.results_dict['new_lrt']
+        curriculum = self.results_dict['curriculum']
+        text_difficulty = self.results_dict['text_difficulty']
+        text_reading_time = self.results_dict['text_reading_time']
 
         base_loader.load_item()['lom']['general']['title'] = title
         base_loader.load_item()['lom']['general']['description'] = description
@@ -461,18 +466,23 @@ class GenericSpider(Spider, LrmiBase):
         base_loader.load_item()['valuespaces']['new_lrt'] = new_lrt
         base_loader.load_item()['valuespaces']['educationalContext'] = educational_context
         base_loader.load_item()['license'] = license
+        # base_loader.load_item()['valuespaces']['curriculum'] = curriculum
+        base_loader.load_item()['kidra_raw']['curriculum'] = curriculum
+        base_loader.load_item()['kidra_raw']['text_difficulty'] = text_difficulty
+        base_loader.load_item()['kidra_raw']['text_reading_time'] = text_reading_time
+
         return base_loader
 
     def parse_topics(self, topics_result, n_topics = 3):
         topics = topics_result["topics"][:n_topics]
-        topic_names = [topic['label'] for topic in topics]
+        topic_names = [topic['uri'] for topic in topics]
         return topic_names
 
     def parse_text_statistics(self, statistics_result):
         classification = statistics_result["classification"]
         reading_time = statistics_result["reading_time"]
-        reading_time = "{:.2f} seconds".format( reading_time )
-        return classification, str(reading_time)
+        reading_time = "{:.2f}".format( reading_time )
+        return classification, float(reading_time)
 
     def parse_kidra_disciplines(self, disciplines_result, score_threshold=0.6):
         uri_discipline = 'http://w3id.org/openeduhub/vocabs/discipline/'
