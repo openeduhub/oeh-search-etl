@@ -66,6 +66,10 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #  - publisher          optional
         #  - binary             optional    (only needed if you're working with binary files (e.g. .pdf-files),
         #                                   if you want to see an example, check out "niedersachsen_abi_spider.py")
+        #  - fulltext           optional    (if 'full text' content is provided by a source (e.g. raw HTML or a
+        #                                   human readable string of text) store its within the 'fulltext' field.)
+        #                                   If no 'fulltext' value was provided, the pipelines will try to fetch
+        #                                   'full text' content from "ResponseItem.text" and save it here.
         base.add_value('sourceId', response.url)
         # if the source doesn't have a "datePublished" or "lastModified"-value in its header or JSON_LD,
         # you might have to help yourself with a unique string consisting of the datetime of the crawl + self.version
@@ -232,12 +236,12 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         # response_loader = super().mapResponse(response)
         # TODO: if necessary, add/replace values for the following "response"-keys
         #  - url                            required
-        #  - status                         optional
-        #  - html                           optional
-        #  - text                           optional
-        #  - headers                        optional
-        #  - cookies                        optional
-        #  - har                            optional
+        #  - status                         unused
+        #  - html                           unused
+        #  - text                           optional (use this field for 'full text' data)
+        #  - headers                        unused
+        #  - cookies                        unused
+        #  - har                            unused
 
         # once we've added all available values to the necessary keys in our LomGeneralItemLoader,
         # we call the load_item()-method to return a (now filled) LomGeneralItem to the LomBaseItemLoader.

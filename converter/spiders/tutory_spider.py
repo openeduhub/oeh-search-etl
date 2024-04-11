@@ -8,8 +8,20 @@ from scrapy.selector import Selector
 from scrapy.spiders import CrawlSpider
 
 from .base_classes import LomBase, JSONBase
-from ..items import LomBaseItemloader, BaseItemLoader, ResponseItemLoader
+from ..items import (
+    LomBaseItemloader,
+    BaseItemLoader,
+    ResponseItemLoader,
+    LomGeneralItemloader,
+    LomTechnicalItemLoader,
+    LomLifecycleItemloader,
+    LomEducationalItemLoader,
+    LicenseItemLoader,
+    ValuespaceItemLoader,
+)
 from ..web_tools import WebEngine, WebTools
+
+logger = logging.getLogger(__name__)
 
 
 class TutorySpider(CrawlSpider, LomBase, JSONBase):
@@ -18,14 +30,16 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
     url = "https://www.tutory.de/"
     objectUrl = "https://www.tutory.de/bereitstellung/dokument/"
     baseUrl = "https://www.tutory.de/api/v1/share/"
-    version = "0.1.9"  # last update: 2023-08-18
+    version = "0.2.1"  # last update: 2024-02-08
     custom_settings = {
-        # "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 2,
         "WEB_TOOLS": WebEngine.Playwright,
     }
 
     API_PAGESIZE_LIMIT = 250
+
     # the old API pageSize of 999999 (which was used in 2021) doesn't work anymore and throws a 502 Error (Bad Gateway).
     # 2023-03: setting pageSize to 5000 appeared to be a reasonable value with an API response time of 12-15s
     # 2023-08-15: every setting above 500 appears to always return a '502'-Error now. Current response times during api
@@ -38,9 +52,11 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
 
     def start_requests(self):
         first_url: str = self.assemble_tutory_api_url(api_page=0)
-        yield scrapy.Request(url=first_url, callback=self.parse_api_page)
+        # we need to lower the priority of subsequent API page requests because each response takes about 21s while
+        # individual documents load within <300 ms
+        yield scrapy.Request(url=first_url, callback=self.parse_api_page, priority=-1)
 
-    def parse_api_page(self, response: scrapy.http.TextResponse):
+    def parse_api_page(self, response: scrapy.http.TextResponse) -> scrapy.Request:
         """
         This method tries to parse the current pagination parameter from response.url and yields two types of
         scrapy.Requests:
@@ -55,7 +71,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
             pagination_current_page: int = pagination_parameter.groupdict().get("page")
         if "total" in json_data:
             total_items = json_data.get("total")
-            logging.info(
+            logger.info(
                 f"Currently crawling Tutory API page {pagination_current_page} -> {response.url} // "
                 f"Expected items (in total): {total_items}"
             )
@@ -66,7 +82,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
             if worksheets_data:
                 # only crawl the next page if the "worksheets"-dict isn't empty
                 yield scrapy.Request(url=url_next_page, callback=self.parse_api_page)
-                logging.info(
+                logger.info(
                     f"Tutory API page {pagination_current_page} is expected to yield " f"{len(worksheets_data)} items."
                 )
                 for j in worksheets_data:
@@ -76,14 +92,14 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                     if self.hasChanged(response_copy):
                         yield scrapy.Request(url=item_url, callback=self.parse, cb_kwargs={"item_dict": j})
 
-    def assemble_tutory_api_url(self, api_page: int):
+    def assemble_tutory_api_url(self, api_page: int) -> str:
         url_current_page = (
             f"{self.baseUrl}worksheet?groupSlug=entdecken&pageSize={str(self.API_PAGESIZE_LIMIT)}"
             f"&page={str(api_page)}"
         )
         return url_current_page
 
-    def getId(self, response=None, **kwargs):
+    def getId(self, response=None, **kwargs) -> str:
         if "item" in response.meta:
             item_id: str = response.meta["item"]["id"]
             return item_id
@@ -93,10 +109,10 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                 item_id: str = api_item["id"]
                 return item_id
             except KeyError as ke:
-                logging.error(f"'getId'-method failed to retrieve item_id for '{response.url}'.")
+                logger.error(f"'getId'-method failed to retrieve item_id for '{response.url}'.")
                 raise ke
 
-    def getHash(self, response=None):
+    def getHash(self, response=None) -> str:
         return response.meta["item"]["updatedAt"] + self.version
 
     # ToDo (performance): reduce the amount of scrapy Requests by executing hasChanged() earlier:
@@ -107,8 +123,15 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
         drop_item_flag: bool = False
         identifier: str = self.getId(response)
         hash_str: str = self.getHash(response)
+        robot_meta_tags: str = response.xpath("//meta[@name='robots']/@content").get()
+        if robot_meta_tags:
+            if "noindex" in robot_meta_tags or "none" in robot_meta_tags:
+                drop_item_flag = True
+                logger.info(f"Robot Meta Tag {robot_meta_tags} identified: Tags 'noindex' or 'none' indicate that this "
+                            f"item should not be indexed by the crawler. Dropping item...")
+                return drop_item_flag
         if self.shouldImport(response) is False:
-            logging.debug(f"Skipping entry {identifier} because shouldImport() returned false")
+            logger.debug(f"Skipping entry {identifier} because shouldImport() returned false")
             drop_item_flag = True
             return drop_item_flag
         if identifier is not None and hash_str is not None:
@@ -126,21 +149,41 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
         drop_item_flag: bool = self.check_if_item_should_be_dropped(response)
         if drop_item_flag is True:
             return
-        # if we need more metadata from the DOM, this could be a suitable place to move up the call to Playwright
+
+        playwright_dict: dict = await WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
+        playwright_html: str = playwright_dict["html"]
+
         base_loader: BaseItemLoader = self.getBase(response)
-        lom_loader: LomBaseItemloader = self.getLOM(response)
-        lom_loader.add_value("general", self.getLOMGeneral(response))
-        lom_loader.add_value("technical", self.getLOMTechnical(response))
+        lom_loader: LomBaseItemloader = LomBaseItemloader()
+        general_loader: LomGeneralItemloader = await self.getLOMGeneral(
+            response=response, playwright_dict=playwright_dict
+        )
+        lom_loader.add_value("general", general_loader.load_item())
+        educational_loader: LomEducationalItemLoader = LomEducationalItemLoader()
+        lom_loader.add_value("educational", educational_loader.load_item())
+        lifecycle_loader = await self.getLOMLifecycle(response)
+        lom_loader.add_value("lifecycle", lifecycle_loader.load_item())
+        technical_loader: LomTechnicalItemLoader = self.getLOMTechnical(response)
+        lom_loader.add_value("technical", technical_loader.load_item())
 
         base_loader.add_value("lom", lom_loader.load_item())
         base_loader.add_value("valuespaces", self.getValuespaces(response).load_item())
         base_loader.add_value("license", self.getLicense(response).load_item())
         base_loader.add_value("permissions", self.getPermissions(response).load_item())
-        response_itemloader: ResponseItemLoader = await self.mapResponse(response, fetchData=False)
-        base_loader.add_value("response", response_itemloader.load_item())
+        response_loader: ResponseItemLoader = await self.mapResponse(response, fetchData=False)
+        if playwright_html and isinstance(playwright_html, str):
+            response_loader.replace_value("html", playwright_html)
+        if "screenshot_bytes" in playwright_dict:
+            sbytes: bytes = playwright_dict["screenshot_bytes"]
+            base_loader.add_value("screenshot_bytes", sbytes)
+        if "text" in playwright_dict:
+            playwright_fulltext: str = playwright_dict["text"]
+            if playwright_fulltext and isinstance(playwright_fulltext, str):
+                response_loader.replace_value("text", playwright_fulltext)
+        base_loader.add_value("response", response_loader.load_item())
         yield base_loader.load_item()
 
-    def getBase(self, response=None):
+    def getBase(self, response=None) -> BaseItemLoader:
         base = LomBase.getBase(self, response)
         base.add_value("lastModified", response.meta["item"]["updatedAt"])
         base.add_value(
@@ -149,8 +192,8 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
         )
         return base
 
-    def getValuespaces(self, response):
-        valuespaces = LomBase.getValuespaces(self, response)
+    def getValuespaces(self, response) -> ValuespaceItemLoader:
+        valuespaces: ValuespaceItemLoader = LomBase.getValuespaces(self, response)
         disciplines = set()
         subject_codes: list[str] = list(
             map(
@@ -244,21 +287,28 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
         valuespaces.add_value("new_lrt", "36e68792-6159-481d-a97b-2c00901f4f78")  # Arbeitsblatt
         return valuespaces
 
-    def getLicense(self, response=None):
-        license_loader = LomBase.getLicense(self, response)
+    def getLicense(self, response=None) -> LicenseItemLoader:
+        license_loader: LicenseItemLoader = LomBase.getLicense(self, response)
         if "user" in response.meta["item"]:
             user_dict: dict = response.meta["item"]["user"]
             if "publishName" in user_dict:
                 # the 'publishName'-field seems to indicate whether the username or the full name appears on top of a
                 # worksheet as author metadata.
                 publish_decision: str = user_dict["publishName"]
-                if publish_decision == "username":
+                if publish_decision and publish_decision.startswith("custom:"):
+                    # there are edge-cases where "publishName" starts with "custom:<...name of person>", which means
+                    # that a custom string shall be used. (e.g., document id "1cdf1514-af66-475e-956c-b8487588e095"
+                    # -> https://www.tutory.de/entdecken/dokument/class-test-checkliste-englisch )
+                    custom_name: str = publish_decision
+                    custom_name = custom_name.replace("custom:", "")
+                    if custom_name:
+                        license_loader.add_value("author", custom_name)
+                elif publish_decision == "username":
                     if "username" in user_dict:
                         username: str = user_dict["username"]
                         if username:
                             license_loader.add_value("author", username)
                 elif publish_decision == "name":
-                    # ToDo: this information could also be used for lifecycle role 'author' in a future crawler update
                     firstname = None
                     lastname = None
                     if "firstname" in user_dict:
@@ -270,7 +320,47 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                         license_loader.add_value("author", full_name)
         return license_loader
 
-    async def getLOMGeneral(self, response=None):
+    async def getLOMLifecycle(self, response: scrapy.http.Response = None) -> LomLifecycleItemloader:
+        lifecycle_loader: LomLifecycleItemloader = LomLifecycleItemloader()
+        if "user" in response.meta["item"]:
+            user_dict: dict = response.meta["item"]["user"]
+            lifecycle_loader.add_value("role", "author")
+            if "publishName" in user_dict:
+                # the 'publishName'-field seems to indicate whether the username or the full name appears on top of a
+                # worksheet as author metadata.
+                publish_decision: str = user_dict["publishName"]
+                if publish_decision and publish_decision.startswith("custom:"):
+                    # there are edge-cases where "publishName" starts with "custom:<...name of person>", which means
+                    # that a custom string shall be used. (e.g., document id "1cdf1514-af66-475e-956c-b8487588e095"
+                    # -> https://www.tutory.de/entdecken/dokument/class-test-checkliste-englisch )
+                    custom_name: str = publish_decision
+                    custom_name = custom_name.replace("custom:", "")
+                    if custom_name:
+                        lifecycle_loader.add_value("firstName", custom_name)
+                elif publish_decision == "username":
+                    if "username" in user_dict:
+                        username: str = user_dict["username"]
+                        if username:
+                            lifecycle_loader.add_value("firstName", username)
+                elif publish_decision == "name":
+                    if "firstname" in user_dict:
+                        firstname: str = user_dict.get("firstname")
+                        if firstname:
+                            lifecycle_loader.add_value("firstName", firstname)
+                    if "lastname" in user_dict:
+                        lastname: str = user_dict.get("lastname")
+                        if lastname:
+                            lifecycle_loader.add_value("lastName", lastname)
+                user_profile_path: str = response.xpath(
+                    "//a[@class='value']/@href|label[contains(text(), 'Autor')]"
+                ).get()
+                if user_profile_path and isinstance(user_profile_path, str):
+                    user_profile_url: str = urllib.parse.urljoin(self.url, user_profile_path)
+                    if user_profile_url:
+                        lifecycle_loader.add_value("url", user_profile_url)
+        return lifecycle_loader
+
+    async def getLOMGeneral(self, response=None, playwright_dict: dict = None) -> LomGeneralItemloader:
         general = LomBase.getLOMGeneral(self, response)
         general.add_value("title", response.meta["item"]["name"])
         item_description = None
@@ -286,18 +376,15 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
         elif meta_og_description:
             # 2nd fallback: <meta property="og:description">
             general.add_value("description", meta_og_description)
-        else:
+        elif "html" in playwright_dict:
             # this is where the (expensive) calls to our headless browser start
-            playwright_dict = await WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
             playwright_html = playwright_dict["html"]
-            # ToDo: if we need DOM data from Playwright in another method, move the call to Playwright into parse()
-            #  and parametrize the result
             if playwright_html:
                 # 3rd fallback: trying to extract the fulltext with trafilatura
                 playwright_bytes: bytes = playwright_html.encode()
                 trafilatura_text = trafilatura.extract(playwright_bytes)
                 if trafilatura_text:
-                    logging.debug(
+                    logger.debug(
                         f"Item {response.url} did not provide any valid 'description' in its DOM header metadata. "
                         f"Fallback to trafilatura fulltext..."
                     )
@@ -319,7 +406,7 @@ class TutorySpider(CrawlSpider, LomBase, JSONBase):
                         general.add_value("description", text_combined)
         return general
 
-    def getLOMTechnical(self, response=None):
+    def getLOMTechnical(self, response=None) -> LomTechnicalItemLoader:
         technical = LomBase.getLOMTechnical(self, response)
         technical.add_value("location", response.url)
         technical.add_value("format", "text/html")
