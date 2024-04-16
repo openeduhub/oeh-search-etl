@@ -38,7 +38,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.8"  # last update: 2023-12-20
+    version = "0.1.9"  # last update: 2024-04-16
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -122,6 +122,8 @@ class OersiSpider(scrapy.Spider, LomBase):
         # "peerTutor": "",  # ToDo: find mapping
         # "professional": "",  # ToDo: find mapping
     }
+    # BIRD-related: "vhb" response dict (from https://open.vhb.org/oersi.json)
+    vhb_oersi_json: dict | None = None
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -259,6 +261,12 @@ class OersiSpider(scrapy.Spider, LomBase):
                     f"Recognized multiple providers within OERSI_METADATA_PROVIDER .env setting:" f"{provider_list}"
                 )
                 self.ELASTIC_PROVIDERS_TO_CRAWL = provider_list
+            if "vhb" in self.ELASTIC_PROVIDERS_TO_CRAWL:
+                # experimental BIRD-Hook for "vhb"-courses!
+                # ToDo: refactor this implementation into its own (sub-)class ASAP!
+                #  (WARNING: This PoC will not scale well for over >50 Metadata-Providers within OERSI
+                #  and REQUIRES a separate infrastructure!)
+                self.fetch_vhb_data()
 
         has_next_page = True
         for provider_name in self.ELASTIC_PROVIDERS_TO_CRAWL:
@@ -278,9 +286,14 @@ class OersiSpider(scrapy.Spider, LomBase):
                     total_count = current_page_json_response.get("hits").get("total").get("value")
                     logging.debug(f"Expecting {total_count} items for the current API Pagination of {provider_name}")
                 if "hits" in current_page_json_response.get("hits"):
-                    provider_items: list = current_page_json_response.get("hits").get("hits")
+                    provider_items: list[dict] = current_page_json_response.get("hits").get("hits")
                     if provider_items:
                         logging.debug(f"The provider_items list has {len(provider_items)} entries")
+                        for provider_item in provider_items:
+                            # we need to keep track of the metadata provider because the ElasticSearch query parameter
+                            # will oftentimes NOT be the same string that we receive as the provider metadata value
+                            # from "mainEntityOfPage.provider.name"
+                            provider_item.update({"OERSI_QUERY_PROVIDER_NAME": provider_name})
                         all_items.extend(provider_items)
                         last_entry: dict = provider_items[-1]
                         # ToDo: pagination documentation
@@ -299,6 +312,20 @@ class OersiSpider(scrapy.Spider, LomBase):
                         )
                         break
         return all_items
+
+    def fetch_vhb_data(self):
+        vhb_response: requests.Response = requests.get(url="https://open.vhb.org/oersi.json")
+        self.logger.info(f"BIRD: Fetching 'course'-data from vhb: {vhb_response.url} ...")
+        vhb_response_dict: dict = vhb_response.json()
+        if vhb_response_dict and isinstance(vhb_response_dict, dict):
+            if "data" in vhb_response_dict:
+                vhb_course_items = vhb_response_dict["data"]
+                self.logger.info(
+                    f"BIRD: Successfully retrieved {len(vhb_course_items)} items " f"from {vhb_response.url} ."
+                )
+                self.vhb_oersi_json = vhb_response_dict
+        else:
+            logging.warning(f"BIRD: Failed to retrieve 'course'-data from 'vhb' sourceOrganization.")
 
     def getId(self, response=None, elastic_item: dict = dict) -> str:
         """
@@ -734,7 +761,8 @@ class OersiSpider(scrapy.Spider, LomBase):
         saved to an identifier-specific field of LomLifecycleItemLoader.
         If the URI string of "id" could not be recognized, it will save the value to 'lifecycle.url' as a fallback.
         """
-        if "id" in item_dictionary:
+        if "id" in item_dictionary and isinstance(item_dictionary["id"], str):
+            # "creator.id" can be 'null', therefore we need to explicitly check its type before trying to parse it
             uri_string: str = item_dictionary.get("id")
             if (
                 "orcid.org" in uri_string
@@ -833,8 +861,10 @@ class OersiSpider(scrapy.Spider, LomBase):
             if thumbnail_url:
                 base.add_value("thumbnail", thumbnail_url)
         except KeyError:
-            logging.debug(f"OERSI Item {elastic_item['_id']} "
-                          f"(name: {elastic_item_source['name']}) did not provide a thumbnail.")
+            logging.debug(
+                f"OERSI Item {elastic_item['_id']} "
+                f"(name: {elastic_item_source['name']}) did not provide a thumbnail."
+            )
         if "image" in elastic_item_source:
             thumbnail_url = elastic_item_source.get("image")  # thumbnail
             if thumbnail_url:
@@ -861,9 +891,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                 for language_value in in_languages:
                     general.add_value("language", language_value)
 
-        # noinspection DuplicatedCode
-        lom.add_value("general", general.load_item())
-
         technical = LomTechnicalItemLoader()
         try:
             identifier_url: str = self.get_item_url(elastic_item=elastic_item)
@@ -875,7 +902,6 @@ class OersiSpider(scrapy.Spider, LomBase):
         if identifier_url:
             general.replace_value("identifier", identifier_url)
             technical.add_value("location", identifier_url)
-        lom.add_value("technical", technical.load_item())
 
         organizations_from_affiliation_fields: set[str] = set()
         # this (temporary) set of strings is used to make a decision for OERSI's "sourceOrganization" field:
@@ -926,13 +952,8 @@ class OersiSpider(scrapy.Spider, LomBase):
         if in_languages:
             for language_value in in_languages:
                 educational.add_value("language", language_value)
-        # noinspection DuplicatedCode
-        lom.add_value("educational", educational.load_item())
 
         classification = LomClassificationItemLoader()
-        lom.add_value("classification", classification.load_item())
-
-        base.add_value("lom", lom.load_item())
 
         vs = ValuespaceItemLoader()
         vs.add_value("new_lrt", Constants.NEW_LRT_MATERIAL)
@@ -1094,8 +1115,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                                     audience_key = self.MAPPING_AUDIENCE_TO_INTENDED_END_USER_ROLE.get(audience_key)
                                 vs.add_value("intendedEndUserRole", audience_key)
 
-        base.add_value("valuespaces", vs.load_item())
-
         license_loader = LicenseItemLoader()
         if "license" in elastic_item_source:
             license_url: str = elastic_item_source.get("license").get("id")
@@ -1104,7 +1123,53 @@ class OersiSpider(scrapy.Spider, LomBase):
                 license_url_mapped = license_mapper.get_license_url(license_string=license_url)
                 if license_url_mapped:
                     license_loader.add_value("url", license_url_mapped)
+
+        if "OERSI_QUERY_PROVIDER_NAME" in elastic_item:
+            # BIRD-related requirement: merge item with additional metadata retrieved directly from the source
+            if elastic_item["OERSI_QUERY_PROVIDER_NAME"]:
+                # checking if the "metadata provider name" that was used for the ElasticSearch query needs to be handled
+                query_parameter_provider_name: str = elastic_item["OERSI_QUERY_PROVIDER_NAME"]
+                if query_parameter_provider_name and query_parameter_provider_name == "vhb":
+                    if self.vhb_oersi_json:
+                        if "data" in self.vhb_oersi_json:
+                            try:
+                                vhb_items: list[dict] = self.vhb_oersi_json["data"]
+                                vhb_item_matched: dict | None = None
+                                for vhb_item in vhb_items:
+                                    # since the vhb_item has a different "id", the only way to match the OERSI item
+                                    # against the vhb item is by comparing their URLs:
+                                    vhb_course_url: str = vhb_item["attributes"]["url"]
+                                    if vhb_course_url and vhb_course_url == identifier_url:
+                                        self.logger.debug(
+                                            f"BIRD: Matched 'vhb'-item {vhb_course_url} with OERSI "
+                                            f"ElasticSearch item {elastic_item['_id']}!"
+                                        )
+                                        vhb_item_matched = vhb_item
+                                if vhb_item_matched:
+                                    # if we found a match, we're now trying to enrich the item with metadata from both
+                                    # sources
+                                    if "attributes" in vhb_item_matched:
+                                        if not in_languages and "languages" in vhb_item_matched["attributes"]:
+                                            # beware: the vhb 'languages'-property is a string value!
+                                            vhb_language: str | None = vhb_item_matched["attributes"]["languages"]
+                                            if vhb_language and isinstance(vhb_language, str):
+                                                general.add_value("language", vhb_language)
+                                            elif vhb_language:
+                                                self.logger.warning(
+                                                    f"Received unexpected vhb 'languages'-type! "
+                                                    f"(Type: {type(vhb_language)}"
+                                                )
+                                        # ToDo: vhb "workload" / "learningObjectives" next?
+                            except KeyError as ke:
+                                raise ke
+
         # noinspection DuplicatedCode
+        lom.add_value("general", general.load_item())
+        lom.add_value("technical", technical.load_item())
+        lom.add_value("educational", educational.load_item())
+        lom.add_value("classification", classification.load_item())
+        base.add_value("lom", lom.load_item())
+        base.add_value("valuespaces", vs.load_item())
         base.add_value("license", license_loader.load_item())
 
         permissions = super().getPermissions(response)
