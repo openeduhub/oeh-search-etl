@@ -1,6 +1,7 @@
 import datetime
 import logging
 import random
+import re
 from typing import Optional
 
 import requests
@@ -20,6 +21,7 @@ from converter.items import (
     ValuespaceItemLoader,
     LicenseItemLoader,
     ResponseItemLoader,
+    CourseItemLoader,
 )
 from converter.spiders.base_classes import LomBase
 from converter.util.license_mapper import LicenseMapper
@@ -38,7 +40,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.9"  # last update: 2024-04-16
+    version = "0.2.0"  # last update: 2024-04-16
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -349,11 +351,11 @@ class OersiSpider(scrapy.Spider, LomBase):
         if "dateCreated" in elastic_item_source:
             date_created: str = elastic_item_source["dateCreated"]
         if date_published:
-            hash_temp: str = f"{date_published}{self.version}"
+            hash_temp: str = f"{date_published}v{self.version}"
         elif date_created:
-            hash_temp: str = f"{date_created}{self.version}"
+            hash_temp: str = f"{date_created}v{self.version}"
         else:
-            hash_temp: str = f"{datetime.datetime.now().isoformat()}{self.version}"
+            hash_temp: str = f"{datetime.datetime.now().isoformat()}v{self.version}"
         return hash_temp
 
     @staticmethod
@@ -1130,6 +1132,9 @@ class OersiSpider(scrapy.Spider, LomBase):
                 # checking if the "metadata provider name" that was used for the ElasticSearch query needs to be handled
                 query_parameter_provider_name: str = elastic_item["OERSI_QUERY_PROVIDER_NAME"]
                 if query_parameter_provider_name and query_parameter_provider_name == "vhb":
+                    # Reminder: "VHB" (= "Virtuelle Hochschule Bayern") uses MOOCHub for their JSON export!
+                    # The following implementation is therefore MOOCHub-specific
+                    # and NEEDS to be refactored into a separate class hook ASAP!
                     if self.vhb_oersi_json:
                         if "data" in self.vhb_oersi_json:
                             try:
@@ -1145,23 +1150,119 @@ class OersiSpider(scrapy.Spider, LomBase):
                                             f"ElasticSearch item {elastic_item['_id']}!"
                                         )
                                         vhb_item_matched = vhb_item
-                                if vhb_item_matched:
-                                    # if we found a match, we're now trying to enrich the item with metadata from both
-                                    # sources
-                                    if "attributes" in vhb_item_matched:
-                                        if not in_languages and "languages" in vhb_item_matched["attributes"]:
-                                            # beware: the vhb 'languages'-property is a string value!
-                                            vhb_language: str | None = vhb_item_matched["attributes"]["languages"]
-                                            if vhb_language and isinstance(vhb_language, str):
-                                                general.add_value("language", vhb_language)
-                                            elif vhb_language:
-                                                self.logger.warning(
-                                                    f"Received unexpected vhb 'languages'-type! "
-                                                    f"(Type: {type(vhb_language)}"
-                                                )
-                                        # ToDo: vhb "workload" / "learningObjectives" next?
                             except KeyError as ke:
                                 raise ke
+                            if vhb_item_matched:
+                                # if we found a match, we're now trying to enrich the item with metadata from both
+                                # sources
+                                course_itemloader: CourseItemLoader = CourseItemLoader()
+                                if "attributes" in vhb_item_matched:
+                                    if not in_languages and "languages" in vhb_item_matched["attributes"]:
+                                        # beware: the vhb 'languages'-property is a string value!
+                                        vhb_language: str | None = vhb_item_matched["attributes"]["languages"]
+                                        if vhb_language and isinstance(vhb_language, str):
+                                            general.add_value("language", vhb_language)
+                                        elif vhb_language:
+                                            self.logger.warning(
+                                                f"Received unexpected vhb 'languages'-type! "
+                                                f"(Type: {type(vhb_language)}"
+                                            )
+                                    if "abstract" in vhb_item_matched["attributes"]:
+                                        vhb_abstract: str = vhb_item_matched["attributes"]["abstract"]
+                                        if vhb_abstract and isinstance(vhb_abstract, str):
+                                            course_itemloader.add_value("course_description_short", vhb_abstract)
+                                    if "video" in vhb_item_matched["attributes"]:
+                                        video_item: dict = vhb_item_matched["attributes"]["video"]
+                                        if video_item:
+                                            if "url" in video_item:
+                                                vhb_course_video_url: str = video_item["url"]
+                                                if vhb_course_video_url:
+                                                    course_itemloader.add_value(
+                                                        "course_url_video", vhb_course_video_url
+                                                    )
+                                            # ToDo: "video.licenses" is of type list[dict]
+                                            # each "license"-dict can have an "id"- and "url"-property
+                                    if "workload" in vhb_item_matched["attributes"]:
+                                        vhb_workload_raw: str = vhb_item_matched["attributes"]["workload"]
+                                        if vhb_workload_raw and isinstance(vhb_workload_raw, str):
+                                            # vhb "workload"-values are described as a natural lange (German)
+                                            # "<number> <unit>"-string, e.g.: "5 Stunden" or "60 Stunden".
+                                            # Since edu-sharing expects seconds in "cclom:typicallearningtime",
+                                            # we need to parse the string and convert it to seconds.
+                                            vhb_workload: str = vhb_workload_raw.strip()
+                                            duration_pattern = re.compile(
+                                                r"""(?P<duration_number>\d+)\s*(?P<duration_unit>\w*)"""
+                                            )
+                                            # ToDo: refactor into "course duration" parser method
+                                            duration_match: re.Match | None = duration_pattern.search(vhb_workload)
+                                            duration_delta: datetime.timedelta = datetime.timedelta()
+                                            if duration_match:
+                                                duration_result = duration_match.groupdict()
+                                                if "duration_number" in duration_result:
+                                                    duration_number_raw: str = duration_result["duration_number"]
+                                                    duration_number: int = int(duration_number_raw)
+                                                    if "duration_unit" in duration_result:
+                                                        duration_unit: str = duration_result["duration_unit"]
+                                                        duration_unit = duration_unit.lower()
+                                                        match duration_unit:
+                                                            case "sekunden":
+                                                                duration_delta = duration_delta + datetime.timedelta(
+                                                                    seconds=duration_number
+                                                                )
+                                                            case "minuten":
+                                                                duration_delta = duration_delta + datetime.timedelta(
+                                                                    minutes=duration_number
+                                                                )
+                                                            case "stunden":
+                                                                duration_delta = duration_delta + datetime.timedelta(
+                                                                    hours=duration_number
+                                                                )
+                                                            case "tage":
+                                                                duration_delta = duration_delta + datetime.timedelta(
+                                                                    days=duration_number
+                                                                )
+                                                            case "wochen":
+                                                                duration_delta = duration_delta + datetime.timedelta(
+                                                                    weeks=duration_number
+                                                                )
+                                                            case "monate":
+                                                                # timedelta has no parameter for months
+                                                                #  -> X months = X * (4 weeks)
+                                                                duration_delta = duration_delta + (
+                                                                    duration_number * datetime.timedelta(weeks=4)
+                                                                )
+                                                            case _:
+                                                                self.logger.warning(
+                                                                    f"Failed to parse 'workload' time unit"
+                                                                    f"from vhb course: "
+                                                                    f"{vhb_item_matched}"
+                                                                )
+                                                        if duration_delta:
+                                                            # full seconds is as precise as we need to be,
+                                                            # therefore we convert the seconds to int values
+                                                            workload_in_seconds: int = int(
+                                                                duration_delta.total_seconds()
+                                                            )
+                                                            if workload_in_seconds:
+                                                                # ToDo: confirm that course_duration is correct
+                                                                #  (BIRD "course_workload" seems to be a closer match)
+                                                                # course_itemloader.add_value(
+                                                                #     "course_duration", workload_in_seconds
+                                                                # )
+                                                                # ToDo: choose only 1 of these 2 possible properties
+                                                                # course_itemloader.add_value(
+                                                                #     "course_workload", workload_in_seconds
+                                                                # )
+                                                                pass
+                                    if "learningObjectives" in vhb_item_matched["attributes"]:
+                                        vhb_learning_objectives: str = vhb_item_matched["attributes"][
+                                            "learningObjectives"
+                                        ]
+                                        if vhb_learning_objectives and isinstance(vhb_learning_objectives, str):
+                                            course_itemloader.add_value(
+                                                "course_learningoutcome", vhb_learning_objectives
+                                            )
+                                base.add_value("course", course_itemloader.load_item())
 
         # noinspection DuplicatedCode
         lom.add_value("general", general.load_item())
