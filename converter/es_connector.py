@@ -535,11 +535,22 @@ class EduSharing:
             if "toRange" in tar:
                 spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
 
-        # intendedEndUserRole = Field(output_processor=JoinMultivalues())
-        # discipline = Field(output_processor=JoinMultivalues())
-        # educationalContext = Field(output_processor=JoinMultivalues())
-        # learningResourceType = Field(output_processor=JoinMultivalues())
-        # sourceContentType = Field(output_processor=JoinMultivalues())
+        if "course" in item:
+            # ToDo: activate these fields AFTER confirming that the edu-sharing properties are correct
+            # ToDo: implement a CourseItemPipeline in pipelines.py BEFORE activating these fields!
+            if "course_duration" in item["course"]:
+                # ToDo
+                # spaces["cclom:typicallearningtime"] = item["course"]["course_duration"]
+                pass
+            if "course_learningoutcome" in item["course"]:
+                # ToDo
+                # spaces["ccm:learninggoal"] = item["course"]["course_learningoutcome"]
+                pass
+            if "course_workload" in item["course"]:
+                # ToDo: which edu-sharing property should be used for workload per week? (and: which time unit?)
+                pass
+            pass
+
         mdsId = env.get("EDU_SHARING_METADATASET", allow_null=True, default="mds_oeh")
         if mdsId != "default":
             spaces["cm:edu_metadataset"] = mdsId

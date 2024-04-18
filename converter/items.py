@@ -319,6 +319,21 @@ class PermissionItem(Item):
     """Determines if this item should be 'public' (= accessible by anyone)"""
 
 
+class CourseItem(Item):
+    """
+    BIRD-specific metadata properties intended only for courses.
+    """
+    course_duration = Field()
+    # ToDo: edu-sharing expects the course duration in seconds (as long as 'cclom:typicallearningtime' is used!)
+    """Corresponding edu-sharing property: 'cclom:typicallearningtime'"""
+    course_learningoutcome = Field()
+    """Describes "Lernergebnisse" or "learning objectives". (Expects a string, with or without HTML-formatting!)
+    Corresponding edu-sharing property: 'ccm:learninggoal'"""
+    course_workload = Field()
+    """Describes the workload per week."""
+    # ToDo: confirm where "workload" values should be saved within edu-sharing
+
+
 class BaseItem(Item):
     """
     BaseItem provides the basic data structure for any crawled item.
@@ -339,6 +354,7 @@ class BaseItem(Item):
     """Binary data which should be uploaded to edu-sharing (= raw data, e.g. ".pdf"-files)."""
     collection = Field(output_processor=JoinMultivalues())
     """id of edu-sharing collections this entry should be placed into"""
+    course = Field(serializer=CourseItem)
     custom = Field()
     """A field for custom data which can be used by the target transformer to store data in the native format 
     (i.e. 'ccm:'/'cclom:'-properties in edu-sharing)."""
@@ -395,6 +411,11 @@ class BaseItem(Item):
 class BaseItemLoader(ItemLoader):
     default_item_class = BaseItem
     # default_input_processor = MapCompose(replace_processor)
+    default_output_processor = TakeFirst()
+
+
+class CourseItemLoader(ItemLoader):
+    default_item_class = CourseItem
     default_output_processor = TakeFirst()
 
 
