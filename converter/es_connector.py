@@ -538,14 +538,16 @@ class EduSharing:
         if "course" in item:
             # ToDo: activate these fields AFTER confirming that the edu-sharing properties are correct
             # ToDo: implement a CourseItemPipeline in pipelines.py BEFORE activating these fields!
+            if "course_description_short" in item["course"]:
+                spaces["ccm:oeh_course_description_short"] = item["course"]["course_description_short"]
             if "course_duration" in item["course"]:
                 # ToDo
                 # spaces["cclom:typicallearningtime"] = item["course"]["course_duration"]
                 pass
             if "course_learningoutcome" in item["course"]:
-                # ToDo
-                # spaces["ccm:learninggoal"] = item["course"]["course_learningoutcome"]
-                pass
+                spaces["ccm:learninggoal"] = item["course"]["course_learningoutcome"]
+            if "course_url_video" in item["course"]:
+                spaces["ccm:oeh_course_url_video"] = item["course"]["course_url_video"]
             if "course_workload" in item["course"]:
                 # ToDo: which edu-sharing property should be used for workload per week? (and: which time unit?)
                 pass
