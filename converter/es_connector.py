@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import logging
+import pprint
 import time
 import uuid
 from asyncio import Semaphore
@@ -553,6 +554,7 @@ class EduSharing:
             if not type(spaces[key]) is list:
                 spaces[key] = [spaces[key]]
 
+        log.debug(f"Transformed item:\n{pprint.pformat(spaces)}")
         return spaces
 
     def create_groups_if_not_exists(self, groups, type: CreateGroupType):
