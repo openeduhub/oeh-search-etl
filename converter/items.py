@@ -332,6 +332,11 @@ class CourseItem(Item):
     course_workload = Field()
     """Describes the workload per week."""
     # ToDo: confirm where "workload" values should be saved within edu-sharing
+    course_description_short = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_course_description_short'"""
+    course_url_video = Field()
+    """URL of a course-specific trailer- or teaser-video.
+    Corresponding edu-sharing property: 'ccm:oeh_course_url_video'"""
 
 
 class BaseItem(Item):
