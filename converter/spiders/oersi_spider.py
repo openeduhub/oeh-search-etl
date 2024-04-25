@@ -40,7 +40,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.2.0"  # last update: 2024-04-16
+    version = "0.2.1"  # last update: 2024-04-25
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -331,10 +331,13 @@ class OersiSpider(scrapy.Spider, LomBase):
 
     def getId(self, response=None, elastic_item: dict = dict) -> str:
         """
-        Uses OERSI's ElasticSearch "_id"-field to collect an uuid. See:
-        https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-id-field.html
+        Uses OERSI's "_source.id"-property to collect a URI. According to the AMB Specifications, the URI can be either:
+        - a (direct) URL to the educational resource
+        - a URL pointing towards a landing page (describing the educational resource)
+
+        See: https://dini-ag-kim.github.io/amb/latest/#id
         """
-        return elastic_item["_id"]
+        return elastic_item["_source"]["id"]
 
     def getHash(self, response=None, elastic_item_source: dict = dict) -> str:
         """
