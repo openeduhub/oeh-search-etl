@@ -1,7 +1,7 @@
 import datetime
-import logging
 import random
 import re
+from collections import Counter
 from typing import Optional
 
 import requests
@@ -40,7 +40,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.2.1"  # last update: 2024-04-25
+    version = "0.2.2"  # last update: 2024-04-25
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -60,50 +60,53 @@ class OersiSpider(scrapy.Spider, LomBase):
     )
 
     ELASTIC_PIT_ID: dict = dict()
-    # the provider-filter at https://oersi.org/resources/ shows you which String values can be used as a provider-name
-    # ToDo: regularly check if new providers need to be added to the list below (and insert/sort them alphabetically!)
+
+    # the "Provider"-filter in the frontend of https://oersi.org/resources/ shows you which string values
+    # can be used as a query-parameter for ElasticSearch (names are case-sensitive and need to be matches!)
+    # You can use the ELASTIC_PROVIDERS_TO_CRAWL list to manually override the crawling targets. If the list is empty,
+    # the crawler will query the ElasticSearch API and fill the list at the beginning of a crawl!
     ELASTIC_PROVIDERS_TO_CRAWL: list = [
-        "BC Campus",  # BC Campus website cannot be crawled at the moment, needs further investigation
+        # "BC Campus",  # BC Campus website cannot be crawled at the moment, needs further investigation
         # "ComeIn",  # should not be crawled, datasets were exported to OERSI from WLO
-        "detmoldMusicTools",
-        "digiLL",
-        "DuEPublico",
-        "eaDNURT",
-        "eCampusOntario",
-        "eGov-Campus",
-        "Finnish Library of Open Educational Resources",  # URLs of this metadata-provider cannot be resolved
-        "GitHub",
-        "GitLab",
-        "Helmholtz Codebase",
-        "HessenHub",
-        "HHU Mediathek",
-        "HOOU",
-        "iMoox",
-        "KI Campus",
-        "langSci Press",  # new provider as of 2023-04-27
-        "lecture2go (Hamburg)",  # new provider as of 2023-12-14
-        "MIT OpenCourseWare",
+        # "detmoldMusicTools",
+        # "digiLL",
+        # "DuEPublico",
+        # "eaDNURT",
+        # "eCampusOntario",
+        # "eGov-Campus",
+        # "Finnish Library of Open Educational Resources",  # URLs of this metadata-provider cannot be resolved
+        # "GitHub",
+        # "GitLab",
+        # "Helmholtz Codebase",
+        # "HessenHub",
+        # "HHU Mediathek",
+        # "HOOU",
+        # "iMoox",
+        # "KI Campus",
+        # "langSci Press",  # new provider as of 2023-04-27
+        # "lecture2go (Hamburg)",  # new provider as of 2023-12-14
+        # "MIT OpenCourseWare",
         # "OEPMS",  # new provider as of 2023-04-27 # ToDo: cannot be crawled
-        "OER Portal Uni Graz",
-        "oncampus",  # (temporarily) not available? (2023-12-14)
-        "Open Music Academy",
-        "Open Textbook Library",
-        "Opencast Universität Osnabrück",
-        "openHPI",
-        "OpenLearnWare",
-        "OpenRub",
-        "ORCA.nrw",
-        "Phaidra Uni Wien",
-        "Pressbooks Directory",  # new provider as of 2023-12-14
-        "RWTH Aachen GitLab",
-        "TIB AV-Portal",
-        "TU Delft OpenCourseWare",
-        "twillo",
-        "Universität Innsbruck OER Repositorium",
-        "VCRP",
-        "vhb",
-        "Virtual Linguistics Campus",
-        "ZOERR",
+        # "OER Portal Uni Graz",
+        # "oncampus",  # (temporarily) not available? (2023-12-14)
+        # "Open Music Academy",
+        # "Open Textbook Library",
+        # "Opencast Universität Osnabrück",
+        # "openHPI",
+        # "OpenLearnWare",
+        # "OpenRub",
+        # "ORCA.nrw",
+        # "Phaidra Uni Wien",
+        # "Pressbooks Directory",  # new provider as of 2023-12-14
+        # "RWTH Aachen GitLab",
+        # "TIB AV-Portal",
+        # "TU Delft OpenCourseWare",
+        # "twillo",
+        # "Universität Innsbruck OER Repositorium",
+        # "VCRP",
+        # "vhb",
+        # "Virtual Linguistics Campus",
+        # "ZOERR",
     ]
     ELASTIC_ITEMS_ALL = list()
 
@@ -133,11 +136,15 @@ class OersiSpider(scrapy.Spider, LomBase):
         self.ELASTIC_PIT_ID = self.elastic_pit_get_id(self.elastic_pit_create())
         # querying the ElasticSearch API for metadata-sets of specific providers, this allows us to control which
         # providers we want to include/exclude by using the "ELASTIC_PROVIDERS_TO_CRAWL"-list
+        if not self.ELASTIC_PROVIDERS_TO_CRAWL:
+            # if no crawling targets were set (e.g. during debugging), the default behavior is to query all
+            # metadata providers from OERSI's ElasticSearch
+            self.elastic_fetch_list_of_provider_names()
         self.ELASTIC_ITEMS_ALL = self.elastic_fetch_all_provider_pages()
         # after all items have been collected, delete the ElasticSearch PIT
         json_response = self.elastic_pit_delete()
         if json_response:
-            logging.info(f"ElasticSearch API response (upon PIT delete): {json_response}")
+            self.logger.info(f"ElasticSearch API response (upon PIT delete): {json_response}")
 
     def start_requests(self):
         # yield dummy request, so that Scrapy's start_item method requirement is satisfied,
@@ -147,6 +154,30 @@ class OersiSpider(scrapy.Spider, LomBase):
     def handle_collected_elastic_items(self, response: scrapy.http.Response):
         random.shuffle(self.ELASTIC_ITEMS_ALL)  # shuffling the list of ElasticSearch items to improve concurrency and
         # distribute the load between several target domains.
+
+        # counting duplicates across "metadata provider"-queries:
+        urls_all: list = [x["_source"]["id"] for x in self.ELASTIC_ITEMS_ALL]
+        urls_counted = Counter(urls_all)
+        duplicates: set = set()
+        for item in urls_counted:
+            # if items occur more than once, we'll add their URL to the duplicate set (to compare it later)
+            if urls_counted[item] > 1:
+                duplicates.add(item)
+        duplicate_dict = dict()
+        for elastic_item in self.ELASTIC_ITEMS_ALL:
+            _source_id: str = elastic_item["_source"]["id"]
+            if _source_id in duplicates:
+                # if an object appears in more than one "MetadataProvider"-query response, we'll create a dictionary,
+                # where the "key" is the URL and the "value" is a list of duplicate objects (Type: list[dict])
+                if _source_id in duplicate_dict:
+                    duplicate_list: list = duplicate_dict[_source_id]
+                    duplicate_list.append(elastic_item)
+                    duplicate_dict.update({_source_id: duplicate_list})
+                else:
+                    duplicate_dict.update({_source_id: [elastic_item]})
+        # Dumping duplicates to local .json for further analysis:
+        # with open("oersi_duplicates.json", "w") as fp:
+        #     json.dump(duplicate_dict, fp)
         for elastic_item in self.ELASTIC_ITEMS_ALL:
             yield from self.check_item_and_yield_to_parse_method(elastic_item)
 
@@ -159,15 +190,15 @@ class OersiSpider(scrapy.Spider, LomBase):
         item_url: str = self.get_item_url(elastic_item)
         if item_url:
             if self.shouldImport(response=None) is False:
-                logging.debug(
+                self.logger.debug(
                     "Skipping entry {} because shouldImport() returned false".format(
                         str(self.getId(response=None, elastic_item=elastic_item))
                     )
                 )
                 return None
             if (
-                self.getId(response=None, elastic_item=elastic_item) is not None
-                and self.getHash(response=None, elastic_item_source=elastic_item["_source"]) is not None
+                    self.getId(response=None, elastic_item=elastic_item) is not None
+                    and self.getHash(response=None, elastic_item_source=elastic_item["_source"]) is not None
             ):
                 if not self.hasChanged(None, elastic_item=elastic_item):
                     return None
@@ -205,14 +236,70 @@ class OersiSpider(scrapy.Spider, LomBase):
         """
         url = f"https://oersi.org/resources/api-internal/search/_pit"
         delete_request = requests.delete(url=url, json=self.ELASTIC_PIT_ID)
-        logging.debug(f"Deleting ElasticSearch PIT: {self.ELASTIC_PIT_ID}")
+        self.logger.debug(f"Deleting ElasticSearch PIT: {self.ELASTIC_PIT_ID}")
         return delete_request.json()
+
+    def elastic_fetch_list_of_provider_names(self):
+        _url = "https://oersi.org/resources/api-internal/search/oer_data/_search"
+
+        _payload = {
+            "_source": False,
+            "size": 0,
+            "aggs": {"MetadataProviders": {"terms": {"field": "mainEntityOfPage.provider.name", "size": 500}}},
+        }
+        # remember to increase the "size"-parameter if the list of metadata-providers reaches > 500 results
+        _headers = {"Content-Type": "application/json", "accept": "application/json"}
+        response = requests.request("POST", _url, json=_payload, headers=_headers)
+        if response.ok:
+            response_json: dict = response.json()
+            if "aggregations" in response_json:
+                aggregations: dict = response_json["aggregations"]
+                try:
+                    buckets: list[dict] = aggregations["MetadataProviders"]["buckets"]
+                    metadata_provider_count_total: int = 0
+                    if buckets and isinstance(buckets, list):
+                        self.logger.debug(
+                            f"OERSI 'MetadataProviders'-query returned {len(buckets)} metadata providers."
+                        )
+                        self.logger.debug(f"{buckets}")
+                    for bucket_item in buckets:
+                        if "key" in bucket_item:
+                            metadata_provider_name: str = bucket_item["key"]
+                            if metadata_provider_name and isinstance(metadata_provider_name, str):
+                                self.ELASTIC_PROVIDERS_TO_CRAWL.append(metadata_provider_name)
+                        if "doc_count" in bucket_item:
+                            metadata_provider_count: int = bucket_item["doc_count"]
+                            if metadata_provider_count and isinstance(metadata_provider_count, int):
+                                metadata_provider_count_total += metadata_provider_count
+                    if self.ELASTIC_PROVIDERS_TO_CRAWL:
+                        self.logger.info(
+                            f"Successfully retrieved the following metadata providers for future API "
+                            f"requests:\n"
+                            f"{self.ELASTIC_PROVIDERS_TO_CRAWL}"
+                        )
+                        if metadata_provider_count_total:
+                            self.logger.info(f"Expecting {metadata_provider_count_total} ElasticSearch objects in "
+                                             f"total.")
+                except KeyError as ke:
+                    self.logger.error(
+                        f"Failed to retrieve 'buckets'-list of metadata providers from OERSI "
+                        f"ElasticSearch response (please check (with a debugger) if the property "
+                        f"'aggregations.MetadataProviders.buckets' was part of the API response!)"
+                    )
+                    raise ke
+            else:
+                self.logger.error(
+                    f"Failed to retrieve list of metadata providers from OERSI's ElasticSearch API. "
+                    f"(The response object did not return a 'aggregations'-object. Please check the API!)"
+                )
 
     def elastic_query_provider_metadata(self, provider_name, search_after=None):
         """
-        Queries OERSI's ElasticSearch API for a metadata from a specific provider.
+        Queries OERSI's ElasticSearch API for metadata items from a specific metadata provider, as specified by the
+        "provider_name"-string.
 
-        See: https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#paginate-search-results
+        See:
+        https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#paginate-search-results
         """
         url = "https://oersi.org/resources/api-internal/search/_search"
         if search_after is None:
@@ -240,7 +327,6 @@ class OersiSpider(scrapy.Spider, LomBase):
             }
         headers = {"Content-Type": "application/json", "accept": "application/json"}
         response = requests.post(url=url, json=payload, headers=headers)
-        # logging.debug(response.text)
         return response.json()
 
     def elastic_fetch_all_provider_pages(self):
@@ -255,11 +341,13 @@ class OersiSpider(scrapy.Spider, LomBase):
         # 1:1 identical to the metadata-provider string values on OERSI.org.
         provider_target_from_env: str = env.get(key="OERSI_METADATA_PROVIDER", allow_null=True, default=None)
         if provider_target_from_env:
-            logging.info(f"Recognized OERSI_METADATA_PROVIDER .env setting. Value: {provider_target_from_env}")
+            self.logger.info(
+                f"Recognized OERSI_METADATA_PROVIDER .env setting. Limiting crawl to the following target(s): "
+                f"{provider_target_from_env}")
             self.ELASTIC_PROVIDERS_TO_CRAWL = [provider_target_from_env]
             if ";" in provider_target_from_env:
                 provider_list: list[str] = provider_target_from_env.split(";")
-                logging.info(
+                self.logger.info(
                     f"Recognized multiple providers within OERSI_METADATA_PROVIDER .env setting:" f"{provider_list}"
                 )
                 self.ELASTIC_PROVIDERS_TO_CRAWL = provider_list
@@ -280,17 +368,14 @@ class OersiSpider(scrapy.Spider, LomBase):
                 if "pit_id" in current_page_json_response:
                     if current_page_json_response.get("pit_id") != self.ELASTIC_PIT_ID.get("id"):
                         self.ELASTIC_PIT_ID = current_page_json_response.get("pit_id")
-                        logging.info(
+                        self.logger.info(
                             f"ElasticSearch: pit_id changed between queries, using the new pit_id "
                             f"{current_page_json_response.get('pit_id')} for subsequent queries."
                         )
-                if "hits" in current_page_json_response:
-                    total_count = current_page_json_response.get("hits").get("total").get("value")
-                    logging.debug(f"Expecting {total_count} items for the current API Pagination of {provider_name}")
                 if "hits" in current_page_json_response.get("hits"):
                     provider_items: list[dict] = current_page_json_response.get("hits").get("hits")
                     if provider_items:
-                        logging.debug(f"The provider_items list has {len(provider_items)} entries")
+                        self.logger.debug(f"The provider_items list has {len(provider_items)} entries")
                         for provider_item in provider_items:
                             # we need to keep track of the metadata provider because the ElasticSearch query parameter
                             # will oftentimes NOT be the same string that we receive as the provider metadata value
@@ -308,7 +393,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                 has_next_page = False
                                 break
                     else:
-                        logging.info(
+                        self.logger.info(
                             f"Reached the end of the ElasticSearch results for '{provider_name}' // "
                             f"Total amount of items collected (across all metadata-providers): {len(all_items)}"
                         )
@@ -327,7 +412,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                 )
                 self.vhb_oersi_json = vhb_response_dict
         else:
-            logging.warning(f"BIRD: Failed to retrieve 'course'-data from 'vhb' sourceOrganization.")
+            self.logger.warning(f"BIRD: Failed to retrieve 'course'-data from 'vhb' sourceOrganization.")
 
     def getId(self, response=None, elastic_item: dict = dict) -> str:
         """
@@ -361,18 +446,16 @@ class OersiSpider(scrapy.Spider, LomBase):
             hash_temp: str = f"{datetime.datetime.now().isoformat()}v{self.version}"
         return hash_temp
 
-    @staticmethod
-    def get_uuid(elastic_item: dict):
+    def get_uuid(self, elastic_item: dict):
         """
         Builds a UUID string from the to-be-parsed target URL and returns it.
         """
         # The "getUUID"-method of LomBase couldn't be cleanly overridden because at the point of time when we do this
         # check, there is no "Response"-object available yet.
-        item_url = OersiSpider.get_item_url(elastic_item=elastic_item)
+        item_url = self.get_item_url(elastic_item=elastic_item)
         return EduSharing.build_uuid(item_url)
 
-    @staticmethod
-    def get_item_url(elastic_item: dict) -> str | None:
+    def get_item_url(self, elastic_item: dict) -> str | None:
         """
         Retrieves the to-be-parsed URL from OERSI's '_source.id'-field.
         If that (REQUIRED) field was not available, returns None.
@@ -381,7 +464,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         if item_url:
             return item_url
         else:
-            logging.warning(f"OERSI Item {elastic_item['_id']} did not provide a URL string. Dropping item.")
+            self.logger.warning(f"OERSI Item {elastic_item['_id']} did not provide a URL string. Dropping item.")
             return None
 
     def hasChanged(self, response=None, elastic_item: dict = dict) -> bool:
@@ -390,27 +473,27 @@ class OersiSpider(scrapy.Spider, LomBase):
             return True
         if self.uuid:
             if self.get_uuid(elastic_item=elastic_item) == self.uuid:
-                logging.info(f"matching requested id: {self.uuid}")
+                self.logger.info(f"matching requested id: {self.uuid}")
                 return True
             return False
         if self.remoteId:
             if str(self.getId(response, elastic_item=elastic_item)) == self.remoteId:
-                logging.info(f"matching requested id: {self.remoteId}")
+                self.logger.info(f"matching requested id: {self.remoteId}")
                 return True
             return False
         db = EduSharing().find_item(self.getId(response, elastic_item=elastic_item), self)
         changed = db is None or db[1] != self.getHash(response, elastic_item_source=elastic_item["_source"])
         if not changed:
-            logging.info(f"Item {self.getId(response, elastic_item=elastic_item)} (uuid: {db[0]}) has not changed")
+            self.logger.info(f"Item {self.getId(response, elastic_item=elastic_item)} (uuid: {db[0]}) has not changed")
         return changed
 
     def get_lifecycle_author(
-        self,
-        lom_base_item_loader: LomBaseItemloader,
-        elastic_item_source: dict,
-        organization_fallback: set[str],
-        date_created: Optional[str] = None,
-        date_published: Optional[str] = None,
+            self,
+            lom_base_item_loader: LomBaseItemloader,
+            elastic_item_source: dict,
+            organization_fallback: set[str],
+            date_created: Optional[str] = None,
+            date_published: Optional[str] = None,
     ):
         """
         If a "creator"-field is available in the OERSI API for a specific '_source'-item, creates an 'author'-specific
@@ -478,11 +561,11 @@ class OersiSpider(scrapy.Spider, LomBase):
         return authors
 
     def get_affiliation_and_save_to_lifecycle(
-        self,
-        affiliation_dict: dict,
-        lom_base_item_loader: LomBaseItemloader,
-        organization_fallback: set[str],
-        lifecycle_role: str,
+            self,
+            affiliation_dict: dict,
+            lom_base_item_loader: LomBaseItemloader,
+            organization_fallback: set[str],
+            lifecycle_role: str,
     ):
         """
         Retrieves metadata from OERSI's "affiliation"-field (which is typically found within a "creator"- or
@@ -527,8 +610,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                     )
                 lom_base_item_loader.add_value("lifecycle", lifecycle_affiliated_org.load_item())
 
-    @staticmethod
-    def validate_academic_title_string(honorific_prefix: str) -> str:
+    def validate_academic_title_string(self, honorific_prefix: str) -> str:
         """
         Some metadata-providers provide weird values for the 'honorificPrefix'-attribute within a "creator"- or
         "contributor"-item. This method checks for known edge-cases and drops the string if necessary.
@@ -539,7 +621,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         #   ORCA.nrw: "http://hbz-nrw.de/regal#academicDegree/unkown", "unknown",
         #   Open Textbook Library: single backticks
         if "unknown" in honorific_prefix or "unkown" in honorific_prefix or len(honorific_prefix) == 1:
-            logging.debug(
+            self.logger.debug(
                 f"'honorificPrefix'-validation: The string {honorific_prefix} was recognized as an invalid "
                 f"edge-case value. Deleting string..."
             )
@@ -547,11 +629,11 @@ class OersiSpider(scrapy.Spider, LomBase):
         return honorific_prefix.strip()
 
     def get_lifecycle_contributor(
-        self,
-        lom_base_item_loader: LomBaseItemloader,
-        elastic_item_source: dict,
-        organization_fallback: set[str],
-        author_list: Optional[list[str]] = None,
+            self,
+            lom_base_item_loader: LomBaseItemloader,
+            elastic_item_source: dict,
+            organization_fallback: set[str],
+            author_list: Optional[list[str]] = None,
     ):
         """
         Collects metadata from the OERSI "contributor"-field and stores it within a LomLifecycleItemLoader.
@@ -653,11 +735,11 @@ class OersiSpider(scrapy.Spider, LomBase):
             lom_base_item_loader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
 
     def get_lifecycle_publisher(
-        self,
-        lom_base_item_loader: LomBaseItemloader,
-        elastic_item_source: dict,
-        organizations_from_publisher_fields: set[str],
-        date_published: Optional[str] = None,
+            self,
+            lom_base_item_loader: LomBaseItemloader,
+            elastic_item_source: dict,
+            organizations_from_publisher_fields: set[str],
+            date_published: Optional[str] = None,
     ):
         """
         Collects metadata from OERSI's "publisher"-field and stores it within a LomLifecycleItemLoader. Successfully
@@ -693,7 +775,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lom_base_item_loader.add_value("lifecycle", lifecycle_publisher.load_item())
 
     def get_lifecycle_organization_from_source_organization_fallback(
-        self, elastic_item_source: dict, lom_item_loader: LomBaseItemloader, organization_fallback: set[str]
+            self, elastic_item_source: dict, lom_item_loader: LomBaseItemloader, organization_fallback: set[str]
     ):
         # ATTENTION: the "sourceOrganization"-field is not part of the AMB draft, therefore this method is currently
         # used a fallback, so we don't lose any useful metadata (even if that metadata is not part of the AMB spec).
@@ -735,7 +817,8 @@ class OersiSpider(scrapy.Spider, LomBase):
                 lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
     def get_lifecycle_publisher_from_source_organization(
-        self, lom_item_loader: LomBaseItemloader, elastic_item_source: dict, previously_collected_publishers: set[str]
+            self, lom_item_loader: LomBaseItemloader, elastic_item_source: dict,
+            previously_collected_publishers: set[str]
     ):
         source_organizations: list[dict] = elastic_item_source.get("sourceOrganization")
         for so in source_organizations:
@@ -755,10 +838,10 @@ class OersiSpider(scrapy.Spider, LomBase):
                             lifecycle_org.add_value("url", org_url)
                     lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
-    @staticmethod
-    def lifecycle_determine_type_of_identifier_and_save_uri(
-        item_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
-    ):
+    def lifecycle_determine_type_of_identifier_and_save_uri(self,
+                                                            item_dictionary: dict,
+                                                            lifecycle_item_loader: LomLifecycleItemloader
+                                                            ):
         """
         OERSI's "creator"/"contributor"/"affiliation" items might contain an 'id'-field which (optionally) provides
         URI-identifiers that reference GND / ORCID / Wikidata / ROR.
@@ -770,10 +853,10 @@ class OersiSpider(scrapy.Spider, LomBase):
             # "creator.id" can be 'null', therefore we need to explicitly check its type before trying to parse it
             uri_string: str = item_dictionary.get("id")
             if (
-                "orcid.org" in uri_string
-                or "/gnd/" in uri_string
-                or "wikidata.org" in uri_string
-                or "ror.org" in uri_string
+                    "orcid.org" in uri_string
+                    or "/gnd/" in uri_string
+                    or "wikidata.org" in uri_string
+                    or "ror.org" in uri_string
             ):
                 if "/gnd/" in uri_string:
                     lifecycle_item_loader.add_value("id_gnd", uri_string)
@@ -784,7 +867,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                 if "wikidata.org" in uri_string:
                     lifecycle_item_loader.add_value("id_wikidata", uri_string)
             else:
-                logging.info(
+                self.logger.info(
                     f"The URI identifier '{uri_string}' was not recognized. "
                     f"Fallback: Saving its value to 'lifecycle.url'."
                 )
@@ -866,7 +949,7 @@ class OersiSpider(scrapy.Spider, LomBase):
             if thumbnail_url:
                 base.add_value("thumbnail", thumbnail_url)
         except KeyError:
-            logging.debug(
+            self.logger.debug(
                 f"OERSI Item {elastic_item['_id']} "
                 f"(name: {elastic_item_source['name']}) did not provide a thumbnail."
             )
@@ -902,7 +985,7 @@ class OersiSpider(scrapy.Spider, LomBase):
             # this URL is REQUIRED and should always be available
             # see https://dini-ag-kim.github.io/amb/draft/#id
         except KeyError:
-            logging.warning(f"Item {elastic_item['_id']} did not have an item URL (AMB 'id' was missing)!")
+            self.logger.warning(f"Item {elastic_item['_id']} did not have an item URL (AMB 'id' was missing)!")
             return
         if identifier_url:
             general.replace_value("identifier", identifier_url)
@@ -1070,7 +1153,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                             if about_id_key:
                                 vs.add_value("hochschulfaechersystematik", about_id_key)
                         else:
-                            logging.debug(
+                            self.logger.debug(
                                 f"The value of OERSI 'about.id' was not recognized during mapping to "
                                 f"valuespaces 'hochschulfaechersystematik': {about_id} ."
                             )
@@ -1150,7 +1233,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                     if vhb_course_url and vhb_course_url == identifier_url:
                                         self.logger.debug(
                                             f"BIRD: Matched 'vhb'-item {vhb_course_url} with OERSI "
-                                            f"ElasticSearch item {elastic_item['_id']}!"
+                                            f"ElasticSearch item {elastic_item['_id']}"
                                         )
                                         vhb_item_matched = vhb_item
                             except KeyError as ke:
@@ -1232,7 +1315,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                                                 # timedelta has no parameter for months
                                                                 #  -> X months = X * (4 weeks)
                                                                 duration_delta = duration_delta + (
-                                                                    duration_number * datetime.timedelta(weeks=4)
+                                                                        duration_number * datetime.timedelta(weeks=4)
                                                                 )
                                                             case _:
                                                                 self.logger.warning(
