@@ -95,7 +95,7 @@ class GenericSpider(Spider, LrmiBase):
         LrmiBase.__init__(self, **kwargs)
 
         # self.validated_result = validated_result
-        # validated_result = '{"curriculum":["http://w3id.org/openeduhub/vocabs/oeh-topics/66e5911e-ba75-4521-adb6-cbe24569500b"], "text_difficulty": "Schwer", "text_reading_time": 262.79, "url": "https://blog.bitsrc.io/how-to-store-data-on-the-browser-with-javascript-9c57fc0f91b0", "title": "Test 2 How to Store Data in the Browser with JavaScript | Bits and Pieces", "description": "Test How to store data with localStorage and sessionStorage. The benefits of each, and when you should use one instead of the other", "keywords": ["Test JavaScript", "Browser Speicher", "localStorage", "sessionStorage"], "disciplines": ["http://w3id.org/openeduhub/vocabs/discipline/320"], "educational_context": ["http://w3id.org/openeduhub/vocabs/educationalContext/fortbildung"], "license": {"author": ["Pedro Henrique"]}, "new_lrt": ["http://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb", "http://w3id.org/openeduhub/vocabs/new_lrt/345cba59-9fa0-4ec8-ba93-2c75f4a40003"]}'
+        # validated_result = '{"curriculum":["http://w3id.org/openeduhub/vocabs/oeh-topics/66e5911e-ba75-4521-adb6-cbe24569500b"], "url": "https://blog.bitsrc.io/how-to-store-data-on-the-browser-with-javascript-9c57fc0f91b0", "title": "Test 2 How to Store Data in the Browser with JavaScript | Bits and Pieces", "description": "Test How to store data with localStorage and sessionStorage. The benefits of each, and when you should use one instead of the other", "keywords": ["Test JavaScript"], "disciplines": ["http://w3id.org/openeduhub/vocabs/discipline/320"], "educational_context": ["http://w3id.org/openeduhub/vocabs/educationalContext/fortbildung"], "license": {"author": ["Pedro Henrique"]}, "new_lrt": ["http://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb"], "intendedEndUserRole":["http://w3id.org/openeduhub/vocabs/intendedEndUserRole/counsellor"]}'
         # logging.warning("self.validated_result="+self.validated_result)
 
         self.results_dict = {}
@@ -449,27 +449,31 @@ class GenericSpider(Spider, LrmiBase):
     def modify_base_item(self, base_loader):
         title = self.results_dict['title']
         description = self.results_dict['description']
-        disciplines = self.results_dict['disciplines']
+        if len(self.results_dict['disciplines']) != 0:
+            disciplines = self.results_dict['disciplines']
+            base_loader.load_item()['valuespaces']['discipline'] = disciplines
         educational_context = self.results_dict['educational_context']
+        intendedEndUserRole = self.results_dict['intendedEndUserRole']
         keywords = self.results_dict['keywords']
         license = self.results_dict['license']
-        # license_author = self.results_dict['license_author']
         new_lrt = self.results_dict['new_lrt']
         curriculum = self.results_dict['curriculum']
-        text_difficulty = self.results_dict['text_difficulty']
-        text_reading_time = self.results_dict['text_reading_time']
+        if len(self.results_dict['text_difficulty']) != 0:
+            text_difficulty = self.results_dict['text_difficulty']
+            base_loader.load_item()['kidra_raw']['text_difficulty'] = text_difficulty
+        if len(self.results_dict['text_reading_time']) != 0:
+            text_reading_time = self.results_dict['text_reading_time']
+            base_loader.load_item()['kidra_raw']['text_reading_time'] = text_reading_time
 
         base_loader.load_item()['lom']['general']['title'] = title
         base_loader.load_item()['lom']['general']['description'] = description
         base_loader.load_item()['lom']['general']['keyword'] = keywords
-        base_loader.load_item()['valuespaces']['discipline'] = disciplines
         base_loader.load_item()['valuespaces']['new_lrt'] = new_lrt
         base_loader.load_item()['valuespaces']['educationalContext'] = educational_context
+        base_loader.load_item()['valuespaces']['intendedEndUserRole'] = intendedEndUserRole
         base_loader.load_item()['license'] = license
         # base_loader.load_item()['valuespaces']['curriculum'] = curriculum
         base_loader.load_item()['kidra_raw']['curriculum'] = curriculum
-        base_loader.load_item()['kidra_raw']['text_difficulty'] = text_difficulty
-        base_loader.load_item()['kidra_raw']['text_reading_time'] = text_reading_time
 
         return base_loader
 

@@ -33,8 +33,8 @@ class Result(pd.BaseModel):
     keywords: str = ""
     disciplines: str = ""
     educational_context: str = ""
+    intendedenduserrole: str = ""
     license: dict = {}
-    # license_author: list = []
     new_lrt: str = ""
     kidra_disciplines: str = ""
     curriculum: str = ""
@@ -45,6 +45,8 @@ class ValidatedResults(pd.BaseModel):
     url: str = ""
     title: str = ""
     description: str = ""
+    curriculum: list = []
+    intendedenduserrole: list = []
     keywords: list = []
     disciplines: list = []
     educational_context: list = []
@@ -124,6 +126,7 @@ def create_app() -> fapi.FastAPI:
         text_difficulty : str
         text_reading_time : str
         """
+
         DEVNULL = open(os.devnull, 'wb')
         try:
             bytes_result = subprocess.check_output([f'scrapy',
@@ -198,6 +201,7 @@ def create_app() -> fapi.FastAPI:
                     "message": error_str
                 }
             )
+
 
     @app.post("/set_metadata")
     async def set_metadata(data: ValidatedResults):
