@@ -591,7 +591,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         # (for future reference:
         # vCard v3: https://datatracker.ietf.org/doc/html/rfc2426
         # vCard v4: https://www.rfc-editor.org/rfc/rfc6350.html#section-6.6.6 )
-        if "name" in affiliation_dict:
+        if affiliation_dict and isinstance(affiliation_dict, dict) and "name" in affiliation_dict:
             affiliation_name = affiliation_dict.get("name")
             lifecycle_affiliated_org = LomLifecycleItemloader()
             if affiliation_name:
