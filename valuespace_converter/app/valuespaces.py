@@ -59,12 +59,20 @@ class Valuespaces:
 
     def findInText(self, valuespaceId: string, text: string, valuespace = None):
         if valuespace is None:
-            valuespace = self.data[valuespaceId]
+            valuespace: list[dict] = self.data[valuespaceId]
         result = []
         for v in valuespace:
             labels = list(v["prefLabel"].values())
             if "altLabel" in v:
-                labels = labels + list(v["altLabel"].values())
+                # the Skohub update on 2024-04-19 generates altLabels as a list[str] per language ("de", "en)
+                # (for details, see: https://github.com/openeduhub/oeh-metadata-vocabs/pull/65)
+                alt_labels: list[list[str]] = list(v["altLabel"].values())
+                if alt_labels and isinstance(alt_labels, list):
+                    for alt_label in alt_labels:
+                        if alt_label and isinstance(alt_label, list):
+                            labels.extend(alt_label)
+                        if alt_label and isinstance(alt_label, str):
+                            labels.append(alt_label)
             labels = list(map(lambda x: x.casefold(), labels))
             for label in labels:
                 # TODO: dirty hack!
