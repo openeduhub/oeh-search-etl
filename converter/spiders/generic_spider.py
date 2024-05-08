@@ -101,7 +101,8 @@ class GenericSpider(Spider, LrmiBase):
 
         self.results_dict = {}
         if urltocrawl != "":
-            self.start_urls = [urltocrawl]
+            urls = get_urls_from_string( urltocrawl )
+            self.start_urls = urls
         if validated_result != "":
             self.results_dict = json.loads(validated_result)
             urltocrawl = self.results_dict["url"]
@@ -524,3 +525,10 @@ def run_async(func, *args, **kwargs):
         return thread.result
     else:
         return asyncio.run(func(*args, **kwargs))
+
+def get_urls_from_string(urls_string):
+    urls = urls_string.split(",")
+    urls_list = []
+    for url in urls:
+        urls_list.append( url.strip() )
+    return urls_list
