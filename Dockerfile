@@ -11,6 +11,7 @@ RUN apt-get update && \
     apt-get install -y python3-lxml && \
     apt-get install -y libxml2-dev libxslt-dev && \
     apt-get install -y openjdk-17-jre-headless && \
+    apt-get install -y npm && \
     apt-get clean;
 
 COPY entrypoint.sh entrypoint.sh
@@ -30,6 +31,11 @@ RUN ./generate-z-api.sh
 COPY web_service_plugin/requirements.txt web_service_plugin/requirements.txt
 RUN pip3 install -r web_service_plugin/requirements.txt
 COPY web_service_plugin/ web_service_plugin
+
+RUN echo "Install sitemap-generator-cli ---------------------------- "
+# ENV PATH="/opt/node-v14.17.1-linux-x64/bin:${PATH}"
+# RUN curl https://nodejs.org/dist/v12.22.9/node-v12.22.9-linux-arm64.tar.gz |tar xzf - -C /opt/
+RUN npm install -g sitemap-generator-cli
 
 EXPOSE 80
 

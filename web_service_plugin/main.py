@@ -16,6 +16,7 @@ from starlette.responses import JSONResponse
 import converter.env as env
 import sys
 import traceback
+from trafilatura import sitemaps, feeds
 
 
 # verify presence of the key!
@@ -56,6 +57,9 @@ class ValidatedResults(pd.BaseModel):
 class StandardResult(pd.BaseModel):
     code: str = ""
     message: str = ""
+
+class SitemapResult(pd.BaseModel):
+    urls:list = []
 
 def create_app() -> fapi.FastAPI:
     description = f"""
@@ -260,8 +264,28 @@ def create_app() -> fapi.FastAPI:
                 }
             )
 
-    return app
+    @app.post("/get_sitemap")
+    async def get_sitemap(data: Data):
+        """
+        Find or generate the sitemap
 
+        Parameters
+        ----------
+        url : str
+
+        Returns
+        -------
+        urls : list
+        """
+
+        # found_urls = find_gen_sitemap(data.url)
+        found_urls = generate_tree()
+
+        return SitemapResult(
+            urls = found_urls
+        )
+
+    return app
 
 def start_ws_service():
     config = uvicorn.Config("web_service_plugin.main:create_app", port=5500, log_level="info")
@@ -331,3 +355,38 @@ def error_logger() -> str:
     traceback_list = traceback.extract_tb(traceback_)
     traceback_list = ''.join(str(t) for t in traceback_list)
     return str(value_)+'. '+traceback_list
+
+
+def find_gen_sitemap(url):
+    sitemap_list = sitemaps.sitemap_search(url, target_lang='de')
+    feeds_list = feeds.find_feed_urls(url)
+
+    sitemap_set = set(sitemap_list)
+    feeds_set = set(feeds_list)
+    all_urls_set = sitemap_set.union(feeds_set)
+    all_urls = list(all_urls_set)
+    if len(all_urls) == 0:
+        all_urls = generate_sitemap(url)
+    return all_urls
+
+def generate_sitemap(url):
+    DEVNULL = open(os.devnull, 'wb')
+    try:
+        bytes_result = subprocess.check_output([f'npx',
+                                                'sitemap-generator-cli',
+                                                url],
+                                               stderr=DEVNULL)
+    except (subprocess.CalledProcessError, Exception) as e:
+        print("error generating sitemap")
+
+def generate_tree():
+    urls = ['https://plattform.fobizz.com', 'https://plattform.fobizz.com/bundles/4-fobizz-flatrate',
+            'https://plattform.fobizz.com/community/11-deine-erste-app-programmieren',
+            'https://plattform.fobizz.com/community/abgeschlossene-fortbildung-wiederholen',
+            'https://plattform.fobizz.com/community/abgeschlossene-fortbildungen',
+            'https://plattform.fobizz.com/community/abmelden-aus-fortbildung',
+            'https://plattform.fobizz.com/community/adventskalender',
+            'https://plattform.fobizz.com/community/adventskalender-2021',
+            'https://plattform.fobizz.com/community/adventskalender-2021-8e7a8b8f-114d-4dbb-8811-c91a2af88947',
+            'https://plattform.fobizz.com/community/adventskalender-2023']
+    return urls
