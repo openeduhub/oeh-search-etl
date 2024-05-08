@@ -167,6 +167,7 @@ class LomEducationalItem(Item):
     """See LomAgeRangeItem. Corresponding edu-sharing properties: 
     'ccm:educationaltypicalagerange_from' & 'ccm:educationaltypicalagerange_to'"""
     typicalLearningTime = Field()
+    """Corresponding edu-sharing property: 'cclom:typicallearningtime' (expects values in ms!)"""
 
 
 # please use the seperate license data
@@ -323,9 +324,13 @@ class CourseItem(Item):
     """
     BIRD-specific metadata properties intended only for courses.
     """
+    course_availability_from = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_event_begin' (date)"""
+    course_availability_to = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_event_end' (date)"""
     course_duration = Field()
-    # ToDo: edu-sharing expects the course duration in seconds (as long as 'cclom:typicallearningtime' is used!)
-    """Corresponding edu-sharing property: 'cclom:typicallearningtime'"""
+    """Corresponding edu-sharing property: 'cclom:typicallearningtime'
+    (edu-sharing expects 'cclom:typicallearningtime' values in milliseconds!)"""
     course_learningoutcome = Field()
     """Describes "Lernergebnisse" or "learning objectives". (Expects a string, with or without HTML-formatting!)
     Corresponding edu-sharing property: 'ccm:learninggoal'"""
