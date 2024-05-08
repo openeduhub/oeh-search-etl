@@ -4,6 +4,7 @@ import re
 from collections import Counter
 from typing import Optional
 
+import dateparser
 import requests
 import scrapy
 
@@ -40,7 +41,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.2.2"  # last update: 2024-04-25
+    version = "0.2.3"  # last update: 2024-05-08
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -351,12 +352,12 @@ class OersiSpider(scrapy.Spider, LomBase):
                     f"Recognized multiple providers within OERSI_METADATA_PROVIDER .env setting:" f"{provider_list}"
                 )
                 self.ELASTIC_PROVIDERS_TO_CRAWL = provider_list
-            if "vhb" in self.ELASTIC_PROVIDERS_TO_CRAWL:
-                # experimental BIRD-Hook for "vhb"-courses!
-                # ToDo: refactor this implementation into its own (sub-)class ASAP!
-                #  (WARNING: This PoC will not scale well for over >50 Metadata-Providers within OERSI
-                #  and REQUIRES a separate infrastructure!)
-                self.fetch_vhb_data()
+        if "vhb" in self.ELASTIC_PROVIDERS_TO_CRAWL:
+            # experimental BIRD-Hook for "vhb"-courses!
+            # ToDo: refactor this implementation into its own (sub-)class ASAP!
+            #  (WARNING: This PoC will not scale well for over >50 Metadata-Providers within OERSI
+            #  and REQUIRES a separate infrastructure!)
+            self.fetch_vhb_data()
 
         has_next_page = True
         for provider_name in self.ELASTIC_PROVIDERS_TO_CRAWL:
@@ -1279,7 +1280,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                             duration_pattern = re.compile(
                                                 r"""(?P<duration_number>\d+)\s*(?P<duration_unit>\w*)"""
                                             )
-                                            # ToDo: refactor into "course duration" parser method
+                                            # ToDo: refactor into "MOOCHub workload to BIRD course duration" method
                                             duration_match: re.Match | None = duration_pattern.search(vhb_workload)
                                             duration_delta: datetime.timedelta = datetime.timedelta()
                                             if duration_match:
@@ -1324,22 +1325,18 @@ class OersiSpider(scrapy.Spider, LomBase):
                                                                     f"{vhb_item_matched}"
                                                                 )
                                                         if duration_delta:
-                                                            # full seconds is as precise as we need to be,
-                                                            # therefore we convert the seconds to int values
                                                             workload_in_seconds: int = int(
                                                                 duration_delta.total_seconds()
                                                             )
                                                             if workload_in_seconds:
-                                                                # ToDo: confirm that course_duration is correct
-                                                                #  (BIRD "course_workload" seems to be a closer match)
-                                                                # course_itemloader.add_value(
-                                                                #     "course_duration", workload_in_seconds
-                                                                # )
-                                                                # ToDo: choose only 1 of these 2 possible properties
-                                                                # course_itemloader.add_value(
-                                                                #     "course_workload", workload_in_seconds
-                                                                # )
-                                                                pass
+                                                                # the edu-sharing property 'cclom:typicallearningtime'
+                                                                # expects values in ms:
+                                                                workload_in_ms: int = (
+                                                                        workload_in_seconds * 1000
+                                                                )
+                                                                course_itemloader.add_value(
+                                                                    "course_duration", workload_in_ms
+                                                                )
                                     if "learningObjectives" in vhb_item_matched["attributes"]:
                                         vhb_learning_objectives: str = vhb_item_matched["attributes"][
                                             "learningObjectives"
@@ -1348,6 +1345,22 @@ class OersiSpider(scrapy.Spider, LomBase):
                                             course_itemloader.add_value(
                                                 "course_learningoutcome", vhb_learning_objectives
                                             )
+                                    if "startDate" in vhb_item_matched["attributes"]:
+                                        start_date_raw: str = vhb_item_matched["attributes"]["startDate"]
+                                        if start_date_raw and isinstance(start_date_raw, str):
+                                            # parsing the date string first to check its validity
+                                            sdt_parsed: datetime = dateparser.parse(start_date_raw)
+                                            if sdt_parsed and isinstance(sdt_parsed, datetime.datetime):
+                                                # just to make sure that we don't parse bogus data, we run the string
+                                                # through the dateparser module first and convert it to iso 8601
+                                                sd_parsed_iso: str = sdt_parsed.date().isoformat()
+                                                # ToDo: confirm if this field should be saved as datetime or date
+                                                course_itemloader.add_value("course_availability_from", sd_parsed_iso)
+                                            else:
+                                                self.logger.warning(
+                                                    f"Could not parse vhb 'start_date' value {start_date_raw} "
+                                                    f"to datetime. (Please check for new edge-cases "
+                                                    f"and update the crawler!)")
                                 base.add_value("course", course_itemloader.load_item())
 
         # noinspection DuplicatedCode
