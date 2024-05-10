@@ -279,7 +279,7 @@ def create_app() -> fapi.FastAPI:
         """
 
         # found_urls = find_gen_sitemap(data.url)
-        found_urls = generate_tree()
+        found_urls = generate_sitemap(data.url, 6)
 
         return SitemapResult(
             urls = found_urls
@@ -357,7 +357,7 @@ def error_logger() -> str:
     return str(value_)+'. '+traceback_list
 
 
-def find_gen_sitemap(url):
+def find_gen_sitemap(url, max_entries = 5):
     sitemap_list = sitemaps.sitemap_search(url, target_lang='de')
     feeds_list = feeds.find_feed_urls(url)
 
@@ -366,27 +366,33 @@ def find_gen_sitemap(url):
     all_urls_set = sitemap_set.union(feeds_set)
     all_urls = list(all_urls_set)
     if len(all_urls) == 0:
-        all_urls = generate_sitemap(url)
-    return all_urls
+        all_urls = generate_sitemap(url, max_entries)
+    return all_urls[:max_entries]
 
-def generate_sitemap(url):
+def generate_sitemap(url, max_entries):
     DEVNULL = open(os.devnull, 'wb')
     try:
         bytes_result = subprocess.check_output([f'npx',
                                                 'sitemap-generator-cli',
-                                                url],
+                                                '--max-depth',
+                                                '2',
+                                                '--max-entries',
+                                                str(max_entries),
+                                                '--verbose',
+                                                url,
+                                                '>>',
+                                                'sitemap.txt'],
                                                stderr=DEVNULL)
+        print(bytes_result)
+        str_result = bytes_result.decode('utf-8')
+        str_result = str_result.replace('[ ADD ] ', '')
+        str_result = str_result.replace('\n', ',')
+        if str_result.index('Added ') == 0:
+            return []
+        else:
+            str_result = str_result[:str_result.index(',Added ')]
+        urls = str_result.split(",")
+        return urls
     except (subprocess.CalledProcessError, Exception) as e:
-        print("error generating sitemap")
-
-def generate_tree():
-    urls = ['https://plattform.fobizz.com', 'https://plattform.fobizz.com/bundles/4-fobizz-flatrate',
-            'https://plattform.fobizz.com/community/11-deine-erste-app-programmieren',
-            'https://plattform.fobizz.com/community/abgeschlossene-fortbildung-wiederholen',
-            'https://plattform.fobizz.com/community/abgeschlossene-fortbildungen',
-            'https://plattform.fobizz.com/community/abmelden-aus-fortbildung',
-            'https://plattform.fobizz.com/community/adventskalender',
-            'https://plattform.fobizz.com/community/adventskalender-2021',
-            'https://plattform.fobizz.com/community/adventskalender-2021-8e7a8b8f-114d-4dbb-8811-c91a2af88947',
-            'https://plattform.fobizz.com/community/adventskalender-2023']
-    return urls
+        print("Error generating sitemap:", e)
+        return []
