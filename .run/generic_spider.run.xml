@@ -2,6 +2,7 @@
   <configuration default="false" name="generic_spider" type="PythonConfigurationType" factoryName="Python">
     <output_file path="$PROJECT_DIR$/logs/generic_spider_console.log" is_save="true" />
     <module name="oeh-search-etl" />
+    <option name="ENV_FILES" value="" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
@@ -14,7 +15,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="scrapy.cmdline" />
-    <option name="PARAMETERS" value="crawl generic_spider -O &quot;../../logs/generic_spider.json&quot;" />
+    <option name="PARAMETERS" value="crawl generic_spider -a urltocrawl=https://plattform.fobizz.com/fortbildungen/1168-discovery-learning-in-your-lessons?search_id=6637921,https://plattform.fobizz.com/fortbildungen/1138-mental-health-and-effective-workload-management?search_id=6637921 -a ai_enabled=False -O &quot;../../logs/generic_spider.json&quot;" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="true" />

@@ -92,7 +92,7 @@ class GenericSpider(Spider, LrmiBase):
     z_api_text: z_api.AITextPromptsApi
     z_api_kidra: z_api.KidraApi
 
-    def __init__(self, urltocrawl="", validated_result="", **kwargs):
+    def __init__(self, urltocrawl="", validated_result="", ai_enabled:bool=False, **kwargs):
         LrmiBase.__init__(self, **kwargs)
 
         # self.validated_result = validated_result
@@ -111,8 +111,7 @@ class GenericSpider(Spider, LrmiBase):
         logging.warning("self.start_urls=" + self.start_urls[0])
         self.valuespaces = Valuespaces()
         # ToDo: optional .env Feature: "generic_spider" (AI=enabled) <-> "generic_minimal_spider" (AI=disabled)?
-        ai_enabled: bool = env.get_bool(key="GENERIC_SPIDER_AI_ENABLED", allow_null=True, default=True)
-        if ai_enabled:
+        if ai_enabled == "True":
             self.AI_ENABLED = True
             logging.info(f"Starting generic_spider with AI_ENABLED flag!")
             z_api_config = z_api.Configuration.get_default_copy()
@@ -120,7 +119,7 @@ class GenericSpider(Spider, LrmiBase):
             z_api_client = z_api.ApiClient(configuration=z_api_config)
             self.z_api_text = z_api.AITextPromptsApi(z_api_client)
             self.z_api_kidra = z_api.KidraApi(z_api_client)
-        elif ai_enabled is False:
+        elif ai_enabled == "False":
             logging.info(f"Starting generic_spider with MINIMAL settings. AI Services are DISABLED!")
             self.AI_ENABLED = False
             # this optional flag allows us to control if we want to use AI-suggested metadata. We can compare the

@@ -23,7 +23,8 @@ from trafilatura import sitemaps, feeds
 env.get("Z_API_KEY", allow_null=False)
 
 class Data(pd.BaseModel):
-    url: str
+    url: str = ""
+    ai_enabled: bool = False
 
 class PingResult(pd.BaseModel):
     message: str = ""
@@ -136,8 +137,9 @@ def create_app() -> fapi.FastAPI:
             bytes_result = subprocess.check_output([f'scrapy',
                                                     'crawl',
                                                     'generic_spider',
-                                                    '-a',
-                                                    'urltocrawl=' + data.url, '-o', '-:json'],
+                                                    '-a', 'urltocrawl=' + data.url,
+                                                    '-a', 'ai_enabled=' + str(data.ai_enabled),
+                                                    '-o', '-:json'],
                                                    stderr=DEVNULL)
         except (subprocess.CalledProcessError, Exception) as e:
             error_traceback = error_logger()
@@ -155,44 +157,69 @@ def create_app() -> fapi.FastAPI:
         str_result = bytes_result.decode('utf-8')
         try:
             json_results = json.loads(str_result)
+            # Todo: parse not just the first json result but parse All the results for the page tree crawling
             json_result = json_results[0]
+            if data.ai_enabled:
+                license = json_result['license']
+                title = json_result['lom']['general']['title']
+                description = json_result['lom']['general']['description']
+                keywords = json_result['lom']['general']['keyword']
+                valuespaces = json_result['valuespaces']
+                educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
+                disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
+                new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
+                kidra_raw = json_result['kidra_raw']
+                curriculum = kidra_raw["curriculum"]
+                text_difficulty = kidra_raw["text_difficulty"]
+                text_reading_time = kidra_raw["text_reading_time"]
+                kidraDisciplines = []
+                if 'kidraDisciplines' in kidra_raw:
+                    kidraDisciplines = kidra_raw["kidraDisciplines"]
 
-            license = json_result['license']
-            title = json_result['lom']['general']['title']
-            description = json_result['lom']['general']['description']
-            keywords = json_result['lom']['general']['keyword']
-            valuespaces = json_result['valuespaces']
-            educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
-            disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
-            new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
-            kidra_raw = json_result['kidra_raw']
-            curriculum = kidra_raw["curriculum"]
-            text_difficulty = kidra_raw["text_difficulty"]
-            text_reading_time = kidra_raw["text_reading_time"]
-            kidraDisciplines = []
-            if 'kidraDisciplines' in kidra_raw:
-                kidraDisciplines = kidra_raw["kidraDisciplines"]
+                keywords = join(keywords)
+                disciplines = join(disciplines)
+                educational_context = join(educational_context)
+                new_lrt = join(new_lrt)
+                curriculum = join(curriculum)
+                kidraDisciplines = join(kidraDisciplines)
 
-            keywords = join(keywords)
-            disciplines = join(disciplines)
-            educational_context = join(educational_context)
-            new_lrt = join(new_lrt)
-            curriculum = join(curriculum)
-            kidraDisciplines = join(kidraDisciplines)
+                return Result(
+                    title=title,
+                    description=description,
+                    keywords=keywords,
+                    disciplines=disciplines,
+                    educational_context=educational_context,
+                    license=license,
+                    new_lrt=new_lrt,
+                    kidra_disciplines=kidraDisciplines,
+                    curriculum=curriculum,
+                    text_difficulty=text_difficulty,
+                    text_reading_time=text_reading_time
+                )
+            else:
+                license = json_result['license']
+                title = json_result['lom']['general']['title']
+                description = json_result['lom']['general']['description']
+                keywords = json_result['lom']['general']['keyword'] if 'keyword' in json_result['lom']['general'].keys() else []
+                valuespaces = json_result['valuespaces']
+                educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
+                disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
+                new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
 
-            return Result(
-                title=title,
-                description=description,
-                keywords=keywords,
-                disciplines=disciplines,
-                educational_context=educational_context,
-                license=license,
-                new_lrt=new_lrt,
-                kidra_disciplines=kidraDisciplines,
-                curriculum=curriculum,
-                text_difficulty=text_difficulty,
-                text_reading_time=text_reading_time
-            )
+                keywords = join(keywords)
+                disciplines = join(disciplines)
+                educational_context = join(educational_context)
+                new_lrt = join(new_lrt)
+
+                return Result(
+                    title=title,
+                    description=description,
+                    keywords=keywords,
+                    disciplines=disciplines,
+                    educational_context=educational_context,
+                    license=license,
+                    new_lrt=new_lrt
+                )
         except Exception as e:
             error_traceback = error_logger()
             error_str = 'Native spider returned invalid json' + error_traceback
