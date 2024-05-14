@@ -92,7 +92,7 @@ class GenericSpider(Spider, LrmiBase):
     z_api_text: z_api.AITextPromptsApi
     z_api_kidra: z_api.KidraApi
 
-    def __init__(self, urltocrawl="", validated_result="", ai_enabled:bool=False, **kwargs):
+    def __init__(self, urltocrawl="", validated_result="", ai_enabled="True", **kwargs):
         LrmiBase.__init__(self, **kwargs)
 
         # self.validated_result = validated_result

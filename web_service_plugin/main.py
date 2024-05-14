@@ -24,7 +24,7 @@ env.get("Z_API_KEY", allow_null=False)
 
 class Data(pd.BaseModel):
     url: str = ""
-    ai_enabled: bool = False
+    ai_enabled: bool = True
 
 class PingResult(pd.BaseModel):
     message: str = ""
