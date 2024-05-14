@@ -41,7 +41,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.2.3"  # last update: 2024-05-08
+    version = "0.2.4"  # last update: 2024-05-14
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -1258,6 +1258,39 @@ class OersiSpider(scrapy.Spider, LomBase):
                                         vhb_abstract: str = vhb_item_matched["attributes"]["abstract"]
                                         if vhb_abstract and isinstance(vhb_abstract, str):
                                             course_itemloader.add_value("course_description_short", vhb_abstract)
+                                    if "learningObjectives" in vhb_item_matched["attributes"]:
+                                        vhb_learning_objectives: str = vhb_item_matched["attributes"][
+                                            "learningObjectives"
+                                        ]
+                                        if vhb_learning_objectives and isinstance(vhb_learning_objectives, str):
+                                            course_itemloader.add_value(
+                                                "course_learningoutcome", vhb_learning_objectives
+                                            )
+                                    if "outline" in vhb_item_matched["attributes"]:
+                                        outline_raw: str = vhb_item_matched["attributes"]["outline"]
+                                        if outline_raw and isinstance(outline_raw, str):
+                                            # ToDo: vhb "outline" -> course_schedule -> "ccm:oeh_course_schedule"
+                                            # the vhb attribute "outline" describes a course's schedule (Kursablauf)
+                                            # IMPORTANT: "outline" is not part of MOOCHub v2.x nor 3.x!
+                                            course_itemloader.add_value("course_schedule", outline_raw)
+                                        else:
+                                            self.logger.warning(f"Received vhb 'outline'-property of unexpected type: "
+                                                                f"{outline_raw}")
+                                    if "startDate" in vhb_item_matched["attributes"]:
+                                        start_date_raw: str = vhb_item_matched["attributes"]["startDate"]
+                                        if start_date_raw and isinstance(start_date_raw, str):
+                                            # parsing the date string first to check its validity
+                                            sdt_parsed: datetime = dateparser.parse(start_date_raw)
+                                            if sdt_parsed and isinstance(sdt_parsed, datetime.datetime):
+                                                # just to make sure that we don't parse bogus data, we run the string
+                                                # through the dateparser module first and convert it to iso 8601
+                                                sd_parsed_iso: str = sdt_parsed.isoformat()
+                                                course_itemloader.add_value("course_availability_from", sd_parsed_iso)
+                                            else:
+                                                self.logger.warning(
+                                                    f"Could not parse vhb 'start_date' value {start_date_raw} "
+                                                    f"to datetime. (Please check for new edge-cases "
+                                                    f"and update the crawler!)")
                                     if "video" in vhb_item_matched["attributes"]:
                                         video_item: dict = vhb_item_matched["attributes"]["video"]
                                         if video_item:
@@ -1268,7 +1301,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                                         "course_url_video", vhb_course_video_url
                                                     )
                                             # ToDo: "video.licenses" is of type list[dict]
-                                            # each "license"-dict can have an "id"- and "url"-property
+                                            #  each "license"-dict can have an "id"- and "url"-property
                                     if "workload" in vhb_item_matched["attributes"]:
                                         vhb_workload_raw: str = vhb_item_matched["attributes"]["workload"]
                                         if vhb_workload_raw and isinstance(vhb_workload_raw, str):
@@ -1337,30 +1370,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                                                                 course_itemloader.add_value(
                                                                     "course_duration", workload_in_ms
                                                                 )
-                                    if "learningObjectives" in vhb_item_matched["attributes"]:
-                                        vhb_learning_objectives: str = vhb_item_matched["attributes"][
-                                            "learningObjectives"
-                                        ]
-                                        if vhb_learning_objectives and isinstance(vhb_learning_objectives, str):
-                                            course_itemloader.add_value(
-                                                "course_learningoutcome", vhb_learning_objectives
-                                            )
-                                    if "startDate" in vhb_item_matched["attributes"]:
-                                        start_date_raw: str = vhb_item_matched["attributes"]["startDate"]
-                                        if start_date_raw and isinstance(start_date_raw, str):
-                                            # parsing the date string first to check its validity
-                                            sdt_parsed: datetime = dateparser.parse(start_date_raw)
-                                            if sdt_parsed and isinstance(sdt_parsed, datetime.datetime):
-                                                # just to make sure that we don't parse bogus data, we run the string
-                                                # through the dateparser module first and convert it to iso 8601
-                                                sd_parsed_iso: str = sdt_parsed.date().isoformat()
-                                                # ToDo: confirm if this field should be saved as datetime or date
-                                                course_itemloader.add_value("course_availability_from", sd_parsed_iso)
-                                            else:
-                                                self.logger.warning(
-                                                    f"Could not parse vhb 'start_date' value {start_date_raw} "
-                                                    f"to datetime. (Please check for new edge-cases "
-                                                    f"and update the crawler!)")
                                 base.add_value("course", course_itemloader.load_item())
 
         # noinspection DuplicatedCode
