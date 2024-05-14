@@ -539,10 +539,12 @@ class EduSharing:
             # ToDo: activate these fields AFTER confirming that the edu-sharing properties are correct
             # ToDo: implement a CourseItemPipeline in pipelines.py BEFORE activating these fields!
             if "course_availability_from" in item["course"]:
-                # ToDo: confirm is this field should store a datetime or a date (and implement check in pipelines.py)
+                # as of 2024-05-14: "ccm:oeh_event_begin" expects a datetime value
+                # ToDo: implement datetime typecheck for this property in pipelines.py
                 spaces["ccm:oeh_event_begin"] = item["course"]["course_availability_from"]
             if "course_availability_to" in item["course"]:
-                # ToDo: confirm if this field should store a datetime or a date (and implement check in pipelines.py)
+                # as of 2024-05-14: "ccm:oeh_event_end" expects a datetime value
+                # Todo: implement datetime typecheck for this property in pipelines.py
                 spaces["ccm:oeh_event_end"] = item["course"]["course_availability_to"]
             if "course_description_short" in item["course"]:
                 spaces["ccm:oeh_course_description_short"] = item["course"]["course_description_short"]
@@ -551,6 +553,8 @@ class EduSharing:
                 spaces["cclom:typicallearningtime"] = item["course"]["course_duration"]
             if "course_learningoutcome" in item["course"]:
                 spaces["ccm:learninggoal"] = item["course"]["course_learningoutcome"]
+            if "course_schedule" in item["course"]:
+                spaces["ccm:oeh_course_schedule"] = item["course"]["course_schedule"]
             if "course_url_video" in item["course"]:
                 spaces["ccm:oeh_course_url_video"] = item["course"]["course_url_video"]
             if "course_workload" in item["course"]:

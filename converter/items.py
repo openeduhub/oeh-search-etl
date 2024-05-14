@@ -328,20 +328,23 @@ class CourseItem(Item):
     """Corresponding edu-sharing property: 'ccm:oeh_event_begin' (date)"""
     course_availability_to = Field()
     """Corresponding edu-sharing property: 'ccm:oeh_event_end' (date)"""
+    course_description_short = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_course_description_short'"""
     course_duration = Field()
     """Corresponding edu-sharing property: 'cclom:typicallearningtime'
     (edu-sharing expects 'cclom:typicallearningtime' values in milliseconds!)"""
     course_learningoutcome = Field()
     """Describes "Lernergebnisse" or "learning objectives". (Expects a string, with or without HTML-formatting!)
     Corresponding edu-sharing property: 'ccm:learninggoal'"""
-    course_workload = Field()
-    """Describes the workload per week."""
-    # ToDo: confirm where "workload" values should be saved within edu-sharing
-    course_description_short = Field()
-    """Corresponding edu-sharing property: 'ccm:oeh_course_description_short'"""
+    course_schedule = Field()
+    """Describes the schedule of a course ("Kursablauf"). (Expects a string, with or without HTML-formatting!)
+    Corresponding edu-sharing property: 'ccm:oeh_course_schedule'."""
     course_url_video = Field()
     """URL of a course-specific trailer- or teaser-video.
     Corresponding edu-sharing property: 'ccm:oeh_course_url_video'"""
+    course_workload = Field()
+    """Describes the workload per week."""
+    # ToDo: confirm where "workload" values should be saved within edu-sharing
 
 
 class BaseItem(Item):
