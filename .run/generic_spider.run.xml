@@ -15,7 +15,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="scrapy.cmdline" />
-    <option name="PARAMETERS" value="crawl generic_spider -a urltocrawl=https://plattform.fobizz.com/fortbildungen/1168-discovery-learning-in-your-lessons?search_id=6637921,https://plattform.fobizz.com/fortbildungen/1138-mental-health-and-effective-workload-management?search_id=6637921 -a ai_enabled=False -O &quot;../../logs/generic_spider.json&quot;" />
+    <option name="PARAMETERS" value="crawl generic_spider -a urltocrawl=https://biologie-lernprogramme.de/ -a ai_enabled=False -a find_sitemap=True -O &quot;../../logs/generic_spider.json&quot;" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="true" />
