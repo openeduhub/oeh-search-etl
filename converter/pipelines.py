@@ -267,6 +267,11 @@ class ConvertTimePipeline(BasicPipeline):
         if "typicalLearningTime" in item["lom"]["educational"]:
             t = item["lom"]["educational"]["typicalLearningTime"]
             mapped = None
+            # ToDo: typecheck the provided value first and handle it accordingly!
+            #  - strings: check commonly provided "duration" formats (e.g. "hh:mm:ss" or "12 Stunden")
+            #  - convert to int: 'cclom:typicallearningtime' expects values to be in milliseconds!
+            #  - improve error-handling by reworking the bare "except"-clause
+            #  - update es_connector.py and connect this property to the backend
             splitted = t.split(":")
             if len(splitted) == 3:
                 mapped = (
