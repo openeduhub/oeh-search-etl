@@ -32,7 +32,7 @@ from ..util.license_mapper import LicenseMapper
 from ..web_tools import WebEngine, WebTools
 import threading
 import json
-
+from ..util.sitemap import find_generate_sitemap
 
 class GenericSpider(Spider, LrmiBase):
     name = "generic_spider"
@@ -92,7 +92,7 @@ class GenericSpider(Spider, LrmiBase):
     z_api_text: z_api.AITextPromptsApi
     z_api_kidra: z_api.KidraApi
 
-    def __init__(self, urltocrawl="", validated_result="", ai_enabled="True", **kwargs):
+    def __init__(self, urltocrawl="", validated_result="", ai_enabled="True", find_sitemap="False", **kwargs):
         LrmiBase.__init__(self, **kwargs)
 
         # self.validated_result = validated_result
@@ -101,8 +101,12 @@ class GenericSpider(Spider, LrmiBase):
 
         self.results_dict = {}
         if urltocrawl != "":
-            urls = get_urls_from_string( urltocrawl )
-            self.start_urls = urls
+            urls = get_urls_from_string(urltocrawl)
+            if find_sitemap == "True" and len(urls) == 1:
+                sitemap_urls = find_generate_sitemap(urls[0], max_entries=3)
+                self.start_urls = sitemap_urls
+            else:
+                self.start_urls = urls
         if validated_result != "":
             self.results_dict = json.loads(validated_result)
             urltocrawl = self.results_dict["url"]

@@ -16,8 +16,7 @@ from starlette.responses import JSONResponse
 import converter.env as env
 import sys
 import traceback
-from trafilatura import sitemaps, feeds
-
+from ..converter.util.sitemap import find_generate_sitemap
 
 # verify presence of the key!
 env.get("Z_API_KEY", allow_null=False)
@@ -114,7 +113,7 @@ def create_app() -> fapi.FastAPI:
 
         Parameters
         ----------
-        url : str
+        data.url: str
             The url to be crawled.
 
         Returns
@@ -305,8 +304,7 @@ def create_app() -> fapi.FastAPI:
         urls : list
         """
 
-        # found_urls = find_gen_sitemap(data.url)
-        found_urls = generate_sitemap(data.url, 6)
+        found_urls = find_generate_sitemap(data.url, 6)
 
         return SitemapResult(
             urls = found_urls
@@ -382,44 +380,3 @@ def error_logger() -> str:
     traceback_list = traceback.extract_tb(traceback_)
     traceback_list = ''.join(str(t) for t in traceback_list)
     return str(value_)+'. '+traceback_list
-
-
-def find_gen_sitemap(url, max_entries = 5):
-    sitemap_list = sitemaps.sitemap_search(url, target_lang='de')
-    feeds_list = feeds.find_feed_urls(url)
-
-    sitemap_set = set(sitemap_list)
-    feeds_set = set(feeds_list)
-    all_urls_set = sitemap_set.union(feeds_set)
-    all_urls = list(all_urls_set)
-    if len(all_urls) == 0:
-        all_urls = generate_sitemap(url, max_entries)
-    return all_urls[:max_entries]
-
-def generate_sitemap(url, max_entries):
-    DEVNULL = open(os.devnull, 'wb')
-    try:
-        bytes_result = subprocess.check_output([f'npx',
-                                                'sitemap-generator-cli',
-                                                '--max-depth',
-                                                '2',
-                                                '--max-entries',
-                                                str(max_entries),
-                                                '--verbose',
-                                                url,
-                                                '>>',
-                                                'sitemap.txt'],
-                                               stderr=DEVNULL)
-        print(bytes_result)
-        str_result = bytes_result.decode('utf-8')
-        str_result = str_result.replace('[ ADD ] ', '')
-        str_result = str_result.replace('\n', ',')
-        if str_result.index('Added ') == 0:
-            return []
-        else:
-            str_result = str_result[:str_result.index(',Added ')]
-        urls = str_result.split(",")
-        return urls
-    except (subprocess.CalledProcessError, Exception) as e:
-        print("Error generating sitemap:", e)
-        return []
