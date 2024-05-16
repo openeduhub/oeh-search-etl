@@ -41,7 +41,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.2.4"  # last update: 2024-05-14
+    version = "0.2.5"  # last update: 2024-05-16
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -215,7 +215,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         See: https://www.elastic.co/guide/en/elasticsearch/reference/current/point-in-time-api.html
         """
         url = (
-            f"https://oersi.org/resources/api-internal/search/oer_data/_pit?keep_alive="
+            f"https://oersi.org/resources/api/search/oer_data/_pit?keep_alive="
             f"{self.ELASTIC_PARAMETER_KEEP_ALIVE}&pretty"
         )
         headers = {"accept": "application/json"}
@@ -235,13 +235,13 @@ class OersiSpider(scrapy.Spider, LomBase):
         Deletes the ElasticSearch PIT once it's no longer needed for page iteration. See:
         https://www.elastic.co/guide/en/elasticsearch/reference/current/point-in-time-api.html#close-point-in-time-api
         """
-        url = f"https://oersi.org/resources/api-internal/search/_pit"
+        url = f"https://oersi.org/resources/api/search/_pit"
         delete_request = requests.delete(url=url, json=self.ELASTIC_PIT_ID)
         self.logger.debug(f"Deleting ElasticSearch PIT: {self.ELASTIC_PIT_ID}")
         return delete_request.json()
 
     def elastic_fetch_list_of_provider_names(self):
-        _url = "https://oersi.org/resources/api-internal/search/oer_data/_search"
+        _url = "https://oersi.org/resources/api/search/oer_data/_search"
 
         _payload = {
             "_source": False,
@@ -302,7 +302,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         See:
         https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#paginate-search-results
         """
-        url = "https://oersi.org/resources/api-internal/search/_search"
+        url = "https://oersi.org/resources/api/search/_search"
         if search_after is None:
             payload = {
                 "size": self.ELASTIC_PARAMETER_REQUEST_SIZE,
