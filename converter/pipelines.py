@@ -213,10 +213,12 @@ class NormLicensePipeline(BasicPipeline):
 
         if "url" in item["license"] and "oer" not in item["license"]:
             match item["license"]["url"]:
-                case Constants.LICENSE_CC_BY_20 | \
+                case Constants.LICENSE_CC_BY_10 | \
+                     Constants.LICENSE_CC_BY_20 | \
                      Constants.LICENSE_CC_BY_25 | \
                      Constants.LICENSE_CC_BY_30 | \
                      Constants.LICENSE_CC_BY_40 | \
+                     Constants.LICENSE_CC_BY_SA_10 | \
                      Constants.LICENSE_CC_BY_SA_20 | \
                      Constants.LICENSE_CC_BY_SA_25 | \
                      Constants.LICENSE_CC_BY_SA_30 | \
