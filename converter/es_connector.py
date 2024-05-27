@@ -542,10 +542,10 @@ class EduSharing:
                 # as of 2024-05-14: "ccm:oeh_event_begin" expects a datetime value
                 # ToDo: implement datetime typecheck for this property in pipelines.py
                 spaces["ccm:oeh_event_begin"] = item["course"]["course_availability_from"]
-            if "course_availability_to" in item["course"]:
+            if "course_availability_until" in item["course"]:
                 # as of 2024-05-14: "ccm:oeh_event_end" expects a datetime value
                 # Todo: implement datetime typecheck for this property in pipelines.py
-                spaces["ccm:oeh_event_end"] = item["course"]["course_availability_to"]
+                spaces["ccm:oeh_event_end"] = item["course"]["course_availability_until"]
             if "course_description_short" in item["course"]:
                 spaces["ccm:oeh_course_description_short"] = item["course"]["course_description_short"]
             if "course_duration" in item["course"]:

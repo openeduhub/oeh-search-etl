@@ -326,7 +326,7 @@ class CourseItem(Item):
     """
     course_availability_from = Field()
     """Corresponding edu-sharing property: 'ccm:oeh_event_begin' (date)"""
-    course_availability_to = Field()
+    course_availability_until = Field()
     """Corresponding edu-sharing property: 'ccm:oeh_event_end' (date)"""
     course_description_short = Field()
     """Corresponding edu-sharing property: 'ccm:oeh_course_description_short'"""
