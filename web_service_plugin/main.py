@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse
 import converter.env as env
 import sys
 import traceback
-from ..converter.util.sitemap import find_generate_sitemap
+from converter.util.sitemap import find_generate_sitemap
 
 # verify presence of the key!
 env.get("Z_API_KEY", allow_null=False)
