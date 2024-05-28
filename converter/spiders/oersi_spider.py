@@ -42,7 +42,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.2.6"  # last update: 2024-05-27
+    version = "0.2.6"  # last update: 2024-05-28
     allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -201,8 +201,8 @@ class OersiSpider(scrapy.Spider, LomBase):
                 )
                 return None
             if (
-                    self.getId(response=None, elastic_item=elastic_item) is not None
-                    and self.getHash(response=None, elastic_item_source=elastic_item["_source"]) is not None
+                self.getId(response=None, elastic_item=elastic_item) is not None
+                and self.getHash(response=None, elastic_item_source=elastic_item["_source"]) is not None
             ):
                 if not self.hasChanged(None, elastic_item=elastic_item):
                     return None
@@ -282,8 +282,9 @@ class OersiSpider(scrapy.Spider, LomBase):
                             f"{self.ELASTIC_PROVIDERS_TO_CRAWL}"
                         )
                         if metadata_provider_count_total:
-                            self.logger.info(f"Expecting {metadata_provider_count_total} ElasticSearch objects in "
-                                             f"total.")
+                            self.logger.info(
+                                f"Expecting {metadata_provider_count_total} ElasticSearch objects in " f"total."
+                            )
                 except KeyError as ke:
                     self.logger.error(
                         f"Failed to retrieve 'buckets'-list of metadata providers from OERSI "
@@ -347,7 +348,8 @@ class OersiSpider(scrapy.Spider, LomBase):
         if provider_target_from_env:
             self.logger.info(
                 f"Recognized OERSI_METADATA_PROVIDER .env setting. Limiting crawl to the following target(s): "
-                f"{provider_target_from_env}")
+                f"{provider_target_from_env}"
+            )
             self.ELASTIC_PROVIDERS_TO_CRAWL = [provider_target_from_env]
             if ";" in provider_target_from_env:
                 provider_list: list[str] = provider_target_from_env.split(";")
@@ -414,7 +416,9 @@ class OersiSpider(scrapy.Spider, LomBase):
         if imoox_response_dict and isinstance(imoox_response_dict, dict):
             if "data" in imoox_response_dict:
                 imoox_course_items = imoox_response_dict["data"]
-                self.logger.info(f"BIRD: Successfully retrieved {len(imoox_course_items)} items from {imoox_response.url} .")
+                self.logger.info(
+                    f"BIRD: Successfully retrieved {len(imoox_course_items)} items from {imoox_response.url} ."
+                )
                 self.imoox_json = copy.deepcopy(imoox_response_dict)
         else:
             self.logger.warning(f"BIRD: Failed to retrieve 'course'-data from 'iMoox' sourceOrganization.")
@@ -507,12 +511,12 @@ class OersiSpider(scrapy.Spider, LomBase):
         return changed
 
     def get_lifecycle_author(
-            self,
-            lom_base_item_loader: LomBaseItemloader,
-            elastic_item_source: dict,
-            organization_fallback: set[str],
-            date_created: Optional[str] = None,
-            date_published: Optional[str] = None,
+        self,
+        lom_base_item_loader: LomBaseItemloader,
+        elastic_item_source: dict,
+        organization_fallback: set[str],
+        date_created: Optional[str] = None,
+        date_published: Optional[str] = None,
     ):
         """
         If a "creator"-field is available in the OERSI API for a specific '_source'-item, creates an 'author'-specific
@@ -580,11 +584,11 @@ class OersiSpider(scrapy.Spider, LomBase):
         return authors
 
     def get_affiliation_and_save_to_lifecycle(
-            self,
-            affiliation_dict: dict,
-            lom_base_item_loader: LomBaseItemloader,
-            organization_fallback: set[str],
-            lifecycle_role: str,
+        self,
+        affiliation_dict: dict,
+        lom_base_item_loader: LomBaseItemloader,
+        organization_fallback: set[str],
+        lifecycle_role: str,
     ):
         """
         Retrieves metadata from OERSI's "affiliation"-field (which is typically found within a "creator"- or
@@ -648,11 +652,11 @@ class OersiSpider(scrapy.Spider, LomBase):
         return honorific_prefix.strip()
 
     def get_lifecycle_contributor(
-            self,
-            lom_base_item_loader: LomBaseItemloader,
-            elastic_item_source: dict,
-            organization_fallback: set[str],
-            author_list: Optional[list[str]] = None,
+        self,
+        lom_base_item_loader: LomBaseItemloader,
+        elastic_item_source: dict,
+        organization_fallback: set[str],
+        author_list: Optional[list[str]] = None,
     ):
         """
         Collects metadata from the OERSI "contributor"-field and stores it within a LomLifecycleItemLoader.
@@ -754,11 +758,11 @@ class OersiSpider(scrapy.Spider, LomBase):
             lom_base_item_loader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
 
     def get_lifecycle_publisher(
-            self,
-            lom_base_item_loader: LomBaseItemloader,
-            elastic_item_source: dict,
-            organizations_from_publisher_fields: set[str],
-            date_published: Optional[str] = None,
+        self,
+        lom_base_item_loader: LomBaseItemloader,
+        elastic_item_source: dict,
+        organizations_from_publisher_fields: set[str],
+        date_published: Optional[str] = None,
     ):
         """
         Collects metadata from OERSI's "publisher"-field and stores it within a LomLifecycleItemLoader. Successfully
@@ -794,7 +798,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lom_base_item_loader.add_value("lifecycle", lifecycle_publisher.load_item())
 
     def get_lifecycle_organization_from_source_organization_fallback(
-            self, elastic_item_source: dict, lom_item_loader: LomBaseItemloader, organization_fallback: set[str]
+        self, elastic_item_source: dict, lom_item_loader: LomBaseItemloader, organization_fallback: set[str]
     ):
         # ATTENTION: the "sourceOrganization"-field is not part of the AMB draft, therefore this method is currently
         # used a fallback, so we don't lose any useful metadata (even if that metadata is not part of the AMB spec).
@@ -836,8 +840,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                 lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
     def get_lifecycle_publisher_from_source_organization(
-            self, lom_item_loader: LomBaseItemloader, elastic_item_source: dict,
-            previously_collected_publishers: set[str]
+        self, lom_item_loader: LomBaseItemloader, elastic_item_source: dict, previously_collected_publishers: set[str]
     ):
         source_organizations: list[dict] = elastic_item_source.get("sourceOrganization")
         for so in source_organizations:
@@ -857,10 +860,9 @@ class OersiSpider(scrapy.Spider, LomBase):
                             lifecycle_org.add_value("url", org_url)
                     lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
-    def lifecycle_determine_type_of_identifier_and_save_uri(self,
-                                                            item_dictionary: dict,
-                                                            lifecycle_item_loader: LomLifecycleItemloader
-                                                            ):
+    def lifecycle_determine_type_of_identifier_and_save_uri(
+        self, item_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
+    ):
         """
         OERSI's "creator"/"contributor"/"affiliation" items might contain an 'id'-field which (optionally) provides
         URI-identifiers that reference GND / ORCID / Wikidata / ROR.
@@ -872,10 +874,10 @@ class OersiSpider(scrapy.Spider, LomBase):
             # "creator.id" can be 'null', therefore we need to explicitly check its type before trying to parse it
             uri_string: str = item_dictionary.get("id")
             if (
-                    "orcid.org" in uri_string
-                    or "/gnd/" in uri_string
-                    or "wikidata.org" in uri_string
-                    or "ror.org" in uri_string
+                "orcid.org" in uri_string
+                or "/gnd/" in uri_string
+                or "wikidata.org" in uri_string
+                or "ror.org" in uri_string
             ):
                 if "/gnd/" in uri_string:
                     lifecycle_item_loader.add_value("id_gnd", uri_string)
@@ -910,6 +912,290 @@ class OersiSpider(scrapy.Spider, LomBase):
             lifecycle_item_loader.add_value("lastName", last_name)
         elif name_string:
             lifecycle_item_loader.add_value("firstName", name_string)
+
+    def enrich_imoox_metadata(self, base_itemloader: BaseItemLoader, elastic_item: dict):
+        """
+        Combines the retrieved metadata from OERSI's elastic_item with iMoox (MOOCHub v3) metadata
+        if the identifiers match.
+        """
+        if self.imoox_json:
+            if "data" in self.imoox_json:
+                imoox_item_matched: dict | None = None
+                try:
+                    imoox_items: list[dict] = self.imoox_json["data"]
+                    for imoox_item in imoox_items:
+                        imoox_course_url: str = imoox_item["attributes"]["url"]
+                        if imoox_course_url and imoox_course_url == self.get_item_url(elastic_item):
+                            self.logger.debug(
+                                f"BIRD: Matched 'iMoox'-item {imoox_course_url} with OERSI "
+                                f"ElasticSearch item {elastic_item['_id']} "
+                                f"({elastic_item['_source']['id']})"
+                            )
+                            imoox_item_matched = imoox_item
+                except KeyError as ke:
+                    raise ke
+                if imoox_item_matched:
+                    course_itemloader: CourseItemLoader = CourseItemLoader()
+                    if "attributes" in imoox_item_matched:
+                        imoox_attributes: dict = imoox_item_matched["attributes"]
+                        # ToDo: MOOCHUb Spec v3 allows a list of (multiple, unique) date strings for
+                        #  - "startDate"
+                        #  - "endDate"
+                        #  -> "CourseItem" needs to be expanded to support multiple values for this field
+                        #
+                        #  (this problem is theoretical in nature at the moment,
+                        #  since "iMoox" currently provides only 1 value per property,
+                        #  but this might change in the future!)
+                        if "startDate" in imoox_attributes:
+                            start_dates: list[str] = imoox_attributes["startDate"]
+                            if start_dates and isinstance(start_dates, list):
+                                for start_date_raw in start_dates:
+                                    if start_date_raw and isinstance(start_date_raw, str):
+                                        sdt_parsed: datetime = dateparser.parse(start_date_raw)
+                                        if sdt_parsed and isinstance(sdt_parsed, datetime.datetime):
+                                            sd_parsed_iso: str = sdt_parsed.isoformat()
+                                            course_itemloader.add_value("course_availability_from", sd_parsed_iso)
+                        if "endDate" in imoox_attributes:
+                            end_dates: list[str] = imoox_attributes["endDate"]
+                            if end_dates and isinstance(end_dates, list):
+                                for end_date_raw in end_dates:
+                                    if end_date_raw and isinstance(end_date_raw, str):
+                                        edt_parsed: datetime = dateparser.parse(end_date_raw)
+                                        if edt_parsed and isinstance(edt_parsed, datetime.datetime):
+                                            ed_parsed_iso: str = edt_parsed.isoformat()
+                                            course_itemloader.add_value("course_availability_until", ed_parsed_iso)
+                        if "trailer" in imoox_attributes:
+                            # example data (as of 2024-05-27)
+                            # "trailer": {
+                            # 			"contentUrl": "https://www.youtube.com/watch?v=DljC8FPpE1s",
+                            # 			"type": "VideoObject",
+                            # 			"license": [
+                            # 				{
+                            # 					"identifier": "CC-BY-SA-4.0",
+                            # 					"url": "https://creativecommons.org/licenses/by-sa/4.0/"
+                            # 				}
+                            # 			]
+                            # 		},
+                            if "contentUrl" in imoox_attributes["trailer"]:
+                                imoox_course_trailer_url: str = imoox_attributes["trailer"]["contentUrl"]
+                                if imoox_course_trailer_url and isinstance(imoox_course_trailer_url, str):
+                                    course_itemloader.add_value("course_url_video", imoox_course_trailer_url)
+                        if "duration" in imoox_attributes and "workload" in imoox_attributes:
+                            # ToDo: "duration" and "workload" can currently only be saved as a (coupled)
+                            #  value since the destination is "cclom:typicallearningtime" for both fields
+                            #  which expects a (total) duration in milliseconds
+
+                            # iMoox provides "duration" as ISO-8601 formatted duration (period) strings.
+                            # Typical "duration" values (as of 2024-05-27): "P7W", "P12W" etc.
+                            # see MOOCHub v3 Schema:
+                            # https://github.com/MOOChub/schema/blob/main/moochub-schema.json#L907-L912
+                            amount_of_weeks: int | None = None
+                            duration_in_weeks_raw: str = imoox_attributes["duration"]
+                            if duration_in_weeks_raw and isinstance(duration_in_weeks_raw, str):
+                                duration_pattern: re.Pattern = re.compile(r"""^P(?P<amount_of_weeks>\d+)W$""")
+                                duration_result: re.Match | None = duration_pattern.search(duration_in_weeks_raw)
+                                if duration_result:
+                                    dura_dict: dict = duration_result.groupdict()
+                                    if "amount_of_weeks" in dura_dict:
+                                        amount_of_weeks = dura_dict["amount_of_weeks"]
+                                        # convert to Integer for further calculations
+                                        amount_of_weeks = int(amount_of_weeks)
+                            # ATTENTION: iMoox uses a different structure for "workload"-objects than vhb!
+                            #  (due to different MOOCHub versions)
+                            # example data (as of 2024-05-27):
+                            # "workload": {
+                            # 			"timeValue": 2,
+                            # 			"timeUnit": "h/week"
+                            # 		},
+                            # see MOOCHub v3 Schema - workload:
+                            # (https://github.com/MOOChub/schema/blob/main/moochub-schema.json#L1634-L1662),
+                            time_value: int | None = None
+                            time_unit: str | None = None
+                            if "timeUnit" in imoox_attributes["workload"]:
+                                # "timeUnit" can be one of several values:
+                                # "h/month", "h/week", "h/day"
+                                time_unit: str = imoox_attributes["workload"]["timeUnit"]
+                            if "timeValue" in imoox_attributes["workload"]:
+                                time_value: int = imoox_attributes["workload"]["timeValue"]
+                            if time_unit and time_value and amount_of_weeks:
+                                # "iMoox" provides all their durations / workloads in a week-related way,
+                                # while "cclom:typicallearningtime" expects ms. Therefore:
+                                # 1) we extract the amount of weeks from "duration"
+                                # 2) calculate: <amount_of_weeks> * <h/week> = total duration in h
+                                # 3) convert total duration from h to ms
+                                if time_unit == "h/week":
+                                    total_duration_in_hours: int = amount_of_weeks * time_value
+                                    duration_delta = datetime.timedelta(hours=total_duration_in_hours)
+                                    if duration_delta:
+                                        total_duration_in_ms: int = int(duration_delta.total_seconds() * 1000)
+                                        course_itemloader.add_value("course_duration", total_duration_in_ms)
+                                        self.logger.debug(
+                                            f"BIRD: combined iMoox 'duration' "
+                                            f"( {duration_in_weeks_raw} ) and 'workload' "
+                                            f"( {time_value} {time_unit} ) to {total_duration_in_hours} h "
+                                            f"(-> {total_duration_in_ms} ms)."
+                                        )
+                                else:
+                                    # ToDo: convert "h/day" and "h/month" in a similar fashion
+                                    self.logger.warning(
+                                        f"BIRD: iMoox provided a time unit {time_unit} for 'workload' "
+                                        f"which couldn't be handled. "
+                                        f"(Please update the crawler!)"
+                                    )
+                        pass
+                    base_itemloader.add_value("course", course_itemloader.load_item())
+
+    def enrich_vhb_metadata(
+        self,
+        base_itemloader: BaseItemLoader,
+        elastic_item: dict,
+        lom_general_itemloader: LomGeneralItemloader,
+        in_languages: list[str] | None,
+    ):
+        """
+        Combines metadata from OERSI's elastic_item with MOOCHub v2.x metadata from the source (vhb)
+        if the identifiers match.
+        """
+        # Reminder: "VHB" (= "Virtuelle Hochschule Bayern") uses MOOCHub for their JSON export!
+        # The following implementation is therefore MOOCHub-specific
+        # and NEEDS to be refactored into a separate class hook ASAP!
+        if self.vhb_oersi_json:
+            if "data" in self.vhb_oersi_json:
+                try:
+                    vhb_items: list[dict] = self.vhb_oersi_json["data"]
+                    vhb_item_matched: dict | None = None
+                    for vhb_item in vhb_items:
+                        # since the vhb_item has a different "id", the only way to match the OERSI item
+                        # against the vhb item is by comparing their URLs:
+                        vhb_course_url: str = vhb_item["attributes"]["url"]
+                        if vhb_course_url and vhb_course_url == self.get_item_url(elastic_item):
+                            self.logger.debug(
+                                f"BIRD: Matched 'vhb'-item {vhb_course_url} with OERSI "
+                                f"ElasticSearch item {elastic_item['_id']}"
+                            )
+                            vhb_item_matched = vhb_item
+                except KeyError as ke:
+                    raise ke
+                if vhb_item_matched:
+                    # if we found a match, we're now trying to enrich the item with metadata from both
+                    # sources
+                    course_itemloader: CourseItemLoader = CourseItemLoader()
+                    if "attributes" in vhb_item_matched:
+                        if not in_languages and "languages" in vhb_item_matched["attributes"]:
+                            # beware: the vhb 'languages'-property is a string value!
+                            vhb_language: str | None = vhb_item_matched["attributes"]["languages"]
+                            if vhb_language and isinstance(vhb_language, str):
+                                lom_general_itemloader.add_value("language", vhb_language)
+                            elif vhb_language:
+                                self.logger.warning(
+                                    f"Received unexpected vhb 'languages'-type! " f"(Type: {type(vhb_language)}"
+                                )
+                        if "abstract" in vhb_item_matched["attributes"]:
+                            vhb_abstract: str = vhb_item_matched["attributes"]["abstract"]
+                            if vhb_abstract and isinstance(vhb_abstract, str):
+                                course_itemloader.add_value("course_description_short", vhb_abstract)
+                        if "learningObjectives" in vhb_item_matched["attributes"]:
+                            vhb_learning_objectives: str = vhb_item_matched["attributes"]["learningObjectives"]
+                            if vhb_learning_objectives and isinstance(vhb_learning_objectives, str):
+                                course_itemloader.add_value("course_learningoutcome", vhb_learning_objectives)
+                        if "outline" in vhb_item_matched["attributes"]:
+                            outline_raw: str = vhb_item_matched["attributes"]["outline"]
+                            if outline_raw and isinstance(outline_raw, str):
+                                # ToDo: vhb "outline" -> course_schedule -> "ccm:oeh_course_schedule"
+                                # the vhb attribute "outline" describes a course's schedule (Kursablauf)
+                                # IMPORTANT: "outline" is not part of MOOCHub v2.x nor 3.x!
+                                course_itemloader.add_value("course_schedule", outline_raw)
+                            else:
+                                self.logger.warning(
+                                    f"Received vhb 'outline'-property of unexpected type: " f"{outline_raw}"
+                                )
+                        if "startDate" in vhb_item_matched["attributes"]:
+                            start_date_raw: str = vhb_item_matched["attributes"]["startDate"]
+                            if start_date_raw and isinstance(start_date_raw, str):
+                                # parsing the date string first to check its validity
+                                sdt_parsed: datetime = dateparser.parse(start_date_raw)
+                                if sdt_parsed and isinstance(sdt_parsed, datetime.datetime):
+                                    # just to make sure that we don't parse bogus data, we run the string
+                                    # through the dateparser module first and convert it to iso 8601
+                                    sd_parsed_iso: str = sdt_parsed.isoformat()
+                                    course_itemloader.add_value("course_availability_from", sd_parsed_iso)
+                                else:
+                                    self.logger.warning(
+                                        f"Could not parse vhb 'start_date' value {start_date_raw} "
+                                        f"to datetime. (Please check for new edge-cases "
+                                        f"and update the crawler!)"
+                                    )
+                        if "video" in vhb_item_matched["attributes"]:
+                            video_item: dict = vhb_item_matched["attributes"]["video"]
+                            if video_item:
+                                if "url" in video_item:
+                                    vhb_course_video_url: str = video_item["url"]
+                                    if vhb_course_video_url:
+                                        course_itemloader.add_value("course_url_video", vhb_course_video_url)
+                                # ToDo: "video.licenses" is of type list[dict]
+                                #  each "license"-dict can have an "id"- and "url"-property
+                        if "workload" in vhb_item_matched["attributes"]:
+                            vhb_workload_raw: str = vhb_item_matched["attributes"]["workload"]
+                            if vhb_workload_raw and isinstance(vhb_workload_raw, str):
+                                # vhb "workload"-values are described as a natural lange (German)
+                                # "<number> <unit>"-string, e.g.: "5 Stunden" or "60 Stunden".
+                                # Since edu-sharing expects seconds in "cclom:typicallearningtime",
+                                # we need to parse the string and convert it to seconds.
+                                vhb_workload: str = vhb_workload_raw.strip()
+                                duration_pattern = re.compile(r"""(?P<duration_number>\d+)\s*(?P<duration_unit>\w*)""")
+                                # ToDo: refactor into
+                                #  "MOOCHub (v2?) workload to BIRD course_duration" method
+                                duration_match: re.Match | None = duration_pattern.search(vhb_workload)
+                                duration_delta: datetime.timedelta = datetime.timedelta()
+                                if duration_match:
+                                    duration_result: dict = duration_match.groupdict()
+                                    if "duration_number" in duration_result:
+                                        duration_number_raw: str = duration_result["duration_number"]
+                                        duration_number: int = int(duration_number_raw)
+                                        if "duration_unit" in duration_result:
+                                            duration_unit: str = duration_result["duration_unit"]
+                                            duration_unit = duration_unit.lower()
+                                            match duration_unit:
+                                                case "sekunden":
+                                                    duration_delta = duration_delta + datetime.timedelta(
+                                                        seconds=duration_number
+                                                    )
+                                                case "minuten":
+                                                    duration_delta = duration_delta + datetime.timedelta(
+                                                        minutes=duration_number
+                                                    )
+                                                case "stunden":
+                                                    duration_delta = duration_delta + datetime.timedelta(
+                                                        hours=duration_number
+                                                    )
+                                                case "tage":
+                                                    duration_delta = duration_delta + datetime.timedelta(
+                                                        days=duration_number
+                                                    )
+                                                case "wochen":
+                                                    duration_delta = duration_delta + datetime.timedelta(
+                                                        weeks=duration_number
+                                                    )
+                                                case "monate":
+                                                    # timedelta has no parameter for months
+                                                    #  -> X months = X * (4 weeks)
+                                                    duration_delta = duration_delta + (
+                                                        duration_number * datetime.timedelta(weeks=4)
+                                                    )
+                                                case _:
+                                                    self.logger.warning(
+                                                        f"Failed to parse 'workload' time unit"
+                                                        f"from vhb course: "
+                                                        f"{vhb_item_matched}"
+                                                    )
+                                            if duration_delta:
+                                                workload_in_seconds: int = int(duration_delta.total_seconds())
+                                                if workload_in_seconds:
+                                                    # the edu-sharing property 'cclom:typicallearningtime'
+                                                    # expects values in ms:
+                                                    workload_in_ms: int = workload_in_seconds * 1000
+                                                    course_itemloader.add_value("course_duration", workload_in_ms)
+                    base_itemloader.add_value("course", course_itemloader.load_item())
 
     def parse(self, response=None, **kwargs):
         elastic_item: dict = kwargs.get("elastic_item")
@@ -1237,289 +1523,11 @@ class OersiSpider(scrapy.Spider, LomBase):
             if elastic_item["OERSI_QUERY_PROVIDER_NAME"]:
                 # checking if the "metadata provider name" that was used for the ElasticSearch query needs to be handled
                 query_parameter_provider_name: str = elastic_item["OERSI_QUERY_PROVIDER_NAME"]
-                # --- "iMoox" metadata hook starts here:
-                if query_parameter_provider_name and query_parameter_provider_name == "iMoox":
-                    if self.imoox_json:
-                        if "data" in self.imoox_json:
-                            imoox_item_matched: dict | None = None
-                            try:
-                                imoox_items: list[dict] = self.imoox_json["data"]
-                                for imoox_item in imoox_items:
-                                    imoox_course_url: str = imoox_item["attributes"]["url"]
-                                    if imoox_course_url and imoox_course_url == identifier_url:
-                                        self.logger.debug(f"BIRD: Matched 'iMoox'-item {imoox_course_url} with OERSI "
-                                                          f"ElasticSearch item {elastic_item['_id']} "
-                                                          f"({elastic_item_source['id']})")
-                                        imoox_item_matched = imoox_item
-                            except KeyError as ke:
-                                raise ke
-                            if imoox_item_matched:
-                                course_itemloader: CourseItemLoader = CourseItemLoader()
-                                if "attributes" in imoox_item_matched:
-                                    imoox_attributes: dict = imoox_item_matched["attributes"]
-                                    # ToDo: MOOCHUb Spec v3 allows a list of (multiple, unique) date strings for
-                                    #  - "startDate"
-                                    #  - "endDate"
-                                    #  -> "CourseItem" needs to be expanded to support multiple values for this field
-                                    #  (this problem is theoretical in nature at the moment,
-                                    #  since "iMoox" currently provides only 1 value per property,
-                                    #  but this might change in the future!)
-                                    if "startDate" in imoox_attributes:
-                                        start_dates: list[str] = imoox_attributes["startDate"]
-                                        if start_dates and isinstance(start_dates, list):
-                                            for start_date_raw in start_dates:
-                                                if start_date_raw and isinstance(start_date_raw, str):
-                                                    sdt_parsed: datetime = dateparser.parse(start_date_raw)
-                                                    if sdt_parsed and isinstance(sdt_parsed, datetime.datetime):
-                                                        sd_parsed_iso: str = sdt_parsed.isoformat()
-                                                        course_itemloader.add_value("course_availability_from",
-                                                                                    sd_parsed_iso)
-                                    if "endDate" in imoox_attributes:
-                                        end_dates: list[str] = imoox_attributes["endDate"]
-                                        if end_dates and isinstance(end_dates, list):
-                                            for end_date_raw in end_dates:
-                                                if end_date_raw and isinstance(end_date_raw, str):
-                                                    edt_parsed: datetime = dateparser.parse(end_date_raw)
-                                                    if edt_parsed and isinstance(edt_parsed, datetime.datetime):
-                                                        ed_parsed_iso: str = edt_parsed.isoformat()
-                                                        course_itemloader.add_value("course_availability_until",
-                                                                                    ed_parsed_iso)
-                                    if "trailer" in imoox_attributes:
-                                        # example data (as of 2024-05-27)
-                                        # "trailer": {
-                                        # 			"contentUrl": "https://www.youtube.com/watch?v=DljC8FPpE1s",
-                                        # 			"type": "VideoObject",
-                                        # 			"license": [
-                                        # 				{
-                                        # 					"identifier": "CC-BY-SA-4.0",
-                                        # 					"url": "https://creativecommons.org/licenses/by-sa/4.0/"
-                                        # 				}
-                                        # 			]
-                                        # 		},
-                                        if "contentUrl" in imoox_attributes["trailer"]:
-                                            imoox_course_trailer_url: str = imoox_attributes["trailer"]["contentUrl"]
-                                            if imoox_course_trailer_url and isinstance(imoox_course_trailer_url, str):
-                                                course_itemloader.add_value("course_url_video",
-                                                                            imoox_course_trailer_url)
-                                    if "duration" in imoox_attributes and "workload" in imoox_attributes:
-                                        # ToDo: "duration" and "workload" can currently only be saved as a (coupled)
-                                        #  value since the destination is "cclom:typicallearningtime" for both fields
-                                        #  which expects a (total) duration in milliseconds
-
-                                        # iMoox provides "duration" as ISO-8601 formatted duration (period) strings.
-                                        # Typical "duration" values (as of 2024-05-27): "P7W", "P12W" etc.
-                                        # see MOOCHub v3 Schema:
-                                        # https://github.com/MOOChub/schema/blob/main/moochub-schema.json#L907-L912
-                                        amount_of_weeks: int | None = None
-                                        duration_in_weeks_raw: str = imoox_attributes["duration"]
-                                        if duration_in_weeks_raw and isinstance(duration_in_weeks_raw, str):
-                                            duration_pattern: re.Pattern = re.compile(
-                                                r"""^P(?P<amount_of_weeks>\d+)W$""")
-                                            duration_result: re.Match | None = duration_pattern.search(
-                                                duration_in_weeks_raw)
-                                            if duration_result:
-                                                dura_dict: dict = duration_result.groupdict()
-                                                if "amount_of_weeks" in dura_dict:
-                                                    amount_of_weeks = dura_dict["amount_of_weeks"]
-                                                    # convert to Integer for further calculations
-                                                    amount_of_weeks = int(amount_of_weeks)
-                                        # ATTENTION: iMoox uses a different structure for "workload"-objects than vhb!
-                                        #  (due to different MOOCHub versions)
-                                        # example data (as of 2024-05-27):
-                                        # "workload": {
-                                        # 			"timeValue": 2,
-                                        # 			"timeUnit": "h/week"
-                                        # 		},
-                                        # see MOOCHub v3 Schema - workload:
-                                        # (https://github.com/MOOChub/schema/blob/main/moochub-schema.json#L1634-L1662),
-                                        time_value: int | None = None
-                                        time_unit: str | None = None
-                                        if "timeUnit" in imoox_attributes["workload"]:
-                                            # "timeUnit" can be one of several values:
-                                            # "h/month", "h/week", "h/day"
-                                            time_unit: str = imoox_attributes["workload"]["timeUnit"]
-                                        if "timeValue" in imoox_attributes["workload"]:
-                                            time_value: int = imoox_attributes["workload"]["timeValue"]
-                                        if time_unit and time_value and amount_of_weeks:
-                                            # "iMoox" provides all their durations / workloads in a week-related way,
-                                            # while "cclom:typicallearningtime" expects ms. Therefore:
-                                            # 1) we extract the amount of weeks from "duration"
-                                            # 2) calculate: <amount_of_weeks> * <h/week> = total duration in h
-                                            # 3) convert total duration from h to ms
-                                            if time_unit == "h/week":
-                                                total_duration_in_hours: int = amount_of_weeks * time_value
-                                                duration_delta = datetime.timedelta(hours=total_duration_in_hours)
-                                                if duration_delta:
-                                                    total_duration_in_ms: int = int(
-                                                        duration_delta.total_seconds() * 1000)
-                                                    course_itemloader.add_value("course_duration", total_duration_in_ms)
-                                                    self.logger.debug(f"BIRD: combined iMoox 'duration' "
-                                                                      f"( {duration_in_weeks_raw} ) and 'workload' "
-                                                                      f"( {time_value} {time_unit} ) to "
-                                                                      f"{total_duration_in_ms} ms.")
-                                            else:
-                                                # ToDo: convert "h/day" and "h/month" in a similar fashion
-                                                self.logger.warning(f"BIRD: iMoox provided a time unit {time_unit} "
-                                                                    f"which couldn't be handled. "
-                                                                    f"(Please update the crawler!)")
-                                    pass
-                                base.add_value("course", course_itemloader.load_item())
-                                # --- iMoox hook ends here ---
-                # --- "vhb" metadata hook starts here:
-                if query_parameter_provider_name and query_parameter_provider_name == "vhb":
-                    # Reminder: "VHB" (= "Virtuelle Hochschule Bayern") uses MOOCHub for their JSON export!
-                    # The following implementation is therefore MOOCHub-specific
-                    # and NEEDS to be refactored into a separate class hook ASAP!
-                    if self.vhb_oersi_json:
-                        if "data" in self.vhb_oersi_json:
-                            try:
-                                vhb_items: list[dict] = self.vhb_oersi_json["data"]
-                                vhb_item_matched: dict | None = None
-                                for vhb_item in vhb_items:
-                                    # since the vhb_item has a different "id", the only way to match the OERSI item
-                                    # against the vhb item is by comparing their URLs:
-                                    vhb_course_url: str = vhb_item["attributes"]["url"]
-                                    if vhb_course_url and vhb_course_url == identifier_url:
-                                        self.logger.debug(
-                                            f"BIRD: Matched 'vhb'-item {vhb_course_url} with OERSI "
-                                            f"ElasticSearch item {elastic_item['_id']}"
-                                        )
-                                        vhb_item_matched = vhb_item
-                            except KeyError as ke:
-                                raise ke
-                            if vhb_item_matched:
-                                # if we found a match, we're now trying to enrich the item with metadata from both
-                                # sources
-                                course_itemloader: CourseItemLoader = CourseItemLoader()
-                                if "attributes" in vhb_item_matched:
-                                    if not in_languages and "languages" in vhb_item_matched["attributes"]:
-                                        # beware: the vhb 'languages'-property is a string value!
-                                        vhb_language: str | None = vhb_item_matched["attributes"]["languages"]
-                                        if vhb_language and isinstance(vhb_language, str):
-                                            general.add_value("language", vhb_language)
-                                        elif vhb_language:
-                                            self.logger.warning(
-                                                f"Received unexpected vhb 'languages'-type! "
-                                                f"(Type: {type(vhb_language)}"
-                                            )
-                                    if "abstract" in vhb_item_matched["attributes"]:
-                                        vhb_abstract: str = vhb_item_matched["attributes"]["abstract"]
-                                        if vhb_abstract and isinstance(vhb_abstract, str):
-                                            course_itemloader.add_value("course_description_short", vhb_abstract)
-                                    if "learningObjectives" in vhb_item_matched["attributes"]:
-                                        vhb_learning_objectives: str = vhb_item_matched["attributes"][
-                                            "learningObjectives"
-                                        ]
-                                        if vhb_learning_objectives and isinstance(vhb_learning_objectives, str):
-                                            course_itemloader.add_value(
-                                                "course_learningoutcome", vhb_learning_objectives
-                                            )
-                                    if "outline" in vhb_item_matched["attributes"]:
-                                        outline_raw: str = vhb_item_matched["attributes"]["outline"]
-                                        if outline_raw and isinstance(outline_raw, str):
-                                            # ToDo: vhb "outline" -> course_schedule -> "ccm:oeh_course_schedule"
-                                            # the vhb attribute "outline" describes a course's schedule (Kursablauf)
-                                            # IMPORTANT: "outline" is not part of MOOCHub v2.x nor 3.x!
-                                            course_itemloader.add_value("course_schedule", outline_raw)
-                                        else:
-                                            self.logger.warning(f"Received vhb 'outline'-property of unexpected type: "
-                                                                f"{outline_raw}")
-                                    if "startDate" in vhb_item_matched["attributes"]:
-                                        start_date_raw: str = vhb_item_matched["attributes"]["startDate"]
-                                        if start_date_raw and isinstance(start_date_raw, str):
-                                            # parsing the date string first to check its validity
-                                            sdt_parsed: datetime = dateparser.parse(start_date_raw)
-                                            if sdt_parsed and isinstance(sdt_parsed, datetime.datetime):
-                                                # just to make sure that we don't parse bogus data, we run the string
-                                                # through the dateparser module first and convert it to iso 8601
-                                                sd_parsed_iso: str = sdt_parsed.isoformat()
-                                                course_itemloader.add_value("course_availability_from", sd_parsed_iso)
-                                            else:
-                                                self.logger.warning(
-                                                    f"Could not parse vhb 'start_date' value {start_date_raw} "
-                                                    f"to datetime. (Please check for new edge-cases "
-                                                    f"and update the crawler!)")
-                                    if "video" in vhb_item_matched["attributes"]:
-                                        video_item: dict = vhb_item_matched["attributes"]["video"]
-                                        if video_item:
-                                            if "url" in video_item:
-                                                vhb_course_video_url: str = video_item["url"]
-                                                if vhb_course_video_url:
-                                                    course_itemloader.add_value(
-                                                        "course_url_video", vhb_course_video_url
-                                                    )
-                                            # ToDo: "video.licenses" is of type list[dict]
-                                            #  each "license"-dict can have an "id"- and "url"-property
-                                    if "workload" in vhb_item_matched["attributes"]:
-                                        vhb_workload_raw: str = vhb_item_matched["attributes"]["workload"]
-                                        if vhb_workload_raw and isinstance(vhb_workload_raw, str):
-                                            # vhb "workload"-values are described as a natural lange (German)
-                                            # "<number> <unit>"-string, e.g.: "5 Stunden" or "60 Stunden".
-                                            # Since edu-sharing expects seconds in "cclom:typicallearningtime",
-                                            # we need to parse the string and convert it to seconds.
-                                            vhb_workload: str = vhb_workload_raw.strip()
-                                            duration_pattern = re.compile(
-                                                r"""(?P<duration_number>\d+)\s*(?P<duration_unit>\w*)"""
-                                            )
-                                            # ToDo: refactor into
-                                            #  "MOOCHub (v2?) workload to BIRD course_duration" method
-                                            duration_match: re.Match | None = duration_pattern.search(vhb_workload)
-                                            duration_delta: datetime.timedelta = datetime.timedelta()
-                                            if duration_match:
-                                                duration_result: dict = duration_match.groupdict()
-                                                if "duration_number" in duration_result:
-                                                    duration_number_raw: str = duration_result["duration_number"]
-                                                    duration_number: int = int(duration_number_raw)
-                                                    if "duration_unit" in duration_result:
-                                                        duration_unit: str = duration_result["duration_unit"]
-                                                        duration_unit = duration_unit.lower()
-                                                        match duration_unit:
-                                                            case "sekunden":
-                                                                duration_delta = duration_delta + datetime.timedelta(
-                                                                    seconds=duration_number
-                                                                )
-                                                            case "minuten":
-                                                                duration_delta = duration_delta + datetime.timedelta(
-                                                                    minutes=duration_number
-                                                                )
-                                                            case "stunden":
-                                                                duration_delta = duration_delta + datetime.timedelta(
-                                                                    hours=duration_number
-                                                                )
-                                                            case "tage":
-                                                                duration_delta = duration_delta + datetime.timedelta(
-                                                                    days=duration_number
-                                                                )
-                                                            case "wochen":
-                                                                duration_delta = duration_delta + datetime.timedelta(
-                                                                    weeks=duration_number
-                                                                )
-                                                            case "monate":
-                                                                # timedelta has no parameter for months
-                                                                #  -> X months = X * (4 weeks)
-                                                                duration_delta = duration_delta + (
-                                                                        duration_number * datetime.timedelta(weeks=4)
-                                                                )
-                                                            case _:
-                                                                self.logger.warning(
-                                                                    f"Failed to parse 'workload' time unit"
-                                                                    f"from vhb course: "
-                                                                    f"{vhb_item_matched}"
-                                                                )
-                                                        if duration_delta:
-                                                            workload_in_seconds: int = int(
-                                                                duration_delta.total_seconds()
-                                                            )
-                                                            if workload_in_seconds:
-                                                                # the edu-sharing property 'cclom:typicallearningtime'
-                                                                # expects values in ms:
-                                                                workload_in_ms: int = (
-                                                                        workload_in_seconds * 1000
-                                                                )
-                                                                course_itemloader.add_value(
-                                                                    "course_duration", workload_in_ms
-                                                                )
-                                base.add_value("course", course_itemloader.load_item())
+                if query_parameter_provider_name:
+                    if query_parameter_provider_name == "iMoox":
+                        self.enrich_imoox_metadata(base, elastic_item)
+                    if query_parameter_provider_name == "vhb":
+                        self.enrich_vhb_metadata(base, elastic_item, general, in_languages)
         # --- BIRD HOOKS END HERE!
 
         # noinspection DuplicatedCode
