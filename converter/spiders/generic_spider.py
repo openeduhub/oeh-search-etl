@@ -32,7 +32,7 @@ from ..util.license_mapper import LicenseMapper
 from ..web_tools import WebEngine, WebTools
 import threading
 import json
-from ..util.sitemap import find_generate_sitemap
+from converter.util.sitemap import find_generate_sitemap
 
 class GenericSpider(Spider, LrmiBase):
     name = "generic_spider"
