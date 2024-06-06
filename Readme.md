@@ -2,39 +2,15 @@
 
 - make sure you have python3 installed (<https://docs.python-guide.org/starting/installation/>)
 - (Python 3.9.1 or newer is required)
-- go to project root
-- Run
+- Instal docker (https://docs.docker.com/engine/install/). This project uses Docker to start up the containers for `headless chrome`, `Splash` and `Pyppeteer`-integration.
+- Preferable to use in Unix-based systems but a new documentation will be uploaded for Windows systems. For example:
+```bash
+source .venv/bin/activate   # (on Linux Unix)
+.venv\Scripts\activate.bat  # (on Windows)
 ```
-sudo apt install python3-dev python3-pip python3-venv libpq-dev -y
-python3 -m venv .venv
-```
-
-`source .venv/bin/activate` (on Linux Unix)
-
-`.venv\Scripts\activate.bat` (on Windows)
-
-`pip3 install -r requirements.txt`
-
-If you have Docker installed, use `docker-compose up` to start up the multi-container for `Splash` and `Pyppeteer`-integration. 
-
-As a last step, set up your config variables by copying the `.env.example`-file and modifying it if necessary: 
-
-`cp converter/.env.example converter/.env`
-
 - A crawler can be run with `scrapy crawl <spider-name>`. It assumes that you have an edu-sharing 6.0 instance in your `.env` settings configured which can accept the data.
 - If a crawler has [Scrapy Spider Contracts](https://docs.scrapy.org/en/latest/topics/contracts.html#spiders-contracts) implemented, you can test those by running `scrapy check <spider-name>`
 
-
-## Run via Docker
-```bash
-git clone https://github.com/openeduhub/oeh-search-etl
-cd oeh-search-etl
-cp .env.example .env
-# modify .env with your edu sharing instance
-docker compose build scrapy
-export CRAWLER=your_crawler_id_spider # i.e. wirlernenonline_spider
-docker compose up
-```
 
 ## Building a Crawler
 
@@ -45,7 +21,7 @@ docker compose up
 - As a sample/template, please take a look at the `sample_spider.py`
 - To learn more about the LOM standard we're using, you'll find useful information at https://en.wikipedia.org/wiki/Learning_object_metadata
 
-## Run the web service for the generic crawler via Docker
+## Run the web service for the Generic crawler via Docker
 
 A web service that implements the FastAPI web framework is added to the project.
 
@@ -57,7 +33,7 @@ The Dockerfile will perform the following tasks:
 - Copy the web service source folder and install its requirements.txt file which installs FastAPI and Uvicorn
 - Set the entrypoint script file: entrypoint.sh this file is the script which runs the crawler in any of its modes:
     - Crawl all the URLs that are listed in the generic_spider.py file with or without parameters (arguments that the crawler could need by setting the ARGS variable). To run the crawler in this mode you should delete the API_MODE variable (unset API_MODE)
-    - Start the webservice by setting the API_MODE variable (=0 or 1 as was stated above)
+    - Start the webservice by setting the API_MODE variable (=true or false)
 
 
 Then run the following lines in a terminal:
@@ -66,9 +42,14 @@ Then run the following lines in a terminal:
 git clone https://github.com/openeduhub/oeh-search-etl
 cd oeh-search-etl
 git checkout add_KIdra_services
-# vi or gedit converter/.env.example (Make sure that Z_API_KEY=<your_z_api_key> and MODE = "edu-sharing" variables are set in converter/.env.example)
+# edit the environment variables (with vi for example) in converter/.env.example then make sure that this values are set correctly:
+# MODE = "json"
+# Z_API_KEY=<your_z_api_key>
+# If you need to save the metadata into the edu-sharing repository, then set the following variables:
+# EDU_SHARING_BASE_URL = "https://repository.pre-staging.openeduhub.net/edu-sharing/"
+# EDU_SHARING_USERNAME = "<your_username>"
+# EDU_SHARING_PASSWORD = "<your_password>"
 cp converter/.env.example converter/.env
-# modify .env with your edu sharing instance
 docker compose build --no-cache scrapy
 export API_MODE=true
 export EDU_SHARING_BASE_URL=https://repository.pre-staging.openeduhub.net/edu-sharing/
@@ -87,31 +68,57 @@ When you deploy the web service for the generic crawler you can test it by openi
 
 The instructions below (using Docker) should have been run also for this section because the containers for the headless browser (`image: browserless/chrome`) and the splash server (`image: scrapinghub/splash:master`) should be running.
 
-To persist the metadata in the pre-staging edu-sharing repository you should provide this values in the .env.example right before running the line `cp converter/.env.example converter/.env`:
-- MODE = "edu-sharing"
-- EDU_SHARING_BASE_URL = "https://repository.pre-staging.openeduhub.net/edu-sharing/"
-- EDU_SHARING_USERNAME = "<your_username>"
-- EDU_SHARING_PASSWORD = "<your_password>"
-
 In order to get authenticate to the Z_API web services (such as AI-prompts) it is mandatory to set the "Z_API_KEY" variable in the .env.example right before running the line `cp converter/.env.example converter/.env`:
-- Z_API_KEY = "<your_z_api_key>"
+```bash
+Z_API_KEY = "<your_z_api_key>"
+```
 
-Then open a new terminal in the same folder (oeh-search-etl) and run the following line in order to start the web service locally:
+You have two options here:
+- To persist the metadata in the pre-staging edu-sharing repository you should provide this values in the .env.example right before running the line `cp converter/.env.example converter/.env`:
+```bash
+MODE = "edu-sharing"
+EDU_SHARING_BASE_URL = "https://repository.pre-staging.openeduhub.net/edu-sharing/"
+EDU_SHARING_USERNAME = "<your_username>"
+EDU_SHARING_PASSWORD = "<your_password>"
+```
+- Or if you want to make tests locally and save the results of the page tree in a file, then change to:
+```bash
+MODE = "json"
+```
+
+Then open a new terminal in the same folder (oeh-search-etl) and run the following lines to install the generic crawler and components locally:
 ```bash
 sudo apt install python3-dev python3-pip python3-venv libpq-dev -y
+sudo apt install wget python3-lxml libxml2-dev libxslt-dev openjdk-17-jre-headless npm -y
 python3 -m venv .venv
 source .venv/bin/activate
 pip3 install -r requirements.txt
-sudo apt-get update && \
-    apt-get install -y openjdk-11-jre-headless && \
-    apt-get clean;
 sudo ./generate-z-api.sh
 source .venv/bin/activate
 pip3 install -r web_service_plugin/requirements.txt
 export PYTHONPATH=$PYTHONPATH:`pwd`
 export PYTHONPATH="${PYTHONPATH}/z_api"
-# Modify the variables (MODE, EDU_SHARING_BASE_URL, EDU_SHARING_USERNAME, EDU_SHARING_PASSWORD) in converter/.env.example as is shown above
+# Modify the variables (MODE, Z_API_KEY, API_MODE, EDU_SHARING_BASE_URL, EDU_SHARING_USERNAME, EDU_SHARING_PASSWORD) in converter/.env.example as is shown above
 cp converter/.env.example converter/.env
+```
+
+Then run this line to crawl a page tree and save the results in a json file:
+
+```bash
+.venv/bin/python -m scrapy.cmdline crawl generic_spider -a urltocrawl=<your_url> -a ai_enabled=False -a find_sitemap=True -O <output_file>
+```
+
+For example to crawl a page tree for the Biology website: https://biologie-lernprogramme.de/ without AI generated metadata and with the tool to find the sitemap:
+
+```bash
+.venv/bin/python -m scrapy.cmdline crawl generic_spider -a urltocrawl=https://biologie-lernprogramme.de/ -a ai_enabled=False -a find_sitemap=True -O ../../Page_tree_logs/biologie_lernprogramme/generic_spider.json
+```
+
+
+### To start the web service locally:
+
+In the same folder (oeh-search-etl), run:
+```bash
 python3 web_service_plugin/main.py
 ```
 
