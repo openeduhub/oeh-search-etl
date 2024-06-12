@@ -92,7 +92,7 @@ class GenericSpider(Spider, LrmiBase):
     z_api_text: z_api.AITextPromptsApi
     z_api_kidra: z_api.KidraApi
 
-    def __init__(self, urltocrawl="", validated_result="", ai_enabled="True", find_sitemap="False", **kwargs):
+    def __init__(self, urltocrawl="", validated_result="", ai_enabled="True", find_sitemap="False", max_urls="3", **kwargs):
         LrmiBase.__init__(self, **kwargs)
 
         # self.validated_result = validated_result
@@ -103,7 +103,8 @@ class GenericSpider(Spider, LrmiBase):
         if urltocrawl != "":
             urls = get_urls_from_string(urltocrawl)
             if find_sitemap == "True" and len(urls) == 1:
-                sitemap_urls = find_generate_sitemap(urls[0], max_entries=3)
+                max_sitemap_urls = int(max_urls)
+                sitemap_urls = find_generate_sitemap(urls[0], max_entries=max_sitemap_urls)
                 self.start_urls = sitemap_urls
             else:
                 self.start_urls = urls
