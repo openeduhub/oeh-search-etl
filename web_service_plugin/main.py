@@ -24,6 +24,7 @@ env.get("Z_API_KEY", allow_null=False)
 class Data(pd.BaseModel):
     url: str = ""
     ai_enabled: bool = True
+    max_sitemap_urls: int = 3
 
 class PingResult(pd.BaseModel):
     message: str = ""
@@ -53,6 +54,9 @@ class ValidatedResults(pd.BaseModel):
     educational_context: list = []
     license: dict = {}
     new_lrt: list = []
+
+class Results(pd.BaseModel):
+    result_list: list = []
 
 class StandardResult(pd.BaseModel):
     code: str = ""
@@ -138,6 +142,7 @@ def create_app() -> fapi.FastAPI:
                                                     'generic_spider',
                                                     '-a', 'urltocrawl=' + data.url,
                                                     '-a', 'ai_enabled=' + str(data.ai_enabled),
+                                                    '-a', 'max_urls=' + str(data.max_sitemap_urls),
                                                     '-o', '-:json'],
                                                    stderr=DEVNULL)
         except (subprocess.CalledProcessError, Exception) as e:
@@ -157,67 +162,13 @@ def create_app() -> fapi.FastAPI:
         try:
             json_results = json.loads(str_result)
             # Todo: parse not just the first json result but parse All the results for the page tree crawling
-            json_result = json_results[0]
-            if data.ai_enabled:
-                license = json_result['license']
-                title = json_result['lom']['general']['title']
-                description = json_result['lom']['general']['description']
-                keywords = json_result['lom']['general']['keyword']
-                valuespaces = json_result['valuespaces']
-                educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
-                disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
-                new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
-                kidra_raw = json_result['kidra_raw']
-                curriculum = kidra_raw["curriculum"]
-                text_difficulty = kidra_raw["text_difficulty"]
-                text_reading_time = kidra_raw["text_reading_time"]
-                kidraDisciplines = []
-                if 'kidraDisciplines' in kidra_raw:
-                    kidraDisciplines = kidra_raw["kidraDisciplines"]
-
-                keywords = join(keywords)
-                disciplines = join(disciplines)
-                educational_context = join(educational_context)
-                new_lrt = join(new_lrt)
-                curriculum = join(curriculum)
-                kidraDisciplines = join(kidraDisciplines)
-
-                return Result(
-                    title=title,
-                    description=description,
-                    keywords=keywords,
-                    disciplines=disciplines,
-                    educational_context=educational_context,
-                    license=license,
-                    new_lrt=new_lrt,
-                    kidra_disciplines=kidraDisciplines,
-                    curriculum=curriculum,
-                    text_difficulty=text_difficulty,
-                    text_reading_time=text_reading_time
-                )
+            # Todo: identify when the generic crawler didn't find enough metadata -> returns an empty array
+            if len(json_results) == 1:
+                json_result = json_results[0]
+                map_crawler_results(data.ai_enabled, json_result)
             else:
-                license = json_result['license']
-                title = json_result['lom']['general']['title']
-                description = json_result['lom']['general']['description']
-                keywords = json_result['lom']['general']['keyword'] if 'keyword' in json_result['lom']['general'].keys() else []
-                valuespaces = json_result['valuespaces']
-                educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
-                disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
-                new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
-
-                keywords = join(keywords)
-                disciplines = join(disciplines)
-                educational_context = join(educational_context)
-                new_lrt = join(new_lrt)
-
                 return Result(
-                    title=title,
-                    description=description,
-                    keywords=keywords,
-                    disciplines=disciplines,
-                    educational_context=educational_context,
-                    license=license,
-                    new_lrt=new_lrt
+
                 )
         except Exception as e:
             error_traceback = error_logger()
@@ -231,7 +182,6 @@ def create_app() -> fapi.FastAPI:
                     "message": error_str
                 }
             )
-
 
     @app.post("/set_metadata")
     async def set_metadata(data: ValidatedResults):
@@ -310,6 +260,78 @@ def create_app() -> fapi.FastAPI:
             urls = found_urls
         )
 
+    @app.post("/crawl_page_tree")
+    async def crawl_page_tree(data: Data):
+        """
+        Fetch metadata
+
+        Parameters
+        ----------
+        data.url: str
+            The url to be crawled.
+
+        Returns
+        -------
+        title : str
+        description : str
+        keywords : str
+        disciplines : str
+        educational_context : str
+        license : str
+        new_lrt : str
+        kidra_disciplines : str
+        curriculum : str
+        text_difficulty : str
+        text_reading_time : str
+        """
+
+        DEVNULL = open(os.devnull, 'wb')
+        try:
+            bytes_result = subprocess.check_output([f'scrapy',
+                                                    'crawl',
+                                                    'generic_spider',
+                                                    '-a', 'urltocrawl=' + data.url,
+                                                    '-a', 'ai_enabled=' + str(data.ai_enabled),
+                                                    '-a', 'max_urls=' + str(data.max_sitemap_urls),
+                                                    '-o', '-:json'],
+                                                   stderr=DEVNULL)
+        except (subprocess.CalledProcessError, Exception) as e:
+            error_traceback = error_logger()
+            error_str = 'Call of native spider failed in metadata web service: '+error_traceback
+            logging.error(error_str)
+            # logging.error(e.output.decode('utf-8'))
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "message": error_str
+                }
+            )
+
+        str_result = bytes_result.decode('utf-8')
+        try:
+            json_results = json.loads(str_result)
+            results = []
+            for json_result in json_results:
+                result_object = map_crawler_results(data.ai_enabled, json_result)
+                results.append(result_object)
+            return Results(
+                result_list=results
+            )
+        except Exception as e:
+            error_traceback = error_logger()
+            error_str = 'Native spider returned invalid json' + error_traceback
+            logging.error(error_str)
+            # logging.error(e.output.decode('utf-8'))
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "message": error_str
+                }
+            )
+
+
     return app
 
 def start_ws_service():
@@ -380,3 +402,66 @@ def error_logger() -> str:
     traceback_list = traceback.extract_tb(traceback_)
     traceback_list = ''.join(str(t) for t in traceback_list)
     return str(value_)+'. '+traceback_list
+
+def map_crawler_results(ai_enabled, json_result):
+    if ai_enabled:
+        license = json_result['license']
+        title = json_result['lom']['general']['title']
+        description = json_result['lom']['general']['description']
+        keywords = json_result['lom']['general']['keyword']
+        valuespaces = json_result['valuespaces']
+        educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
+        disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
+        new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
+        kidra_raw = json_result['kidra_raw']
+        curriculum = kidra_raw["curriculum"]
+        text_difficulty = kidra_raw["text_difficulty"]
+        text_reading_time = kidra_raw["text_reading_time"]
+        kidraDisciplines = []
+        if 'kidraDisciplines' in kidra_raw:
+            kidraDisciplines = kidra_raw["kidraDisciplines"]
+
+        keywords = join(keywords)
+        disciplines = join(disciplines)
+        educational_context = join(educational_context)
+        new_lrt = join(new_lrt)
+        curriculum = join(curriculum)
+        kidraDisciplines = join(kidraDisciplines)
+
+        return Result(
+            title=title,
+            description=description,
+            keywords=keywords,
+            disciplines=disciplines,
+            educational_context=educational_context,
+            license=license,
+            new_lrt=new_lrt,
+            kidra_disciplines=kidraDisciplines,
+            curriculum=curriculum,
+            text_difficulty=text_difficulty,
+            text_reading_time=text_reading_time
+        )
+    else:
+        license = json_result['license']
+        title = json_result['lom']['general']['title']
+        description = json_result['lom']['general']['description']
+        keywords = json_result['lom']['general']['keyword'] if 'keyword' in json_result['lom']['general'].keys() else []
+        valuespaces = json_result['valuespaces']
+        educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
+        disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
+        new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
+
+        keywords = join(keywords)
+        disciplines = join(disciplines)
+        educational_context = join(educational_context)
+        new_lrt = join(new_lrt)
+
+        return Result(
+            title=title,
+            description=description,
+            keywords=keywords,
+            disciplines=disciplines,
+            educational_context=educational_context,
+            license=license,
+            new_lrt=new_lrt
+        )
