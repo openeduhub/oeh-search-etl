@@ -57,6 +57,7 @@ export API_MODE=true
 export EDU_SHARING_BASE_URL=https://repository.pre-staging.openeduhub.net/edu-sharing/
 export EDU_SHARING_USERNAME=<your_username>
 export EDU_SHARING_PASSWORD=<your_password>
+export Z_API_KEY=<your_z_api_key>
 docker compose up
 
 ```
@@ -83,6 +84,7 @@ MODE = "edu-sharing"
 EDU_SHARING_BASE_URL = "https://repository.pre-staging.openeduhub.net/edu-sharing/"
 EDU_SHARING_USERNAME = "<your_username>"
 EDU_SHARING_PASSWORD = "<your_password>"
+Z_API_KEY = "<your_z_api_key>"
 ```
 - Or if you want to make tests locally and save the results of the page tree in a file, then change to:
 ```bash

@@ -94,7 +94,6 @@ def generate_sitemap(url, max_entries):
                                                 '>>',
                                                 'sitemap.txt'],
                                                stderr=DEVNULL)
-        print(bytes_result)
         str_result = bytes_result.decode('utf-8')
         str_result = str_result.replace('[ ADD ] ', '')
         str_result = str_result.replace('\n', ',')

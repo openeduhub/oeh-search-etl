@@ -25,7 +25,7 @@ COPY valuespace_converter/ valuespace_converter/
 RUN pip3 install -r requirements.txt
 
 RUN echo "Install Z-API ---------------------------- "
-COPY api-docs.json api-docs.json
+COPY api-docs.xml api-docs.xml
 COPY generate-z-api.sh generate-z-api.sh
 RUN ./generate-z-api.sh
 
