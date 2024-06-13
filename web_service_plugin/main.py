@@ -24,6 +24,10 @@ env.get("Z_API_KEY", allow_null=False)
 class Data(pd.BaseModel):
     url: str = ""
     ai_enabled: bool = True
+
+class Data_page_tree(pd.BaseModel):
+    url: str = ""
+    ai_enabled: bool = True
     max_sitemap_urls: int = 3
 
 class PingResult(pd.BaseModel):
@@ -142,8 +146,8 @@ def create_app() -> fapi.FastAPI:
                                                     'generic_spider',
                                                     '-a', 'urltocrawl=' + data.url,
                                                     '-a', 'ai_enabled=' + str(data.ai_enabled),
-                                                    '-a', 'max_urls=' + str(data.max_sitemap_urls),
-                                                    '-o', '-:json'],
+                                                    '-a', 'find_sitemap=' 'False',
+                                                    '-O', '-:json'],
                                                    stderr=DEVNULL)
         except (subprocess.CalledProcessError, Exception) as e:
             error_traceback = error_logger()
@@ -159,17 +163,25 @@ def create_app() -> fapi.FastAPI:
             )
 
         str_result = bytes_result.decode('utf-8')
+        if str_result == '[\n\n]':
+            message = 'The generic crawler could not find enough metadata for the given URL'
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "code": status.HTTP_200_OK,
+                    "message": message
+                }
+            )
+            return Result()
         try:
             json_results = json.loads(str_result)
             # Todo: parse not just the first json result but parse All the results for the page tree crawling
             # Todo: identify when the generic crawler didn't find enough metadata -> returns an empty array
             if len(json_results) == 1:
                 json_result = json_results[0]
-                map_crawler_results(data.ai_enabled, json_result)
+                return map_crawler_results(data.ai_enabled, json_result)
             else:
-                return Result(
-
-                )
+                return Result()
         except Exception as e:
             error_traceback = error_logger()
             error_str = 'Native spider returned invalid json' + error_traceback
@@ -261,7 +273,7 @@ def create_app() -> fapi.FastAPI:
         )
 
     @app.post("/crawl_page_tree")
-    async def crawl_page_tree(data: Data):
+    async def crawl_page_tree(data: Data_page_tree):
         """
         Fetch metadata
 
@@ -292,8 +304,9 @@ def create_app() -> fapi.FastAPI:
                                                     'generic_spider',
                                                     '-a', 'urltocrawl=' + data.url,
                                                     '-a', 'ai_enabled=' + str(data.ai_enabled),
+                                                    '-a', 'find_sitemap=' + 'True',
                                                     '-a', 'max_urls=' + str(data.max_sitemap_urls),
-                                                    '-o', '-:json'],
+                                                    '-O', '-:json'],
                                                    stderr=DEVNULL)
         except (subprocess.CalledProcessError, Exception) as e:
             error_traceback = error_logger()
@@ -310,6 +323,16 @@ def create_app() -> fapi.FastAPI:
 
         str_result = bytes_result.decode('utf-8')
         try:
+            if str_result == '[\n\n]':
+                message = 'The generic crawler could not find enough metadata for the given URL'
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "code": status.HTTP_200_OK,
+                        "message": message
+                    }
+                )
+
             json_results = json.loads(str_result)
             results = []
             for json_result in json_results:

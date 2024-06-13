@@ -55,6 +55,7 @@ export API_MODE=true
 export EDU_SHARING_BASE_URL=https://repository.pre-staging.openeduhub.net/edu-sharing/
 export EDU_SHARING_USERNAME=<your_username>
 export EDU_SHARING_PASSWORD=<your_password>
+export Z_API_KEY=<your_z_api_key>
 docker compose up
 ```
 And each time the web service is required you have to run the three `export` command lines and the `docker compose up` line. Now you should have access to the FastAPI environment in http://0.0.0.0:80/docs# because this ip address (http://0.0.0.0) and port (80) is exposed to outside the container, then the same port in the container can be accessed by the host.
@@ -80,6 +81,7 @@ MODE = "edu-sharing"
 EDU_SHARING_BASE_URL = "https://repository.pre-staging.openeduhub.net/edu-sharing/"
 EDU_SHARING_USERNAME = "<your_username>"
 EDU_SHARING_PASSWORD = "<your_password>"
+Z_API_KEY = "<your_z_api_key>"
 ```
 - Or if you want to make tests locally and save the results of the page tree in a file, then change to:
 ```bash

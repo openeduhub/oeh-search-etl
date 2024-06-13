@@ -17,7 +17,7 @@ cd tmp || exit
 # before running this command, otherwise the following steps WILL NOT WORK:
 echo "Java version ---------------------- : " $(java -version)
 wget https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/7.2.0/openapi-generator-cli-7.2.0.jar -O openapi-generator-cli.jar
-java -jar openapi-generator-cli.jar generate -g python -o z_api --skip-validate-spec -i ../api-docs.json --package-name z_api
+java -jar openapi-generator-cli.jar generate -g python -o z_api --skip-validate-spec -i ../api-docs.xml --package-name z_api
 cd z_api
 python3 setup.py install --user
 # change directories to project root:
