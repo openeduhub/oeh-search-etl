@@ -79,6 +79,8 @@ requests-file==1.5.1 ; python_version >= "3.10" and python_version < "4.0"
 requests==2.31.0 ; python_version >= "3.10" and python_version < "4.0"
 scrapy-splash==0.9.0 ; python_version >= "3.10" and python_version < "4.0"
 scrapy==2.11.0 ; python_version >= "3.10" and python_version < "4.0"
+scrapyd
+scrapyd-client
 service-identity==24.1.0 ; python_version >= "3.10" and python_version < "4.0"
 setuptools==69.0.3 ; python_version >= "3.10" and python_version < "4.0"
 six==1.16.0 ; python_version >= "3.10" and python_version < "4.0"
