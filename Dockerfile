@@ -36,6 +36,8 @@ COPY web_service_plugin/ web_service_plugin
 RUN echo "Install sitemap-generator-cli ---------------------------- "
 RUN npm install -g sitemap-generator-cli
 
-EXPOSE 80
+COPY generate-scrapyd.sh generate-scrapyd.sh
+SHELL ["/bin/bash", "-c"]
+RUN ./generate-scrapyd.sh
 
 ENTRYPOINT ["/opt/scrapy/entrypoint.sh"]

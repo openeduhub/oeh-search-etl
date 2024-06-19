@@ -32,6 +32,8 @@ services:
     # host.docker.internal points to the ip address of the host docker network interface
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    #command: >
+    #  sh -c "./venv_scrapyd/bin/scrapyd-deploy default"
     image: openeduhub/oeh-search-etl:develop
     build:
       context: .
@@ -53,19 +55,19 @@ services:
       - "EDU_SHARING_PASSWORD=${EDU_SHARING_PASSWORD}"
       - "API_MODE=${API_MODE}"
       - "Z_API_KEY=${Z_API_KEY}"
+    expose:
+      - "6800"
     ports:
-      - "0.0.0.0:80:80"
+      - "0.0.0.0:6802:6800"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://0.0.0.0:80/_ping" ]
-
-#  web:
-#    command: uvicorn web_service_plugin.main:create_app --host 0.0.0.0
-#    volumes:
-#      - .:/app
-#    ports:
-#      - 80:80
-#    build:
-#      context: .
-#      network: host
-#    networks:
-#      - scrapy
+  scrapydsetup:
+    image: openeduhub/oeh-search-etl:develop
+    depends_on:
+      - scrapy
+    ports:
+      - "0.0.0.0:6801:6800"
+    networks:
+      - scrapy
+    restart: "no"
+    entrypoint: [ "bash", "-c", "source ./venv_scrapyd/bin/activate && ./venv_scrapyd/bin/scrapyd-deploy default"]
