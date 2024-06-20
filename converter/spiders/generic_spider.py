@@ -364,6 +364,9 @@ class GenericSpider(Spider, LrmiBase):
 
         if self.results_dict:
             base_loader = self.modify_base_item(base_loader)
+        logging.info("New URL processed:------------------------------------------")
+        logging.info(base_loader.load_item())
+        logging.info("------------------------------------------------------------")
         # once all scrapy.Items are loaded into our "base", we yield the BaseItem by calling the .load_item() method
         yield base_loader.load_item()
 
@@ -437,7 +440,6 @@ class GenericSpider(Spider, LrmiBase):
             ai_prompt_itemloader.add_value("ai_prompt", prompt)
 
             result = self.z_api_text.prompt(body=prompt)
-            logging.info(result)
             result = result.responses[0].strip()
             ai_prompt_itemloader.add_value("ai_response_raw", result)
             # ToDo: error-handling when there is no valid response that we could return as a result
