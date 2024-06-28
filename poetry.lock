@@ -1276,16 +1276,6 @@ files = [
 ]
 
 [[package]]
-name = "overrides"
-version = "3.1.0"
-description = "A decorator to automatically detect mismatch when overriding a method."
-optional = false
-python-versions = "*"
-files = [
-    {file = "overrides-3.1.0.tar.gz", hash = "sha256:30f761124579e59884b018758c4d7794914ef02a6c038621123fec49ea7599c6"},
-]
-
-[[package]]
 name = "packaging"
 version = "24.1"
 description = "Core utilities for Python packages"
@@ -2270,4 +2260,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "67f2e3e5502b8d0e64e2bfe8a5bb3707b0fa86f859b26fb5c8f5355fda2ddda8"
+content-hash = "9bca50ae86d8d0c367af2f591dc4d01c882e29076e2708ce03e8355e5bb49737"
