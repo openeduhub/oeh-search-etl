@@ -1,4 +1,4 @@
-FROM python:3.11.6-slim-bookworm
+FROM python:3.12.4-slim-bookworm
 
 # ENV CRAWLER wirlernenonline_spider
 
