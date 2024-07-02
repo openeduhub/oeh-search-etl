@@ -330,7 +330,7 @@ class CourseItemPipeline(BasicPipeline):
     def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
         adapter = ItemAdapter(item)
         if "course" in adapter:
-            course_adapter = adapter["course"]
+            course_adapter: ItemAdapter = adapter["course"]
 
             # Prepare BIRD "course_availability_from" for "ccm:oeh_event_begin" (ISO-formatted "datetime"-string)
             if "course_availability_from" in course_adapter:
@@ -348,9 +348,11 @@ class CourseItemPipeline(BasicPipeline):
                                     "{course_availability_from}" to a valid "datetime"-object. 
                                     (Please check the object {adapter['sourceId']} or extend the CourseItemPipeline!)
                                     """)
+                        del course_adapter["course_availability_from"]
                 else:
                     log.warning(f"""Cannot process BIRD 'course_availability_from'-property {course_availability_from} 
                                 f"(Expected a string, but received {type(course_availability_from)} instead.""")
+                    del course_adapter["course_availability_from"]
 
             # Prepare BIRD "course_availability_until" for "ccm:oeh_event_end" (-> ISO-formatted "datetime"-string)
             if "course_availability_until" in course_adapter:
@@ -365,9 +367,11 @@ class CourseItemPipeline(BasicPipeline):
                         log.warning(f"""Failed to parse "{course_availability_until}" to a valid 'datetime'-object. 
                         (Please check the object {adapter['sourceId']} for unhandled edge-cases or extend the 
                         CourseItemPipeline!)""")
+                        del course_adapter["course_availability_until"]
                 else:
                     log.warning(f"""Cannot process BIRD "course_availability_until"-property {course_availability_until}
                                  (Expected a string, but received {type(course_availability_until)} instead.)""")
+                    del course_adapter["course_availability_until"]
 
             if "course_description_short" in course_adapter:
                 pass
