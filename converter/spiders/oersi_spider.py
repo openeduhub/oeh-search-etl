@@ -43,7 +43,6 @@ class OersiSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
     version = "0.2.6"  # last update: 2024-05-28
-    allowed_domains = "oersi.org"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
