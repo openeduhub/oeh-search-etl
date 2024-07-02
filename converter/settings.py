@@ -131,6 +131,7 @@ ITEM_PIPELINES = {
     "converter.pipelines.NormLanguagePipeline": 150,
     "converter.pipelines.ConvertTimePipeline": 200,
     "converter.pipelines.ProcessValuespacePipeline": 250,
+    "converter.pipelines.CourseItemPipeline": 275,
     "converter.pipelines.ProcessThumbnailPipeline": 300,
     (
         "converter.pipelines.DummyPipeline"

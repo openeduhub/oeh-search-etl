@@ -308,6 +308,84 @@ class ConvertTimePipeline(BasicPipeline):
         return raw_item
 
 
+class CourseItemPipeline(BasicPipeline):
+    """Pipeline for BIRD-related metadata properties."""
+    # ToDo: Expand docs!
+    #
+    # ToDo: course description normalization -> 'ccm:oeh_course_description_short'
+    #  - expects a string (with or without HTML formatting)
+    #
+    # ToDo: course_duration -> 'cclom:typicallearningtime' (ms)
+    #
+    # ToDo: course_learningoutcome -> 'ccm:learninggoal'
+    #  - expects a string (with or without HTML formatting)
+    #
+    # ToDo (optional): course_schedule
+    #  - expects a string (either with or without HTML formatting)
+    #
+    # ToDo: course_url_video
+    #  - expects a (singular) URL
+    #
+    # ToDo: course_workload -> ?
+    def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        adapter = ItemAdapter(item)
+        if "course" in adapter:
+            course_adapter = adapter["course"]
+
+            # Prepare BIRD "course_availability_from" for "ccm:oeh_event_begin" (ISO-formatted "datetime"-string)
+            if "course_availability_from" in course_adapter:
+                course_availability_from: str = course_adapter["course_availability_from"]
+                # BIRD spec: "verfügbar ab" expects a single-value 'datetime' string
+                if course_availability_from and isinstance(course_availability_from, str):
+                    caf_parsed: datetime = dateparser.parse(course_availability_from)
+                    # try to parse the string and convert it to a datetime object
+                    if caf_parsed and isinstance(caf_parsed, datetime.datetime):
+                        # convert the parsed string from a 'datetime' object to an ISO-formatted 'datetime'-string
+                        caf_iso: str = caf_parsed.isoformat()
+                        course_adapter["course_availability_from"] = caf_iso
+                    else:
+                        log.warning(f"""Failed to parse "course_availability_from"-property 
+                                    "{course_availability_from}" to a valid "datetime"-object. 
+                                    (Please check the object {adapter['sourceId']} or extend the CourseItemPipeline!)
+                                    """)
+                else:
+                    log.warning(f"""Cannot process BIRD 'course_availability_from'-property {course_availability_from} 
+                                f"(Expected a string, but received {type(course_availability_from)} instead.""")
+
+            # Prepare BIRD "course_availability_until" for "ccm:oeh_event_end" (-> ISO-formatted "datetime"-string)
+            if "course_availability_until" in course_adapter:
+                course_availability_until = course_adapter["course_availability_until"]
+                # BIRD Spec "verfügbar bis" expects a single-value 'datetime' string
+                if course_availability_until and isinstance(course_availability_until, str):
+                    cau_parsed: datetime = dateparser.parse(course_availability_until)
+                    if cau_parsed and isinstance(cau_parsed, datetime.datetime):
+                        cau_iso: str = cau_parsed.isoformat()
+                        course_adapter["course_availability_until"] = cau_iso
+                    else:
+                        log.warning(f"""Failed to parse "{course_availability_until}" to a valid 'datetime'-object. 
+                        (Please check the object {adapter['sourceId']} for unhandled edge-cases or extend the 
+                        CourseItemPipeline!)""")
+                else:
+                    log.warning(f"""Cannot process BIRD "course_availability_until"-property {course_availability_until}
+                                 (Expected a string, but received {type(course_availability_until)} instead.)""")
+
+            if "course_description_short" in course_adapter:
+                pass
+            if "course_duration" in course_adapter:
+                pass
+            if "course_learningoutcome" in course_adapter:
+                pass
+            if "course_schedule" in course_adapter:
+                pass
+            if "course_url_video" in course_adapter:
+                pass
+            if "course_workload" in course_adapter:
+                pass
+        return item
+
+    pass
+
+
 class ProcessValuespacePipeline(BasicPipeline):
     """
     generate de_DE / i18n strings for valuespace fields

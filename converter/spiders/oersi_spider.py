@@ -5,7 +5,6 @@ import re
 from collections import Counter
 from typing import Optional
 
-import dateparser
 import requests
 import scrapy
 
@@ -200,8 +199,8 @@ class OersiSpider(scrapy.Spider, LomBase):
                 )
                 return None
             if (
-                self.getId(response=None, elastic_item=elastic_item) is not None
-                and self.getHash(response=None, elastic_item_source=elastic_item["_source"]) is not None
+                    self.getId(response=None, elastic_item=elastic_item) is not None
+                    and self.getHash(response=None, elastic_item_source=elastic_item["_source"]) is not None
             ):
                 if not self.hasChanged(None, elastic_item=elastic_item):
                     return None
@@ -510,12 +509,12 @@ class OersiSpider(scrapy.Spider, LomBase):
         return changed
 
     def get_lifecycle_author(
-        self,
-        lom_base_item_loader: LomBaseItemloader,
-        elastic_item_source: dict,
-        organization_fallback: set[str],
-        date_created: Optional[str] = None,
-        date_published: Optional[str] = None,
+            self,
+            lom_base_item_loader: LomBaseItemloader,
+            elastic_item_source: dict,
+            organization_fallback: set[str],
+            date_created: Optional[str] = None,
+            date_published: Optional[str] = None,
     ):
         """
         If a "creator"-field is available in the OERSI API for a specific '_source'-item, creates an 'author'-specific
@@ -583,11 +582,11 @@ class OersiSpider(scrapy.Spider, LomBase):
         return authors
 
     def get_affiliation_and_save_to_lifecycle(
-        self,
-        affiliation_dict: dict,
-        lom_base_item_loader: LomBaseItemloader,
-        organization_fallback: set[str],
-        lifecycle_role: str,
+            self,
+            affiliation_dict: dict,
+            lom_base_item_loader: LomBaseItemloader,
+            organization_fallback: set[str],
+            lifecycle_role: str,
     ):
         """
         Retrieves metadata from OERSI's "affiliation"-field (which is typically found within a "creator"- or
@@ -651,11 +650,11 @@ class OersiSpider(scrapy.Spider, LomBase):
         return honorific_prefix.strip()
 
     def get_lifecycle_contributor(
-        self,
-        lom_base_item_loader: LomBaseItemloader,
-        elastic_item_source: dict,
-        organization_fallback: set[str],
-        author_list: Optional[list[str]] = None,
+            self,
+            lom_base_item_loader: LomBaseItemloader,
+            elastic_item_source: dict,
+            organization_fallback: set[str],
+            author_list: Optional[list[str]] = None,
     ):
         """
         Collects metadata from the OERSI "contributor"-field and stores it within a LomLifecycleItemLoader.
@@ -757,11 +756,11 @@ class OersiSpider(scrapy.Spider, LomBase):
             lom_base_item_loader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
 
     def get_lifecycle_publisher(
-        self,
-        lom_base_item_loader: LomBaseItemloader,
-        elastic_item_source: dict,
-        organizations_from_publisher_fields: set[str],
-        date_published: Optional[str] = None,
+            self,
+            lom_base_item_loader: LomBaseItemloader,
+            elastic_item_source: dict,
+            organizations_from_publisher_fields: set[str],
+            date_published: Optional[str] = None,
     ):
         """
         Collects metadata from OERSI's "publisher"-field and stores it within a LomLifecycleItemLoader. Successfully
@@ -797,7 +796,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lom_base_item_loader.add_value("lifecycle", lifecycle_publisher.load_item())
 
     def get_lifecycle_organization_from_source_organization_fallback(
-        self, elastic_item_source: dict, lom_item_loader: LomBaseItemloader, organization_fallback: set[str]
+            self, elastic_item_source: dict, lom_item_loader: LomBaseItemloader, organization_fallback: set[str]
     ):
         # ATTENTION: the "sourceOrganization"-field is not part of the AMB draft, therefore this method is currently
         # used a fallback, so we don't lose any useful metadata (even if that metadata is not part of the AMB spec).
@@ -839,7 +838,8 @@ class OersiSpider(scrapy.Spider, LomBase):
                 lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
     def get_lifecycle_publisher_from_source_organization(
-        self, lom_item_loader: LomBaseItemloader, elastic_item_source: dict, previously_collected_publishers: set[str]
+            self, lom_item_loader: LomBaseItemloader, elastic_item_source: dict,
+            previously_collected_publishers: set[str]
     ):
         source_organizations: list[dict] = elastic_item_source.get("sourceOrganization")
         for so in source_organizations:
@@ -860,7 +860,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
     def lifecycle_determine_type_of_identifier_and_save_uri(
-        self, item_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
+            self, item_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
     ):
         """
         OERSI's "creator"/"contributor"/"affiliation" items might contain an 'id'-field which (optionally) provides
@@ -873,10 +873,10 @@ class OersiSpider(scrapy.Spider, LomBase):
             # "creator.id" can be 'null', therefore we need to explicitly check its type before trying to parse it
             uri_string: str = item_dictionary.get("id")
             if (
-                "orcid.org" in uri_string
-                or "/gnd/" in uri_string
-                or "wikidata.org" in uri_string
-                or "ror.org" in uri_string
+                    "orcid.org" in uri_string
+                    or "/gnd/" in uri_string
+                    or "wikidata.org" in uri_string
+                    or "ror.org" in uri_string
             ):
                 if "/gnd/" in uri_string:
                     lifecycle_item_loader.add_value("id_gnd", uri_string)
@@ -950,19 +950,22 @@ class OersiSpider(scrapy.Spider, LomBase):
                             if start_dates and isinstance(start_dates, list):
                                 for start_date_raw in start_dates:
                                     if start_date_raw and isinstance(start_date_raw, str):
-                                        sdt_parsed: datetime = dateparser.parse(start_date_raw)
-                                        if sdt_parsed and isinstance(sdt_parsed, datetime.datetime):
-                                            sd_parsed_iso: str = sdt_parsed.isoformat()
-                                            course_itemloader.add_value("course_availability_from", sd_parsed_iso)
+                                        course_itemloader.add_value("course_availability_from", start_date_raw)
+                                    else:
+                                        self.logger.warning(
+                                            f"Received unexpected type for \"startDate\" {start_date_raw} . "
+                                            f"Expected str, but received {type(start_date_raw)} instead.")
                         if "endDate" in imoox_attributes:
                             end_dates: list[str] = imoox_attributes["endDate"]
                             if end_dates and isinstance(end_dates, list):
                                 for end_date_raw in end_dates:
                                     if end_date_raw and isinstance(end_date_raw, str):
-                                        edt_parsed: datetime = dateparser.parse(end_date_raw)
-                                        if edt_parsed and isinstance(edt_parsed, datetime.datetime):
-                                            ed_parsed_iso: str = edt_parsed.isoformat()
-                                            course_itemloader.add_value("course_availability_until", ed_parsed_iso)
+                                        course_itemloader.add_value("course_availability_until", end_date_raw)
+                                    else:
+                                        self.logger.warning(
+                                            f"Received unexpected type for \"endDate\" {end_date_raw}. "
+                                            f"Expected str, but received {type(end_date_raw)} instead."
+                                        )
                         if "trailer" in imoox_attributes:
                             # example data (as of 2024-05-27)
                             # "trailer": {
@@ -1045,11 +1048,11 @@ class OersiSpider(scrapy.Spider, LomBase):
                     base_itemloader.add_value("course", course_itemloader.load_item())
 
     def enrich_vhb_metadata(
-        self,
-        base_itemloader: BaseItemLoader,
-        elastic_item: dict,
-        lom_general_itemloader: LomGeneralItemloader,
-        in_languages: list[str] | None,
+            self,
+            base_itemloader: BaseItemLoader,
+            elastic_item: dict,
+            lom_general_itemloader: LomGeneralItemloader,
+            in_languages: list[str] | None,
     ):
         """
         Combines metadata from OERSI's elastic_item with MOOCHub v2.x metadata from the source (vhb)
@@ -1111,19 +1114,11 @@ class OersiSpider(scrapy.Spider, LomBase):
                         if "startDate" in vhb_item_matched["attributes"]:
                             start_date_raw: str = vhb_item_matched["attributes"]["startDate"]
                             if start_date_raw and isinstance(start_date_raw, str):
-                                # parsing the date string first to check its validity
-                                sdt_parsed: datetime = dateparser.parse(start_date_raw)
-                                if sdt_parsed and isinstance(sdt_parsed, datetime.datetime):
-                                    # just to make sure that we don't parse bogus data, we run the string
-                                    # through the dateparser module first and convert it to iso 8601
-                                    sd_parsed_iso: str = sdt_parsed.isoformat()
-                                    course_itemloader.add_value("course_availability_from", sd_parsed_iso)
-                                else:
-                                    self.logger.warning(
-                                        f"Could not parse vhb 'start_date' value {start_date_raw} "
-                                        f"to datetime. (Please check for new edge-cases "
-                                        f"and update the crawler!)"
-                                    )
+                                course_itemloader.add_value("course_availability_from", start_date_raw)
+                            else:
+                                self.logger.warning(f"Received unexpected type for \"startDate\" {start_date_raw} . "
+                                                    f"Expected a string, but received {type(start_date_raw)} instead."
+                                                    )
                         if "video" in vhb_item_matched["attributes"]:
                             video_item: dict = vhb_item_matched["attributes"]["video"]
                             if video_item:
@@ -1179,7 +1174,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                                     # timedelta has no parameter for months
                                                     #  -> X months = X * (4 weeks)
                                                     duration_delta = duration_delta + (
-                                                        duration_number * datetime.timedelta(weeks=4)
+                                                            duration_number * datetime.timedelta(weeks=4)
                                                     )
                                                 case _:
                                                     self.logger.warning(

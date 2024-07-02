@@ -325,9 +325,9 @@ class CourseItem(Item):
     BIRD-specific metadata properties intended only for courses.
     """
     course_availability_from = Field()
-    """Corresponding edu-sharing property: 'ccm:oeh_event_begin' (date)"""
+    """Corresponding edu-sharing property: 'ccm:oeh_event_begin' (expects ISO datetime string)"""
     course_availability_until = Field()
-    """Corresponding edu-sharing property: 'ccm:oeh_event_end' (date)"""
+    """Corresponding edu-sharing property: 'ccm:oeh_event_end' (expects ISO datetime string)"""
     course_description_short = Field()
     """Corresponding edu-sharing property: 'ccm:oeh_course_description_short'"""
     course_duration = Field()
