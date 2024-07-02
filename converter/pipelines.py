@@ -311,22 +311,6 @@ class ConvertTimePipeline(BasicPipeline):
 class CourseItemPipeline(BasicPipeline):
     """Pipeline for BIRD-related metadata properties."""
     # ToDo: Expand docs!
-    #
-    # ToDo: course description normalization -> 'ccm:oeh_course_description_short'
-    #  - expects a string (with or without HTML formatting)
-    #
-    # ToDo: course_duration -> 'cclom:typicallearningtime' (ms)
-    #
-    # ToDo: course_learningoutcome -> 'ccm:learninggoal'
-    #  - expects a string (with or without HTML formatting)
-    #
-    # ToDo (optional): course_schedule
-    #  - expects a string (either with or without HTML formatting)
-    #
-    # ToDo: course_url_video
-    #  - expects a (singular) URL
-    #
-    # ToDo: course_workload -> ?
     def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
         adapter = ItemAdapter(item)
         if "course" in adapter:
@@ -344,14 +328,14 @@ class CourseItemPipeline(BasicPipeline):
                         caf_iso: str = caf_parsed.isoformat()
                         course_adapter["course_availability_from"] = caf_iso
                     else:
-                        log.warning(f"""Failed to parse "course_availability_from"-property 
-                                    "{course_availability_from}" to a valid "datetime"-object. 
-                                    (Please check the object {adapter['sourceId']} or extend the CourseItemPipeline!)
-                                    """)
+                        log.warning(f"Failed to parse \"course_availability_from\"-property "
+                                    f"\"{course_availability_from}\" to a valid \"datetime\"-object. \n"
+                                    f"(Please check the object {adapter['sourceId']} "
+                                    f"or extend the CourseItemPipeline!)")
                         del course_adapter["course_availability_from"]
                 else:
-                    log.warning(f"""Cannot process BIRD 'course_availability_from'-property {course_availability_from} 
-                                f"(Expected a string, but received {type(course_availability_from)} instead.""")
+                    log.warning(f"Cannot process BIRD 'course_availability_from'-property {course_availability_from} "
+                                f"(Expected a string, but received {type(course_availability_from)} instead.")
                     del course_adapter["course_availability_from"]
 
             # Prepare BIRD "course_availability_until" for "ccm:oeh_event_end" (-> ISO-formatted "datetime"-string)
@@ -364,27 +348,69 @@ class CourseItemPipeline(BasicPipeline):
                         cau_iso: str = cau_parsed.isoformat()
                         course_adapter["course_availability_until"] = cau_iso
                     else:
-                        log.warning(f"""Failed to parse "{course_availability_until}" to a valid 'datetime'-object. 
-                        (Please check the object {adapter['sourceId']} for unhandled edge-cases or extend the 
-                        CourseItemPipeline!)""")
+                        log.warning(f"Failed to parse \"{course_availability_until}\" to a valid 'datetime'-object. "
+                                    f"(Please check the object {adapter['sourceId']} for unhandled edge-cases or "
+                                    f"extend the CourseItemPipeline!)")
                         del course_adapter["course_availability_until"]
                 else:
-                    log.warning(f"""Cannot process BIRD "course_availability_until"-property {course_availability_until}
-                                 (Expected a string, but received {type(course_availability_until)} instead.)""")
+                    log.warning(
+                        f"Cannot process BIRD \"course_availability_until\"-property {course_availability_until} "
+                        f"(Expected a string, but received {type(course_availability_until)} instead.)")
                     del course_adapter["course_availability_until"]
 
             if "course_description_short" in course_adapter:
-                pass
+                # course_description_short expects a string (with or without HTML formatting)
+                course_description_short: str = course_adapter["course_description_short"]
+                if course_description_short and isinstance(course_description_short, str):
+                    # happy-case: the description is a string
+                    pass
+                else:
+                    log.warning(f"Cannot process BIRD 'course_description_short'-property for item "
+                                f"{adapter['sourceId']}. Expected a string, but received "
+                                f"{type(course_description_short)} instead.")
+                    del course_adapter["course_description_short"]
+
             if "course_duration" in course_adapter:
+                # ToDo: course_duration -> 'cclom:typicallearningtime' (ms)
                 pass
+
             if "course_learningoutcome" in course_adapter:
-                pass
+                # course_learningoutcome expects a string (with or without HTML formatting)
+                course_learning_outcome = course_adapter["course_learningoutcome"]
+                if course_learning_outcome and isinstance(course_learning_outcome, str):
+                    # happy-case
+                    pass
+                else:
+                    log.warning(f"Cannot process BIRD 'course_learningoutcome'-property for item {adapter['sourceId']} "
+                                f". Expected a string, but received {type(course_learning_outcome)} instead.")
+                    del course_adapter["course_learningoutcome"]
+
             if "course_schedule" in course_adapter:
-                pass
+                # course_schedule expects a string (either with or without HTML formatting)
+                course_schedule: str = course_adapter["course_schedule"]
+                if course_schedule and isinstance(course_schedule, str):
+                    # happy-case
+                    pass
+                else:
+                    log.warning(f"Cannot process BIRD 'course_schedule'-property for item {adapter['sourceId']} . "
+                                f"Expected a string, but received {type(course_schedule)} instead.")
+                    del course_adapter["course_schedule"]
+
             if "course_url_video" in course_adapter:
-                pass
+                # expects a (singular) URL pointing towards a course-related video (e.g. a short teaser / intro)
+                course_url_video: str = course_adapter["course_url_video"]
+                if course_url_video and isinstance(course_url_video, str):
+                    # happy-case
+                    pass
+                else:
+                    log.warning(f"Cannot process BIRD 'course_url_video'-property for item {adapter['sourceId']} . "
+                                f"Expected a string, but received {type(course_url_video)} instead.")
+                    del course_adapter["course_url_video"]
+
             if "course_workload" in course_adapter:
+                # ToDo: course_workload -> ?
                 pass
+
         return item
 
     pass
