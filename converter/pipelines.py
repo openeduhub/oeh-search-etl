@@ -127,7 +127,7 @@ class FilterSparsePipeline(BasicPipeline):
         except KeyError:
             raise DropItem(f'Item {item} has no lom.technical.location')
         try:
-            if "location" not in item["lom"]["technical"] and not "binary" in item:
+            if "location" not in item["lom"]["technical"] and "binary" not in item:
                 raise DropItem(
                     "Entry {} has no technical location or binary data".format(item["lom"]["general"]["title"])
                 )
@@ -726,7 +726,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
 def get_settings_for_crawler(spider) -> scrapy.settings.Settings:
     all_settings = get_project_settings()
     crawler_settings = settings.BaseSettings(getattr(spider, "custom_settings") or {}, 'spider')
-    if type(crawler_settings) == dict:
+    if isinstance(crawler_settings, dict):
         crawler_settings = settings.BaseSettings(crawler_settings, 'spider')
     for key in crawler_settings.keys():
         if (
