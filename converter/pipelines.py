@@ -310,17 +310,16 @@ class ConvertTimePipeline(BasicPipeline):
 
 class CourseItemPipeline(BasicPipeline):
     """Pipeline for BIRD-related metadata properties."""
-    # ToDo: Expand docs!
     def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
-        adapter = ItemAdapter(item)
-        if "course" in adapter:
-            course_adapter: ItemAdapter = adapter["course"]
+        item_adapter = ItemAdapter(item)
+        if "course" in item_adapter:
+            course_adapter: ItemAdapter = item_adapter["course"]
 
-            # Prepare BIRD "course_availability_from" for "ccm:oeh_event_begin" (ISO-formatted "datetime"-string)
             if "course_availability_from" in course_adapter:
+                # Preparing BIRD "course_availability_from" for "ccm:oeh_event_begin" (ISO-formatted "datetime"-string)
                 course_availability_from: str = course_adapter["course_availability_from"]
-                # BIRD spec: "verfügbar ab" expects a single-value 'datetime' string
                 if course_availability_from and isinstance(course_availability_from, str):
+                    # BIRD spec: "verfügbar ab" expects a single-value 'datetime' string
                     caf_parsed: datetime = dateparser.parse(course_availability_from)
                     # try to parse the string and convert it to a datetime object
                     if caf_parsed and isinstance(caf_parsed, datetime.datetime):
@@ -330,7 +329,7 @@ class CourseItemPipeline(BasicPipeline):
                     else:
                         log.warning(f"Failed to parse \"course_availability_from\"-property "
                                     f"\"{course_availability_from}\" to a valid \"datetime\"-object. \n"
-                                    f"(Please check the object {adapter['sourceId']} "
+                                    f"(Please check the object {item_adapter['sourceId']} "
                                     f"or extend the CourseItemPipeline!)")
                         del course_adapter["course_availability_from"]
                 else:
@@ -349,13 +348,14 @@ class CourseItemPipeline(BasicPipeline):
                         course_adapter["course_availability_until"] = cau_iso
                     else:
                         log.warning(f"Failed to parse \"{course_availability_until}\" to a valid 'datetime'-object. "
-                                    f"(Please check the object {adapter['sourceId']} for unhandled edge-cases or "
+                                    f"(Please check the object {item_adapter['sourceId']} for unhandled edge-cases or "
                                     f"extend the CourseItemPipeline!)")
                         del course_adapter["course_availability_until"]
                 else:
                     log.warning(
                         f"Cannot process BIRD \"course_availability_until\"-property {course_availability_until} "
-                        f"(Expected a string, but received {type(course_availability_until)} instead.)")
+                        f"(Expected a string, but received {type(course_availability_until)} instead.) "
+                        f"Deleting property...")
                     del course_adapter["course_availability_until"]
 
             if "course_description_short" in course_adapter:
@@ -366,13 +366,21 @@ class CourseItemPipeline(BasicPipeline):
                     pass
                 else:
                     log.warning(f"Cannot process BIRD 'course_description_short'-property for item "
-                                f"{adapter['sourceId']}. Expected a string, but received "
-                                f"{type(course_description_short)} instead.")
+                                f"{item_adapter['sourceId']} . Expected a string, but received "
+                                f"{type(course_description_short)} instead. Deleting property...")
                     del course_adapter["course_description_short"]
 
             if "course_duration" in course_adapter:
-                # ToDo: course_duration -> 'cclom:typicallearningtime' (ms)
-                pass
+                # course_duration -> 'cclom:typicallearningtime' (ms)
+                course_duration: int = course_adapter["course_duration"]
+                if course_duration and isinstance(course_duration, int):
+                    # happy-case
+                    pass
+                else:
+                    log.warning(f"Cannot process BIRD 'course_duration'-property for item {item_adapter['sourceId']} . "
+                                f"Expected a single integer value (in milliseconds), "
+                                f"but received {type(course_duration)} instead. Deleting property...")
+                    del course_adapter["course_duration"]
 
             if "course_learningoutcome" in course_adapter:
                 # course_learningoutcome expects a string (with or without HTML formatting)
@@ -381,8 +389,10 @@ class CourseItemPipeline(BasicPipeline):
                     # happy-case
                     pass
                 else:
-                    log.warning(f"Cannot process BIRD 'course_learningoutcome'-property for item {adapter['sourceId']} "
-                                f". Expected a string, but received {type(course_learning_outcome)} instead.")
+                    log.warning(
+                        f"Cannot process BIRD 'course_learningoutcome'-property for item {item_adapter['sourceId']} "
+                        f". Expected a string, but received {type(course_learning_outcome)} instead. "
+                        f"Deleting property...")
                     del course_adapter["course_learningoutcome"]
 
             if "course_schedule" in course_adapter:
@@ -392,8 +402,9 @@ class CourseItemPipeline(BasicPipeline):
                     # happy-case
                     pass
                 else:
-                    log.warning(f"Cannot process BIRD 'course_schedule'-property for item {adapter['sourceId']} . "
-                                f"Expected a string, but received {type(course_schedule)} instead.")
+                    log.warning(f"Cannot process BIRD 'course_schedule'-property for item {item_adapter['sourceId']} . "
+                                f"Expected a string, but received {type(course_schedule)} instead. "
+                                f"Deleting property...")
                     del course_adapter["course_schedule"]
 
             if "course_url_video" in course_adapter:
@@ -403,12 +414,24 @@ class CourseItemPipeline(BasicPipeline):
                     # happy-case
                     pass
                 else:
-                    log.warning(f"Cannot process BIRD 'course_url_video'-property for item {adapter['sourceId']} . "
-                                f"Expected a string, but received {type(course_url_video)} instead.")
+                    log.warning(
+                        f"Cannot process BIRD 'course_url_video'-property for item {item_adapter['sourceId']} . "
+                        f"Expected a string, but received {type(course_url_video)} instead. "
+                        f"Deleting property...")
                     del course_adapter["course_url_video"]
 
             if "course_workload" in course_adapter:
-                # ToDo: course_workload -> ?
+                # ToDo: course_workload -> edu-sharing: ? -> BIRD: expects a single-value string
+                # ToDo: currently there's no dedicated edu-sharing property for course workloads yet,
+                #  therefore pipeline handling of such values cannot be implemented yet.
+                if "course_workload" in course_adapter:
+                    # ToDo: confirm which edu-sharing property shall be used for course_workload
+                    #  (and which type is expected) -> implement a type-check!
+                    course_workload: str = course_adapter["course_workload"]
+                    if course_workload:
+                        log.error(f"Cannot process BIRD 'course_workload'-property: this field is not implemented yet! "
+                                  f"(Please update the 'CourseItemPipeline' (pipelines.py) and es_connector.py!)")
+                        pass
                 pass
 
         return item
