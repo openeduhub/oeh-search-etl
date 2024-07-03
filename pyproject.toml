@@ -12,12 +12,13 @@ homepage = "https://github.com/openeduhub/oeh-search-etl"
 repository = "https://github.com/openeduhub/oeh-search-etl"
 documentation = "https://github.com/openeduhub/oeh-search-etl"
 
-keywords = ["metadata", "oer", "crawl", " wirlernenonline"]
+keywords = ["metadata", "oer", "crawl", "wirlernenonline"]
 
 classifiers = [
     "Framework :: Scrapy",
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Education :: Testing",
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
 ]
