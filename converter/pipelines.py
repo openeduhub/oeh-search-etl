@@ -267,45 +267,90 @@ class ConvertTimePipeline(BasicPipeline):
                     del item["lastModified"]
 
         if "typicalLearningTime" in item["lom"]["educational"]:
-            t = item["lom"]["educational"]["typicalLearningTime"]
-            mapped = None
-            # ToDo: typecheck the provided value first and handle it accordingly!
-            #  - strings: check commonly provided "duration" formats (e.g. "hh:mm:ss" or "12 Stunden")
-            #  - convert to int: 'cclom:typicallearningtime' expects values to be in milliseconds!
-            #  - improve error-handling by reworking the bare "except"-clause
-            #  - update es_connector.py and connect this property to the backend
-            splitted = t.split(":")
-            if len(splitted) == 3:
-                mapped = (
-                        int(splitted[0]) * 60 * 60
-                        + int(splitted[1]) * 60
-                        + int(splitted[2])
-                )
-            if mapped is None:
-                log.warning(
-                    "Unable to map given typicalLearningTime "
-                    + t
-                    + " to numeric value"
-                )
-            item["lom"]["educational"]["typicalLearningTime"] = mapped
+            tll_raw = item["lom"]["educational"]["typicalLearningTime"]
+            tll_duration_in_seconds = (
+                determine_duration_and_convert_to_seconds(time_raw=tll_raw,
+                                                               item_field_name="LomEducationalItem.typicalLearningTime")
+            )
+            # ToDo: update es_connector and connect this property with the backend
+            item["lom"]["educational"]["typicalLearningTime"] = tll_duration_in_seconds
+
         if "technical" in item["lom"]:
             if "duration" in item["lom"]["technical"]:
                 raw_duration = item["lom"]["technical"]["duration"]
-                duration = raw_duration.strip()
-                if duration:
-                    if len(duration.split(":")) == 3:
-                        duration = isodate.parse_time(duration)
-                        duration = duration.hour * 60 * 60 + duration.minute * 60 + duration.second
-                    elif duration.startswith("PT"):
-                        duration = int(isodate.parse_duration(duration).total_seconds())
-                    else:
-                        try:
-                            duration = int(duration)
-                        except:
-                            duration = None
-                            log.warning("duration {} could not be normalized to seconds".format(raw_duration))
-                    item["lom"]["technical"]["duration"] = duration
+                duration_in_seconds = determine_duration_and_convert_to_seconds(
+                    time_raw=raw_duration,
+                    item_field_name="LomTechnicalItem.duration")
+                item["lom"]["technical"]["duration"] = duration_in_seconds
         return raw_item
+
+
+def determine_duration_and_convert_to_seconds(time_raw: str | int | float,
+                                              item_field_name: str) -> int | None:
+    """
+    Tries to convert "duration"-objects (of unknown type) to seconds.
+    Returns the converted duration as(as total seconds) int value if successful
+    or None if conversion wasn't possible.
+
+    @param time_raw: the unknown duration object (string or numeric value)
+    @param item_field_name: scrapy item field-name (required for precise logging messages)
+    @return: total seconds (int) value of duration or None
+    """
+    time_in_seconds = None
+    # why are we converting values to int? reason: 'cclom:typicallearningtime' expects values to be in milliseconds!
+    # (this method converts values to seconds and es_connector.py converts the values to ms)
+    if time_raw and isinstance(time_raw, str):
+        # strip whitespace first (just in case -> string values might have typos)
+        time_raw = time_raw.strip()
+        if ":" in time_raw:
+            # handling of "hh:mm:ss"-durations:
+            t_split: list[str] = time_raw.split(":")
+            if len(t_split) == 3:
+                time_in_seconds = (
+                        int(t_split[0]) * 60 * 60
+                        + int(t_split[1]) * 60
+                        + int(t_split[2])
+                )
+            else:
+                log.warning(f"Encountered unhandled edge-case in '{item_field_name}': "
+                            f"Expected format 'hh:mm:ss', but received {time_raw} instead.")
+        if "PT" in time_raw:
+            # handling of iso-formatted duration strings
+            # (see: https://en.wikipedia.org/wiki/ISO_8601#Durations)
+            duration_parsed = isodate.parse_duration(time_raw)
+            if duration_parsed:
+                time_in_seconds = duration_parsed.total_seconds()
+            else:
+                log.warning(f"Encountered unhandled edge-case in '{item_field_name}': "
+                            f"Expected ISO-8601 duration string, but received {time_raw} instead.")
+        if "." in time_raw and time_raw.count(".") == 1:
+            # duration strings might come with float precision (e.g. "600.0" for 10 Minutes)
+            try:
+                seconds_float: float = float(time_raw)
+                if seconds_float:
+                    time_in_seconds = int(seconds_float)
+            except ValueError:
+                log.warning(
+                    f"Unable to convert string {time_raw} (type: {type(time_raw)}) to 'int'-value (seconds).")
+        if time_raw.isnumeric():
+            try:
+                time_in_seconds = int(time_raw)
+            except ValueError:
+                log.warning(f"Unable to convert 'duration'-value {time_raw} (type ({type(time_raw)}) "
+                            f"to 'int'-value (seconds).")
+        # ToDo (optional): implement processing of natural language strings? (e.g. "12 Stunden")
+        #  - this feature would need a rigorous testing suite for common expressions (English and German strings)
+    else:
+        try:
+            time_in_seconds = int(time_raw)
+        except ValueError:
+            log.warning(f"'duration' value {time_raw} could not be normalized to seconds. "
+                        f"(Unhandled edge-case: Expected int or float value, "
+                        f"but received {type(time_raw)} instead.")
+    if not time_in_seconds:
+        log.warning(f"Unable to convert '{item_field_name}'-value (type: {type(time_raw)}) from {time_raw} "
+                    f"to numeric value (seconds).")
+    return time_in_seconds
 
 
 class CourseItemPipeline(BasicPipeline):
@@ -373,6 +418,10 @@ class CourseItemPipeline(BasicPipeline):
             if "course_duration" in course_adapter:
                 # course_duration -> 'cclom:typicallearningtime' (ms)
                 course_duration: int = course_adapter["course_duration"]
+                course_duration = determine_duration_and_convert_to_seconds(
+                    time_raw=course_duration,
+                    item_field_name="CourseItem.course_duration"
+                )
                 if course_duration and isinstance(course_duration, int):
                     # happy-case
                     pass
