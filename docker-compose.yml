@@ -53,10 +53,38 @@ services:
       - "EDU_SHARING_PASSWORD=${EDU_SHARING_PASSWORD}"
       - "API_MODE=${API_MODE}"
       - "Z_API_KEY=${Z_API_KEY}"
+    ports:
+      - "0.0.0.0:80:80"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://0.0.0.0:80/_ping" ]
+  scrapyd:
+    image: openeduhub/oeh-search-etl:develop
+    depends_on:
+      - scrapy
+      - headless_chrome
+      - splash
     expose:
       - "6800"
     ports:
-      - "0.0.0.0:6802:6800"
+      - "0.0.0.0:6801:6800"
+    networks:
+      - scrapy
+    environment:
+      - "PYPPETEER_WS_ENDPOINT=ws://headless_chrome:3000"
+      - "PLAYWRIGHT_WS_ENDPOINT=ws://headless_chrome:3000"
+      - "SPLASH_URL=http://splash:8050"
+      - "CRAWLER=${CRAWLER}"
+      # optional keyword args, e.g. cleanrun=true
+      - "ARGS=${ARGS}"
+      - "DRY_RUN=False"
+      - "MODE=json"
+      - "LOG_LEVEL=${LOG_LEVEL:-INFO}"
+      - "EDU_SHARING_BASE_URL=${EDU_SHARING_BASE_URL}"
+      - "EDU_SHARING_USERNAME=${EDU_SHARING_USERNAME}"
+      - "EDU_SHARING_PASSWORD=${EDU_SHARING_PASSWORD}"
+      - "API_MODE=${API_MODE}"
+      - "Z_API_KEY=${Z_API_KEY}"
+    restart: "no"
+    entrypoint: [ "bash", "-c", "scrapyd"]
     healthcheck:
-      test: [ "CMD", "./venv_scrapyd/bin/scrapyd-deploy", "default"]
-      # test: [ "CMD", "curl", "-f", "http://0.0.0.0:80/_ping" ]
+      test: [ "CMD", "./venv_scrapyd/bin/scrapyd-deploy", "default" ]
