@@ -331,8 +331,10 @@ class CourseItem(Item):
     course_description_short = Field()
     """Corresponding edu-sharing property: 'ccm:oeh_course_description_short'"""
     course_duration = Field()
-    """Corresponding edu-sharing property: 'cclom:typicallearningtime'
-    (edu-sharing expects 'cclom:typicallearningtime' values in milliseconds!)"""
+    """Expects a duration in seconds. 
+    Corresponding edu-sharing property: 'cclom:typicallearningtime'.
+    (ATTENTION: edu-sharing expects 'cclom:typicallearningtime'-values (type: int) in milliseconds! 
+    -> the es_connector will handle transformation from s to ms.)"""
     course_learningoutcome = Field()
     """Describes "Lernergebnisse" or "learning objectives". (Expects a string, with or without HTML-formatting!)
     Corresponding edu-sharing property: 'ccm:learninggoal'"""

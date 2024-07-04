@@ -545,8 +545,15 @@ class EduSharing:
             if "course_description_short" in item["course"]:
                 spaces["ccm:oeh_course_description_short"] = item["course"]["course_description_short"]
             if "course_duration" in item["course"]:
-                # edu-sharing property 'cclom:typicallearningtime' expects values in ms!
-                spaces["cclom:typicallearningtime"] = item["course"]["course_duration"]
+                course_duration: int = item["course"]["course_duration"]
+                if course_duration and isinstance(course_duration, int):
+                    # edu-sharing property 'cclom:typicallearningtime' expects values in ms!
+                    course_duration_in_ms = int(course_duration * 1000)
+                    item["course"]["course_duration"] = course_duration_in_ms
+                    spaces["cclom:typicallearningtime"] = item["course"]["course_duration"]
+                else:
+                    log.warning(f"Could not transform 'course_duration' {course_duration} to ms. "
+                                f"Expected int (seconds), but received type {type(course_duration)} instead.")
             if "course_learningoutcome" in item["course"]:
                 spaces["ccm:learninggoal"] = item["course"]["course_learningoutcome"]
             if "course_schedule" in item["course"]:

@@ -378,7 +378,7 @@ class CourseItemPipeline(BasicPipeline):
                     pass
                 else:
                     log.warning(f"Cannot process BIRD 'course_duration'-property for item {item_adapter['sourceId']} . "
-                                f"Expected a single integer value (in milliseconds), "
+                                f"Expected a single integer value (in seconds), "
                                 f"but received {type(course_duration)} instead. Deleting property...")
                     del course_adapter["course_duration"]
 

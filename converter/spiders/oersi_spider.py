@@ -1024,18 +1024,19 @@ class OersiSpider(scrapy.Spider, LomBase):
                                 # while "cclom:typicallearningtime" expects ms. Therefore:
                                 # 1) we extract the amount of weeks from "duration"
                                 # 2) calculate: <amount_of_weeks> * <h/week> = total duration in h
-                                # 3) convert total duration from h to ms
+                                # 3) convert total duration from hours to seconds
+                                # (-> es_connector will handle conversion from s to ms)
                                 if time_unit == "h/week":
                                     total_duration_in_hours: int = amount_of_weeks * time_value
                                     duration_delta = datetime.timedelta(hours=total_duration_in_hours)
                                     if duration_delta:
-                                        total_duration_in_ms: int = int(duration_delta.total_seconds() * 1000)
-                                        course_itemloader.add_value("course_duration", total_duration_in_ms)
+                                        total_duration_in_seconds: int = int(duration_delta.total_seconds())
+                                        course_itemloader.add_value("course_duration", total_duration_in_seconds)
                                         self.logger.debug(
                                             f"BIRD: combined iMoox 'duration' "
                                             f"( {duration_in_weeks_raw} ) and 'workload' "
                                             f"( {time_value} {time_unit} ) to {total_duration_in_hours} h "
-                                            f"(-> {total_duration_in_ms} ms)."
+                                            f"(-> {total_duration_in_seconds} s)."
                                         )
                                 else:
                                     # ToDo: convert "h/day" and "h/month" in a similar fashion
@@ -1103,7 +1104,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                         if "outline" in vhb_item_matched["attributes"]:
                             outline_raw: str = vhb_item_matched["attributes"]["outline"]
                             if outline_raw and isinstance(outline_raw, str):
-                                # ToDo: vhb "outline" -> course_schedule -> "ccm:oeh_course_schedule"
+                                # vhb "outline" -> course_schedule -> "ccm:oeh_course_schedule"
                                 # the vhb attribute "outline" describes a course's schedule (Kursablauf)
                                 # IMPORTANT: "outline" is not part of MOOCHub v2.x nor 3.x!
                                 course_itemloader.add_value("course_schedule", outline_raw)
@@ -1185,10 +1186,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                             if duration_delta:
                                                 workload_in_seconds: int = int(duration_delta.total_seconds())
                                                 if workload_in_seconds:
-                                                    # the edu-sharing property 'cclom:typicallearningtime'
-                                                    # expects values in ms:
-                                                    workload_in_ms: int = workload_in_seconds * 1000
-                                                    course_itemloader.add_value("course_duration", workload_in_ms)
+                                                    course_itemloader.add_value("course_duration", workload_in_seconds)
                     base_itemloader.add_value("course", course_itemloader.load_item())
 
     def parse(self, response=None, **kwargs):
