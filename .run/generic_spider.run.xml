@@ -15,7 +15,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="scrapy.cmdline" />
-    <option name="PARAMETERS" value="crawl generic_spider -a urltocrawl=https://biologie-lernprogramme.de/daten/programme/js/replikation_von_a_bis_z/daten/img9.html -a ai_enabled=False -a find_sitemap=True -o -:json" />
+    <option name="PARAMETERS" value="crawl generic_spider -a urltocrawl=https://biologie-lernprogramme.de/daten/programme/js/replikation_von_a_bis_z/daten/img9.html -a ai_enabled=True -a find_sitemap=False -o -:json" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="true" />
