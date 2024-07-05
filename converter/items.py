@@ -167,6 +167,7 @@ class LomEducationalItem(Item):
     """See LomAgeRangeItem. Corresponding edu-sharing properties: 
     'ccm:educationaltypicalagerange_from' & 'ccm:educationaltypicalagerange_to'"""
     typicalLearningTime = Field()
+    """Corresponding edu-sharing property: 'cclom:typicallearningtime' (expects values in ms!)"""
 
 
 # please use the seperate license data
@@ -319,6 +320,35 @@ class PermissionItem(Item):
     """Determines if this item should be 'public' (= accessible by anyone)"""
 
 
+class CourseItem(Item):
+    """
+    BIRD-specific metadata properties intended only for courses.
+    """
+    course_availability_from = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_event_begin' (expects ISO datetime string)"""
+    course_availability_until = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_event_end' (expects ISO datetime string)"""
+    course_description_short = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_course_description_short'"""
+    course_duration = Field()
+    """Expects a duration in seconds. 
+    Corresponding edu-sharing property: 'cclom:typicallearningtime'.
+    (ATTENTION: edu-sharing expects 'cclom:typicallearningtime'-values (type: int) in milliseconds! 
+    -> the es_connector will handle transformation from s to ms.)"""
+    course_learningoutcome = Field()
+    """Describes "Lernergebnisse" or "learning objectives". (Expects a string, with or without HTML-formatting!)
+    Corresponding edu-sharing property: 'ccm:learninggoal'"""
+    course_schedule = Field()
+    """Describes the schedule of a course ("Kursablauf"). (Expects a string, with or without HTML-formatting!)
+    Corresponding edu-sharing property: 'ccm:oeh_course_schedule'."""
+    course_url_video = Field()
+    """URL of a course-specific trailer- or teaser-video.
+    Corresponding edu-sharing property: 'ccm:oeh_course_url_video'"""
+    course_workload = Field()
+    """Describes the workload per week."""
+    # ToDo: confirm where "workload" values should be saved within edu-sharing
+
+
 class BaseItem(Item):
     """
     BaseItem provides the basic data structure for any crawled item.
@@ -339,6 +369,7 @@ class BaseItem(Item):
     """Binary data which should be uploaded to edu-sharing (= raw data, e.g. ".pdf"-files)."""
     collection = Field(output_processor=JoinMultivalues())
     """id of edu-sharing collections this entry should be placed into"""
+    course = Field(serializer=CourseItem)
     custom = Field()
     """A field for custom data which can be used by the target transformer to store data in the native format 
     (i.e. 'ccm:'/'cclom:'-properties in edu-sharing)."""
@@ -395,6 +426,11 @@ class BaseItem(Item):
 class BaseItemLoader(ItemLoader):
     default_item_class = BaseItem
     # default_input_processor = MapCompose(replace_processor)
+    default_output_processor = TakeFirst()
+
+
+class CourseItemLoader(ItemLoader):
+    default_item_class = CourseItem
     default_output_processor = TakeFirst()
 
 

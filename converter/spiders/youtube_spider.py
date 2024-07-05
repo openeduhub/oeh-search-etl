@@ -6,7 +6,6 @@ import re
 from typing import Generator, List
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
-from overrides import overrides
 from scrapy.http import Request, Response
 from scrapy.spiders import Spider
 
@@ -85,7 +84,6 @@ class YoutubeSpider(Spider):
         super().__init__(**kwargs)
         self.lomLoader = YoutubeLomLoader(self.name, self.version, **kwargs)
 
-    @overrides  # Spider
     def start_requests(self):
         if env.get("YOUTUBE_API_KEY", False) == "":
             logging.error("YOUTUBE_API_KEY is required for youtube_spider. Please check your '.env'-settings!")
@@ -312,19 +310,15 @@ class YoutubeLomLoader(LomBase):
         self.version = version
         super().__init__(**kwargs)
 
-    @overrides  # LomBase
     def getId(self, response: Response) -> str:
         return YoutubeSpider.get_video_url(response.meta["item"])
 
-    @overrides  # LomBase
     def getHash(self, response: Response) -> str:
         return self.version + response.meta["item"]["snippet"]["publishedAt"]
 
-    @overrides  # LomBase
     async def mapResponse(self, response) -> items.ResponseItemLoader:
         return await LomBase.mapResponse(self, response, False)
 
-    @overrides  # LomBase
     def getBase(self, response: Response) -> items.BaseItemLoader:
         base = LomBase.getBase(self, response)
         base.add_value("origin", response.meta["row"]["sourceTitle"].strip())
@@ -362,7 +356,6 @@ class YoutubeLomLoader(LomBase):
             )
         return fulltext
 
-    @overrides  # LomBase
     def getLOMGeneral(self, response: Response) -> items.LomGeneralItemloader:
         general = LomBase.getLOMGeneral(self, response)
         general.add_value("title", response.meta["item"]["snippet"]["title"])
@@ -380,7 +373,6 @@ class YoutubeLomLoader(LomBase):
             or response.meta["playlist"]["snippet"]["title"]
         )
 
-    @overrides  # LomBase
     def getLOMTechnical(self, response: Response) -> items.LomTechnicalItemLoader:
         technical = LomBase.getLOMTechnical(self, response)
         technical.add_value("format", "text/html")
@@ -388,7 +380,6 @@ class YoutubeLomLoader(LomBase):
         technical.add_value("duration", response.meta["item"]["contentDetails"]["duration"])
         return technical
 
-    @overrides  # LomBase
     def getLOMEducational(self, response):
         educational = LomBase.getLOMEducational(self, response)
         tar = items.LomAgeRangeItemLoader()
@@ -397,7 +388,6 @@ class YoutubeLomLoader(LomBase):
         educational.add_value("typicalAgeRange", tar.load_item())
         return educational
 
-    @overrides  # LomBase
     def getLOMLifecycle(self, response: Response) -> items.LomLifecycleItemloader:
         lifecycle = LomBase.getLOMLifecycle(self, response)
         lifecycle.add_value("role", "author")
@@ -413,7 +403,6 @@ class YoutubeLomLoader(LomBase):
         channel_id = response.meta["item"]["snippet"]["channelId"]
         return "https://www.youtube.com/channel/{}".format(channel_id)
 
-    @overrides  # LomBase
     def getLicense(self, response: Response) -> items.LicenseItemLoader:
         license_loader = LomBase.getLicense(self, response)
         # there are only two possible values according to https://developers.google.com/youtube/v3/docs/videos:
@@ -427,7 +416,6 @@ class YoutubeLomLoader(LomBase):
             logging.warning("Youtube element {} has no license".format(self.getId()))
         return license_loader
 
-    @overrides  # LomBase
     def getValuespaces(self, response: Response) -> items.ValuespaceItemLoader:
         valuespaces = LomBase.getValuespaces(self, response)
         row = response.meta["row"]

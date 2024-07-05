@@ -535,11 +535,36 @@ class EduSharing:
             if "toRange" in tar:
                 spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
 
-        # intendedEndUserRole = Field(output_processor=JoinMultivalues())
-        # discipline = Field(output_processor=JoinMultivalues())
-        # educationalContext = Field(output_processor=JoinMultivalues())
-        # learningResourceType = Field(output_processor=JoinMultivalues())
-        # sourceContentType = Field(output_processor=JoinMultivalues())
+        if "course" in item:
+            if "course_availability_from" in item["course"]:
+                # as of 2024-05-14: "ccm:oeh_event_begin" expects a datetime value
+                spaces["ccm:oeh_event_begin"] = item["course"]["course_availability_from"]
+            if "course_availability_until" in item["course"]:
+                # as of 2024-05-14: "ccm:oeh_event_end" expects a datetime value
+                spaces["ccm:oeh_event_end"] = item["course"]["course_availability_until"]
+            if "course_description_short" in item["course"]:
+                spaces["ccm:oeh_course_description_short"] = item["course"]["course_description_short"]
+            if "course_duration" in item["course"]:
+                course_duration: int = item["course"]["course_duration"]
+                if course_duration and isinstance(course_duration, int):
+                    # edu-sharing property 'cclom:typicallearningtime' expects values in ms!
+                    course_duration_in_ms = int(course_duration * 1000)
+                    item["course"]["course_duration"] = course_duration_in_ms
+                    spaces["cclom:typicallearningtime"] = item["course"]["course_duration"]
+                else:
+                    log.warning(f"Could not transform 'course_duration' {course_duration} to ms. "
+                                f"Expected int (seconds), but received type {type(course_duration)} instead.")
+            if "course_learningoutcome" in item["course"]:
+                spaces["ccm:learninggoal"] = item["course"]["course_learningoutcome"]
+            if "course_schedule" in item["course"]:
+                spaces["ccm:oeh_course_schedule"] = item["course"]["course_schedule"]
+            if "course_url_video" in item["course"]:
+                spaces["ccm:oeh_course_url_video"] = item["course"]["course_url_video"]
+            if "course_workload" in item["course"]:
+                # ToDo: which edu-sharing property should be used for workload per week? (and: which time unit?)
+                pass
+            pass
+
         mdsId = env.get("EDU_SHARING_METADATASET", allow_null=True, default="mds_oeh")
         if mdsId != "default":
             spaces["cm:edu_metadataset"] = mdsId

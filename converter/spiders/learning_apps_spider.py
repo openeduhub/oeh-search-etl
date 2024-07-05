@@ -1,4 +1,3 @@
-from overrides import overrides
 from scrapy.http import Response
 
 from converter import items
@@ -6,6 +5,7 @@ from converter.items import *
 from .base_classes import LomBase
 import html
 import scrapy
+
 
 class LearningAppsSpider(scrapy.Spider, LomBase):
     name = "learning_apps_spider"
@@ -16,6 +16,7 @@ class LearningAppsSpider(scrapy.Spider, LomBase):
 
     categories = {}
     subcategories = {}
+
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
@@ -83,7 +84,6 @@ class LearningAppsSpider(scrapy.Spider, LomBase):
         base.replace_value("thumbnail", response.meta["item"].xpath("@image").get())
         return base
 
-    @overrides
     def getLOMLifecycle(self, response: Response) -> items.LomLifecycleItemloader:
         lifecycle = LomBase.getLOMLifecycle(self, response)
         name = response.meta["item"].xpath("@author").get().split(' ')
