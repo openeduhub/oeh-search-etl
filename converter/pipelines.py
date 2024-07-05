@@ -168,6 +168,7 @@ class FilterSparsePipeline(BasicPipeline):
 
 class NormLanguagePipeline(BasicPipeline):
     """Normalize raw or ambiguous language strings to 2-letter-language-codes (ISO 639-1)."""
+
     def process_item(self, item, spider):
         item_adapter = ItemAdapter(item)
         try:
@@ -270,7 +271,7 @@ class ConvertTimePipeline(BasicPipeline):
             tll_raw = item["lom"]["educational"]["typicalLearningTime"]
             tll_duration_in_seconds = (
                 determine_duration_and_convert_to_seconds(time_raw=tll_raw,
-                                                               item_field_name="LomEducationalItem.typicalLearningTime")
+                                                          item_field_name="LomEducationalItem.typicalLearningTime")
             )
             # ToDo: update es_connector and connect this property with the backend
             item["lom"]["educational"]["typicalLearningTime"] = tll_duration_in_seconds
@@ -355,6 +356,7 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float,
 
 class CourseItemPipeline(BasicPipeline):
     """Pipeline for BIRD-related metadata properties."""
+
     def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
         item_adapter = ItemAdapter(item)
         if "course" in item_adapter:
@@ -626,9 +628,9 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     elif _mimetype == "application/octet-stream":
                         # ToDo: special handling for 'application/octet-stream' necessary?
                         log.debug(f"Thumbnail URL of MIME-Type 'image/...' expected, "
-                                 f"but received '{_mimetype}' instead. "
-                                 f"(If thumbnail conversion throws unexpected errors further down the line, "
-                                 f"the Thumbnail-Pipeline needs to be re-visited! URL: {url} )")
+                                  f"but received '{_mimetype}' instead. "
+                                  f"(If thumbnail conversion throws unexpected errors further down the line, "
+                                  f"the Thumbnail-Pipeline needs to be re-visited! URL: {url} )")
                         response = thumbnail_response
                     else:
                         log.warning(f"Thumbnail URL {url} does not seem to be an image! "
@@ -1074,47 +1076,47 @@ class ExampleLoggingPipeline(BasicPipeline):
 
 class LisumPipeline(BasicPipeline):
     DISCIPLINE_TO_LISUM_SHORTHAND = {
-        "020": "C-WAT",         # Arbeitslehre -> Wirtschaft, Arbeit, Technik
-        "060": "C-KU",          # Bildende Kunst
-        "080": "C-BIO",         # Biologie
-        "100": "C-CH",          # Chemie
-        "120": "C-DE",          # Deutsch
-        "160": "C-Eth",         # Ethik
-        "200": "C-FS",          # Fremdsprachen
-        "220": "C-GEO",         # Geographie,
-        "240": "C-GE",          # Geschichte
-        "260": "B-GES",         # Gesundheit -> Gesundheitsförderung
-        "320": "C-Inf",         # Informatik
-        "380": "C-MA",          # Mathematik
-        "400": "B-BCM",         # Medienerziehung / Medienpädagogik -> Basiscurriculum Medienbildung
-        "420": "C-MU",          # Musik
-        "450": "C-Phil",        # Philosophie
-        "460": "C-Ph",          # Physik
-        "480": "C-PB",          # Politische Bildung
-        "510": "C-Psy",         # Psychologie
-        "520": "C-LER",         # Religion -> Lebensgestaltung-Ethik-Religionskunde
-        "560": "B-SE",          # Sexualerziehung
+        "020": "C-WAT",  # Arbeitslehre -> Wirtschaft, Arbeit, Technik
+        "060": "C-KU",  # Bildende Kunst
+        "080": "C-BIO",  # Biologie
+        "100": "C-CH",  # Chemie
+        "120": "C-DE",  # Deutsch
+        "160": "C-Eth",  # Ethik
+        "200": "C-FS",  # Fremdsprachen
+        "220": "C-GEO",  # Geographie,
+        "240": "C-GE",  # Geschichte
+        "260": "B-GES",  # Gesundheit -> Gesundheitsförderung
+        "320": "C-Inf",  # Informatik
+        "380": "C-MA",  # Mathematik
+        "400": "B-BCM",  # Medienerziehung / Medienpädagogik -> Basiscurriculum Medienbildung
+        "420": "C-MU",  # Musik
+        "450": "C-Phil",  # Philosophie
+        "460": "C-Ph",  # Physik
+        "480": "C-PB",  # Politische Bildung
+        "510": "C-Psy",  # Psychologie
+        "520": "C-LER",  # Religion -> Lebensgestaltung-Ethik-Religionskunde
+        "560": "B-SE",  # Sexualerziehung
         # "600": "",              # ToDo: "Sport" is not available as a Lisum Rahmenlehrplan shorthand
-        "660": "B-MB",          # Verkehrserziehung -> "Mobilitätsbildung und Verkehrserziehung"
-        "700": "C-SOWI",        # Wirtschaftskunde -> "Sozialwissenschaft/Wirtschaftswissenschaft"
-        "900": "B-BCM",         # Medienbildung -> "Basiscurriculum Medienbildung"
-        "12002": "C-Thea",      # Darstellendes Spiel, Schultheater -> Theater
-        "20001": "C-EN",        # Englisch
-        "20002": "C-FR",        # Französisch
-        "20003": "C-AGR",       # Griechisch -> Altgriechisch
-        "20004": "C-IT",        # Italienisch
-        "20005": "C-La",        # Latein
-        "20006": "C-RU",        # Russisch
-        "20007": "C-ES",        # Spanisch
-        "20008": "C-TR",        # Türkisch
-        "20011": "C-PL",        # Polnisch
-        "20014": "C-PT",        # Portugiesisch
-        "20041": "C-ZH",        # Chinesisch
-        "28010": "C-SU",        # Sachkunde -> Sachunterricht
-        "32002": "C-Inf",       # Informatik
-        "46014": "C-AS",        # Astronomie
-        "48005": "C-GEWIWI",    # Gesellschaftspolitische Gegenwartsfragen -> Gesellschaftswissenschaften
-        "2800506": "C-PL",      # Polnisch
+        "660": "B-MB",  # Verkehrserziehung -> "Mobilitätsbildung und Verkehrserziehung"
+        "700": "C-SOWI",  # Wirtschaftskunde -> "Sozialwissenschaft/Wirtschaftswissenschaft"
+        "900": "B-BCM",  # Medienbildung -> "Basiscurriculum Medienbildung"
+        "12002": "C-Thea",  # Darstellendes Spiel, Schultheater -> Theater
+        "20001": "C-EN",  # Englisch
+        "20002": "C-FR",  # Französisch
+        "20003": "C-AGR",  # Griechisch -> Altgriechisch
+        "20004": "C-IT",  # Italienisch
+        "20005": "C-La",  # Latein
+        "20006": "C-RU",  # Russisch
+        "20007": "C-ES",  # Spanisch
+        "20008": "C-TR",  # Türkisch
+        "20011": "C-PL",  # Polnisch
+        "20014": "C-PT",  # Portugiesisch
+        "20041": "C-ZH",  # Chinesisch
+        "28010": "C-SU",  # Sachkunde -> Sachunterricht
+        "32002": "C-Inf",  # Informatik
+        "46014": "C-AS",  # Astronomie
+        "48005": "C-GEWIWI",  # Gesellschaftspolitische Gegenwartsfragen -> Gesellschaftswissenschaften
+        "2800506": "C-PL",  # Polnisch
     }
 
     EAFCODE_EXCLUSIONS = [
@@ -1203,7 +1205,7 @@ class LisumPipeline(BasicPipeline):
                                 # due to having the 'custom'-field as a (raw) list of all eafCodes, this mainly serves
                                 # the purpose of reminding us if a 'discipline'-value couldn't be mapped to Lisum
                                 log.debug(f"LisumPipeline failed to map from eafCode {discipline_eaf_code} "
-                                              f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback...")
+                                          f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback...")
                         match discipline_eaf_code:
                             # catching edge-cases where OEH 'discipline'-vocab-keys don't line up with eafsys.txt values
                             case "320":
@@ -1217,24 +1219,24 @@ class LisumPipeline(BasicPipeline):
                         if eaf_code_digits_only_regex.search(discipline_eaf_code):
                             # each numerical eafCode must have a length of (minimum) 3 digits to be considered valid
                             log.debug(f"LisumPipeline: Writing eafCode {discipline_eaf_code} to buffer. (Wil be "
-                                          f"used later for 'ccm:taxonentry').")
+                                      f"used later for 'ccm:taxonentry').")
                             if discipline_eaf_code not in self.EAFCODE_EXCLUSIONS:
                                 # making sure to only save eafCodes that are part of the standard eafsys.txt
                                 discipline_eafcodes.add(discipline_eaf_code)
                             else:
                                 log.debug(f"LisumPipeline: eafCode {discipline_eaf_code} is not part of 'EAF "
-                                              f"Sachgebietssystematik' (see: eafsys.txt), therefore skipping this "
-                                              f"value.")
+                                          f"Sachgebietssystematik' (see: eafsys.txt), therefore skipping this "
+                                          f"value.")
                         else:
                             # our 'discipline.ttl'-vocab holds custom keys (e.g. 'niederdeutsch', 'oeh04010') which
                             # shouldn't be saved into 'ccm:taxonentry' (since they are not part of the regular
                             # "EAF Sachgebietssystematik"
                             log.debug(f"LisumPipeline eafCode fallback for {discipline_eaf_code} to "
-                                          f"'ccm:taxonentry' was not possible. Only eafCodes with a minimum length "
-                                          f"of 3+ digits are valid. (Please confirm if the provided value is part of "
-                                          f"the 'EAF Sachgebietssystematik' (see: eafsys.txt))")
+                                      f"'ccm:taxonentry' was not possible. Only eafCodes with a minimum length "
+                                      f"of 3+ digits are valid. (Please confirm if the provided value is part of "
+                                      f"the 'EAF Sachgebietssystematik' (see: eafsys.txt))")
                 log.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
-                              f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
+                          f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
                 valuespaces["discipline"] = list()  # clearing 'discipline'-field, so we don't accidentally write the
                 # remaining OEH w3id-URLs to Lisum's 'ccm:taxonid'-field
 
@@ -1255,7 +1257,7 @@ class LisumPipeline(BasicPipeline):
                                 educational_context_lisum_keys.add(educational_context_w3id_key)
                             case _:
                                 log.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key} "
-                                              f"not found in mapping table.")
+                                          f"not found in mapping table.")
                 educational_context_list = list(educational_context_lisum_keys)
                 educational_context_list.sort()
                 valuespaces["educationalContext"] = educational_context_list
