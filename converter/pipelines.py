@@ -315,12 +315,25 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float,
             else:
                 log.warning(f"Encountered unhandled edge-case in '{item_field_name}': "
                             f"Expected format 'hh:mm:ss', but received {time_raw} instead.")
-        if "PT" in time_raw:
-            # handling of iso-formatted duration strings
+        if time_raw.startswith("P"):
+            # handling of iso-formatted duration strings, e.g. "P14DT22H" or "P7W"
             # (see: https://en.wikipedia.org/wiki/ISO_8601#Durations)
             duration_parsed = isodate.parse_duration(time_raw)
             if duration_parsed:
                 time_in_seconds = duration_parsed.total_seconds()
+                if time_in_seconds == 0.0:
+                    # months and years are no standardized time duration units
+                    # -> isodate.parse_duration() will return 0.0 seconds for these input values because the underlying
+                    # timedelta object can't handle conversion from months to .total_seconds()
+                    # see: https://github.com/gweis/isodate/issues/44
+                    # and https://docs.python.org/3/library/datetime.html#datetime.timedelta
+                    log.warning(f"Unhandled value detected: Cannot transform {time_raw} to total seconds!"
+                                f"(months (M) or years (Y) aren't standardized duration units)")
+                    time_in_seconds = None
+                    # ToDo: choose an acceptable solution
+                    #  1) either approximate the total seconds (inaccurate: "P6M" becomes 6 x 4W = 24W)
+                    #    -> this would require RegEx parsing and string replacement of the month/year parts
+                    #  2) or keep the string representation AND find a better suited edu-sharing property for durations
             else:
                 log.warning(f"Encountered unhandled edge-case in '{item_field_name}': "
                             f"Expected ISO-8601 duration string, but received {time_raw} instead.")
