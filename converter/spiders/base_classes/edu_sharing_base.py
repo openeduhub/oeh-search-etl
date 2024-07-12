@@ -217,6 +217,9 @@ class EduSharingBase(Spider, LomBase):
         if hasattr(vcard, "org"):
             vcard_org: str = vcard.org.value
             lifecycle.add_value("organization", vcard_org)
+        if hasattr(vcard, "adr"):
+            # ToDo: implement "address"-metadata (city, country, region, postal_code, street, type)
+            pass
         if hasattr(vcard, "x-es-lom-contribute-date"):
             # copy the contribution date only if available
             vcard_es_date: list = vcard.contents.get("x-es-lom-contribute-date")  # edu-sharing contributor date
