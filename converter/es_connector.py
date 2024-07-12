@@ -465,9 +465,47 @@ class EduSharing:
                 id_orcid: str = person["id_orcid"] if "id_orcid" in person else ""
                 id_ror: str = person["id_ror"] if "id_ror" in person else ""
                 id_wikidata: str = person["id_wikidata"] if "id_wikidata" in person else ""
+                address_city: str = person["address_city"] if "address_city" in person else ""
+                address_country: str = person["address_country"] if "address_country" in person else ""
+                address_postal_code: str = person["address_postal_code"] if "address_postal_code" in person else ""
+                address_region: str = person["address_region"] if "address_region" in person else ""
+                address_street: str = person["address_street"] if "address_street" in person else ""
+                address_type: str = person["address_type"] if "address_type" in person else ""
+                # create the vCard object first, then add attributes on-demand / if available
                 vcard = vobject.vCard()
                 vcard.add("n").value = vobject.vcard.Name(family=lastName, given=firstName)
                 vcard.add("fn").value = organization if organization else (firstName + " " + lastName).strip()
+                # only the "fn"-attribute is required to serialize the vCard. (all other properties are optional)
+                if address_city or address_country or address_postal_code or address_region or address_street:
+                    # The vCard v3 "ADR" property is used for physical addresses
+                    # (for reference: https://datatracker.ietf.org/doc/html/rfc2426#section-3.2.1)
+                    # To set "ADR"-attributes and values, we need to create an "Address"-object first
+                    # see: https://github.com/py-vobject/vobject/blob/master/vobject/vcard.py#L54-L66
+                    # ToDo: implement "address"-pipeline
+                    #  (the vobject package expects a str or list[str] for these proeprties!)
+                    address_object: vobject.vcard.Address = vobject.vcard.Address(street=address_street,
+                                                                                  city=address_city,
+                                                                                  region=address_region,
+                                                                                  code=address_postal_code,
+                                                                                  country=address_country)
+                    vcard.add("ADR").value = address_object
+                    if address_type:
+                        # under normal circumstances, we only have to manually check the address types
+                        # if we transfer learning objects via "oeh_spdier"
+                        # or if a crawler sets the type manually
+                        rfc2426_valid_address_types = ["dom", "intl", "postal", "parcel", "home", "work", "pref"]
+                        if address_type and isinstance(address_type, str):
+                            if address_type in rfc2426_valid_address_types:
+                                vcard.adr.type_param = address_type
+                        if address_type and isinstance(address_type, list):
+                            address_type_clean: list[str] | None = None
+                            for at_item in address_type:
+                                if at_item in rfc2426_valid_address_types:
+                                    address_type_clean.append(at_item)
+                            if address_type_clean:
+                                vcard.adr.type_param = address_type_clean
+                    else:
+                        vcard.adr.type_param = ["intl", "postal", "parcel", "work"]  # RFC2426 recommended default value
                 if id_gnd:
                     vcard.add("X-GND-URI").value = id_gnd
                 if id_orcid:

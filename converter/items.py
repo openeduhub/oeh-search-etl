@@ -101,6 +101,19 @@ class LomLifecycleItem(Item):
     id_wikidata = Field()
     """The Wikidata identifier (URI) of an ORGANIZATION, e.g. "https://www.wikidata.org/wiki/<identifier>". 
     Values will be written into the vCard namespace 'X-Wikidata'."""
+    address_city = Field()
+    """vCard v3 "ADR"-attribute for city strings."""
+    address_country = Field()
+    """vCard v3 "ADR"-attribute for country strings."""
+    address_postal_code = Field()
+    """vCard v3 "ADR"-attribute for postal code strings."""
+    address_region = Field()
+    """vCard v3 "ADR"-attribute for region strings."""
+    address_street = Field()
+    """vCard v3 "ADR"-attribute for street strings."""
+    address_type = Field(output_processor=JoinMultivalues())
+    """vCard v3 "ADR"-attribute type. Expects a single string or a list[str] from the following values:
+    ["dom", "intl", "postal", "parcel", "home", "work", "pref"]"""
 
 
 class LomTechnicalItem(Item):
