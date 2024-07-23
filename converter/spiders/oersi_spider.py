@@ -41,7 +41,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.2.6"  # last update: 2024-05-28
+    version = "0.2.7"  # last update: 2024-07-30
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -199,8 +199,8 @@ class OersiSpider(scrapy.Spider, LomBase):
                 )
                 return None
             if (
-                    self.getId(response=None, elastic_item=elastic_item) is not None
-                    and self.getHash(response=None, elastic_item_source=elastic_item["_source"]) is not None
+                self.getId(response=None, elastic_item=elastic_item) is not None
+                and self.getHash(response=None, elastic_item_source=elastic_item["_source"]) is not None
             ):
                 if not self.hasChanged(None, elastic_item=elastic_item):
                     return None
@@ -509,12 +509,12 @@ class OersiSpider(scrapy.Spider, LomBase):
         return changed
 
     def get_lifecycle_author(
-            self,
-            lom_base_item_loader: LomBaseItemloader,
-            elastic_item_source: dict,
-            organization_fallback: set[str],
-            date_created: Optional[str] = None,
-            date_published: Optional[str] = None,
+        self,
+        lom_base_item_loader: LomBaseItemloader,
+        elastic_item_source: dict,
+        organization_fallback: set[str],
+        date_created: Optional[str] = None,
+        date_published: Optional[str] = None,
     ):
         """
         If a "creator"-field is available in the OERSI API for a specific '_source'-item, creates an 'author'-specific
@@ -582,11 +582,11 @@ class OersiSpider(scrapy.Spider, LomBase):
         return authors
 
     def get_affiliation_and_save_to_lifecycle(
-            self,
-            affiliation_dict: dict,
-            lom_base_item_loader: LomBaseItemloader,
-            organization_fallback: set[str],
-            lifecycle_role: str,
+        self,
+        affiliation_dict: dict,
+        lom_base_item_loader: LomBaseItemloader,
+        organization_fallback: set[str],
+        lifecycle_role: str,
     ):
         """
         Retrieves metadata from OERSI's "affiliation"-field (which is typically found within a "creator"- or
@@ -650,11 +650,11 @@ class OersiSpider(scrapy.Spider, LomBase):
         return honorific_prefix.strip()
 
     def get_lifecycle_contributor(
-            self,
-            lom_base_item_loader: LomBaseItemloader,
-            elastic_item_source: dict,
-            organization_fallback: set[str],
-            author_list: Optional[list[str]] = None,
+        self,
+        lom_base_item_loader: LomBaseItemloader,
+        elastic_item_source: dict,
+        organization_fallback: set[str],
+        author_list: Optional[list[str]] = None,
     ):
         """
         Collects metadata from the OERSI "contributor"-field and stores it within a LomLifecycleItemLoader.
@@ -756,11 +756,11 @@ class OersiSpider(scrapy.Spider, LomBase):
             lom_base_item_loader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
 
     def get_lifecycle_publisher(
-            self,
-            lom_base_item_loader: LomBaseItemloader,
-            elastic_item_source: dict,
-            organizations_from_publisher_fields: set[str],
-            date_published: Optional[str] = None,
+        self,
+        lom_base_item_loader: LomBaseItemloader,
+        elastic_item_source: dict,
+        organizations_from_publisher_fields: set[str],
+        date_published: Optional[str] = None,
     ):
         """
         Collects metadata from OERSI's "publisher"-field and stores it within a LomLifecycleItemLoader. Successfully
@@ -796,7 +796,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lom_base_item_loader.add_value("lifecycle", lifecycle_publisher.load_item())
 
     def get_lifecycle_organization_from_source_organization_fallback(
-            self, elastic_item_source: dict, lom_item_loader: LomBaseItemloader, organization_fallback: set[str]
+        self, elastic_item_source: dict, lom_item_loader: LomBaseItemloader, organization_fallback: set[str]
     ):
         # ATTENTION: the "sourceOrganization"-field is not part of the AMB draft, therefore this method is currently
         # used a fallback, so we don't lose any useful metadata (even if that metadata is not part of the AMB spec).
@@ -838,8 +838,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                 lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
     def get_lifecycle_publisher_from_source_organization(
-            self, lom_item_loader: LomBaseItemloader, elastic_item_source: dict,
-            previously_collected_publishers: set[str]
+        self, lom_item_loader: LomBaseItemloader, elastic_item_source: dict, previously_collected_publishers: set[str]
     ):
         source_organizations: list[dict] = elastic_item_source.get("sourceOrganization")
         for so in source_organizations:
@@ -860,7 +859,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                     lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
     def lifecycle_determine_type_of_identifier_and_save_uri(
-            self, item_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
+        self, item_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
     ):
         """
         OERSI's "creator"/"contributor"/"affiliation" items might contain an 'id'-field which (optionally) provides
@@ -873,10 +872,10 @@ class OersiSpider(scrapy.Spider, LomBase):
             # "creator.id" can be 'null', therefore we need to explicitly check its type before trying to parse it
             uri_string: str = item_dictionary.get("id")
             if (
-                    "orcid.org" in uri_string
-                    or "/gnd/" in uri_string
-                    or "wikidata.org" in uri_string
-                    or "ror.org" in uri_string
+                "orcid.org" in uri_string
+                or "/gnd/" in uri_string
+                or "wikidata.org" in uri_string
+                or "ror.org" in uri_string
             ):
                 if "/gnd/" in uri_string:
                     lifecycle_item_loader.add_value("id_gnd", uri_string)
@@ -953,8 +952,9 @@ class OersiSpider(scrapy.Spider, LomBase):
                                         course_itemloader.add_value("course_availability_from", start_date_raw)
                                     else:
                                         self.logger.warning(
-                                            f"Received unexpected type for \"startDate\" {start_date_raw} . "
-                                            f"Expected str, but received {type(start_date_raw)} instead.")
+                                            f'Received unexpected type for "startDate" {start_date_raw} . '
+                                            f"Expected str, but received {type(start_date_raw)} instead."
+                                        )
                         if "endDate" in imoox_attributes:
                             end_dates: list[str] = imoox_attributes["endDate"]
                             if end_dates and isinstance(end_dates, list):
@@ -963,7 +963,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                         course_itemloader.add_value("course_availability_until", end_date_raw)
                                     else:
                                         self.logger.warning(
-                                            f"Received unexpected type for \"endDate\" {end_date_raw}. "
+                                            f'Received unexpected type for "endDate" {end_date_raw}. '
                                             f"Expected str, but received {type(end_date_raw)} instead."
                                         )
                         if "trailer" in imoox_attributes:
@@ -1049,11 +1049,11 @@ class OersiSpider(scrapy.Spider, LomBase):
                     base_itemloader.add_value("course", course_itemloader.load_item())
 
     def enrich_vhb_metadata(
-            self,
-            base_itemloader: BaseItemLoader,
-            elastic_item: dict,
-            lom_general_itemloader: LomGeneralItemloader,
-            in_languages: list[str] | None,
+        self,
+        base_itemloader: BaseItemLoader,
+        elastic_item: dict,
+        lom_general_itemloader: LomGeneralItemloader,
+        in_languages: list[str] | None,
     ):
         """
         Combines metadata from OERSI's elastic_item with MOOCHub v2.x metadata from the source (vhb)
@@ -1117,9 +1117,10 @@ class OersiSpider(scrapy.Spider, LomBase):
                             if start_date_raw and isinstance(start_date_raw, str):
                                 course_itemloader.add_value("course_availability_from", start_date_raw)
                             else:
-                                self.logger.warning(f"Received unexpected type for \"startDate\" {start_date_raw} . "
-                                                    f"Expected a string, but received {type(start_date_raw)} instead."
-                                                    )
+                                self.logger.warning(
+                                    f'Received unexpected type for "startDate" {start_date_raw} . '
+                                    f"Expected a string, but received {type(start_date_raw)} instead."
+                                )
                         if "video" in vhb_item_matched["attributes"]:
                             video_item: dict = vhb_item_matched["attributes"]["video"]
                             if video_item:
@@ -1175,7 +1176,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                                                     # timedelta has no parameter for months
                                                     #  -> X months = X * (4 weeks)
                                                     duration_delta = duration_delta + (
-                                                            duration_number * datetime.timedelta(weeks=4)
+                                                        duration_number * datetime.timedelta(weeks=4)
                                                     )
                                                 case _:
                                                     self.logger.warning(
@@ -1188,6 +1189,211 @@ class OersiSpider(scrapy.Spider, LomBase):
                                                 if workload_in_seconds:
                                                     course_itemloader.add_value("course_duration", workload_in_seconds)
                     base_itemloader.add_value("course", course_itemloader.load_item())
+
+    def look_for_twillo_url_in_elastic_item(self, elastic_item: dict) -> str | None:
+        """
+        Look for a twillo.de URL with an "/edu-sharing/"-path within OERSI's "_source.id" and "mainEntityOfPage.id"
+        properties.
+        Returns the twillo URL string if successful, otherwise returns None.
+        """
+        twillo_url: str | None = None
+        twillo_url_from_source_id: str = self.getId(response=None, elastic_item=elastic_item)
+        twillo_url_from_maeop_id: str | None = None
+        twillo_edu_sharing_url_path: str = "twillo.de/edu-sharing/components/render/"
+        if "_source" in elastic_item:
+            elastic_item_source: dict = elastic_item["_source"]
+            if "mainEntityOfPage" in elastic_item_source:
+                main_entity_of_page: list[dict] = elastic_item_source["mainEntityOfPage"]
+                for maeop_item in main_entity_of_page:
+                    if "id" in maeop_item:
+                        maeop_id: str = maeop_item["id"]
+                        if maeop_id and twillo_edu_sharing_url_path in maeop_id:
+                            twillo_url_from_maeop_id = maeop_id
+        if twillo_url_from_source_id and twillo_edu_sharing_url_path in twillo_url_from_source_id:
+            twillo_url = twillo_url_from_source_id
+        elif twillo_url_from_maeop_id:
+            twillo_url = twillo_url_from_maeop_id
+        return twillo_url
+
+    @staticmethod
+    def extract_twillo_node_id_from_url(twillo_url: str) -> str | None:
+        """
+        Extract the twillo nodeId from a provided URL string.
+        """
+        if twillo_url and isinstance(twillo_url, str):
+            twillo_node_id: str | None = None
+            if "twillo.de/edu-sharing/components/render/" in twillo_url:
+                potential_twillo_node_id = twillo_url.split("/")[-1]
+                if potential_twillo_node_id and isinstance(potential_twillo_node_id, str):
+                    twillo_node_id = potential_twillo_node_id
+            if twillo_node_id:
+                return twillo_node_id
+            else:
+                return None
+
+    def request_metadata_for_twillo_node_id(
+        self,
+        base_itemloader: BaseItemLoader,
+        lom_base_itemloader: LomBaseItemloader,
+        lom_classification_itemloader: LomClassificationItemLoader,
+        lom_educational_itemloader: LomEducationalItemLoader,
+        lom_general_itemloader: LomGeneralItemloader,
+        lom_technical_itemloader: LomTechnicalItemLoader,
+        license_itemloader: LicenseItemLoader,
+        valuespaces_itemloader: ValuespaceItemLoader,
+        elastic_item: dict,
+        twillo_node_id: str,
+    ):
+        """
+        Query the edu-sharing repository of twillo.de for metadata of a specific nodeId.
+        If the request was successful, return the response dictionary.
+        """
+        twillo_api_request_url = (
+            f"https://www.twillo.de/edu-sharing/rest/rendering/v1/details/-home-/" f"{twillo_node_id}"
+        )
+        # note: we NEED to use the "rendering/v1/details/..."-API-endpoint because
+        # https://www.twillo.de/edu-sharing/rest/node/v1/nodes/-home-/{twillo_node_id}/metadata?propertyFilter=-all-
+        # throws "org.edu_sharing.restservices.DAOSecurityException"-errors (for hundreds of objects!),
+        # even though the queried learning objects are publicly available and reachable
+        twillo_request = scrapy.Request(
+            url=twillo_api_request_url,
+            priority=2,
+            callback=self.enrich_oersi_item_with_twillo_metadata,
+            cb_kwargs={
+                "elastic_item": elastic_item,
+                "twillo_node_id": twillo_node_id,
+                "base_itemloader": base_itemloader,
+                "lom_base_itemloader": lom_base_itemloader,
+                "lom_classification_itemloader": lom_classification_itemloader,
+                "lom_educational_itemloader": lom_educational_itemloader,
+                "lom_general_itemloader": lom_general_itemloader,
+                "lom_technical_itemloader": lom_technical_itemloader,
+                "license_itemloader": license_itemloader,
+                "valuespaces_itemloader": valuespaces_itemloader,
+            },
+        )
+        yield twillo_request
+
+    def enrich_oersi_item_with_twillo_metadata(
+        self,
+        response: scrapy.http.TextResponse,
+        base_itemloader: BaseItemLoader,
+        lom_base_itemloader: LomBaseItemloader,
+        lom_classification_itemloader: LomClassificationItemLoader,
+        lom_educational_itemloader: LomEducationalItemLoader,
+        lom_general_itemloader: LomGeneralItemloader,
+        lom_technical_itemloader: LomTechnicalItemLoader,
+        license_itemloader: LicenseItemLoader,
+        valuespaces_itemloader: ValuespaceItemLoader,
+        elastic_item: dict = None,
+        twillo_node_id: str = None,
+    ):
+        """
+        Process the twillo API response and enrich the OERSI item with twillo metadata properties (if possible).
+        If the twillo API response was invalid (or didn't provide the metadata we were looking for), yield the
+        (complete) BaseItem.
+
+        @param response: the twillo API response (JSON)
+        @param base_itemloader: BaseItemLoader object
+        @param lom_base_itemloader: LomBaseItemloader object
+        @param lom_classification_itemloader: LomClassificationItemloader object
+        @param lom_educational_itemloader: LomEducationalItemloader object
+        @param lom_general_itemloader: LomGeneralItemloader object
+        @param lom_technical_itemloader: LomTechnicalItemloader object
+        @param license_itemloader: LicenseItemloader object
+        @param valuespaces_itemloader: ValuespacesItemloader object
+        @param elastic_item: the ElasticSearch item from the OERSI API
+        @param twillo_node_id: the twillo "nodeId"
+        @return: the complete BaseItem object
+        """
+        twillo_response: scrapy.http.TextResponse = response
+        twillo_response_json: dict | None = None
+        twillo_metadata: dict | None = None
+        try:
+            twillo_response_json: dict = twillo_response.json()
+        except requests.exceptions.JSONDecodeError:
+            self.logger.warning(f"BIRD: Received invalid JSON response from {response.url} :" f"{twillo_response}")
+        if twillo_response_json and isinstance(twillo_response_json, dict):
+            if "node" in twillo_response_json:
+                # we assume that the response is valid if we receive a dictionary containing
+                # "node" as the main key
+                twillo_metadata = twillo_response_json
+            else:
+                self.logger.warning(
+                    f"BIRD: twillo API response for nodeId {twillo_node_id} " f"was invalid: {twillo_response_json}"
+                )
+        else:
+            self.logger.warning(
+                f"BIRD: Failed to extract additional metadata for twillo "
+                f"nodeId {twillo_node_id} ! "
+                f"Received HTTP Response Status {twillo_response.status}."
+            )
+
+        if twillo_metadata and isinstance(twillo_metadata, dict):
+            # the API response should contain a "node"-key which contains all properties within
+            node_dict: dict = twillo_metadata["node"]
+            if node_dict and "properties" in node_dict:
+                node_properties: dict = node_dict["properties"]
+                if node_properties:
+                    twillo_typical_learning_time: list[str] | None = None
+                    twillo_cclom_context: list[str] | None = None
+                    # ToDo:
+                    #  - twillo "Level" ("cclom:interactivitylevel") -> BIRD <?>
+                    #  - twillo "Event Format" ("cclom:interactivitytype") -> BIRD <?>
+                    #  - twillo "Technical Requirements" ("cclom:otherplatformrequirements") -> BIRD <?>
+                    if "cclom:typicallearningtime" in node_properties:
+                        # twillo "Duration" ("cclom:typicallearningtime") -> BIRD "course_duration"
+                        twillo_typical_learning_time: list[str] = node_properties["cclom:typicallearningtime"]
+                    if "cclom:context" in node_properties:
+                        # twillo "Function" ("cclom:context") -> BIRD "course_learningoutcome"
+                        twillo_cclom_context: list[str] = node_properties["cclom:context"]
+                    if "cclom:educational_description" in node_properties:
+                        educational_description_raw: list[str] = node_properties["cclom:educational_description"]
+                        if educational_description_raw and isinstance(educational_description_raw, list):
+                            # twillo Frontend: "Field Report" (= "cclom:educational_description")
+                            for edu_desc_item in educational_description_raw:
+                                if edu_desc_item and isinstance(edu_desc_item, str):
+                                    # strip whitespace and sort out the invalid (empty) strings first
+                                    edu_desc_item: str = edu_desc_item.strip()
+                                    # ToDo: move responsibility of cleaning up "description"-strings
+                                    #  into its own pipeline
+                                    if edu_desc_item:
+                                        lom_educational_itemloader.add_value("description", edu_desc_item)
+                    if twillo_typical_learning_time or twillo_cclom_context:
+                        course_item_loader = CourseItemLoader()
+                        if twillo_typical_learning_time:
+                            course_item_loader.add_value("course_duration", twillo_typical_learning_time)
+                        if twillo_cclom_context:
+                            context_cleaned: list[str] = list()
+                            if twillo_cclom_context and isinstance(twillo_cclom_context, list):
+                                for context_value in twillo_cclom_context:
+                                    if context_value and isinstance(context_value, str):
+                                        context_value = context_value.strip()
+                                        # whitespace typos and empty string values (" ") are removed
+                                        if context_value:
+                                            context_cleaned.append(context_value)
+                            if context_cleaned:
+                                course_item_loader.add_value("course_learningoutcome", context_cleaned)
+                        base_itemloader.add_value("course", course_item_loader.load_item())
+
+        # noinspection DuplicatedCode
+        lom_base_itemloader.add_value("general", lom_general_itemloader.load_item())
+        lom_base_itemloader.add_value("technical", lom_technical_itemloader.load_item())
+        lom_base_itemloader.add_value("educational", lom_educational_itemloader.load_item())
+        lom_base_itemloader.add_value("classification", lom_classification_itemloader.load_item())
+        base_itemloader.add_value("lom", lom_base_itemloader.load_item())
+        base_itemloader.add_value("valuespaces", valuespaces_itemloader.load_item())
+        base_itemloader.add_value("license", license_itemloader.load_item())
+
+        permissions = super().getPermissions(response)
+        base_itemloader.add_value("permissions", permissions.load_item())
+
+        response_loader = ResponseItemLoader()
+        identifier_url: str = self.get_item_url(elastic_item=elastic_item)
+        response_loader.add_value("url", identifier_url)
+        base_itemloader.add_value("response", response_loader.load_item())
+
+        yield base_itemloader.load_item()
 
     def parse(self, response=None, **kwargs):
         elastic_item: dict = kwargs.get("elastic_item")
@@ -1518,6 +1724,27 @@ class OersiSpider(scrapy.Spider, LomBase):
                 if query_parameter_provider_name:
                     if query_parameter_provider_name == "iMoox":
                         self.enrich_imoox_metadata(base, elastic_item)
+                    if query_parameter_provider_name == "twillo":
+                        twillo_url: str | None = self.look_for_twillo_url_in_elastic_item(elastic_item)
+                        # a typical twillo URL could look like this example:
+                        # https://www.twillo.de/edu-sharing/components/render/106ed8e7-1d07-4a77-8ca2-19c9e28782ed
+                        # we need the nodeId (the last part of the url) to create an API request for its metadata
+                        twillo_node_id: str | None = self.extract_twillo_node_id_from_url(twillo_url)
+                        if twillo_node_id:
+                            # if a twillo nodeId was found, the complete item will be yielded by its own method
+                            yield from self.request_metadata_for_twillo_node_id(
+                                base_itemloader=base,
+                                lom_base_itemloader=lom,
+                                lom_classification_itemloader=classification,
+                                lom_educational_itemloader=educational,
+                                lom_general_itemloader=general,
+                                lom_technical_itemloader=technical,
+                                license_itemloader=license_loader,
+                                valuespaces_itemloader=vs,
+                                elastic_item=elastic_item,
+                                twillo_node_id=twillo_node_id,
+                            )
+                            return None  # necessary to not accidentally parse the same twillo item twice!
                     if query_parameter_provider_name == "vhb":
                         self.enrich_vhb_metadata(base, elastic_item, general, in_languages)
         # --- BIRD HOOKS END HERE!
