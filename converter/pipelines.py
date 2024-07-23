@@ -459,10 +459,23 @@ class CourseItemPipeline(BasicPipeline):
 
             if "course_learningoutcome" in course_adapter:
                 # course_learningoutcome expects a string (with or without HTML formatting)
-                course_learning_outcome = course_adapter["course_learningoutcome"]
-                if course_learning_outcome and isinstance(course_learning_outcome, str):
-                    # happy-case
-                    pass
+                course_learning_outcome: list[str] | str | None = course_adapter["course_learningoutcome"]
+                if course_learning_outcome:
+                    if isinstance(course_learning_outcome, str):
+                        # happy-case: there's a single string value in course_learningoutcome
+                        pass
+                    elif isinstance(course_learning_outcome, list):
+                        course_learning_outcome_clean: list[str] = list()
+                        for clo_candidate in course_learning_outcome:
+                            if clo_candidate and isinstance(clo_candidate, str):
+                                # happy case: this list value is a string
+                                course_learning_outcome_clean.append(clo_candidate)
+                            else:
+                                # if the list item isn't a string, we won't save it to the cleaned up list
+                                log.warning(f"Received unexpected type as part of 'course_learningoutcome': "
+                                            f"Expected list[str], but received a {type(clo_candidate)} "
+                                            f"instead. Raw value: {clo_candidate}")
+                        course_adapter["course_learningoutcome"] = course_learning_outcome_clean
                 else:
                     log.warning(
                         f"Cannot process BIRD 'course_learningoutcome'-property for item {item_adapter['sourceId']} "
