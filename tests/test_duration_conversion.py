@@ -6,6 +6,7 @@ from converter.pipelines import determine_duration_and_convert_to_seconds
 @pytest.mark.parametrize("test_input, expected_result",
                          [
                              ("", None),
+                             ("0", 0),
                              ("12:30:55", 45055),  # 43200s + 1800s + 55s = 45055s
                              ("08:25:24", 30324),  # 28800s + 1500s + 24s = 30324s
                              ("8:8:8", 29288),  # 28800s + 480s + 8s = 29288

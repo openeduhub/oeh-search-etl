@@ -362,8 +362,12 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float,
                         f"(Unhandled edge-case: Expected int or float value, "
                         f"but received {type(time_raw)} instead.")
     if not time_in_seconds:
-        log.warning(f"Unable to convert '{item_field_name}'-value (type: {type(time_raw)}) from {time_raw} "
-                    f"to numeric value (seconds).")
+        if isinstance(time_in_seconds, int) and time_in_seconds == 0:
+            log.debug(f"Detected zero duration for '{item_field_name}'.  "
+                      f"Received raw value: {time_raw} of type {type(time_raw)} .")
+        else:
+            log.warning(f"Unable to convert '{item_field_name}'-value (type: {type(time_raw)}) from {time_raw} "
+                        f"to numeric value (seconds).")
     return time_in_seconds
 
 
@@ -437,12 +441,19 @@ class CourseItemPipeline(BasicPipeline):
                     time_raw=course_duration,
                     item_field_name="CourseItem.course_duration"
                 )
-                if course_duration and isinstance(course_duration, int):
-                    # happy-case
-                    pass
+                if isinstance(course_duration, int):
+                    if course_duration:
+                        # happy-case: a duration greater than 0
+                        pass
+                    elif course_duration == 0:
+                        # a duration of zero seconds is not a valid time duration, but most likely just a limitation
+                        # of different backend systems how they store "empty" values for this metadata property.
+                        log.debug(f"Received zero duration value within 'course_duration'-property of item "
+                                  f"{item_adapter['sourceId']}. Deleting property ...")
+                        del course_adapter["course_duration"]
                 else:
                     log.warning(f"Cannot process BIRD 'course_duration'-property for item {item_adapter['sourceId']} . "
-                                f"Expected a single integer value (in seconds), "
+                                f"Expected a single (positive) integer value (in seconds), "
                                 f"but received {type(course_duration)} instead. Deleting property...")
                     del course_adapter["course_duration"]
 
