@@ -297,7 +297,7 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float,
     @param item_field_name: scrapy item field-name (required for precise logging messages)
     @return: total seconds (int) value of duration or None
     """
-    time_in_seconds = None
+    time_in_seconds: int | None = None
     # why are we converting values to int? reason: 'cclom:typicallearningtime' expects values to be in milliseconds!
     # (this method converts values to seconds and es_connector.py converts the values to ms)
     if time_raw and isinstance(time_raw, str):

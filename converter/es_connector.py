@@ -583,10 +583,13 @@ class EduSharing:
             if "course_description_short" in item["course"]:
                 spaces["ccm:oeh_course_description_short"] = item["course"]["course_description_short"]
             if "course_duration" in item["course"]:
-                course_duration: int = item["course"]["course_duration"]
+                course_duration: int | str = item["course"]["course_duration"]
+                if course_duration and isinstance(course_duration, str) and course_duration.isnumeric():
+                    # convert strings to int values
+                    course_duration = int(course_duration)
                 if course_duration and isinstance(course_duration, int):
                     # edu-sharing property 'cclom:typicallearningtime' expects values in ms!
-                    course_duration_in_ms = int(course_duration * 1000)
+                    course_duration_in_ms: int = int(course_duration * 1000)
                     item["course"]["course_duration"] = course_duration_in_ms
                     spaces["cclom:typicallearningtime"] = item["course"]["course_duration"]
                 else:
