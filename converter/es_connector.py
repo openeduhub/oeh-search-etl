@@ -593,7 +593,13 @@ class EduSharing:
                     log.warning(f"Could not transform 'course_duration' {course_duration} to ms. "
                                 f"Expected int (seconds), but received type {type(course_duration)} instead.")
             if "course_learningoutcome" in item["course"]:
-                spaces["ccm:learninggoal"] = item["course"]["course_learningoutcome"]
+                course_learning_outcome: list[str] = item["course"]["course_learningoutcome"]
+                if course_learning_outcome and isinstance(course_learning_outcome, list):
+                    # convert the array of strings to a single string, divided by semicolons
+                    course_learning_outcome: str = "; ".join(course_learning_outcome)
+                if course_learning_outcome and isinstance(course_learning_outcome, str):
+                    # edu-sharing expects a string value for this field
+                    spaces["ccm:learninggoal"] = course_learning_outcome
             if "course_schedule" in item["course"]:
                 spaces["ccm:oeh_course_schedule"] = item["course"]["course_schedule"]
             if "course_url_video" in item["course"]:
