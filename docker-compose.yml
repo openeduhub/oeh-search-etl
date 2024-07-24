@@ -36,6 +36,10 @@ services:
     build:
       context: .
       network: host
+      dockerfile: Dockerfile
+    depends_on:
+      - headless_chrome
+      - splash
     networks:
       - scrapy
     environment:
@@ -55,12 +59,16 @@ services:
       - "Z_API_KEY=${Z_API_KEY}"
     ports:
       - "0.0.0.0:80:80"
+    # entrypoint: [ "/opt/scrapy/entrypoint.sh" ]
+    entrypoint: [ "uvicorn", "web_service_plugin.main:create_app", "--host", "0.0.0.0", "--port", "80" ]
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://0.0.0.0:80/_ping" ]
   scrapyd:
     image: openeduhub/oeh-search-etl:develop
+    build:
+      context: .
+      dockerfile: Dockerfile_scrapyd
     depends_on:
-      - scrapy
       - headless_chrome
       - splash
     expose:
@@ -86,5 +94,6 @@ services:
       - "Z_API_KEY=${Z_API_KEY}"
     restart: "no"
     entrypoint: [ "bash", "-c", "scrapyd"]
+    # entrypoint: [ "/opt/scrapy/entrypoint_scrapyd.sh" ]
     healthcheck:
       test: [ "CMD", "./venv_scrapyd/bin/scrapyd-deploy", "default" ]

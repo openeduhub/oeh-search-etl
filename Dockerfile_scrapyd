@@ -14,7 +14,7 @@ RUN apt-get update && \
     apt-get install -y npm && \
     apt-get clean;
 
-COPY entrypoint.sh entrypoint.sh
+COPY entrypoint_scrapyd.sh entrypoint_scrapyd.sh
 COPY requirements.txt requirements.txt
 COPY scrapy.cfg scrapy.cfg
 COPY setup.cfg setup.cfg
@@ -29,10 +29,9 @@ COPY api-docs.xml api-docs.xml
 COPY generate-z-api.sh generate-z-api.sh
 RUN ./generate-z-api.sh
 
-COPY web_service_plugin/requirements.txt web_service_plugin/requirements.txt
-RUN pip3 install -r web_service_plugin/requirements.txt
-COPY web_service_plugin/ web_service_plugin
-RUN echo "Install sitemap-generator-cli ---------------------------- "
-RUN npm install -g sitemap-generator-cli
-# CMD ["bash", "chmod", "+x", "/opt/scrapy/entrypoint.sh"]
-# ENTRYPOINT ["/opt/scrapy/entrypoint.sh"]
+COPY generate-scrapyd.sh generate-scrapyd.sh
+SHELL ["/bin/bash", "-c"]
+RUN ./generate-scrapyd.sh
+RUN pip3 install git+https://github.com/jdmansour/gen-crawler-ui.git@add_pyproject
+
+# ENTRYPOINT ["/opt/scrapy/entrypoint_scrapyd.sh"]

@@ -436,13 +436,11 @@ def map_crawler_results(ai_enabled, json_result):
         educational_context = valuespaces['educationalContext'] if 'educationalContext' in valuespaces.keys() else []
         disciplines = valuespaces['discipline'] if 'discipline' in valuespaces.keys() else []
         new_lrt = valuespaces['new_lrt'] if 'new_lrt' in valuespaces.keys() else []
-        kidra_raw = json_result['kidra_raw']
-        curriculum = kidra_raw["curriculum"]
-        text_difficulty = kidra_raw["text_difficulty"]
-        text_reading_time = kidra_raw["text_reading_time"]
-        kidraDisciplines = []
-        if 'kidraDisciplines' in kidra_raw:
-            kidraDisciplines = kidra_raw["kidraDisciplines"]
+        kidra_raw = json_result['kidra_raw'] if 'kidra_raw' in json_result.keys() else {}
+        curriculum = kidra_raw["curriculum"] if 'curriculum' in kidra_raw.keys() else ""
+        text_difficulty = kidra_raw["text_difficulty"] if 'text_difficulty' in kidra_raw.keys() else ""
+        text_reading_time = kidra_raw["text_reading_time"] if 'text_reading_time' in kidra_raw.keys() else 0.0
+        kidraDisciplines = kidra_raw["kidraDisciplines"] if 'kidraDisciplines' in kidra_raw.keys() else []
 
         keywords = join(keywords)
         disciplines = join(disciplines)

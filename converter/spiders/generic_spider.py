@@ -46,9 +46,9 @@ class GenericSpider(Spider, LrmiBase):
         # "https://www.planet-schule.de/thema/fridays-for-future-was-steckt-hinter-den-klima-streiks-film-100.html",
         # "https://www.dilertube.de/englisch/oer-video/algeria-in-a-nutshell.html",
         # "https://www.dilertube.de/alltagskultur-ernaehrung-soziales-aes/oer-video/erklaerfilm-medikamente-richtig-entsorgen.html",
-        "https://www.umwelt-im-unterricht.de/unterrichtsvorschlaege/der-mensch-hauptursache-fuer-den-rueckgang-der-biologischen-vielfalt",
+        # "https://www.umwelt-im-unterricht.de/unterrichtsvorschlaege/der-mensch-hauptursache-fuer-den-rueckgang-der-biologischen-vielfalt",
         # "https://www.umwelt-im-unterricht.de/hintergrund/die-endlagerung-hochradioaktiver-abfaelle",
-        # "https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78",
+        "https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78",
         # "https://editor.mnweg.org/mnw/sammlung/bruchrechnen-m-10",
         # "https://www.bpb.de/themen/migration-integration/laenderprofile/277555/afghanistan-geschichte-politik-gesellschaft/",
         # "https://www.bpb.de/themen/kolonialismus-imperialismus/postkolonialismus-und-globalgeschichte/236617/kolonialismus-und-postkolonialismus-schluesselbegriffe-der-aktuellen-debatte/",
@@ -269,16 +269,14 @@ class GenericSpider(Spider, LrmiBase):
             general_loader.add_value(
                 "keyword", self.resolve_z_api("keyword", response, base_itemloader=base_loader, split=True)
             )
-            curriculum = self.resolve_z_api("curriculum", response, base_itemloader=base_loader, split=True)
-            kidra_loader.add_value("curriculum", curriculum)
-            # valuespace_loader.add_value(
-            #     "curriculum", self.valuespaces.findInText("curriculum", curriculum)
-            # )
-            classification, reading_time = self.resolve_z_api("textStatistics", response, base_itemloader=base_loader, split=True)
-            kidra_loader.add_value("text_difficulty", classification)
-            kidra_loader.add_value("text_reading_time", reading_time)
-            ki_disciplines = self.resolve_z_api("kidraDisciplines", response, base_itemloader=base_loader, split=True)
-            kidra_loader.add_value("kidraDisciplines", ki_disciplines)
+            # curriculum = self.resolve_z_api("curriculum", response, base_itemloader=base_loader, split=True)
+            # kidra_loader.add_value("curriculum", curriculum)
+            # classification, reading_time = self.resolve_z_api("textStatistics", response, base_itemloader=base_loader, split=True)
+            # kidra_loader.add_value("text_difficulty", classification)
+            # kidra_loader.add_value("text_reading_time", reading_time)
+            # ki_disciplines = self.resolve_z_api("kidraDisciplines", response, base_itemloader=base_loader, split=True)
+            # kidra_loader.add_value("kidraDisciplines", ki_disciplines)
+
             # ToDo: map/replace the previously set 'language'-value by AI suggestions from Z-API?
 
             # ToDo: keywords will (often) be returned as a list of bullet points by the AI
