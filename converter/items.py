@@ -159,8 +159,8 @@ class LomEducationalItem(Item):
     - context                   (see: 'valuespaces.educationalContext')
     """
 
-    description = Field()
-    # ToDo: 'description' isn't mapped to any field in edu-sharing
+    description = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'cclom:educational_description'"""
     difficulty = Field()
     """Corresponding edu-sharing property: 'ccm:educationaldifficulty'"""
     # ToDo: 'ccm:educationaldifficulty' is currently not used in edu-sharing / WLO

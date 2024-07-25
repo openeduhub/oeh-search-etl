@@ -482,7 +482,7 @@ class EduSharing:
                     # To set "ADR"-attributes and values, we need to create an "Address"-object first
                     # see: https://github.com/py-vobject/vobject/blob/master/vobject/vcard.py#L54-L66
                     # ToDo: implement "address"-pipeline
-                    #  (the vobject package expects a str or list[str] for these proeprties!)
+                    #  (the vobject package expects a str or list[str] for these properties!)
                     address_object: vobject.vcard.Address = vobject.vcard.Address(street=address_street,
                                                                                   city=address_city,
                                                                                   region=address_region,
@@ -566,12 +566,20 @@ class EduSharing:
                 splitted = valuespaceMapping[key].split(":")
                 splitted[0] = "virtual"
                 spaces[":".join(splitted)] = item["valuespaces_raw"][key]
-        if "typicalAgeRange" in item["lom"]["educational"]:
-            tar = item["lom"]["educational"]["typicalAgeRange"]
-            if "fromRange" in tar:
-                spaces["ccm:educationaltypicalagerange_from"] = tar["fromRange"]
-            if "toRange" in tar:
-                spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
+
+        if "educational" in item["lom"]:
+            if "description" in item["lom"]["educational"]:
+                educational_description: list[str] = item["lom"]["educational"]["description"]
+                if educational_description:
+                    # ToDo: implement "description"-pipeline (in pipelines.py)
+                    spaces["cclom:educational_description"] = educational_description
+                pass
+            if "typicalAgeRange" in item["lom"]["educational"]:
+                tar = item["lom"]["educational"]["typicalAgeRange"]
+                if "fromRange" in tar:
+                    spaces["ccm:educationaltypicalagerange_from"] = tar["fromRange"]
+                if "toRange" in tar:
+                    spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
 
         if "course" in item:
             if "course_availability_from" in item["course"]:
