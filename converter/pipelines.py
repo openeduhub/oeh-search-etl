@@ -237,9 +237,18 @@ class NormLicensePipeline(BasicPipeline):
         if "expirationDate" in item["license"]:
             item["license"]["expirationDate"] = dateparser.parse(item["license"]["expirationDate"])
         if "lifecycle" in item["lom"]:
-            for contribute in item["lom"]["lifecycle"]:
-                if "date" in contribute:
-                    contribute["date"] = dateparser.parse(contribute["date"])
+            for lifecycle_contributor in item["lom"]["lifecycle"]:
+                # there can be multiple LomLifecycleItems within a LomBaseItem
+                if "date" in lifecycle_contributor:
+                    lifecycle_date: str | datetime.datetime = lifecycle_contributor["date"]
+                    if lifecycle_date and isinstance(lifecycle_date, str):
+                        lifecycle_contributor["date"] = dateparser.parse(lifecycle_date)
+                    elif lifecycle_date and isinstance(lifecycle_date, datetime.datetime):
+                        # happy-case: the 'date' property is of type datetime
+                        pass
+                    elif lifecycle_date:
+                        log.warning(f"Lifecycle Pipeline received invalid 'date'-value: {lifecycle_date} !"
+                                    f"Expected type 'str' or 'datetime', but received: {type(lifecycle_date)} instead.")
 
         return raw_item
 
