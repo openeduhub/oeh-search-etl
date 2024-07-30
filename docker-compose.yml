@@ -97,3 +97,37 @@ services:
     # entrypoint: [ "/opt/scrapy/entrypoint_scrapyd.sh" ]
     healthcheck:
       test: [ "CMD", "./venv_scrapyd/bin/scrapyd-deploy", "default" ]
+  gensitemap:
+    # image: openeduhub/oeh-search-etl:develop
+    build:
+      context: .
+      dockerfile: Dockerfile_scrapyd
+    depends_on:
+      - headless_chrome
+      - splash
+    expose:
+      - "6800"
+    ports:
+      - "0.0.0.0:6801:6800"
+    networks:
+      - scrapy
+    environment:
+      - "PYPPETEER_WS_ENDPOINT=ws://headless_chrome:3000"
+      - "PLAYWRIGHT_WS_ENDPOINT=ws://headless_chrome:3000"
+      - "SPLASH_URL=http://splash:8050"
+      - "CRAWLER=${CRAWLER}"
+      # optional keyword args, e.g. cleanrun=true
+      - "ARGS=${ARGS}"
+      - "DRY_RUN=False"
+      - "MODE=json"
+      - "LOG_LEVEL=${LOG_LEVEL:-INFO}"
+      - "EDU_SHARING_BASE_URL=${EDU_SHARING_BASE_URL}"
+      - "EDU_SHARING_USERNAME=${EDU_SHARING_USERNAME}"
+      - "EDU_SHARING_PASSWORD=${EDU_SHARING_PASSWORD}"
+      - "API_MODE=${API_MODE}"
+      - "Z_API_KEY=${Z_API_KEY}"
+    restart: "no"
+    entrypoint: [ "bash", "-c", "scrapyd" ]
+    # entrypoint: [ "/opt/scrapy/entrypoint_scrapyd.sh" ]
+    healthcheck:
+      test: [ "CMD", "./venv_scrapyd/bin/scrapyd-deploy", "default" ]
