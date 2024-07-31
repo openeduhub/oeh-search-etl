@@ -88,3 +88,18 @@ services:
     entrypoint: [ "bash", "-c", "scrapyd"]
     healthcheck:
       test: [ "CMD", "./venv_scrapyd/bin/scrapyd-deploy", "default" ]
+  gensitemap:
+    expose:
+      - "6800"
+    ports:
+      - "0.0.0.0:6802:6800"
+    networks:
+      - scrapy
+    build:
+      context: .
+      network: host
+      dockerfile: Dockerfile_gensitemap
+    restart: "no"
+    entrypoint: [ "bash", "-c", "scrapyd" ]
+    healthcheck:
+      test: [ "CMD", "./venv_scrapyd/bin/scrapyd-deploy", "default" ]
