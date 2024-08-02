@@ -25,29 +25,39 @@ from converter.web_tools import WebEngine
 
 
 class BnePortalSpider(scrapy.Spider, LomBase):
+    """
+    Crawler for "Lernmaterialien" from BNE-Portal.de. ("Infothek" -> "Lernmaterialien":
+    https://www.bne-portal.de/SiteGlobals/Forms/bne/lernmaterialien/suche_formular.html?nn=140004)
+    """
+
     name = "bne_portal_spider"
     friendlyName = "BNE-Portal"
-    version = "0.0.1"
+    version = "0.0.2"  # last update: 2024-08-02
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 0.5,
+        # "AUTOTHROTTLE_TARGET_CONCURRENCY": 0.5,
         "AUTOTHROTTLE_MAX_DELAY": 120,
         "WEB_TOOLS": WebEngine.Playwright,
         "ROBOTSTXT_OBEY": False,
         # "COOKIES_DEBUG": True,
         "USER_AGENT": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0",
     }
+    # NOTICE: Custom Settings
+    # We need to disobey the robots.txt in this case because the crawler would not be able to parse the learning
+    # materials in a timely manner (and requests to the required search form would be disallowed).
+    # We also NEED to spoof the User Agent, because Scrapy Requests without a User Agent always return a "403"-Response.
 
+    # Spider-specific Mappings:
     # to see a list of possible strings that need to be mapped, check the drop-down menus at:
     # https://www.bne-portal.de/SiteGlobals/Forms/bne/lernmaterialien/suche_formular.html?nn=140004
     FORMAT_TO_NEW_LRT: dict = {
-        # "Arbeitsblatt": "36e68792-6159-481d-a97b-2c00901f4f78",  # Arbeitsblatt
         "Artikel": "b98c0c8c-5696-4537-82fa-dded7236081e",  # Artikel und Einzelpublikation
         "Broschüre/ Buch/ Zeitschrift": "0cef3ce9-e106-47ae-836a-48f9ed04384e",  # Dokumente und textbasierte Inhalte
         "Datenbank/ Materialsammlung": "04693b11-8b39-42aa-964f-578be063a851",  # Kollektion, Sammlung oder Kanal
         "Datenbank-Webseite": "d8c3ef03-b3ab-4a5e-bcc9-5a546fefa2e9",  # Webseite
-        "Digitale Lehr-/ Lerneinheit": "588efe4f-976f-48eb-84aa-8bcb45679f85",  # Lehr- und Lernmaterial
+        "Digitale Lehr-/ Lerneinheit": ["588efe4f-976f-48eb-84aa-8bcb45679f85", "0d23ff13-9d92-4944-92fa-2b5fe1dde80b"],
+        # Lehr- und Lernmaterial; Stundenentwurf
         "Film": "7a6e9608-2554-4981-95dc-47ab9ba924de",  # Video (Material)
         "Poster": "c382a478-74e0-42f1-96dd-fcfb5c27f746",  # Poster und Plakat
         "Spiel": "b0495f44-b05d-4bde-9dc5-34d7b5234d76",  # Lernspiel
@@ -55,10 +65,8 @@ class BnePortalSpider(scrapy.Spider, LomBase):
     }
 
     BILDUNGSBEREICH_TO_EDUCATIONAL_CONTEXT: dict = {
-        # "Berufliche Bildung": "berufliche_bildung",
         # "bildungsbereichübergreifend": "",  # will be added to keywords due to impossible mapping
         "Frühkindliche Bildung": "elementarbereich",
-        # "Hochschule": "hochschule",
         # "non-formale/ informelle Bildung": "",  # will be added to keywords due to impossible mapping
         "Primarbereich": "grundschule",
         "Sekundarbereich I": "sekundarstufe_1",
@@ -69,19 +77,24 @@ class BnePortalSpider(scrapy.Spider, LomBase):
         "Ernährung": "04006",  # Ernährung und Hauswirtschaft
         "Gesellschaftslehre": "48005",  # Gesellschaftskunde
         "Interkulturelles Lernen": "340",  # Interkulturelle Bildung
-        "Mobilität und Verkehr": "660",  # Verkehrserziehung # ToDo confirm mapping
     }
 
     def start_requests(self) -> Iterable[Request]:
-        # ToDo:
-        #  - document why we ignore the robots.txt
-        #  - document why we need to spoof the User Agent
-        start_url: str = "https://www.bne-portal.de/SiteGlobals/Forms/bne/lernmaterialien/suche_formular.html"
-        yield scrapy.Request(
-            url=start_url,
-            # headers=headers_firefox,
-            callback=self.gather_urls_from_first_page_of_search_results,
+        start_url_lernmaterialien: str = (
+            "https://www.bne-portal.de/SiteGlobals/Forms/bne/lernmaterialien/suche_formular.html"
         )
+        start_url_publikationen: str = (
+            "https://www.bne-portal.de/SiteGlobals/Forms/bne/publikationen/suche_formular.html?nn=139986"
+        )
+        start_urls: list[str] = [
+            start_url_lernmaterialien,
+            start_url_publikationen
+        ]
+        for start_url in start_urls:
+            yield scrapy.Request(
+                url=start_url,
+                callback=self.gather_urls_from_first_page_of_search_results,
+            )
 
     def gather_urls_from_first_page_of_search_results(self, response: scrapy.http.HtmlResponse, **kwargs):
         # https://www.bne-portal.de/SiteGlobals/Forms/bne/lernmaterialien/suche_formular.html
@@ -113,11 +126,8 @@ class BnePortalSpider(scrapy.Spider, LomBase):
                     f"{overview_relative_url_without_page_param}" f"D{overview_page_nr}#searchResults"
                 )
                 overview_absolute_url: str = response.urljoin(overview_relative_url)
-                # ToDo: set priority higher than individual material requests
                 yield scrapy.Request(
-                    url=overview_absolute_url,
-                    callback=self.yield_request_for_each_search_result,
-                    # priority=1
+                    url=overview_absolute_url, callback=self.yield_request_for_each_search_result, priority=1
                 )
         # the first page should contain 15 search results that need to be yielded to the parse()-method
         yield from self.yield_request_for_each_search_result(response)
@@ -130,8 +140,7 @@ class BnePortalSpider(scrapy.Spider, LomBase):
             self.logger.debug(f"Detected {len(search_result_relative_urls)} search results on {response.url}")
             for url_item in search_result_relative_urls:
                 search_result_absolute_url: str = response.urljoin(url_item)
-                # ToDo: remove priority setting of this callback after debugging
-                yield scrapy.Request(url=search_result_absolute_url, callback=self.parse, priority=2)
+                yield scrapy.Request(url=search_result_absolute_url, callback=self.parse)
 
     @staticmethod
     def clean_up_and_split_list_of_strings(raw_list_of_strings: list[str]):
@@ -180,10 +189,16 @@ class BnePortalSpider(scrapy.Spider, LomBase):
     def parse(self, response=None, **kwargs):
         trafilatura_text: str | None = trafilatura.extract(response.body)
 
+        if self.shouldImport(response) is False:
+            self.logger.debug(f"Skipping entry {self.getId(response)} because shouldImport() returned False")
+            return None
+        if self.getId(response) is not None and self.getHash(response) is not None:
+            if not self.hasChanged(response):
+                return None
+
         # Metadata (Header)
         title: str | None = response.xpath("//meta[@name='title']/@content").get()
         og_title: str = response.xpath("//meta[@property='og:title']/@content").get()
-
         description: str | None = response.xpath("//meta[@name='description']/@content").get()
         og_description: str | None = response.xpath("//meta[@property='og:description']/@content").get()
 
@@ -200,13 +215,17 @@ class BnePortalSpider(scrapy.Spider, LomBase):
 
         # og_type: str | None = response.xpath("//meta[@property='og:type']/@content").get()
         og_image: str | None = response.xpath("//meta[@property='og:image']/@content").get()
+        # attention: a big amount of (older) learning materials do not have a thumbnail!
+        # ToDo: the pipeline-fallback to a website screenshot for these URLs mostly just shows a cookie-banner
         # og_image_type: str | None = response.xpath("//meta[@property='og:image:type']/@content").get()
         og_locale: str | None = response.xpath("//meta[@property='og:locale']/@content").get()
         og_url: str | None = response.xpath("//meta[@property='og:url']/@content").get()
 
         # metadata (DOM)
-        #  - optional: "Mehr Informationen" -> URL to source website
+        #  - optional: "Mehr Informationen" should contain the URL to source website
         bne_format_raw: list[str] | None = response.xpath("//strong[contains(text(),'Format')]/../text()").getall()
+        # this XPath Expression looks for the bold text "Format", which shares the same <p>-element as the desired
+        # strings. Therefore, we select its parent with ".." and grab all text strings for further metadata extraction.
         bne_thema_raw: list[str] | None = response.xpath("//strong[contains(text(),'Thema')]/../text()").getall()
         bne_bildungsbereich_raw: list[str] | None = response.xpath(
             "//strong[contains(text(),'Bildungsbereich')]/../text()"
@@ -218,17 +237,31 @@ class BnePortalSpider(scrapy.Spider, LomBase):
         bne_bildungsbereich_clean: list[str] | None = self.clean_up_and_split_list_of_strings(bne_bildungsbereich_raw)
         bne_kosten_clean: list[str] | None = self.clean_up_and_split_list_of_strings(bne_kosten_raw)
 
+        bne_guetesiegel: list | None = response.xpath("//div[@class='c-pub-teaser__stamp']").getall()
+        # the "BNE Gütesiegel" is displayed at the bottom right of curated materials.
+        # (as of 2024-08-02 there are 6 of those materials in total)
+        # If this <div>-container shows up, we'll add the "erfüllt BNE-Gütekriterien" keyword to our list.
+        if bne_guetesiegel:
+            keyword_set.add("erfüllt BNE-Gütekriterien")
+
         new_lrt_set: set[str] = set()
         if bne_format_clean and isinstance(bne_format_clean, list):
             for format_str in bne_format_clean:
                 if format_str in self.FORMAT_TO_NEW_LRT:
                     # manually mapping BNE "Format"-strings (e.g. 'Film', 'Poster') to our new_lrt Vocab for those cases
                     # where the raw strings would not match with our vocab
-                    new_lrt_mapped: str = self.FORMAT_TO_NEW_LRT.get(format_str)
-                    new_lrt_set.add(new_lrt_mapped)
+                    new_lrt_mapped: list[str] | str = self.FORMAT_TO_NEW_LRT.get(format_str)
+                    if isinstance(new_lrt_mapped, str):
+                        new_lrt_set.add(new_lrt_mapped)
+                    if isinstance(new_lrt_mapped, list):
+                        for mapped_value in new_lrt_mapped:
+                            new_lrt_set.add(mapped_value)
                 elif format_str:
                     # this case typically happens for perfect matches (e.g. "Arbeitsblatt") or uncovered edge-cases
                     new_lrt_set.add(format_str)
+
+        if "/Publikationen/" in response.url:
+            new_lrt_set.add("b98c0c8c-5696-4537-82fa-dded7236081e")  # Artikel und Einzelpublikation
 
         disciplines: set[str] = set()
         if bne_thema_clean and isinstance(bne_thema_clean, list):
@@ -358,6 +391,7 @@ class BnePortalSpider(scrapy.Spider, LomBase):
 
         valuespace_itemloader: ValuespaceItemLoader = ValuespaceItemLoader()
         valuespace_itemloader.add_value("new_lrt", Constants.NEW_LRT_MATERIAL)
+        disciplines.add("64018")  # Nachhaltigkeit is hard-coded for all BNE materials
         if disciplines:
             discipline_list: list[str] = list(disciplines)
             valuespace_itemloader.add_value("discipline", discipline_list)
