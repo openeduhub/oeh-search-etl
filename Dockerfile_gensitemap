@@ -14,7 +14,8 @@ COPY gensitemap/ui/ ui/
 RUN pip3 install -r requirements.txt
 
 COPY generate-scrapyd.sh generate-scrapyd.sh
-WORKDIR /opt/scrapy/scraper
+CMD [ "python3", "./ui/manage.py", "migrate", "--run-syncdb" ]
 CMD [ "python3", "../ui/manage.py", "migrate", "--run-syncdb" ]
+WORKDIR /opt/scrapy/scraper
 SHELL ["/bin/bash", "-c"]
 RUN ../generate-scrapyd.sh

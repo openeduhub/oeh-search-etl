@@ -2,6 +2,8 @@ version: "3.4"
 
 networks:
   scrapy:
+volumes:
+  sqlitebd:
 
 services:
   splash:
@@ -89,6 +91,10 @@ services:
     healthcheck:
       test: [ "CMD", "./venv_scrapyd/bin/scrapyd-deploy", "default" ]
   gensitemap:
+    volumes:
+      - type: volume
+        source: sqlitebd
+        target: /opt/scrapy/ui
     expose:
       - "6800"
     ports:
@@ -103,3 +109,10 @@ services:
     entrypoint: [ "bash", "-c", "scrapyd" ]
     healthcheck:
       test: [ "CMD", "./venv_scrapyd/bin/scrapyd-deploy", "default" ]
+  sqlite_container:
+    build:
+      context: .
+      network: host
+      dockerfile: Dockerfile_sqlite
+    restart: "no"
+    entrypoint: [ "bash", "-c", "sqlite3" ]
