@@ -589,6 +589,10 @@ class ProcessThumbnailPipeline(BasicPipeline):
     """
     generate thumbnails
     """
+    pixel_limit: int = 178956970  # ~179 Megapixel
+    pixel_limit_in_mp: float = pixel_limit / 1000000
+    Image.MAX_IMAGE_PIXELS = pixel_limit  # doubles the Pillow default (89,478,485) → from 89,5 MegaPixels to 179 MP
+    # see: https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.MAX_IMAGE_PIXELS
 
     @staticmethod
     def scale_image(img, max_size):
@@ -603,14 +607,15 @@ class ProcessThumbnailPipeline(BasicPipeline):
         """
         By default, the thumbnail-pipeline handles several cases:
         - if there is a URL-string inside the "BaseItem.thumbnail"-field:
-        -- download image from URL; rescale it into different sizes (small/large);
-        --- save the thumbnails as base64 within
-        ---- "BaseItem.thumbnail.small", "BaseItem.thumbnail.large"
-        --- (afterward delete the URL from "BaseItem.thumbnail")
+            - download image from URL; rescale it into different sizes (small/large);
+                - save the thumbnails as base64 within
+                    - "BaseItem.thumbnail.small"
+                    - "BaseItem.thumbnail.large"
+                - (afterward delete the URL from "BaseItem.thumbnail")
 
         - if there is NO "BaseItem.thumbnail"-field:
-        -- default: take a screenshot of the URL from "technical.location" with Splash, rescale and save (as above)
-        -- alternatively, on-demand: use Playwright to take a screenshot, rescale and save (as above)
+            - default: take a screenshot of the URL from "technical.location" (with Splash), rescale and save (as above)
+            - alternatively, on-demand: use Playwright to take a screenshot, rescale and save (as above)
         """
         item = ItemAdapter(raw_item)
         response: scrapy.http.Response | None = None
@@ -653,9 +658,9 @@ class ProcessThumbnailPipeline(BasicPipeline):
             log.debug(f"Loading thumbnail from {url} took {time_end - time_start} (incl. awaiting).")
             log.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
             if thumbnail_response.status != 200:
-                log.debug(f"Thumbnail-Pipeline received a unexpected response (status: {thumbnail_response.status}) "
+                log.debug(f"Thumbnail-Pipeline received an unexpected response (status: {thumbnail_response.status}) "
                           f"from {url} (-> resolved URL: {thumbnail_response.url}")
-                # fall back to website screenshot
+                # falling back to website screenshot:
                 del item["thumbnail"]
                 return await self.process_item(raw_item, spider)
             else:
@@ -777,15 +782,29 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         response.body
                     ).decode()
                 else:
-                    img = Image.open(BytesIO(response.body))
-                    self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
-            except PIL.UnidentifiedImageError:
-                # this error can be observed when a website serves broken / malformed images
-                if url:
-                    log.warning(f"Thumbnail download of image file {url} failed: image file could not be identified "
+                    try:
+                        img = Image.open(BytesIO(response.body))
+                        self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
+                    except PIL.UnidentifiedImageError:
+                        # this error can be observed when a website serves broken / malformed images
+                        if url:
+                            log.warning(
+                                f"Thumbnail download of image file {url} failed: image file could not be identified "
                                 f"(Image might be broken or corrupt). Falling back to website-screenshot.")
-                del item["thumbnail"]
-                return await self.process_item(raw_item, spider)
+                        del item["thumbnail"]
+                        return await self.process_item(raw_item, spider)
+                    except Image.DecompressionBombError:
+                        # Pillow throws a "DecompressionBombError" if the downloaded image exceeds twice the
+                        # "Image.MAX_IMAGE_PIXELS"-setting.
+                        # If such an error is thrown, the image object won't be available.
+                        # Therefore, we need to fall back to a website screenshot.
+                        absolute_pixel_limit_in_mp = (self.pixel_limit * 2) / 1000000
+                        log.warning(f"Thumbnail download of {url} triggered a 'PIL.Image.DecompressionBombError'! "
+                                    f"The image either exceeds the max size of {absolute_pixel_limit_in_mp} "
+                                    f"megapixels or might have been a DoS attempt. "
+                                    f"Falling back to website screenshot...")
+                        del item["thumbnail"]
+                        return await self.process_item(raw_item, spider)
             except Exception as e:
                 if url is not None:
                     log.warning(f"Could not read thumbnail at {url}: {str(e)} (falling back to screenshot)")
