@@ -745,8 +745,21 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
                 # but don't use playwright within the spider itself
                 target_url: str = item["lom"]["technical"]["location"][0]
+
+                playwright_cookies = None
+                playwright_adblock_enabled = False
+                if spider.custom_settings:
+                    # some spiders might require setting specific cookies to take "clean" website screenshots
+                    # (= without cookie banners or ads).
+                    if "PLAYWRIGHT_COOKIES" in spider.custom_settings:
+                        playwright_cookies = spider.custom_settings.get("PLAYWRIGHT_COOKIES")
+                    if "PLAYWRIGHT_ADBLOCKER" in spider.custom_settings:
+                        playwright_adblock_enabled: bool = spider.custom_settings["PLAYWRIGHT_ADBLOCKER"]
+
                 playwright_dict = await WebTools.getUrlData(url=target_url,
-                                                            engine=WebEngine.Playwright)
+                                                            engine=WebEngine.Playwright,
+                                                            cookies=playwright_cookies,
+                                                            adblock=playwright_adblock_enabled)
                 screenshot_bytes = playwright_dict.get("screenshot_bytes")
                 img = Image.open(BytesIO(screenshot_bytes))
                 self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
