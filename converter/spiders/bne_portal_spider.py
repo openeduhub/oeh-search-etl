@@ -32,7 +32,18 @@ class BnePortalSpider(scrapy.Spider, LomBase):
 
     name = "bne_portal_spider"
     friendlyName = "BNE-Portal"
-    version = "0.0.2"  # last update: 2024-08-02
+    version = "0.0.3"  # last update: 2024-08-08
+    playwright_cookies: list[dict] = [
+        {
+            "name": "gsbbanner",
+            "value": "closed"
+        }
+    ]
+    current_session_cookie: dict = dict()
+    # By using two cookie attributes ("gsbbanner" and "AL_SESS-S"), we enable playwright to skip the rendering of
+    # cookie banners while taking website screenshots (e.g., when no thumbnail was provided by BNE).
+    # While we can hard-code the "gsbbanner"-cookie,
+    # we need to dynamically parse the current session cookie ("AL_SESS-S") from the first HTTP response.
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -41,6 +52,8 @@ class BnePortalSpider(scrapy.Spider, LomBase):
         "WEB_TOOLS": WebEngine.Playwright,
         "ROBOTSTXT_OBEY": False,
         # "COOKIES_DEBUG": True,
+        "PLAYWRIGHT_COOKIES": playwright_cookies,
+        "PLAYWRIGHT_ADBLOCKER": True,
         "USER_AGENT": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0",
     }
     # NOTICE: Custom Settings
@@ -86,10 +99,7 @@ class BnePortalSpider(scrapy.Spider, LomBase):
         start_url_publikationen: str = (
             "https://www.bne-portal.de/SiteGlobals/Forms/bne/publikationen/suche_formular.html?nn=139986"
         )
-        start_urls: list[str] = [
-            start_url_lernmaterialien,
-            start_url_publikationen
-        ]
+        start_urls: list[str] = [start_url_lernmaterialien, start_url_publikationen]
         for start_url in start_urls:
             yield scrapy.Request(
                 url=start_url,
@@ -129,8 +139,56 @@ class BnePortalSpider(scrapy.Spider, LomBase):
                 yield scrapy.Request(
                     url=overview_absolute_url, callback=self.yield_request_for_each_search_result, priority=1
                 )
+        if response.headers and not self.current_session_cookie:
+            # we want to grab the first session cookie exactly ONCE and forward it to playwright,
+            # because it allows us to skip the rendering of the cookie-banner when falling back to website-screenshots
+            self.save_session_cookie_to_spider_custom_settings(response)
         # the first page should contain 15 search results that need to be yielded to the parse()-method
         yield from self.yield_request_for_each_search_result(response)
+
+    def save_session_cookie_to_spider_custom_settings(self, response: scrapy.http.HtmlResponse):
+        """
+        Parses the HTML header for a specific cookie attribute ("AL_SESS-S") and saves the key-value pair to the
+        spider's custom_settings.
+        This allows us to skip the rendering of the (obtrusive) cookie banner when a thumbnail was not available,
+        and our pipeline needs to fall back to taking a screenshot with playwright.
+        """
+        cookies_raw: list[bytes] | None = response.headers.getlist("Set-Cookie")
+        if cookies_raw:
+            for cookie_bytes_object in cookies_raw:
+                if cookie_bytes_object and isinstance(cookie_bytes_object, bytes):
+                    # cookie example:
+                    # b'AL_SESS-S=AVHw!yeRm5uXQNxe3FM!nbN33IjG7EMgCO2CipHfxK1Iv34ESuTGarlWWhYFBecs0e3b;
+                    # Path=/; Secure; HttpOnly; SameSite=Lax'
+                    cookie = cookie_bytes_object.decode("utf-8")
+                    # we need to decode the cookie into a string object first
+                    if "AL_SESS-S" in cookie:
+                        # we want to pass the session cookie to playwright, in order to not rely on hard-coding a
+                        # session cookie (which might become invalid at any future moment).
+                        cookie_attributes: list[str] | None = cookie.split(";")
+                        # first, we need to split the cookie bytes object into the individual cookie attributes
+                        if cookie_attributes:
+                            for cookie_attribute in cookie_attributes:
+                                if "AL_SESS-S=" in cookie_attribute:
+                                    # We're only interested in the session cookie. The other attributes don't seem
+                                    # to be necessary to skip the cookie-banner
+                                    cookie_split = cookie_attribute.split("=")
+                                    cookie_name: str = cookie_split[0]
+                                    cookie_value: str = cookie_split[1]
+                                    session_cookie = {"name": cookie_name, "value": cookie_value}
+                                    self.current_session_cookie.update(session_cookie)
+            if self.current_session_cookie:
+                self.logger.info(
+                    f"Saving current session cookie to 'PLAYWRIGHT_COOKIES'-custom-settings. "
+                    f"Session cookie: {self.current_session_cookie}"
+                )
+                # we expect the current sesison cookie to look like this:
+                # {
+                #     "name": "AL_SESS-S",
+                #     "value": "AUiJVd4i8sXlsq6ZEHfjlvfvCBhnub4_TNyxnydq1cpcuRk8EvO5ryyD9643seQ742AB",
+                # },
+                self.playwright_cookies.append(self.current_session_cookie)
+                self.custom_settings.update({"PLAYWRIGHT_COOKIES": self.playwright_cookies})
 
     def yield_request_for_each_search_result(self, response: scrapy.http.HtmlResponse):
         search_result_relative_urls: list[str] = response.xpath(
@@ -216,7 +274,6 @@ class BnePortalSpider(scrapy.Spider, LomBase):
         # og_type: str | None = response.xpath("//meta[@property='og:type']/@content").get()
         og_image: str | None = response.xpath("//meta[@property='og:image']/@content").get()
         # attention: a big amount of (older) learning materials do not have a thumbnail!
-        # ToDo: the pipeline-fallback to a website screenshot for these URLs mostly just shows a cookie-banner
         # og_image_type: str | None = response.xpath("//meta[@property='og:image:type']/@content").get()
         og_locale: str | None = response.xpath("//meta[@property='og:locale']/@content").get()
         og_url: str | None = response.xpath("//meta[@property='og:url']/@content").get()
