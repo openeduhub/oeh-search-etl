@@ -77,6 +77,8 @@ class WebTools:
     # reminder: if you increase this Semaphore value, you NEED to change the "browserless v2"-docker-container
     # configuration accordingly! (e.g., by increasing the MAX_CONCURRENT_SESSIONS and MAX_QUEUE_LENGTH configuration
     # settings, see: https://www.browserless.io/docs/docker)
+    _playwright_cookies: list[dict] = list()
+    _playwright_adblocker: bool = False
 
     @classmethod
     async def __safely_get_splash_response(cls, url: str):
@@ -128,7 +130,19 @@ class WebTools:
             return False
 
     @classmethod
-    async def getUrlData(cls, url: str, engine: WebEngine = WebEngine.Playwright):
+    async def getUrlData(cls, url: str,
+                         engine: WebEngine = WebEngine.Playwright,
+                         adblock: bool = None,
+                         cookies: list[dict] = None):
+        """
+        Sends an HTTP request through one of the (dockerized) headless browsers for JavaScript-enabled HTML rendering.
+        @param url: the to-be-rendered URL
+        @param engine: the WebEngine of choice (either "Splash" or "Playwright")
+        @param adblock: (playwright only!) block ads for this HTTP Request (via uBlock Origin) if set to True
+        @param cookies: (playwright only!) a list of cookies (type: list[dict]) that shall be transmitted during the
+        HTTP request
+        @return:
+        """
         url_contains_problematic_file_extension: bool = cls.url_cant_be_rendered_by_headless_browsers(url=url)
         if url_contains_problematic_file_extension:
             # most binary files cannot be rendered by Playwright or Splash and would cause unexpected behavior in the
@@ -140,7 +154,12 @@ class WebTools:
                 f"Skipping WebTools rendering for this url..."
             )
             return
-
+        if cookies:
+            # sets the spider-specific cookies for Playwright requests (e.g., to skip a cookie banner)
+            cls._playwright_cookies = cookies
+        if adblock:
+            # controls if the built-in adblocker of "browserless" should be enabled for Playwright
+            cls._playwright_adblocker = adblock
         if engine == WebEngine.Splash:
             return await cls.__safely_get_splash_response(url)
         elif engine == WebEngine.Playwright:
@@ -199,16 +218,49 @@ class WebTools:
         else:
             return {"html": None, "text": None, "cookies": None, "har": None}
 
-    @staticmethod
-    async def fetchDataPlaywright(url: str):
+    @classmethod
+    async def fetchDataPlaywright(cls, url: str):
         # relevant docs for this implementation: https://hub.docker.com/r/browserless/chrome#playwright and
         # https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp
         async with async_playwright() as p:
-            browser = await p.chromium.connect_over_cdp(endpoint_url=env.get("PLAYWRIGHT_WS_ENDPOINT"))
-            page = await browser.new_page()
+            ws_cdp_endpoint = env.get("PLAYWRIGHT_WS_ENDPOINT")
+            if cls._playwright_adblocker:
+                # advertisements pollute the HTML body and obstruct website screenshots, which is why we try to block
+                # them from rendering via the built-in adblocker (uBlock Origin) of the browserless docker image.
+                # see: https://docs.browserless.io/chrome-flags/#blocking-ads
+                ws_cdp_endpoint = f"{ws_cdp_endpoint}/?blockAds=true"
+            browser = await p.chromium.connect_over_cdp(endpoint_url=ws_cdp_endpoint)
+            browser_context = await browser.new_context()
+            if cls._playwright_cookies:
+                # Some websites may require setting specific cookies to render properly
+                # (e.g., to skip or close annoying cookie banners).
+                # Playwright supports passing cookies to requests
+                # see: https://playwright.dev/python/docs/api/class-browsercontext#browser-context-add-cookies
+                log.debug(f"Preparing cookies for Playwright HTTP request...")
+                prepared_cookies: list[dict] = list()
+                for cookie_object in cls._playwright_cookies:
+                    if isinstance(cookie_object, dict):
+                        # Playwright expects a list[dict]!
+                        # Each cookie must have the following (REQUIRED) properties:
+                        # "name" (type: str), "value" (type: str) and "url" (type: str)
+                        if "name" in cookie_object and "value" in cookie_object:
+                            cookie = {
+                                "name": cookie_object["name"],
+                                "value": cookie_object["value"],
+                                "url": url
+                            }
+                            prepared_cookies.append(cookie)
+                        else:
+                            log.warning(f"Cannot set custom cookie for Playwright (headless browser) request due to "
+                                        f"missing properties: 'name' and 'value' are REQUIRED attributes "
+                                        f"within a cookie object (type: dict)! "
+                                        f"Discarding cookie: {cookie_object}")
+                if prepared_cookies and isinstance(prepared_cookies, list):
+                    await browser_context.add_cookies(cookies=prepared_cookies)
+            page = await browser_context.new_page()
             await page.goto(url, wait_until="load", timeout=90000)
-            # waits for a website to fire the DOMContentLoaded event or for a timeout of 90s
-            # since waiting for 'networkidle' seems to cause timeouts
+            # waits for a website to fire the "load" event or for a timeout of 90 seconds
+            # (since waiting for "networkidle" seems to cause timeouts)
             content = await page.content()
             screenshot_bytes = await page.screenshot()
             # ToDo: HAR / cookies
