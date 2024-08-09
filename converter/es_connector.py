@@ -482,7 +482,7 @@ class EduSharing:
                     # To set "ADR"-attributes and values, we need to create an "Address"-object first
                     # see: https://github.com/py-vobject/vobject/blob/master/vobject/vcard.py#L54-L66
                     # ToDo: implement "address"-pipeline
-                    #  (the vobject package expects a str or list[str] for these proeprties!)
+                    #  (the vobject package expects a str or list[str] for these properties!)
                     address_object: vobject.vcard.Address = vobject.vcard.Address(street=address_street,
                                                                                   city=address_city,
                                                                                   region=address_region,
@@ -566,12 +566,20 @@ class EduSharing:
                 splitted = valuespaceMapping[key].split(":")
                 splitted[0] = "virtual"
                 spaces[":".join(splitted)] = item["valuespaces_raw"][key]
-        if "typicalAgeRange" in item["lom"]["educational"]:
-            tar = item["lom"]["educational"]["typicalAgeRange"]
-            if "fromRange" in tar:
-                spaces["ccm:educationaltypicalagerange_from"] = tar["fromRange"]
-            if "toRange" in tar:
-                spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
+
+        if "educational" in item["lom"]:
+            if "description" in item["lom"]["educational"]:
+                educational_description: list[str] = item["lom"]["educational"]["description"]
+                if educational_description:
+                    # ToDo: implement "description"-pipeline (in pipelines.py)
+                    spaces["cclom:educational_description"] = educational_description
+                pass
+            if "typicalAgeRange" in item["lom"]["educational"]:
+                tar = item["lom"]["educational"]["typicalAgeRange"]
+                if "fromRange" in tar:
+                    spaces["ccm:educationaltypicalagerange_from"] = tar["fromRange"]
+                if "toRange" in tar:
+                    spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
 
         if "course" in item:
             if "course_availability_from" in item["course"]:
@@ -583,17 +591,26 @@ class EduSharing:
             if "course_description_short" in item["course"]:
                 spaces["ccm:oeh_course_description_short"] = item["course"]["course_description_short"]
             if "course_duration" in item["course"]:
-                course_duration: int = item["course"]["course_duration"]
+                course_duration: int | str = item["course"]["course_duration"]
+                if course_duration and isinstance(course_duration, str) and course_duration.isnumeric():
+                    # convert strings to int values
+                    course_duration = int(course_duration)
                 if course_duration and isinstance(course_duration, int):
                     # edu-sharing property 'cclom:typicallearningtime' expects values in ms!
-                    course_duration_in_ms = int(course_duration * 1000)
+                    course_duration_in_ms: int = int(course_duration * 1000)
                     item["course"]["course_duration"] = course_duration_in_ms
                     spaces["cclom:typicallearningtime"] = item["course"]["course_duration"]
                 else:
                     log.warning(f"Could not transform 'course_duration' {course_duration} to ms. "
                                 f"Expected int (seconds), but received type {type(course_duration)} instead.")
             if "course_learningoutcome" in item["course"]:
-                spaces["ccm:learninggoal"] = item["course"]["course_learningoutcome"]
+                course_learning_outcome: list[str] = item["course"]["course_learningoutcome"]
+                if course_learning_outcome and isinstance(course_learning_outcome, list):
+                    # convert the array of strings to a single string, divided by semicolons
+                    course_learning_outcome: str = "; ".join(course_learning_outcome)
+                if course_learning_outcome and isinstance(course_learning_outcome, str):
+                    # edu-sharing expects a string value for this field
+                    spaces["ccm:learninggoal"] = course_learning_outcome
             if "course_schedule" in item["course"]:
                 spaces["ccm:oeh_course_schedule"] = item["course"]["course_schedule"]
             if "course_url_video" in item["course"]:

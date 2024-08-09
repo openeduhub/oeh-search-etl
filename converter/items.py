@@ -159,8 +159,8 @@ class LomEducationalItem(Item):
     - context                   (see: 'valuespaces.educationalContext')
     """
 
-    description = Field()
-    # ToDo: 'description' isn't mapped to any field in edu-sharing
+    description = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'cclom:educational_description'"""
     difficulty = Field()
     """Corresponding edu-sharing property: 'ccm:educationaldifficulty'"""
     # ToDo: 'ccm:educationaldifficulty' is currently not used in edu-sharing / WLO
@@ -348,7 +348,7 @@ class CourseItem(Item):
     Corresponding edu-sharing property: 'cclom:typicallearningtime'.
     (ATTENTION: edu-sharing expects 'cclom:typicallearningtime'-values (type: int) in milliseconds! 
     -> the es_connector will handle transformation from s to ms.)"""
-    course_learningoutcome = Field()
+    course_learningoutcome = Field(output_processor=JoinMultivalues())
     """Describes "Lernergebnisse" or "learning objectives". (Expects a string, with or without HTML-formatting!)
     Corresponding edu-sharing property: 'ccm:learninggoal'"""
     course_schedule = Field()

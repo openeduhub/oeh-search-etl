@@ -237,9 +237,18 @@ class NormLicensePipeline(BasicPipeline):
         if "expirationDate" in item["license"]:
             item["license"]["expirationDate"] = dateparser.parse(item["license"]["expirationDate"])
         if "lifecycle" in item["lom"]:
-            for contribute in item["lom"]["lifecycle"]:
-                if "date" in contribute:
-                    contribute["date"] = dateparser.parse(contribute["date"])
+            for lifecycle_contributor in item["lom"]["lifecycle"]:
+                # there can be multiple LomLifecycleItems within a LomBaseItem
+                if "date" in lifecycle_contributor:
+                    lifecycle_date: str | datetime.datetime = lifecycle_contributor["date"]
+                    if lifecycle_date and isinstance(lifecycle_date, str):
+                        lifecycle_contributor["date"] = dateparser.parse(lifecycle_date)
+                    elif lifecycle_date and isinstance(lifecycle_date, datetime.datetime):
+                        # happy-case: the 'date' property is of type datetime
+                        pass
+                    elif lifecycle_date:
+                        log.warning(f"Lifecycle Pipeline received invalid 'date'-value: {lifecycle_date} !"
+                                    f"Expected type 'str' or 'datetime', but received: {type(lifecycle_date)} instead.")
 
         return raw_item
 
@@ -297,7 +306,7 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float,
     @param item_field_name: scrapy item field-name (required for precise logging messages)
     @return: total seconds (int) value of duration or None
     """
-    time_in_seconds = None
+    time_in_seconds: int | None = None
     # why are we converting values to int? reason: 'cclom:typicallearningtime' expects values to be in milliseconds!
     # (this method converts values to seconds and es_connector.py converts the values to ms)
     if time_raw and isinstance(time_raw, str):
@@ -362,8 +371,12 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float,
                         f"(Unhandled edge-case: Expected int or float value, "
                         f"but received {type(time_raw)} instead.")
     if not time_in_seconds:
-        log.warning(f"Unable to convert '{item_field_name}'-value (type: {type(time_raw)}) from {time_raw} "
-                    f"to numeric value (seconds).")
+        if isinstance(time_in_seconds, int) and time_in_seconds == 0:
+            log.debug(f"Detected zero duration for '{item_field_name}'.  "
+                      f"Received raw value: {time_raw} of type {type(time_raw)} .")
+        else:
+            log.warning(f"Unable to convert '{item_field_name}'-value (type: {type(time_raw)}) from {time_raw} "
+                        f"to numeric value (seconds).")
     return time_in_seconds
 
 
@@ -437,21 +450,41 @@ class CourseItemPipeline(BasicPipeline):
                     time_raw=course_duration,
                     item_field_name="CourseItem.course_duration"
                 )
-                if course_duration and isinstance(course_duration, int):
-                    # happy-case
-                    pass
+                if isinstance(course_duration, int):
+                    if course_duration:
+                        # happy-case: a duration greater than 0
+                        pass
+                    elif course_duration == 0:
+                        # a duration of zero seconds is not a valid time duration, but most likely just a limitation
+                        # of different backend systems how they store "empty" values for this metadata property.
+                        log.debug(f"Received zero duration value within 'course_duration'-property of item "
+                                  f"{item_adapter['sourceId']}. Deleting property ...")
+                        del course_adapter["course_duration"]
                 else:
                     log.warning(f"Cannot process BIRD 'course_duration'-property for item {item_adapter['sourceId']} . "
-                                f"Expected a single integer value (in seconds), "
+                                f"Expected a single (positive) integer value (in seconds), "
                                 f"but received {type(course_duration)} instead. Deleting property...")
                     del course_adapter["course_duration"]
 
             if "course_learningoutcome" in course_adapter:
                 # course_learningoutcome expects a string (with or without HTML formatting)
-                course_learning_outcome = course_adapter["course_learningoutcome"]
-                if course_learning_outcome and isinstance(course_learning_outcome, str):
-                    # happy-case
-                    pass
+                course_learning_outcome: list[str] | str | None = course_adapter["course_learningoutcome"]
+                if course_learning_outcome:
+                    if isinstance(course_learning_outcome, str):
+                        # happy-case: there's a single string value in course_learningoutcome
+                        pass
+                    elif isinstance(course_learning_outcome, list):
+                        course_learning_outcome_clean: list[str] = list()
+                        for clo_candidate in course_learning_outcome:
+                            if clo_candidate and isinstance(clo_candidate, str):
+                                # happy case: this list value is a string
+                                course_learning_outcome_clean.append(clo_candidate)
+                            else:
+                                # if the list item isn't a string, we won't save it to the cleaned up list
+                                log.warning(f"Received unexpected type as part of 'course_learningoutcome': "
+                                            f"Expected list[str], but received a {type(clo_candidate)} "
+                                            f"instead. Raw value: {clo_candidate}")
+                        course_adapter["course_learningoutcome"] = course_learning_outcome_clean
                 else:
                     log.warning(
                         f"Cannot process BIRD 'course_learningoutcome'-property for item {item_adapter['sourceId']} "
@@ -556,6 +589,10 @@ class ProcessThumbnailPipeline(BasicPipeline):
     """
     generate thumbnails
     """
+    pixel_limit: int = 178956970  # ~179 Megapixel
+    pixel_limit_in_mp: float = pixel_limit / 1000000
+    Image.MAX_IMAGE_PIXELS = pixel_limit  # doubles the Pillow default (89,478,485) → from 89,5 MegaPixels to 179 MP
+    # see: https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.MAX_IMAGE_PIXELS
 
     @staticmethod
     def scale_image(img, max_size):
@@ -570,14 +607,15 @@ class ProcessThumbnailPipeline(BasicPipeline):
         """
         By default, the thumbnail-pipeline handles several cases:
         - if there is a URL-string inside the "BaseItem.thumbnail"-field:
-        -- download image from URL; rescale it into different sizes (small/large);
-        --- save the thumbnails as base64 within
-        ---- "BaseItem.thumbnail.small", "BaseItem.thumbnail.large"
-        --- (afterward delete the URL from "BaseItem.thumbnail")
+            - download image from URL; rescale it into different sizes (small/large);
+                - save the thumbnails as base64 within
+                    - "BaseItem.thumbnail.small"
+                    - "BaseItem.thumbnail.large"
+                - (afterward delete the URL from "BaseItem.thumbnail")
 
         - if there is NO "BaseItem.thumbnail"-field:
-        -- default: take a screenshot of the URL from "technical.location" with Splash, rescale and save (as above)
-        -- alternatively, on-demand: use Playwright to take a screenshot, rescale and save (as above)
+            - default: take a screenshot of the URL from "technical.location" (with Splash), rescale and save (as above)
+            - alternatively, on-demand: use Playwright to take a screenshot, rescale and save (as above)
         """
         item = ItemAdapter(raw_item)
         response: scrapy.http.Response | None = None
@@ -620,9 +658,9 @@ class ProcessThumbnailPipeline(BasicPipeline):
             log.debug(f"Loading thumbnail from {url} took {time_end - time_start} (incl. awaiting).")
             log.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
             if thumbnail_response.status != 200:
-                log.debug(f"Thumbnail-Pipeline received a unexpected response (status: {thumbnail_response.status}) "
+                log.debug(f"Thumbnail-Pipeline received an unexpected response (status: {thumbnail_response.status}) "
                           f"from {url} (-> resolved URL: {thumbnail_response.url}")
-                # fall back to website screenshot
+                # falling back to website screenshot:
                 del item["thumbnail"]
                 return await self.process_item(raw_item, spider)
             else:
@@ -707,8 +745,21 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
                 # but don't use playwright within the spider itself
                 target_url: str = item["lom"]["technical"]["location"][0]
+
+                playwright_cookies = None
+                playwright_adblock_enabled = False
+                if spider.custom_settings:
+                    # some spiders might require setting specific cookies to take "clean" website screenshots
+                    # (= without cookie banners or ads).
+                    if "PLAYWRIGHT_COOKIES" in spider.custom_settings:
+                        playwright_cookies = spider.custom_settings.get("PLAYWRIGHT_COOKIES")
+                    if "PLAYWRIGHT_ADBLOCKER" in spider.custom_settings:
+                        playwright_adblock_enabled: bool = spider.custom_settings["PLAYWRIGHT_ADBLOCKER"]
+
                 playwright_dict = await WebTools.getUrlData(url=target_url,
-                                                            engine=WebEngine.Playwright)
+                                                            engine=WebEngine.Playwright,
+                                                            cookies=playwright_cookies,
+                                                            adblock=playwright_adblock_enabled)
                 screenshot_bytes = playwright_dict.get("screenshot_bytes")
                 img = Image.open(BytesIO(screenshot_bytes))
                 self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
@@ -744,15 +795,29 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         response.body
                     ).decode()
                 else:
-                    img = Image.open(BytesIO(response.body))
-                    self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
-            except PIL.UnidentifiedImageError:
-                # this error can be observed when a website serves broken / malformed images
-                if url:
-                    log.warning(f"Thumbnail download of image file {url} failed: image file could not be identified "
+                    try:
+                        img = Image.open(BytesIO(response.body))
+                        self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
+                    except PIL.UnidentifiedImageError:
+                        # this error can be observed when a website serves broken / malformed images
+                        if url:
+                            log.warning(
+                                f"Thumbnail download of image file {url} failed: image file could not be identified "
                                 f"(Image might be broken or corrupt). Falling back to website-screenshot.")
-                del item["thumbnail"]
-                return await self.process_item(raw_item, spider)
+                        del item["thumbnail"]
+                        return await self.process_item(raw_item, spider)
+                    except Image.DecompressionBombError:
+                        # Pillow throws a "DecompressionBombError" if the downloaded image exceeds twice the
+                        # "Image.MAX_IMAGE_PIXELS"-setting.
+                        # If such an error is thrown, the image object won't be available.
+                        # Therefore, we need to fall back to a website screenshot.
+                        absolute_pixel_limit_in_mp = (self.pixel_limit * 2) / 1000000
+                        log.warning(f"Thumbnail download of {url} triggered a 'PIL.Image.DecompressionBombError'! "
+                                    f"The image either exceeds the max size of {absolute_pixel_limit_in_mp} "
+                                    f"megapixels or might have been a DoS attempt. "
+                                    f"Falling back to website screenshot...")
+                        del item["thumbnail"]
+                        return await self.process_item(raw_item, spider)
             except Exception as e:
                 if url is not None:
                     log.warning(f"Could not read thumbnail at {url}: {str(e)} (falling back to screenshot)")
