@@ -333,7 +333,9 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
         base.add_value("lom", lom.load_item())
 
         vs = ValuespaceItemLoader()
-        vs.add_value("discipline", disciplines)
+        if disciplines:
+            discipline_list: list[str] = list(disciplines)
+            vs.add_value("discipline", discipline_list)
         vs.add_value("intendedEndUserRole", "teacher")
         vs.add_value("dataProtectionConformity", "generalDataProtectionRegulation")
         # see: https://www.embl.de/aboutus/privacy_policy/
