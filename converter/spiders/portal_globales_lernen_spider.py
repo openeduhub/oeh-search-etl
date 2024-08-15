@@ -24,6 +24,7 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 2,
         "WEB_TOOLS": WebEngine.Playwright,
         # "ROBOTSTXT_OBEY": False,
         # "COOKIES_DEBUG": True,
