@@ -47,7 +47,7 @@ class BnePortalSpider(scrapy.Spider, LomBase):
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        # "AUTOTHROTTLE_TARGET_CONCURRENCY": 0.5,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 2,
         "AUTOTHROTTLE_MAX_DELAY": 120,
         "WEB_TOOLS": WebEngine.Playwright,
         "ROBOTSTXT_OBEY": False,
@@ -418,7 +418,6 @@ class BnePortalSpider(scrapy.Spider, LomBase):
             lom_technical_itemloader.add_value("location", response.url)
         else:
             lom_technical_itemloader.add_value("location", response.url)
-        lom_technical_itemloader.add_value("format", "text/html")
 
         lom_lifecycle_itemloader: LomLifecycleItemloader = LomLifecycleItemloader()
         lom_lifecycle_itemloader.add_value("role", "publisher")
