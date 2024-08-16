@@ -7,7 +7,7 @@ import time
 import uuid
 from asyncio import Semaphore
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 import httpx
 import requests
@@ -18,14 +18,14 @@ from vobject.vcard import VCardBehavior
 
 from converter import env
 from converter.constants import Constants
-from edu_sharing_client import ABOUTApi
-from edu_sharing_client.api.bulk_v1_api import BULKV1Api
-from edu_sharing_client.api.iam_v1_api import IAMV1Api
-from edu_sharing_client.api.mediacenter_v1_api import MEDIACENTERV1Api
-from edu_sharing_client.api.node_v1_api import NODEV1Api
-from edu_sharing_client.api_client import ApiClient
-from edu_sharing_client.configuration import Configuration
-from edu_sharing_client.rest import ApiException
+from edu_sharing_openapi.edu_sharing_client.api.about_api import ABOUTApi
+from edu_sharing_openapi.edu_sharing_client.api.bulkv1_api import BULKV1Api
+from edu_sharing_openapi.edu_sharing_client.api.iamv1_api import IAMV1Api
+from edu_sharing_openapi.edu_sharing_client.api.mediacenterv1_api import MEDIACENTERV1Api
+from edu_sharing_openapi.edu_sharing_client.api.nodev1_api import NODEV1Api
+from edu_sharing_openapi.edu_sharing_client.api_client import ApiClient
+from edu_sharing_openapi.edu_sharing_client.configuration import Configuration
+from edu_sharing_openapi.edu_sharing_client.exceptions import ApiException
 
 log = logging.getLogger(__name__)
 
@@ -49,31 +49,31 @@ class EduSharingConstants:
         "unknown": "ccm:lifecyclecontributer_unknown",  # (= contributor in an unknown capacity ("Mitarbeiter"))
     }
 
-
 # creating the swagger client: java -jar swagger-codegen-cli-3.0.20.jar generate -l python -i http://localhost:8080/edu-sharing/rest/swagger.json -o edu_sharing_swagger -c edu-sharing-swagger.config.json
+# ToDo: document API-Client generation via "openapi-generator-cli" with all necessary settings
 class ESApiClient(ApiClient):
     COOKIE_REBUILD_THRESHOLD = 60 * 5
     lastRequestTime = 0
 
-    def deserialize(self, response, response_type):
+    def deserialize(self, response_text: str, response_type: str, content_type: Optional[str]):
         """Deserializes response into an object.
 
-        :param response: RESTResponse object to be deserialized.
-        :param response_type: class literal for
-            deserialized object, or string of class name.
+        :param response_text: RESTResponse object to be deserialized.
+        :param response_type: class literal for the deserialized object, or string of class name.
+        :param content_type: content type of response
 
         :return: deserialized object.
         """
         # handle file downloading
         # save response body into a tmp file and return the instance
         if response_type == "file":
-            return self.__deserialize_file(response)
+            return self.__deserialize_file(response_text)
 
         # fetch data from response object
         try:
-            data = json.loads(response.data)
+            data = json.loads(response_text)
         except ValueError:
-            data = response.data
+            data = response_text
         # workaround for es: simply return to prevent error throwing
         # return self.__deserialize(data, response_type)
         return data
@@ -139,7 +139,7 @@ class EduSharing:
             groupBy = ["ccm:replicationsourceorigin"]
         try:
             response = EduSharing.bulkApi.sync(
-                body=properties,
+                request_body=properties,
                 match=["ccm:replicationsource", "ccm:replicationsourceid"],
                 type=type,
                 group=spider.name,
@@ -877,6 +877,7 @@ class EduSharing:
                 self.init_api_client()
                 return None
             if e.status == 404:
+                # ToDo: handle "edu_sharing_client.exceptions.NotFoundException"
                 try:
                     error_dict: dict = json.loads(e.body)
                     error_name: str = error_dict["error"]
