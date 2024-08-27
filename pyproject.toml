@@ -91,6 +91,12 @@ langcodes = {extras = ["data"], version = "^3.3.0"}
 httpx = "0.27"
 async-lru = "2.0.4"
 
+[tool.poetry.group.edu_sharing_client.dependencies]
+# these dependencies are used (and automatically generated) by the "openapi-generator-cli"-generated client
+# see: /edu_sharing_openapi/pyproject.toml
+pydantic = ">=2.8.2"
+typing-extensions = ">=4.12.2"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
