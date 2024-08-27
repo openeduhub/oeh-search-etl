@@ -11,7 +11,7 @@ COPY scrapy.cfg scrapy.cfg
 COPY setup.cfg setup.cfg
 COPY converter/ converter/
 COPY csv/ csv/
-COPY edu_sharing_client/ edu_sharing_client/
+COPY edu_sharing_openapi/ edu_sharing_openapi/
 COPY valuespace_converter/ valuespace_converter/
 
 
