@@ -18,6 +18,7 @@ from vobject.vcard import VCardBehavior
 
 from converter import env
 from converter.constants import Constants
+from edu_sharing_openapi.edu_sharing_client import ApiException
 from edu_sharing_openapi.edu_sharing_client.api.about_api import ABOUTApi
 from edu_sharing_openapi.edu_sharing_client.api.bulkv1_api import BULKV1Api
 from edu_sharing_openapi.edu_sharing_client.api.iamv1_api import IAMV1Api
@@ -25,7 +26,6 @@ from edu_sharing_openapi.edu_sharing_client.api.mediacenterv1_api import MEDIACE
 from edu_sharing_openapi.edu_sharing_client.api.nodev1_api import NODEV1Api
 from edu_sharing_openapi.edu_sharing_client.api_client import ApiClient
 from edu_sharing_openapi.edu_sharing_client.configuration import Configuration
-from edu_sharing_openapi.edu_sharing_client.exceptions import ApiException
 
 log = logging.getLogger(__name__)
 
@@ -366,22 +366,29 @@ class EduSharing:
             spaces["ccm:license_to"] = [license["expirationDate"].isoformat()]
 
     def transform_item(self, uuid, spider, item):
+        # ToDo: additional type-checks or pipelines might be necessary
+        # attention: pydantic validates individual properties and type-checks them!
+        #  - defaulting to None throws ValidationErrors
+        #    - if a property has the value None, either delete the property or don't store it!
         spaces = {
             "ccm:replicationsource": spider.name,
             "ccm:replicationsourceid": item["sourceId"],
             "ccm:replicationsourcehash": item["hash"],
             "ccm:replicationsourceuuid": uuid,
             "cm:name": item["lom"]["general"]["title"],
-            "ccm:wwwurl": item["lom"]["technical"]["location"][0] if "location" in item["lom"]["technical"] else None,
-            "cclom:location": item["lom"]["technical"]["location"] if "location" in item["lom"]["technical"] else None,
-            "cclom:format": item["lom"]["technical"]["format"] if "format" in item["lom"]["technical"] else None,
-            "cclom:aggregationlevel": item["lom"]["general"]["aggregationLevel"]
-            if "aggregationLevel" in item["lom"]["general"]
-            else None,
             "cclom:title": item["lom"]["general"]["title"],
         }
-        if "identifier" in item["lom"]["general"]:
-            spaces["cclom:general_identifier"] = item["lom"]["general"]["identifier"]
+        if "general" in item["lom"]:
+            if "aggregationLevel" in item["lom"]["general"]:
+                spaces["cclom:aggregationlevel"] = item["lom"]["general"]["aggregationLevel"]
+            if "description" in item["lom"]["general"]:
+                spaces["cclom:general_description"] = item["lom"]["general"]["description"]
+            if "identifier" in item["lom"]["general"]:
+                spaces["cclom:general_identifier"] = item["lom"]["general"]["identifier"]
+            if "keyword" in item["lom"]["general"]:
+                spaces["cclom:general_keyword"] = item["lom"]["general"]["keyword"]
+            if "language" in item["lom"]["general"]:
+                spaces["cclom:general_language"] = item["lom"]["general"]["language"]
         if "notes" in item:
             spaces["ccm:notes"] = item["notes"]
         if "status" in item:
@@ -414,19 +421,7 @@ class EduSharing:
                 spaces[key] = item["custom"][key]
 
         self.map_license(spaces, item["license"])
-        if "description" in item["lom"]["general"]:
-            spaces["cclom:general_description"] = item["lom"]["general"]["description"]
 
-        if "identifier" in item["lom"]["general"]:
-            spaces["cclom:general_identifier"] = item["lom"]["general"]["identifier"]
-
-        if "language" in item["lom"]["general"]:
-            spaces["cclom:general_language"] = item["lom"]["general"]["language"]
-
-        if "keyword" in item["lom"]["general"]:
-            spaces["cclom:general_keyword"] = (item["lom"]["general"]["keyword"],)
-        else:
-            spaces["cclom:general_keyword"] = None
         if "technical" in item["lom"]:
             if "duration" in item["lom"]["technical"]:
                 duration = item["lom"]["technical"]["duration"]
@@ -440,6 +435,13 @@ class EduSharing:
                     )
                     pass
                 spaces["cclom:duration"] = duration
+            if "format" in item["lom"]["technical"]:
+                spaces["cclom:format"] = item["lom"]["technical"]["format"]
+            if "location" in item["lom"]["technical"]:
+                # save the first URL as the main URL:
+                spaces["ccm:wwwurl"] = item["lom"]["technical"]["location"][0]
+                # copy the rest of the URLs to "cclom:location":
+                spaces["cclom:location"] = item["lom"]["technical"]["location"]
 
         if "lifecycle" in item["lom"]:
             for person in item["lom"]["lifecycle"]:
@@ -671,6 +673,7 @@ class EduSharing:
         if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is False:
             log.debug("Skipping permissions, EDU_SHARING_PERMISSION_CONTROL is set to false")
             return
+        # ToDo: fix pydantic ValidationError for permissions ("unexpected keyword argument")
         if "permissions" in item:
             permissions = {
                 "inherited": True,  # let inherited = true to add additional permissions via edu-sharing
@@ -856,12 +859,6 @@ class EduSharing:
         }
         try:
             response = EduSharing.bulkApi.find(properties)
-            properties = response["node"]["properties"]
-            if "ccm:replicationsourcehash" in properties and "ccm:replicationsourceuuid" in properties:
-                return [
-                    properties["ccm:replicationsourceuuid"][0],
-                    properties["ccm:replicationsourcehash"][0],
-                ]
         except ApiException as e:
             # ToDo:
             #  - find a way to handle statuscode 503 ("Service Temporarily Unavailable") gracefully?
@@ -877,7 +874,6 @@ class EduSharing:
                 self.init_api_client()
                 return None
             if e.status == 404:
-                # ToDo: handle "edu_sharing_client.exceptions.NotFoundException"
                 try:
                     error_dict: dict = json.loads(e.body)
                     error_name: str = error_dict["error"]
@@ -907,7 +903,13 @@ class EduSharing:
                 return None
             else:
                 raise e
-        return None
+
+        properties = response["node"]["properties"]
+        if "ccm:replicationsourcehash" in properties and "ccm:replicationsourceuuid" in properties:
+            return [
+                properties["ccm:replicationsourceuuid"][0],
+                properties["ccm:replicationsourcehash"][0],
+            ]
 
     def find_source(self, spider):
         return True
