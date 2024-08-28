@@ -191,7 +191,7 @@ class EduSharing:
             EduSharing.nodeApi.set_permission(
                 repository=EduSharingConstants.HOME,
                 node=uuid,
-                body=permissions,
+                acl=permissions,
                 send_mail=False,
                 send_copy=False,
             )
@@ -673,7 +673,6 @@ class EduSharing:
         if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is False:
             log.debug("Skipping permissions, EDU_SHARING_PERMISSION_CONTROL is set to false")
             return
-        # ToDo: fix pydantic ValidationError for permissions ("unexpected keyword argument")
         if "permissions" in item:
             permissions = {
                 "inherited": True,  # let inherited = true to add additional permissions via edu-sharing
