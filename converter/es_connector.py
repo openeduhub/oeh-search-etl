@@ -813,16 +813,22 @@ class EduSharing:
                 EduSharing.mediacenterApi = MEDIACENTERV1Api(EduSharing.apiClient)
                 EduSharing.nodeApi = NODEV1Api(EduSharing.apiClient)
                 about = EduSharing.aboutApi.about()
-                EduSharing.version = list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0][
-                    "version"
-                ]
-                version_str = str(EduSharing.version["major"]) + "." + str(EduSharing.version["minor"])
+                if "services" in about and about["services"]:
+                    # edu-sharing API v6.x to v8.1 behavior: looking for the BULK v1 API "version"-dict
+                    EduSharing.version = \
+                    list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0]["version"]
+                elif "version" in about and about["version"]:
+                    # edu-sharing API v9.x behavior:
+                    # we expect a "version"-dict to exist within the "about"-dict that might look like this:
+                    # {'major': 1, 'minor': 1, 'renderservice': '9.0', 'repository': '9.0'}
+                    EduSharing.version = about["version"]
+                version_str: str = f"{EduSharing.version["major"]}.{EduSharing.version["minor"]}"
                 if (
                     EduSharing.version["major"] != 1
                     or EduSharing.version["minor"] < 0
                     or EduSharing.version["minor"] > 1
                 ):
-                    raise Exception(f"Given repository api version is unsupported: " + version_str)
+                    raise Exception(f"Given repository API version is unsupported: " + version_str)
                 else:
                     log.info("Detected edu-sharing bulk api with version " + version_str)
                 if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is True:
