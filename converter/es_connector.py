@@ -817,13 +817,13 @@ class EduSharing:
                 if "services" in about and about["services"]:
                     # edu-sharing API v6.x to v8.1 behavior: looking for the BULK v1 API "version"-dict
                     EduSharing.version = \
-                    list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0]["version"]
+                        list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0]["version"]
                 elif "version" in about and about["version"]:
                     # edu-sharing API v9.x behavior:
                     # we expect a "version"-dict to exist within the "about"-dict that might look like this:
                     # {'major': 1, 'minor': 1, 'renderservice': '9.0', 'repository': '9.0'}
                     EduSharing.version = about["version"]
-                version_str: str = f"{EduSharing.version["major"]}.{EduSharing.version["minor"]}"
+                version_str: str = f"{EduSharing.version['major']}.{EduSharing.version['minor']}"
                 if (
                     EduSharing.version["major"] != 1
                     or EduSharing.version["minor"] < 0
