@@ -49,8 +49,9 @@ class EduSharingConstants:
         "unknown": "ccm:lifecyclecontributer_unknown",  # (= contributor in an unknown capacity ("Mitarbeiter"))
     }
 
-# creating the swagger client: java -jar swagger-codegen-cli-3.0.20.jar generate -l python -i http://localhost:8080/edu-sharing/rest/swagger.json -o edu_sharing_swagger -c edu-sharing-swagger.config.json
-# ToDo: document API-Client generation via "openapi-generator-cli" with all necessary settings
+# The edu-sharing API client was generated via "openapi-generator-cli"
+# for more information on how to generate the client, please take a look in the oeh-search-etl GitHub Wiki:
+# https://github.com/openeduhub/oeh-search-etl/wiki/How-To-update-edu-sharing-OpenAPI-Client
 class ESApiClient(ApiClient):
     COOKIE_REBUILD_THRESHOLD = 60 * 5
     lastRequestTime = 0
