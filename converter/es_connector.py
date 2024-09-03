@@ -594,18 +594,19 @@ class EduSharing:
             if "course_description_short" in item["course"]:
                 spaces["ccm:oeh_course_description_short"] = item["course"]["course_description_short"]
             if "course_duration" in item["course"]:
-                course_duration: int | str = item["course"]["course_duration"]
-                if course_duration and isinstance(course_duration, str) and course_duration.isnumeric():
-                    # convert strings to int values
-                    course_duration = int(course_duration)
-                if course_duration and isinstance(course_duration, int):
-                    # edu-sharing property 'cclom:typicallearningtime' expects values in ms!
-                    course_duration_in_ms: int = int(course_duration * 1000)
-                    item["course"]["course_duration"] = course_duration_in_ms
+                course_duration: int | str | None = item["course"]["course_duration"]
+                if (course_duration and isinstance(course_duration, str) and course_duration.isnumeric()
+                        or course_duration and isinstance(course_duration, int)):
+                    # if course_duration is of type int, we assume it's a value in seconds.
+                    # the edu-sharing property 'cclom:typicallearningtime' expects values in ms:
+                    course_duration_in_ms: int = int(course_duration) * 1000
+                    # the edu-sharing API expects a string value, otherwise we'd encounter pydantic ValidationErrors:
+                    course_duration = str(course_duration_in_ms)
+                    item["course"]["course_duration"] = course_duration
                     spaces["cclom:typicallearningtime"] = item["course"]["course_duration"]
                 else:
                     log.warning(f"Could not transform 'course_duration' {course_duration} to ms. "
-                                f"Expected int (seconds), but received type {type(course_duration)} instead.")
+                                f"Expected seconds (type: int), but received type {type(course_duration)} instead.")
             if "course_learningoutcome" in item["course"]:
                 course_learning_outcome: list[str] = item["course"]["course_learningoutcome"]
                 if course_learning_outcome and isinstance(course_learning_outcome, list):
