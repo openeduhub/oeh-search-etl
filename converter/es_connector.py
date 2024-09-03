@@ -815,13 +815,16 @@ class EduSharing:
                 EduSharing.nodeApi = NODEV1Api(EduSharing.apiClient)
                 about = EduSharing.aboutApi.about()
                 if "services" in about and about["services"]:
-                    # edu-sharing API v6.x to v8.1 behavior: looking for the BULK v1 API "version"-dict
+                    # edu-sharing API v6.x to v9.1 behavior: look for the BULK v1 API "version"-dict
                     EduSharing.version = \
                         list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0]["version"]
-                elif "version" in about and about["version"]:
-                    # edu-sharing API v9.x behavior:
-                    # we expect a "version"-dict to exist within the "about"-dict that might look like this:
+                elif "services" in about and not about["services"] and "version" in about and about["version"]:
+                    # edu-sharing API v9.x workaround:
+                    # if about["services"] is an empty list (instead of the expected list[dict]),
+                    # we're falling back to the about["version"]-dict that might look like this:
                     # {'major': 1, 'minor': 1, 'renderservice': '9.0', 'repository': '9.0'}
+                    log.info(f"Failed to retrieve BULK v1 API version from edu-sharing during APi client init: "
+                             f"about['services'] was empty (expected: list[dict]). Using about['version'] fallback...")
                     EduSharing.version = about["version"]
                 version_str: str = f"{EduSharing.version['major']}.{EduSharing.version['minor']}"
                 if (
