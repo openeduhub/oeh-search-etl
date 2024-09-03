@@ -133,6 +133,7 @@ ITEM_PIPELINES = {
     "converter.pipelines.ProcessValuespacePipeline": 250,
     "converter.pipelines.CourseItemPipeline": 275,
     "converter.pipelines.ProcessThumbnailPipeline": 300,
+    "converter.pipelines.EduSharingTypeValidationPipeline": 325,
     (
         "converter.pipelines.DummyPipeline"
         if storeMode == "None"
