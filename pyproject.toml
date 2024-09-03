@@ -49,7 +49,7 @@ exclude = '''
 
 [tool.poetry]
 name = "oeh-search-etl"
-version = "2023.08.01"
+version = "2024.09.03"
 description = "Crawls educational sites for use in WirLernenOnline.de"
 authors = ["Torsten Simon <simon@edu-sharing.net>"]
 maintainers = [
@@ -62,7 +62,7 @@ packages = [{include = "converter"}]
 python = "^3.10"
 wheel = "0.44.0"
 black = "24.8.0"
-certifi="2024.7.4"
+certifi="2024.8.30"
 dateparser="1.2"
 extruct="0.17.0"
 flake8 = "7.1.1"
