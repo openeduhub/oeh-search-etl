@@ -7,7 +7,7 @@ import time
 import uuid
 from asyncio import Semaphore
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 import httpx
 import requests
@@ -18,14 +18,14 @@ from vobject.vcard import VCardBehavior
 
 from converter import env
 from converter.constants import Constants
-from edu_sharing_client import ABOUTApi
-from edu_sharing_client.api.bulk_v1_api import BULKV1Api
-from edu_sharing_client.api.iam_v1_api import IAMV1Api
-from edu_sharing_client.api.mediacenter_v1_api import MEDIACENTERV1Api
-from edu_sharing_client.api.node_v1_api import NODEV1Api
-from edu_sharing_client.api_client import ApiClient
-from edu_sharing_client.configuration import Configuration
-from edu_sharing_client.rest import ApiException
+from edu_sharing_openapi.edu_sharing_client import ApiException
+from edu_sharing_openapi.edu_sharing_client.api.about_api import ABOUTApi
+from edu_sharing_openapi.edu_sharing_client.api.bulkv1_api import BULKV1Api
+from edu_sharing_openapi.edu_sharing_client.api.iamv1_api import IAMV1Api
+from edu_sharing_openapi.edu_sharing_client.api.mediacenterv1_api import MEDIACENTERV1Api
+from edu_sharing_openapi.edu_sharing_client.api.nodev1_api import NODEV1Api
+from edu_sharing_openapi.edu_sharing_client.api_client import ApiClient
+from edu_sharing_openapi.edu_sharing_client.configuration import Configuration
 
 log = logging.getLogger(__name__)
 
@@ -49,31 +49,32 @@ class EduSharingConstants:
         "unknown": "ccm:lifecyclecontributer_unknown",  # (= contributor in an unknown capacity ("Mitarbeiter"))
     }
 
-
-# creating the swagger client: java -jar swagger-codegen-cli-3.0.20.jar generate -l python -i http://localhost:8080/edu-sharing/rest/swagger.json -o edu_sharing_swagger -c edu-sharing-swagger.config.json
+# The edu-sharing API client was generated via "openapi-generator-cli"
+# for more information on how to generate the client, please take a look in the oeh-search-etl GitHub Wiki:
+# https://github.com/openeduhub/oeh-search-etl/wiki/How-To-update-edu-sharing-OpenAPI-Client
 class ESApiClient(ApiClient):
     COOKIE_REBUILD_THRESHOLD = 60 * 5
     lastRequestTime = 0
 
-    def deserialize(self, response, response_type):
+    def deserialize(self, response_text: str, response_type: str, content_type: Optional[str]):
         """Deserializes response into an object.
 
-        :param response: RESTResponse object to be deserialized.
-        :param response_type: class literal for
-            deserialized object, or string of class name.
+        :param response_text: RESTResponse object to be deserialized.
+        :param response_type: class literal for the deserialized object, or string of class name.
+        :param content_type: content type of response
 
         :return: deserialized object.
         """
         # handle file downloading
         # save response body into a tmp file and return the instance
         if response_type == "file":
-            return self.__deserialize_file(response)
+            return self.__deserialize_file(response_text)
 
         # fetch data from response object
         try:
-            data = json.loads(response.data)
+            data = json.loads(response_text)
         except ValueError:
-            data = response.data
+            data = response_text
         # workaround for es: simply return to prevent error throwing
         # return self.__deserialize(data, response_type)
         return data
@@ -139,7 +140,7 @@ class EduSharing:
             groupBy = ["ccm:replicationsourceorigin"]
         try:
             response = EduSharing.bulkApi.sync(
-                body=properties,
+                request_body=properties,
                 match=["ccm:replicationsource", "ccm:replicationsourceid"],
                 type=type,
                 group=spider.name,
@@ -191,7 +192,7 @@ class EduSharing:
             EduSharing.nodeApi.set_permission(
                 repository=EduSharingConstants.HOME,
                 node=uuid,
-                body=permissions,
+                acl=permissions,
                 send_mail=False,
                 send_copy=False,
             )
@@ -366,22 +367,29 @@ class EduSharing:
             spaces["ccm:license_to"] = [license["expirationDate"].isoformat()]
 
     def transform_item(self, uuid, spider, item):
+        # ToDo: additional type-checks or pipelines might be necessary
+        # attention: pydantic validates individual properties and type-checks them!
+        #  - defaulting to None throws ValidationErrors
+        #    - if a property has the value None, either delete the property or don't store it!
         spaces = {
             "ccm:replicationsource": spider.name,
             "ccm:replicationsourceid": item["sourceId"],
             "ccm:replicationsourcehash": item["hash"],
             "ccm:replicationsourceuuid": uuid,
             "cm:name": item["lom"]["general"]["title"],
-            "ccm:wwwurl": item["lom"]["technical"]["location"][0] if "location" in item["lom"]["technical"] else None,
-            "cclom:location": item["lom"]["technical"]["location"] if "location" in item["lom"]["technical"] else None,
-            "cclom:format": item["lom"]["technical"]["format"] if "format" in item["lom"]["technical"] else None,
-            "cclom:aggregationlevel": item["lom"]["general"]["aggregationLevel"]
-            if "aggregationLevel" in item["lom"]["general"]
-            else None,
             "cclom:title": item["lom"]["general"]["title"],
         }
-        if "identifier" in item["lom"]["general"]:
-            spaces["cclom:general_identifier"] = item["lom"]["general"]["identifier"]
+        if "general" in item["lom"]:
+            if "aggregationLevel" in item["lom"]["general"]:
+                spaces["cclom:aggregationlevel"] = item["lom"]["general"]["aggregationLevel"]
+            if "description" in item["lom"]["general"]:
+                spaces["cclom:general_description"] = item["lom"]["general"]["description"]
+            if "identifier" in item["lom"]["general"]:
+                spaces["cclom:general_identifier"] = item["lom"]["general"]["identifier"]
+            if "keyword" in item["lom"]["general"]:
+                spaces["cclom:general_keyword"] = item["lom"]["general"]["keyword"]
+            if "language" in item["lom"]["general"]:
+                spaces["cclom:general_language"] = item["lom"]["general"]["language"]
         if "notes" in item:
             spaces["ccm:notes"] = item["notes"]
         if "status" in item:
@@ -414,19 +422,7 @@ class EduSharing:
                 spaces[key] = item["custom"][key]
 
         self.map_license(spaces, item["license"])
-        if "description" in item["lom"]["general"]:
-            spaces["cclom:general_description"] = item["lom"]["general"]["description"]
 
-        if "identifier" in item["lom"]["general"]:
-            spaces["cclom:general_identifier"] = item["lom"]["general"]["identifier"]
-
-        if "language" in item["lom"]["general"]:
-            spaces["cclom:general_language"] = item["lom"]["general"]["language"]
-
-        if "keyword" in item["lom"]["general"]:
-            spaces["cclom:general_keyword"] = (item["lom"]["general"]["keyword"],)
-        else:
-            spaces["cclom:general_keyword"] = None
         if "technical" in item["lom"]:
             if "duration" in item["lom"]["technical"]:
                 duration = item["lom"]["technical"]["duration"]
@@ -440,6 +436,13 @@ class EduSharing:
                     )
                     pass
                 spaces["cclom:duration"] = duration
+            if "format" in item["lom"]["technical"]:
+                spaces["cclom:format"] = item["lom"]["technical"]["format"]
+            if "location" in item["lom"]["technical"]:
+                # save the first URL as the main URL:
+                spaces["ccm:wwwurl"] = item["lom"]["technical"]["location"][0]
+                # copy the rest of the URLs to "cclom:location":
+                spaces["cclom:location"] = item["lom"]["technical"]["location"]
 
         if "lifecycle" in item["lom"]:
             for person in item["lom"]["lifecycle"]:
@@ -591,18 +594,19 @@ class EduSharing:
             if "course_description_short" in item["course"]:
                 spaces["ccm:oeh_course_description_short"] = item["course"]["course_description_short"]
             if "course_duration" in item["course"]:
-                course_duration: int | str = item["course"]["course_duration"]
-                if course_duration and isinstance(course_duration, str) and course_duration.isnumeric():
-                    # convert strings to int values
-                    course_duration = int(course_duration)
-                if course_duration and isinstance(course_duration, int):
-                    # edu-sharing property 'cclom:typicallearningtime' expects values in ms!
-                    course_duration_in_ms: int = int(course_duration * 1000)
-                    item["course"]["course_duration"] = course_duration_in_ms
+                course_duration: int | str | None = item["course"]["course_duration"]
+                if (course_duration and isinstance(course_duration, str) and course_duration.isnumeric()
+                        or course_duration and isinstance(course_duration, int)):
+                    # if course_duration is of type int, we assume it's a value in seconds.
+                    # the edu-sharing property 'cclom:typicallearningtime' expects values in ms:
+                    course_duration_in_ms: int = int(course_duration) * 1000
+                    # the edu-sharing API expects a string value, otherwise we'd encounter pydantic ValidationErrors:
+                    course_duration = str(course_duration_in_ms)
+                    item["course"]["course_duration"] = course_duration
                     spaces["cclom:typicallearningtime"] = item["course"]["course_duration"]
                 else:
                     log.warning(f"Could not transform 'course_duration' {course_duration} to ms. "
-                                f"Expected int (seconds), but received type {type(course_duration)} instead.")
+                                f"Expected seconds (type: int), but received type {type(course_duration)} instead.")
             if "course_learningoutcome" in item["course"]:
                 course_learning_outcome: list[str] = item["course"]["course_learningoutcome"]
                 if course_learning_outcome and isinstance(course_learning_outcome, list):
@@ -811,16 +815,25 @@ class EduSharing:
                 EduSharing.mediacenterApi = MEDIACENTERV1Api(EduSharing.apiClient)
                 EduSharing.nodeApi = NODEV1Api(EduSharing.apiClient)
                 about = EduSharing.aboutApi.about()
-                EduSharing.version = list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0][
-                    "version"
-                ]
-                version_str = str(EduSharing.version["major"]) + "." + str(EduSharing.version["minor"])
+                if "services" in about and about["services"]:
+                    # edu-sharing API v6.x to v9.1 behavior: look for the BULK v1 API "version"-dict
+                    EduSharing.version = \
+                        list(filter(lambda x: x["name"] == "BULK", about["services"]))[0]["instances"][0]["version"]
+                elif "services" in about and not about["services"] and "version" in about and about["version"]:
+                    # edu-sharing API v9.x workaround:
+                    # if about["services"] is an empty list (instead of the expected list[dict]),
+                    # we're falling back to the about["version"]-dict that might look like this:
+                    # {'major': 1, 'minor': 1, 'renderservice': '9.0', 'repository': '9.0'}
+                    log.info(f"Failed to retrieve BULK v1 API version from edu-sharing during APi client init: "
+                             f"about['services'] was empty (expected: list[dict]). Using about['version'] fallback...")
+                    EduSharing.version = about["version"]
+                version_str: str = f"{EduSharing.version['major']}.{EduSharing.version['minor']}"
                 if (
                     EduSharing.version["major"] != 1
                     or EduSharing.version["minor"] < 0
                     or EduSharing.version["minor"] > 1
                 ):
-                    raise Exception(f"Given repository api version is unsupported: " + version_str)
+                    raise Exception(f"Given repository API version is unsupported: " + version_str)
                 else:
                     log.info("Detected edu-sharing bulk api with version " + version_str)
                 if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is True:
@@ -856,12 +869,6 @@ class EduSharing:
         }
         try:
             response = EduSharing.bulkApi.find(properties)
-            properties = response["node"]["properties"]
-            if "ccm:replicationsourcehash" in properties and "ccm:replicationsourceuuid" in properties:
-                return [
-                    properties["ccm:replicationsourceuuid"][0],
-                    properties["ccm:replicationsourcehash"][0],
-                ]
         except ApiException as e:
             # ToDo:
             #  - find a way to handle statuscode 503 ("Service Temporarily Unavailable") gracefully?
@@ -906,7 +913,13 @@ class EduSharing:
                 return None
             else:
                 raise e
-        return None
+
+        properties = response["node"]["properties"]
+        if "ccm:replicationsourcehash" in properties and "ccm:replicationsourceuuid" in properties:
+            return [
+                properties["ccm:replicationsourceuuid"][0],
+                properties["ccm:replicationsourcehash"][0],
+            ]
 
     def find_source(self, spider):
         return True

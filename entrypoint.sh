@@ -2,8 +2,8 @@
 
 if [ -z "$ARGS" ]
 then
-  scrapy crawl "$CRAWLER"
+  poetry run scrapy crawl "$CRAWLER"
 else
-  scrapy crawl -a "$ARGS" "$CRAWLER"
+  poetry run scrapy crawl -a "$ARGS" "$CRAWLER"
 fi
 

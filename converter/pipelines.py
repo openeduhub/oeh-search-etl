@@ -948,6 +948,43 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
                 # raise DropItem()
         return raw_item
 
+class EduSharingTypeValidationPipeline(BasicPipeline):
+    """
+    Rudimentary type-conversion before handling metadata properties off to the API client.
+    """
+    # ToDo: if you notice pydantic "ValidationError"s during crawls, implement handling of those edge-cases here!
+    def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        item_adapter = ItemAdapter(item)
+        if "course" in item_adapter:
+            course_item: dict = item_adapter["course"]
+            if "course_duration" in course_item:
+                course_duration: int = course_item["course_duration"]
+                if course_duration and isinstance(course_duration, int):
+                    course_item["course_duration"] = str(course_duration)
+        if "lom" in item_adapter:
+            if "educational" in item_adapter["lom"]:
+                lom_educational: dict = item_adapter["lom"]["educational"]
+                if "typicalLearningTime" in lom_educational:
+                    typical_learning_time: int | str | None = lom_educational["typicalLearningTime"]
+                    if typical_learning_time and isinstance(typical_learning_time, int):
+                        lom_educational["typicalLearningTime"] = str(typical_learning_time)
+                if "typicalAgeRange" in lom_educational:
+                    if "fromRange" in lom_educational["typicalAgeRange"]:
+                        from_range: int | str | None = lom_educational["typicalAgeRange"]["fromRange"]
+                        if from_range and isinstance(from_range, int):
+                            lom_educational["typicalAgeRange"]["fromRange"] = str(from_range)
+                    if "toRange" in lom_educational["typicalAgeRange"]:
+                        to_range: int | str | None = lom_educational["typicalAgeRange"]["toRange"]
+                        if to_range and isinstance(to_range, int):
+                            lom_educational["typicalAgeRange"]["toRange"] = str(to_range)
+            if "general" in item_adapter["lom"]:
+                lom_general: dict = item_adapter["lom"]["general"]
+                if "keyword" in lom_general:
+                    keywords: list[str] | set[str] | None = lom_general["keyword"]
+                    if keywords and isinstance(keywords, set):
+                        lom_general["keyword"] = list(keywords)
+        return item
+
 
 class JSONStorePipeline(BasicPipeline, PipelineWithPerSpiderMethods):
     def __init__(self):
