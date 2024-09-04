@@ -1,9 +1,9 @@
 # Open Edu Hub Search ETL
 
-## Step 1: Project Setup - Python (manual approach)
+## Step 1: Project Setup - Python 3.12 (manual approach)
 
 - make sure you have python3 installed (<https://docs.python-guide.org/starting/installation/>)
-  - (Python 3.10 or newer is required)
+  - (Python 3.12 or newer is required)
 - go to project root
 - Run the following commands:
 
@@ -16,15 +16,19 @@ python3 -m venv .venv
 
 `.venv\Scripts\activate.bat` (on Windows)
 
-`pip3 install -r requirements.txt`
+`pip3 install poetry`
+
+`poetry install`
 
 ## Step 1 (alternative): Project Setup - Python (automated, via `poetry`)
 
 - Step 1: Make sure that you have [Poetry](https://python-poetry.org) v1.5.0+ installed
-- Step 2: Open your terminal in the project root directory:
-  - Step 2.1: (this is an optional, strictly personal preference) If you want to have your `.venv` to be created in the project root directory: 
+  - for detailed instructions, please consult the [Poetry Installation Guide](https://python-poetry.org/docs/#installation)
+- Step 2: Open your terminal **in the project root directory**:
+  - Step 2.1: If you want to have your `.venv` to be created inside the project root directory: 
     - `poetry config virtualenvs.in-project true`
-- Step 3: Install dependencies (according to `pyproject.toml`) by running: `poetry install`
+      - *(this is an optional, strictly personal preference)* 
+- Step 3: **Install dependencies** (according to `pyproject.toml`) by running: `poetry install`
 
 ## Step 2: Project Setup - required Docker Containers
 If you have Docker installed, use `docker-compose up` to start up the multi-container for `Splash` and `Playwright`-integration.
@@ -58,7 +62,7 @@ docker compose up
 - To create a new spider, create a file inside `converter/spiders/<myname>_spider.py`
 - We recommend inheriting the `LomBase` class in order to get out-of-the-box support for our metadata model
 - You may also Inherit a Base Class for crawling data, if your site provides LRMI metadata, the `LrmiBase` is a good start. If your system provides an OAI interface, you may use the `OAIBase`
-- As a sample/template, please take a look at the `sample_spider.py`
+- As a sample/template, please take a look at the `sample_spider.py` or `sample_spider_alternative.py`
 - To learn more about the LOM standard we're using, you'll find useful information at https://en.wikipedia.org/wiki/Learning_object_metadata
 
 # Still have questions? Check out our GitHub-Wiki!
