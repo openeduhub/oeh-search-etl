@@ -25,7 +25,7 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
     name = "science_in_school_spider"
     friendlyName = "Science in School"
     start_urls = ["https://www.scienceinschool.org/issue/"]
-    version = "0.0.5"  # last update: 2023-08-02
+    version = "0.0.5"  # last update: 2024-08-29
     custom_settings = {"AUTOTHROTTLE_ENABLED": True, "AUTOTHROTTLE_DEBUG": True}
     allowed_domains = ["scienceinschool.org"]
     ALL_ARTICLE_URLS = set()
@@ -254,7 +254,8 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
         if title:
             general.add_value("title", title)
         if keywords:
-            general.add_value("keyword", keywords)
+            keyword_list: list[str] = list(keywords)
+            general.add_value("keyword", keyword_list)
         if description:
             general.add_value("description", description)
         if language:
@@ -321,8 +322,8 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
                     age_range_total.add(from_range)
                     age_range_total.add(to_range)
             if age_range_total:
-                lom_age_range_loader.add_value("fromRange", min(age_range_total))
-                lom_age_range_loader.add_value("toRange", max(age_range_total))
+                lom_age_range_loader.add_value("fromRange", str(min(age_range_total)))
+                lom_age_range_loader.add_value("toRange", str(max(age_range_total)))
                 educational.add_value("typicalAgeRange", lom_age_range_loader.load_item())
 
         lom.add_value("educational", educational.load_item())
@@ -333,7 +334,9 @@ class ScienceInSchoolSpider(scrapy.Spider, LomBase):
         base.add_value("lom", lom.load_item())
 
         vs = ValuespaceItemLoader()
-        vs.add_value("discipline", disciplines)
+        if disciplines:
+            discipline_list: list[str] = list(disciplines)
+            vs.add_value("discipline", discipline_list)
         vs.add_value("intendedEndUserRole", "teacher")
         vs.add_value("dataProtectionConformity", "generalDataProtectionRegulation")
         # see: https://www.embl.de/aboutus/privacy_policy/

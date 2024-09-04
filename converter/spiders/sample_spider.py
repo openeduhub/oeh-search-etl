@@ -45,7 +45,6 @@ class SampleSpider(CrawlSpider, LomBase):
     def getLOMTechnical(self, response):
         technical = LomBase.getLOMTechnical(self, response)
         technical.add_value("location", response.url)
-        technical.add_value("format", "text/html")
         technical.add_value("size", len(response.body))
         return technical
 

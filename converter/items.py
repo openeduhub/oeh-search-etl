@@ -101,6 +101,19 @@ class LomLifecycleItem(Item):
     id_wikidata = Field()
     """The Wikidata identifier (URI) of an ORGANIZATION, e.g. "https://www.wikidata.org/wiki/<identifier>". 
     Values will be written into the vCard namespace 'X-Wikidata'."""
+    address_city = Field()
+    """vCard v3 "ADR"-attribute for city strings."""
+    address_country = Field()
+    """vCard v3 "ADR"-attribute for country strings."""
+    address_postal_code = Field()
+    """vCard v3 "ADR"-attribute for postal code strings."""
+    address_region = Field()
+    """vCard v3 "ADR"-attribute for region strings."""
+    address_street = Field()
+    """vCard v3 "ADR"-attribute for street strings."""
+    address_type = Field(output_processor=JoinMultivalues())
+    """vCard v3 "ADR"-attribute type. Expects a single string or a list[str] from the following values:
+    ["dom", "intl", "postal", "parcel", "home", "work", "pref"]"""
 
 
 class LomTechnicalItem(Item):
@@ -146,8 +159,8 @@ class LomEducationalItem(Item):
     - context                   (see: 'valuespaces.educationalContext')
     """
 
-    description = Field()
-    # ToDo: 'description' isn't mapped to any field in edu-sharing
+    description = Field(output_processor=JoinMultivalues())
+    """Corresponding edu-sharing property: 'cclom:educational_description'"""
     difficulty = Field()
     """Corresponding edu-sharing property: 'ccm:educationaldifficulty'"""
     # ToDo: 'ccm:educationaldifficulty' is currently not used in edu-sharing / WLO
@@ -167,6 +180,7 @@ class LomEducationalItem(Item):
     """See LomAgeRangeItem. Corresponding edu-sharing properties: 
     'ccm:educationaltypicalagerange_from' & 'ccm:educationaltypicalagerange_to'"""
     typicalLearningTime = Field()
+    """Corresponding edu-sharing property: 'cclom:typicallearningtime' (expects values in ms!)"""
 
 
 # please use the seperate license data
@@ -319,6 +333,35 @@ class PermissionItem(Item):
     """Determines if this item should be 'public' (= accessible by anyone)"""
 
 
+class CourseItem(Item):
+    """
+    BIRD-specific metadata properties intended only for courses.
+    """
+    course_availability_from = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_event_begin' (expects ISO datetime string)"""
+    course_availability_until = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_event_end' (expects ISO datetime string)"""
+    course_description_short = Field()
+    """Corresponding edu-sharing property: 'ccm:oeh_course_description_short'"""
+    course_duration = Field()
+    """Expects a duration in seconds. 
+    Corresponding edu-sharing property: 'cclom:typicallearningtime'.
+    (ATTENTION: edu-sharing expects 'cclom:typicallearningtime'-values (type: int) in milliseconds! 
+    -> the es_connector will handle transformation from s to ms.)"""
+    course_learningoutcome = Field(output_processor=JoinMultivalues())
+    """Describes "Lernergebnisse" or "learning objectives". (Expects a string, with or without HTML-formatting!)
+    Corresponding edu-sharing property: 'ccm:learninggoal'"""
+    course_schedule = Field()
+    """Describes the schedule of a course ("Kursablauf"). (Expects a string, with or without HTML-formatting!)
+    Corresponding edu-sharing property: 'ccm:oeh_course_schedule'."""
+    course_url_video = Field()
+    """URL of a course-specific trailer- or teaser-video.
+    Corresponding edu-sharing property: 'ccm:oeh_course_url_video'"""
+    course_workload = Field()
+    """Describes the workload per week."""
+    # ToDo: confirm where "workload" values should be saved within edu-sharing
+
+
 class BaseItem(Item):
     """
     BaseItem provides the basic data structure for any crawled item.
@@ -339,6 +382,7 @@ class BaseItem(Item):
     """Binary data which should be uploaded to edu-sharing (= raw data, e.g. ".pdf"-files)."""
     collection = Field(output_processor=JoinMultivalues())
     """id of edu-sharing collections this entry should be placed into"""
+    course = Field(serializer=CourseItem)
     custom = Field()
     """A field for custom data which can be used by the target transformer to store data in the native format 
     (i.e. 'ccm:'/'cclom:'-properties in edu-sharing)."""
@@ -395,6 +439,11 @@ class BaseItem(Item):
 class BaseItemLoader(ItemLoader):
     default_item_class = BaseItem
     # default_input_processor = MapCompose(replace_processor)
+    default_output_processor = TakeFirst()
+
+
+class CourseItemLoader(ItemLoader):
+    default_item_class = CourseItem
     default_output_processor = TakeFirst()
 
 

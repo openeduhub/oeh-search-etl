@@ -19,7 +19,7 @@ services:
       retries: 3
       start_period: 40s
   headless_chrome:
-    image: ghcr.io/browserless/chrome@sha256:f27f9fa0d9c2344180c0fc5af7c6ea4a1df6f2a7a3efc555de876dbea6ded7a1
+    image: ghcr.io/browserless/chromium:v2.14.0
     restart: always
     environment:
       - TIMEOUT=120000

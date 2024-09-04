@@ -31,7 +31,7 @@ class SerloSpider(scrapy.Spider, LomBase):
     # start_urls = ["https://de.serlo.org"]
     API_URL = "https://api.serlo.org/graphql"
     # for the API description, please check: https://lenabi.serlo.org/metadata-api
-    version = "0.3.2"  # last update: 2023-10-27 (Serlo API v1.2.0)
+    version = "0.3.3"  # last update: 2023-08-16 (Serlo API v1.2.0)
     custom_settings = {
         # Using Playwright because of Splash-issues with thumbnails+text for Serlo
         "WEB_TOOLS": WebEngine.Playwright
@@ -234,9 +234,13 @@ class SerloSpider(scrapy.Spider, LomBase):
         #           "value": "2097"
         graphql_json: dict = graphql_json
         try:
-            identifier_value: str = graphql_json["identifier"]["value"]
+            identifier_value: int | str | None = graphql_json["identifier"]["value"]
             if identifier_value:
-                return identifier_value
+                if isinstance(identifier_value, int):
+                    identifier_value = str(identifier_value)
+                    return identifier_value
+                if isinstance(identifier_value, str):
+                    return identifier_value
             else:
                 return response.url
         except KeyError:
@@ -443,7 +447,6 @@ class SerloSpider(scrapy.Spider, LomBase):
         # #  - installationRemarks            optional
         # #  - otherPlatformRequirements      optional
         # #  - duration                       optional (only applies to audiovisual content like videos/podcasts)
-        technical.add_value("format", "text/html")  # e.g. if the learning object is a web-page
         if "id" in graphql_json:
             graphql_id: str = graphql_json["id"]  # e.g.: "https://serlo.org/1495"
             technical.add_value("location", graphql_id)
@@ -501,14 +504,27 @@ class SerloSpider(scrapy.Spider, LomBase):
             # mapping educationalAudienceRole to IntendedEndUserRole here
             intended_end_user_roles = list()
             for audience_item in json_ld["audience"]:
-                edu_audience_role = audience_item["prefLabel"]["en"]
-                if edu_audience_role == "professional":
-                    vs.add_value("educationalContext", ["Further Education", "vocational education"])
-                if edu_audience_role in self.EDU_AUDIENCE_ROLE_MAPPING.keys():
-                    edu_audience_role = self.EDU_AUDIENCE_ROLE_MAPPING.get(edu_audience_role)
-                intended_end_user_roles.append(edu_audience_role)
-            vs.add_value("intendedEndUserRole", intended_end_user_roles)
-            # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl)
+                # as of 2024-04-23 the 'audience'-object within JSON-LD looks like this:
+                # "audience": [
+                #         {
+                #             "id": "http://purl.org/dcx/lrmi-vocabs/educationalAudienceRole/student",
+                #             "audienceType": "student",
+                #             "type": "Audience"
+                #         }
+                #     ],
+                if "id" in audience_item:
+                    # points towards a vocab URL, e.g. "http://purl.org/dcx/lrmi-vocabs/educationalAudienceRole/student"
+                    pass
+                if "audienceType" in audience_item:
+                    edu_audience_role = audience_item["audienceType"]
+                    if edu_audience_role == "professional":
+                        vs.add_value("educationalContext", ["Further Education", "vocational education"])
+                    if edu_audience_role in self.EDU_AUDIENCE_ROLE_MAPPING.keys():
+                        edu_audience_role = self.EDU_AUDIENCE_ROLE_MAPPING.get(edu_audience_role)
+                    intended_end_user_roles.append(edu_audience_role)
+            if intended_end_user_roles:
+                vs.add_value("intendedEndUserRole", intended_end_user_roles)
+                # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/intendedEndUserRole.ttl)
 
         disciplines_set: set = set()
         if "about" in graphql_json:
@@ -543,13 +559,30 @@ class SerloSpider(scrapy.Spider, LomBase):
             # we need to make sure that we only try to access "about" if it's actually available
             # making sure that we only try to look for a discipline if the "about"-list actually has list items
             disciplines = list()
-            for about_item in json_ld["about"]:
-                if "de" in about_item["prefLabel"]:
-                    discipline_de: str = about_item["prefLabel"]["de"]
-                    disciplines.append(discipline_de)
-                elif "en" in about_item["prefLabel"]:
-                    discipline_en: str = about_item["prefLabel"]["en"]
-                    disciplines.append(discipline_en)
+            json_ld_about: list[dict] = json_ld["about"]
+            for about_item in json_ld_about:
+                # as of 2024-08-16 the "about"-property in a JSON-LD currently looks like this:
+                # "about": [
+                #     {
+                #       "id": "https://serlo.org/5",
+                #       "name": "Mathematik",
+                #       "type": "Thing"
+                #     }
+                if "id" in about_item:
+                    json_ld_about_id: str = about_item["id"]
+                    pass
+                if "name" in about_item:
+                    json_ld_about_name: str = about_item["name"]
+                    if json_ld_about_name and isinstance(json_ld_about_name, str):
+                        disciplines.append(json_ld_about_name)
+                elif "prefLabel" in about_item:
+                    # ToDo: this case should no longer happen as the "about" structure changed
+                    if "de" in about_item["prefLabel"]:
+                        discipline_de: str = about_item["prefLabel"]["de"]
+                        disciplines.append(discipline_de)
+                    elif "en" in about_item["prefLabel"]:
+                        discipline_en: str = about_item["prefLabel"]["en"]
+                        disciplines.append(discipline_en)
             if len(disciplines) > 0:
                 vs.add_value("discipline", disciplines)
                 # (see: https://github.com/openeduhub/oeh-metadata-vocabs/blob/master/discipline.ttl)

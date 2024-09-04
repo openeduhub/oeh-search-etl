@@ -127,7 +127,7 @@ class FilterSparsePipeline(BasicPipeline):
         except KeyError:
             raise DropItem(f'Item {item} has no lom.technical.location')
         try:
-            if "location" not in item["lom"]["technical"] and not "binary" in item:
+            if "location" not in item["lom"]["technical"] and "binary" not in item:
                 raise DropItem(
                     "Entry {} has no technical location or binary data".format(item["lom"]["general"]["title"])
                 )
@@ -168,6 +168,7 @@ class FilterSparsePipeline(BasicPipeline):
 
 class NormLanguagePipeline(BasicPipeline):
     """Normalize raw or ambiguous language strings to 2-letter-language-codes (ISO 639-1)."""
+
     def process_item(self, item, spider):
         item_adapter = ItemAdapter(item)
         try:
@@ -213,10 +214,12 @@ class NormLicensePipeline(BasicPipeline):
 
         if "url" in item["license"] and "oer" not in item["license"]:
             match item["license"]["url"]:
-                case Constants.LICENSE_CC_BY_20 | \
+                case Constants.LICENSE_CC_BY_10 | \
+                     Constants.LICENSE_CC_BY_20 | \
                      Constants.LICENSE_CC_BY_25 | \
                      Constants.LICENSE_CC_BY_30 | \
                      Constants.LICENSE_CC_BY_40 | \
+                     Constants.LICENSE_CC_BY_SA_10 | \
                      Constants.LICENSE_CC_BY_SA_20 | \
                      Constants.LICENSE_CC_BY_SA_25 | \
                      Constants.LICENSE_CC_BY_SA_30 | \
@@ -234,9 +237,18 @@ class NormLicensePipeline(BasicPipeline):
         if "expirationDate" in item["license"]:
             item["license"]["expirationDate"] = dateparser.parse(item["license"]["expirationDate"])
         if "lifecycle" in item["lom"]:
-            for contribute in item["lom"]["lifecycle"]:
-                if "date" in contribute:
-                    contribute["date"] = dateparser.parse(contribute["date"])
+            for lifecycle_contributor in item["lom"]["lifecycle"]:
+                # there can be multiple LomLifecycleItems within a LomBaseItem
+                if "date" in lifecycle_contributor:
+                    lifecycle_date: str | datetime.datetime = lifecycle_contributor["date"]
+                    if lifecycle_date and isinstance(lifecycle_date, str):
+                        lifecycle_contributor["date"] = dateparser.parse(lifecycle_date)
+                    elif lifecycle_date and isinstance(lifecycle_date, datetime.datetime):
+                        # happy-case: the 'date' property is of type datetime
+                        pass
+                    elif lifecycle_date:
+                        log.warning(f"Lifecycle Pipeline received invalid 'date'-value: {lifecycle_date} !"
+                                    f"Expected type 'str' or 'datetime', but received: {type(lifecycle_date)} instead.")
 
         return raw_item
 
@@ -265,40 +277,263 @@ class ConvertTimePipeline(BasicPipeline):
                     del item["lastModified"]
 
         if "typicalLearningTime" in item["lom"]["educational"]:
-            t = item["lom"]["educational"]["typicalLearningTime"]
-            mapped = None
-            splitted = t.split(":")
-            if len(splitted) == 3:
-                mapped = (
-                        int(splitted[0]) * 60 * 60
-                        + int(splitted[1]) * 60
-                        + int(splitted[2])
-                )
-            if mapped is None:
-                log.warning(
-                    "Unable to map given typicalLearningTime "
-                    + t
-                    + " to numeric value"
-                )
-            item["lom"]["educational"]["typicalLearningTime"] = mapped
+            tll_raw = item["lom"]["educational"]["typicalLearningTime"]
+            tll_duration_in_seconds = (
+                determine_duration_and_convert_to_seconds(time_raw=tll_raw,
+                                                          item_field_name="LomEducationalItem.typicalLearningTime")
+            )
+            # ToDo: update es_connector and connect this property with the backend
+            item["lom"]["educational"]["typicalLearningTime"] = tll_duration_in_seconds
+
         if "technical" in item["lom"]:
             if "duration" in item["lom"]["technical"]:
                 raw_duration = item["lom"]["technical"]["duration"]
-                duration = raw_duration.strip()
-                if duration:
-                    if len(duration.split(":")) == 3:
-                        duration = isodate.parse_time(duration)
-                        duration = duration.hour * 60 * 60 + duration.minute * 60 + duration.second
-                    elif duration.startswith("PT"):
-                        duration = int(isodate.parse_duration(duration).total_seconds())
-                    else:
-                        try:
-                            duration = int(duration)
-                        except:
-                            duration = None
-                            log.warning("duration {} could not be normalized to seconds".format(raw_duration))
-                    item["lom"]["technical"]["duration"] = duration
+                duration_in_seconds = determine_duration_and_convert_to_seconds(
+                    time_raw=raw_duration,
+                    item_field_name="LomTechnicalItem.duration")
+                item["lom"]["technical"]["duration"] = duration_in_seconds
         return raw_item
+
+
+def determine_duration_and_convert_to_seconds(time_raw: str | int | float,
+                                              item_field_name: str) -> int | None:
+    """
+    Tries to convert "duration"-objects (of unknown type) to seconds.
+    Returns the converted duration as(as total seconds) int value if successful
+    or None if conversion wasn't possible.
+
+    @param time_raw: the unknown duration object (string or numeric value)
+    @param item_field_name: scrapy item field-name (required for precise logging messages)
+    @return: total seconds (int) value of duration or None
+    """
+    time_in_seconds: int | None = None
+    # why are we converting values to int? reason: 'cclom:typicallearningtime' expects values to be in milliseconds!
+    # (this method converts values to seconds and es_connector.py converts the values to ms)
+    if time_raw and isinstance(time_raw, str):
+        # strip whitespace first (just in case -> string values might have typos)
+        time_raw = time_raw.strip()
+        if ":" in time_raw:
+            # handling of "hh:mm:ss"-durations:
+            t_split: list[str] = time_raw.split(":")
+            if len(t_split) == 3:
+                time_in_seconds = (
+                        int(t_split[0]) * 60 * 60
+                        + int(t_split[1]) * 60
+                        + int(t_split[2])
+                )
+            else:
+                log.warning(f"Encountered unhandled edge-case in '{item_field_name}': "
+                            f"Expected format 'hh:mm:ss', but received {time_raw} instead.")
+        if time_raw.startswith("P"):
+            # handling of iso-formatted duration strings, e.g. "P14DT22H" or "P7W"
+            # (see: https://en.wikipedia.org/wiki/ISO_8601#Durations)
+            duration_parsed = isodate.parse_duration(time_raw)
+            if duration_parsed:
+                time_in_seconds = duration_parsed.total_seconds()
+                if time_in_seconds == 0.0:
+                    # months and years are no standardized time duration units
+                    # -> isodate.parse_duration() will return 0.0 seconds for these input values because the underlying
+                    # timedelta object can't handle conversion from months to .total_seconds()
+                    # see: https://github.com/gweis/isodate/issues/44
+                    # and https://docs.python.org/3/library/datetime.html#datetime.timedelta
+                    log.warning(f"Unhandled value detected: Cannot transform {time_raw} to total seconds!"
+                                f"(months (M) or years (Y) aren't standardized duration units)")
+                    time_in_seconds = None
+                    # ToDo: choose an acceptable solution
+                    #  1) either approximate the total seconds (inaccurate: "P6M" becomes 6 x 4W = 24W)
+                    #    -> this would require RegEx parsing and string replacement of the month/year parts
+                    #  2) or keep the string representation AND find a better suited edu-sharing property for durations
+            else:
+                log.warning(f"Encountered unhandled edge-case in '{item_field_name}': "
+                            f"Expected ISO-8601 duration string, but received {time_raw} instead.")
+        if "." in time_raw and time_raw.count(".") == 1:
+            # duration strings might come with float precision (e.g. "600.0" for 10 Minutes)
+            try:
+                seconds_float: float = float(time_raw)
+                if seconds_float:
+                    time_in_seconds = int(seconds_float)
+            except ValueError:
+                log.warning(
+                    f"Unable to convert string {time_raw} (type: {type(time_raw)}) to 'int'-value (seconds).")
+        if time_raw.isnumeric():
+            try:
+                time_in_seconds = int(time_raw)
+            except ValueError:
+                log.warning(f"Unable to convert 'duration'-value {time_raw} (type ({type(time_raw)}) "
+                            f"to 'int'-value (seconds).")
+        # ToDo (optional): implement processing of natural language strings? (e.g. "12 Stunden")
+        #  - this feature would need a rigorous testing suite for common expressions (English and German strings)
+    else:
+        try:
+            time_in_seconds = int(time_raw)
+        except ValueError:
+            log.warning(f"'duration' value {time_raw} could not be normalized to seconds. "
+                        f"(Unhandled edge-case: Expected int or float value, "
+                        f"but received {type(time_raw)} instead.")
+    if not time_in_seconds:
+        if isinstance(time_in_seconds, int) and time_in_seconds == 0:
+            log.debug(f"Detected zero duration for '{item_field_name}'.  "
+                      f"Received raw value: {time_raw} of type {type(time_raw)} .")
+        else:
+            log.warning(f"Unable to convert '{item_field_name}'-value (type: {type(time_raw)}) from {time_raw} "
+                        f"to numeric value (seconds).")
+    return time_in_seconds
+
+
+class CourseItemPipeline(BasicPipeline):
+    """Pipeline for BIRD-related metadata properties."""
+
+    def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        item_adapter = ItemAdapter(item)
+        if "course" in item_adapter:
+            course_adapter: ItemAdapter = item_adapter["course"]
+
+            if "course_availability_from" in course_adapter:
+                # Preparing BIRD "course_availability_from" for "ccm:oeh_event_begin" (ISO-formatted "datetime"-string)
+                course_availability_from: str = course_adapter["course_availability_from"]
+                if course_availability_from and isinstance(course_availability_from, str):
+                    # BIRD spec: "verfügbar ab" expects a single-value 'datetime' string
+                    caf_parsed: datetime = dateparser.parse(course_availability_from)
+                    # try to parse the string and convert it to a datetime object
+                    if caf_parsed and isinstance(caf_parsed, datetime.datetime):
+                        # convert the parsed string from a 'datetime' object to an ISO-formatted 'datetime'-string
+                        caf_iso: str = caf_parsed.isoformat()
+                        course_adapter["course_availability_from"] = caf_iso
+                    else:
+                        log.warning(f"Failed to parse \"course_availability_from\"-property "
+                                    f"\"{course_availability_from}\" to a valid \"datetime\"-object. \n"
+                                    f"(Please check the object {item_adapter['sourceId']} "
+                                    f"or extend the CourseItemPipeline!)")
+                        del course_adapter["course_availability_from"]
+                else:
+                    log.warning(f"Cannot process BIRD 'course_availability_from'-property {course_availability_from} "
+                                f"(Expected a string, but received {type(course_availability_from)} instead.")
+                    del course_adapter["course_availability_from"]
+
+            # Prepare BIRD "course_availability_until" for "ccm:oeh_event_end" (-> ISO-formatted "datetime"-string)
+            if "course_availability_until" in course_adapter:
+                course_availability_until = course_adapter["course_availability_until"]
+                # BIRD Spec "verfügbar bis" expects a single-value 'datetime' string
+                if course_availability_until and isinstance(course_availability_until, str):
+                    cau_parsed: datetime = dateparser.parse(course_availability_until)
+                    if cau_parsed and isinstance(cau_parsed, datetime.datetime):
+                        cau_iso: str = cau_parsed.isoformat()
+                        course_adapter["course_availability_until"] = cau_iso
+                    else:
+                        log.warning(f"Failed to parse \"{course_availability_until}\" to a valid 'datetime'-object. "
+                                    f"(Please check the object {item_adapter['sourceId']} for unhandled edge-cases or "
+                                    f"extend the CourseItemPipeline!)")
+                        del course_adapter["course_availability_until"]
+                else:
+                    log.warning(
+                        f"Cannot process BIRD \"course_availability_until\"-property {course_availability_until} "
+                        f"(Expected a string, but received {type(course_availability_until)} instead.) "
+                        f"Deleting property...")
+                    del course_adapter["course_availability_until"]
+
+            if "course_description_short" in course_adapter:
+                # course_description_short expects a string (with or without HTML formatting)
+                course_description_short: str = course_adapter["course_description_short"]
+                if course_description_short and isinstance(course_description_short, str):
+                    # happy-case: the description is a string
+                    pass
+                else:
+                    log.warning(f"Cannot process BIRD 'course_description_short'-property for item "
+                                f"{item_adapter['sourceId']} . Expected a string, but received "
+                                f"{type(course_description_short)} instead. Deleting property...")
+                    del course_adapter["course_description_short"]
+
+            if "course_duration" in course_adapter:
+                # course_duration -> 'cclom:typicallearningtime' (ms)
+                course_duration: int = course_adapter["course_duration"]
+                course_duration = determine_duration_and_convert_to_seconds(
+                    time_raw=course_duration,
+                    item_field_name="CourseItem.course_duration"
+                )
+                if isinstance(course_duration, int):
+                    if course_duration:
+                        # happy-case: a duration greater than 0
+                        pass
+                    elif course_duration == 0:
+                        # a duration of zero seconds is not a valid time duration, but most likely just a limitation
+                        # of different backend systems how they store "empty" values for this metadata property.
+                        log.debug(f"Received zero duration value within 'course_duration'-property of item "
+                                  f"{item_adapter['sourceId']}. Deleting property ...")
+                        del course_adapter["course_duration"]
+                else:
+                    log.warning(f"Cannot process BIRD 'course_duration'-property for item {item_adapter['sourceId']} . "
+                                f"Expected a single (positive) integer value (in seconds), "
+                                f"but received {type(course_duration)} instead. Deleting property...")
+                    del course_adapter["course_duration"]
+
+            if "course_learningoutcome" in course_adapter:
+                # course_learningoutcome expects a string (with or without HTML formatting)
+                course_learning_outcome: list[str] | str | None = course_adapter["course_learningoutcome"]
+                if course_learning_outcome:
+                    if isinstance(course_learning_outcome, str):
+                        # happy-case: there's a single string value in course_learningoutcome
+                        pass
+                    elif isinstance(course_learning_outcome, list):
+                        course_learning_outcome_clean: list[str] = list()
+                        for clo_candidate in course_learning_outcome:
+                            if clo_candidate and isinstance(clo_candidate, str):
+                                # happy case: this list value is a string
+                                course_learning_outcome_clean.append(clo_candidate)
+                            else:
+                                # if the list item isn't a string, we won't save it to the cleaned up list
+                                log.warning(f"Received unexpected type as part of 'course_learningoutcome': "
+                                            f"Expected list[str], but received a {type(clo_candidate)} "
+                                            f"instead. Raw value: {clo_candidate}")
+                        course_adapter["course_learningoutcome"] = course_learning_outcome_clean
+                else:
+                    log.warning(
+                        f"Cannot process BIRD 'course_learningoutcome'-property for item {item_adapter['sourceId']} "
+                        f". Expected a string, but received {type(course_learning_outcome)} instead. "
+                        f"Deleting property...")
+                    del course_adapter["course_learningoutcome"]
+
+            if "course_schedule" in course_adapter:
+                # course_schedule expects a string (either with or without HTML formatting)
+                course_schedule: str = course_adapter["course_schedule"]
+                if course_schedule and isinstance(course_schedule, str):
+                    # happy-case
+                    pass
+                else:
+                    log.warning(f"Cannot process BIRD 'course_schedule'-property for item {item_adapter['sourceId']} . "
+                                f"Expected a string, but received {type(course_schedule)} instead. "
+                                f"Deleting property...")
+                    del course_adapter["course_schedule"]
+
+            if "course_url_video" in course_adapter:
+                # expects a (singular) URL pointing towards a course-related video (e.g. a short teaser / intro)
+                course_url_video: str = course_adapter["course_url_video"]
+                if course_url_video and isinstance(course_url_video, str):
+                    # happy-case
+                    pass
+                else:
+                    log.warning(
+                        f"Cannot process BIRD 'course_url_video'-property for item {item_adapter['sourceId']} . "
+                        f"Expected a string, but received {type(course_url_video)} instead. "
+                        f"Deleting property...")
+                    del course_adapter["course_url_video"]
+
+            if "course_workload" in course_adapter:
+                # ToDo: course_workload -> edu-sharing: ? -> BIRD: expects a single-value string
+                # ToDo: currently there's no dedicated edu-sharing property for course workloads yet,
+                #  therefore pipeline handling of such values cannot be implemented yet.
+                if "course_workload" in course_adapter:
+                    # ToDo: confirm which edu-sharing property shall be used for course_workload
+                    #  (and which type is expected) -> implement a type-check!
+                    course_workload: str = course_adapter["course_workload"]
+                    if course_workload:
+                        log.error(f"Cannot process BIRD 'course_workload'-property: this field is not implemented yet! "
+                                  f"(Please update the 'CourseItemPipeline' (pipelines.py) and es_connector.py!)")
+                        pass
+                pass
+
+        return item
+
+    pass
 
 
 class ProcessValuespacePipeline(BasicPipeline):
@@ -319,12 +554,20 @@ class ProcessValuespacePipeline(BasicPipeline):
             mapped = []
             for entry in json[key]:
                 _id = {}
-                valuespace = self.valuespaces.data[key]
+                valuespace: list[dict] = self.valuespaces.data[key]
                 found = False
                 for v in valuespace:
                     labels = list(v["prefLabel"].values())
                     if "altLabel" in v:
-                        labels = labels + list(v["altLabel"].values())
+                        # the Skohub update on 2024-04-19 generates altLabels as a list[str] per language ("de", "en)
+                        # (for details, see: https://github.com/openeduhub/oeh-metadata-vocabs/pull/65)
+                        alt_labels: list[list[str]] = list(v["altLabel"].values())
+                        if alt_labels and isinstance(alt_labels, list):
+                            for alt_label in alt_labels:
+                                if alt_label and isinstance(alt_label, list):
+                                    labels.extend(alt_label)
+                                if alt_label and isinstance(alt_label, str):
+                                    labels.append(alt_label)
                     labels = list(map(lambda x: x.casefold(), labels))
                     if v["id"].endswith(entry) or entry.casefold() in labels:
                         _id = v["id"]
@@ -346,6 +589,10 @@ class ProcessThumbnailPipeline(BasicPipeline):
     """
     generate thumbnails
     """
+    pixel_limit: int = 178956970  # ~179 Megapixel
+    pixel_limit_in_mp: float = pixel_limit / 1000000
+    Image.MAX_IMAGE_PIXELS = pixel_limit  # doubles the Pillow default (89,478,485) → from 89,5 MegaPixels to 179 MP
+    # see: https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.MAX_IMAGE_PIXELS
 
     @staticmethod
     def scale_image(img, max_size):
@@ -360,14 +607,15 @@ class ProcessThumbnailPipeline(BasicPipeline):
         """
         By default, the thumbnail-pipeline handles several cases:
         - if there is a URL-string inside the "BaseItem.thumbnail"-field:
-        -- download image from URL; rescale it into different sizes (small/large);
-        --- save the thumbnails as base64 within
-        ---- "BaseItem.thumbnail.small", "BaseItem.thumbnail.large"
-        --- (afterward delete the URL from "BaseItem.thumbnail")
+            - download image from URL; rescale it into different sizes (small/large);
+                - save the thumbnails as base64 within
+                    - "BaseItem.thumbnail.small"
+                    - "BaseItem.thumbnail.large"
+                - (afterward delete the URL from "BaseItem.thumbnail")
 
         - if there is NO "BaseItem.thumbnail"-field:
-        -- default: take a screenshot of the URL from "technical.location" with Splash, rescale and save (as above)
-        -- alternatively, on-demand: use Playwright to take a screenshot, rescale and save (as above)
+            - default: take a screenshot of the URL from "technical.location" (with Splash), rescale and save (as above)
+            - alternatively, on-demand: use Playwright to take a screenshot, rescale and save (as above)
         """
         item = ItemAdapter(raw_item)
         response: scrapy.http.Response | None = None
@@ -410,9 +658,9 @@ class ProcessThumbnailPipeline(BasicPipeline):
             log.debug(f"Loading thumbnail from {url} took {time_end - time_start} (incl. awaiting).")
             log.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
             if thumbnail_response.status != 200:
-                log.debug(f"Thumbnail-Pipeline received a unexpected response (status: {thumbnail_response.status}) "
+                log.debug(f"Thumbnail-Pipeline received an unexpected response (status: {thumbnail_response.status}) "
                           f"from {url} (-> resolved URL: {thumbnail_response.url}")
-                # fall back to website screenshot
+                # falling back to website screenshot:
                 del item["thumbnail"]
                 return await self.process_item(raw_item, spider)
             else:
@@ -431,9 +679,9 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     elif _mimetype == "application/octet-stream":
                         # ToDo: special handling for 'application/octet-stream' necessary?
                         log.debug(f"Thumbnail URL of MIME-Type 'image/...' expected, "
-                                 f"but received '{_mimetype}' instead. "
-                                 f"(If thumbnail conversion throws unexpected errors further down the line, "
-                                 f"the Thumbnail-Pipeline needs to be re-visited! URL: {url} )")
+                                  f"but received '{_mimetype}' instead. "
+                                  f"(If thumbnail conversion throws unexpected errors further down the line, "
+                                  f"the Thumbnail-Pipeline needs to be re-visited! URL: {url} )")
                         response = thumbnail_response
                     else:
                         log.warning(f"Thumbnail URL {url} does not seem to be an image! "
@@ -497,8 +745,21 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
                 # but don't use playwright within the spider itself
                 target_url: str = item["lom"]["technical"]["location"][0]
+
+                playwright_cookies = None
+                playwright_adblock_enabled = False
+                if spider.custom_settings:
+                    # some spiders might require setting specific cookies to take "clean" website screenshots
+                    # (= without cookie banners or ads).
+                    if "PLAYWRIGHT_COOKIES" in spider.custom_settings:
+                        playwright_cookies = spider.custom_settings.get("PLAYWRIGHT_COOKIES")
+                    if "PLAYWRIGHT_ADBLOCKER" in spider.custom_settings:
+                        playwright_adblock_enabled: bool = spider.custom_settings["PLAYWRIGHT_ADBLOCKER"]
+
                 playwright_dict = await WebTools.getUrlData(url=target_url,
-                                                            engine=WebEngine.Playwright)
+                                                            engine=WebEngine.Playwright,
+                                                            cookies=playwright_cookies,
+                                                            adblock=playwright_adblock_enabled)
                 screenshot_bytes = playwright_dict.get("screenshot_bytes")
                 img = Image.open(BytesIO(screenshot_bytes))
                 self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
@@ -534,15 +795,29 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         response.body
                     ).decode()
                 else:
-                    img = Image.open(BytesIO(response.body))
-                    self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
-            except PIL.UnidentifiedImageError:
-                # this error can be observed when a website serves broken / malformed images
-                if url:
-                    log.warning(f"Thumbnail download of image file {url} failed: image file could not be identified "
+                    try:
+                        img = Image.open(BytesIO(response.body))
+                        self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
+                    except PIL.UnidentifiedImageError:
+                        # this error can be observed when a website serves broken / malformed images
+                        if url:
+                            log.warning(
+                                f"Thumbnail download of image file {url} failed: image file could not be identified "
                                 f"(Image might be broken or corrupt). Falling back to website-screenshot.")
-                del item["thumbnail"]
-                return await self.process_item(raw_item, spider)
+                        del item["thumbnail"]
+                        return await self.process_item(raw_item, spider)
+                    except Image.DecompressionBombError:
+                        # Pillow throws a "DecompressionBombError" if the downloaded image exceeds twice the
+                        # "Image.MAX_IMAGE_PIXELS"-setting.
+                        # If such an error is thrown, the image object won't be available.
+                        # Therefore, we need to fall back to a website screenshot.
+                        absolute_pixel_limit_in_mp = (self.pixel_limit * 2) / 1000000
+                        log.warning(f"Thumbnail download of {url} triggered a 'PIL.Image.DecompressionBombError'! "
+                                    f"The image either exceeds the max size of {absolute_pixel_limit_in_mp} "
+                                    f"megapixels or might have been a DoS attempt. "
+                                    f"Falling back to website screenshot...")
+                        del item["thumbnail"]
+                        return await self.process_item(raw_item, spider)
             except Exception as e:
                 if url is not None:
                     log.warning(f"Could not read thumbnail at {url}: {str(e)} (falling back to screenshot)")
@@ -633,7 +908,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
 def get_settings_for_crawler(spider) -> scrapy.settings.Settings:
     all_settings = get_project_settings()
     crawler_settings = settings.BaseSettings(getattr(spider, "custom_settings") or {}, 'spider')
-    if type(crawler_settings) == dict:
+    if isinstance(crawler_settings, dict):
         crawler_settings = settings.BaseSettings(crawler_settings, 'spider')
     for key in crawler_settings.keys():
         if (
@@ -672,6 +947,43 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
                 # activate this later
                 # raise DropItem()
         return raw_item
+
+class EduSharingTypeValidationPipeline(BasicPipeline):
+    """
+    Rudimentary type-conversion before handling metadata properties off to the API client.
+    """
+    # ToDo: if you notice pydantic "ValidationError"s during crawls, implement handling of those edge-cases here!
+    def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        item_adapter = ItemAdapter(item)
+        if "course" in item_adapter:
+            course_item: dict = item_adapter["course"]
+            if "course_duration" in course_item:
+                course_duration: int = course_item["course_duration"]
+                if course_duration and isinstance(course_duration, int):
+                    course_item["course_duration"] = str(course_duration)
+        if "lom" in item_adapter:
+            if "educational" in item_adapter["lom"]:
+                lom_educational: dict = item_adapter["lom"]["educational"]
+                if "typicalLearningTime" in lom_educational:
+                    typical_learning_time: int | str | None = lom_educational["typicalLearningTime"]
+                    if typical_learning_time and isinstance(typical_learning_time, int):
+                        lom_educational["typicalLearningTime"] = str(typical_learning_time)
+                if "typicalAgeRange" in lom_educational:
+                    if "fromRange" in lom_educational["typicalAgeRange"]:
+                        from_range: int | str | None = lom_educational["typicalAgeRange"]["fromRange"]
+                        if from_range and isinstance(from_range, int):
+                            lom_educational["typicalAgeRange"]["fromRange"] = str(from_range)
+                    if "toRange" in lom_educational["typicalAgeRange"]:
+                        to_range: int | str | None = lom_educational["typicalAgeRange"]["toRange"]
+                        if to_range and isinstance(to_range, int):
+                            lom_educational["typicalAgeRange"]["toRange"] = str(to_range)
+            if "general" in item_adapter["lom"]:
+                lom_general: dict = item_adapter["lom"]["general"]
+                if "keyword" in lom_general:
+                    keywords: list[str] | set[str] | None = lom_general["keyword"]
+                    if keywords and isinstance(keywords, set):
+                        lom_general["keyword"] = list(keywords)
+        return item
 
 
 class JSONStorePipeline(BasicPipeline, PipelineWithPerSpiderMethods):
@@ -879,47 +1191,47 @@ class ExampleLoggingPipeline(BasicPipeline):
 
 class LisumPipeline(BasicPipeline):
     DISCIPLINE_TO_LISUM_SHORTHAND = {
-        "020": "C-WAT",         # Arbeitslehre -> Wirtschaft, Arbeit, Technik
-        "060": "C-KU",          # Bildende Kunst
-        "080": "C-BIO",         # Biologie
-        "100": "C-CH",          # Chemie
-        "120": "C-DE",          # Deutsch
-        "160": "C-Eth",         # Ethik
-        "200": "C-FS",          # Fremdsprachen
-        "220": "C-GEO",         # Geographie,
-        "240": "C-GE",          # Geschichte
-        "260": "B-GES",         # Gesundheit -> Gesundheitsförderung
-        "320": "C-Inf",         # Informatik
-        "380": "C-MA",          # Mathematik
-        "400": "B-BCM",         # Medienerziehung / Medienpädagogik -> Basiscurriculum Medienbildung
-        "420": "C-MU",          # Musik
-        "450": "C-Phil",        # Philosophie
-        "460": "C-Ph",          # Physik
-        "480": "C-PB",          # Politische Bildung
-        "510": "C-Psy",         # Psychologie
-        "520": "C-LER",         # Religion -> Lebensgestaltung-Ethik-Religionskunde
-        "560": "B-SE",          # Sexualerziehung
+        "020": "C-WAT",  # Arbeitslehre -> Wirtschaft, Arbeit, Technik
+        "060": "C-KU",  # Bildende Kunst
+        "080": "C-BIO",  # Biologie
+        "100": "C-CH",  # Chemie
+        "120": "C-DE",  # Deutsch
+        "160": "C-Eth",  # Ethik
+        "200": "C-FS",  # Fremdsprachen
+        "220": "C-GEO",  # Geographie,
+        "240": "C-GE",  # Geschichte
+        "260": "B-GES",  # Gesundheit -> Gesundheitsförderung
+        "320": "C-Inf",  # Informatik
+        "380": "C-MA",  # Mathematik
+        "400": "B-BCM",  # Medienerziehung / Medienpädagogik -> Basiscurriculum Medienbildung
+        "420": "C-MU",  # Musik
+        "450": "C-Phil",  # Philosophie
+        "460": "C-Ph",  # Physik
+        "480": "C-PB",  # Politische Bildung
+        "510": "C-Psy",  # Psychologie
+        "520": "C-LER",  # Religion -> Lebensgestaltung-Ethik-Religionskunde
+        "560": "B-SE",  # Sexualerziehung
         # "600": "",              # ToDo: "Sport" is not available as a Lisum Rahmenlehrplan shorthand
-        "660": "B-MB",          # Verkehrserziehung -> "Mobilitätsbildung und Verkehrserziehung"
-        "700": "C-SOWI",        # Wirtschaftskunde -> "Sozialwissenschaft/Wirtschaftswissenschaft"
-        "900": "B-BCM",         # Medienbildung -> "Basiscurriculum Medienbildung"
-        "12002": "C-Thea",      # Darstellendes Spiel, Schultheater -> Theater
-        "20001": "C-EN",        # Englisch
-        "20002": "C-FR",        # Französisch
-        "20003": "C-AGR",       # Griechisch -> Altgriechisch
-        "20004": "C-IT",        # Italienisch
-        "20005": "C-La",        # Latein
-        "20006": "C-RU",        # Russisch
-        "20007": "C-ES",        # Spanisch
-        "20008": "C-TR",        # Türkisch
-        "20011": "C-PL",        # Polnisch
-        "20014": "C-PT",        # Portugiesisch
-        "20041": "C-ZH",        # Chinesisch
-        "28010": "C-SU",        # Sachkunde -> Sachunterricht
-        "32002": "C-Inf",       # Informatik
-        "46014": "C-AS",        # Astronomie
-        "48005": "C-GEWIWI",    # Gesellschaftspolitische Gegenwartsfragen -> Gesellschaftswissenschaften
-        "2800506": "C-PL",      # Polnisch
+        "660": "B-MB",  # Verkehrserziehung -> "Mobilitätsbildung und Verkehrserziehung"
+        "700": "C-SOWI",  # Wirtschaftskunde -> "Sozialwissenschaft/Wirtschaftswissenschaft"
+        "900": "B-BCM",  # Medienbildung -> "Basiscurriculum Medienbildung"
+        "12002": "C-Thea",  # Darstellendes Spiel, Schultheater -> Theater
+        "20001": "C-EN",  # Englisch
+        "20002": "C-FR",  # Französisch
+        "20003": "C-AGR",  # Griechisch -> Altgriechisch
+        "20004": "C-IT",  # Italienisch
+        "20005": "C-La",  # Latein
+        "20006": "C-RU",  # Russisch
+        "20007": "C-ES",  # Spanisch
+        "20008": "C-TR",  # Türkisch
+        "20011": "C-PL",  # Polnisch
+        "20014": "C-PT",  # Portugiesisch
+        "20041": "C-ZH",  # Chinesisch
+        "28010": "C-SU",  # Sachkunde -> Sachunterricht
+        "32002": "C-Inf",  # Informatik
+        "46014": "C-AS",  # Astronomie
+        "48005": "C-GEWIWI",  # Gesellschaftspolitische Gegenwartsfragen -> Gesellschaftswissenschaften
+        "2800506": "C-PL",  # Polnisch
     }
 
     EAFCODE_EXCLUSIONS = [
@@ -1008,7 +1320,7 @@ class LisumPipeline(BasicPipeline):
                                 # due to having the 'custom'-field as a (raw) list of all eafCodes, this mainly serves
                                 # the purpose of reminding us if a 'discipline'-value couldn't be mapped to Lisum
                                 log.debug(f"LisumPipeline failed to map from eafCode {discipline_eaf_code} "
-                                              f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback...")
+                                          f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback...")
                         match discipline_eaf_code:
                             # catching edge-cases where OEH 'discipline'-vocab-keys don't line up with eafsys.txt values
                             case "320":
@@ -1022,24 +1334,24 @@ class LisumPipeline(BasicPipeline):
                         if eaf_code_digits_only_regex.search(discipline_eaf_code):
                             # each numerical eafCode must have a length of (minimum) 3 digits to be considered valid
                             log.debug(f"LisumPipeline: Writing eafCode {discipline_eaf_code} to buffer. (Wil be "
-                                          f"used later for 'ccm:taxonentry').")
+                                      f"used later for 'ccm:taxonentry').")
                             if discipline_eaf_code not in self.EAFCODE_EXCLUSIONS:
                                 # making sure to only save eafCodes that are part of the standard eafsys.txt
                                 discipline_eafcodes.add(discipline_eaf_code)
                             else:
                                 log.debug(f"LisumPipeline: eafCode {discipline_eaf_code} is not part of 'EAF "
-                                              f"Sachgebietssystematik' (see: eafsys.txt), therefore skipping this "
-                                              f"value.")
+                                          f"Sachgebietssystematik' (see: eafsys.txt), therefore skipping this "
+                                          f"value.")
                         else:
                             # our 'discipline.ttl'-vocab holds custom keys (e.g. 'niederdeutsch', 'oeh04010') which
                             # shouldn't be saved into 'ccm:taxonentry' (since they are not part of the regular
                             # "EAF Sachgebietssystematik"
                             log.debug(f"LisumPipeline eafCode fallback for {discipline_eaf_code} to "
-                                          f"'ccm:taxonentry' was not possible. Only eafCodes with a minimum length "
-                                          f"of 3+ digits are valid. (Please confirm if the provided value is part of "
-                                          f"the 'EAF Sachgebietssystematik' (see: eafsys.txt))")
+                                      f"'ccm:taxonentry' was not possible. Only eafCodes with a minimum length "
+                                      f"of 3+ digits are valid. (Please confirm if the provided value is part of "
+                                      f"the 'EAF Sachgebietssystematik' (see: eafsys.txt))")
                 log.debug(f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
-                              f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
+                          f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}")
                 valuespaces["discipline"] = list()  # clearing 'discipline'-field, so we don't accidentally write the
                 # remaining OEH w3id-URLs to Lisum's 'ccm:taxonid'-field
 
@@ -1060,7 +1372,7 @@ class LisumPipeline(BasicPipeline):
                                 educational_context_lisum_keys.add(educational_context_w3id_key)
                             case _:
                                 log.debug(f"LisumPipeline: educationalContext {educational_context_w3id_key} "
-                                              f"not found in mapping table.")
+                                          f"not found in mapping table.")
                 educational_context_list = list(educational_context_lisum_keys)
                 educational_context_list.sort()
                 valuespaces["educationalContext"] = educational_context_list

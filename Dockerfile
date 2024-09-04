@@ -1,17 +1,18 @@
-FROM python:3.11.6-slim-bookworm
+FROM python:3.12.5-slim-bookworm
 
 # ENV CRAWLER wirlernenonline_spider
 
 WORKDIR /
 
 COPY entrypoint.sh entrypoint.sh
-COPY requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
+COPY edu_sharing_openapi/ edu_sharing_openapi/
+COPY pyproject.toml poetry.lock ./
+RUN pip3 install poetry
+RUN poetry install
 COPY scrapy.cfg scrapy.cfg
 COPY setup.cfg setup.cfg
 COPY converter/ converter/
 COPY csv/ csv/
-COPY edu_sharing_client/ edu_sharing_client/
 COPY valuespace_converter/ valuespace_converter/
 
 

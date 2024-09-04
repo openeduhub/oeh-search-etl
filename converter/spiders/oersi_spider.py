@@ -1,6 +1,8 @@
+import copy
 import datetime
-import logging
 import random
+import re
+from collections import Counter
 from typing import Optional
 
 import requests
@@ -20,6 +22,7 @@ from converter.items import (
     ValuespaceItemLoader,
     LicenseItemLoader,
     ResponseItemLoader,
+    CourseItemLoader,
 )
 from converter.spiders.base_classes import LomBase
 from converter.util.license_mapper import LicenseMapper
@@ -38,8 +41,7 @@ class OersiSpider(scrapy.Spider, LomBase):
     name = "oersi_spider"
     # start_urls = ["https://oersi.org/"]
     friendlyName = "OERSI"
-    version = "0.1.8"  # last update: 2023-12-20
-    allowed_domains = "oersi.org"
+    version = "0.2.7"  # last update: 2024-07-30
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -58,50 +60,53 @@ class OersiSpider(scrapy.Spider, LomBase):
     )
 
     ELASTIC_PIT_ID: dict = dict()
-    # the provider-filter at https://oersi.org/resources/ shows you which String values can be used as a provider-name
-    # ToDo: regularly check if new providers need to be added to the list below (and insert/sort them alphabetically!)
+
+    # the "Provider"-filter in the frontend of https://oersi.org/resources/ shows you which string values
+    # can be used as a query-parameter for ElasticSearch (names are case-sensitive and need to be matches!)
+    # You can use the ELASTIC_PROVIDERS_TO_CRAWL list to manually override the crawling targets. If the list is empty,
+    # the crawler will query the ElasticSearch API and fill the list at the beginning of a crawl!
     ELASTIC_PROVIDERS_TO_CRAWL: list = [
-        "BC Campus",  # BC Campus website cannot be crawled at the moment, needs further investigation
+        # "BC Campus",  # BC Campus website cannot be crawled at the moment, needs further investigation
         # "ComeIn",  # should not be crawled, datasets were exported to OERSI from WLO
-        "detmoldMusicTools",
-        "digiLL",
-        "DuEPublico",
-        "eaDNURT",
-        "eCampusOntario",
-        "eGov-Campus",
-        "Finnish Library of Open Educational Resources",  # URLs of this metadata-provider cannot be resolved
-        "GitHub",
-        "GitLab",
-        "Helmholtz Codebase",
-        "HessenHub",
-        "HHU Mediathek",
-        "HOOU",
-        "iMoox",
-        "KI Campus",
-        "langSci Press",  # new provider as of 2023-04-27
-        "lecture2go (Hamburg)",  # new provider as of 2023-12-14
-        "MIT OpenCourseWare",
+        # "detmoldMusicTools",
+        # "digiLL",
+        # "DuEPublico",
+        # "eaDNURT",
+        # "eCampusOntario",
+        # "eGov-Campus",
+        # "Finnish Library of Open Educational Resources",  # URLs of this metadata-provider cannot be resolved
+        # "GitHub",
+        # "GitLab",
+        # "Helmholtz Codebase",
+        # "HessenHub",
+        # "HHU Mediathek",
+        # "HOOU",
+        # "iMoox",
+        # "KI Campus",
+        # "langSci Press",  # new provider as of 2023-04-27
+        # "lecture2go (Hamburg)",  # new provider as of 2023-12-14
+        # "MIT OpenCourseWare",
         # "OEPMS",  # new provider as of 2023-04-27 # ToDo: cannot be crawled
-        "OER Portal Uni Graz",
-        "oncampus",  # (temporarily) not available? (2023-12-14)
-        "Open Music Academy",
-        "Open Textbook Library",
-        "Opencast Universität Osnabrück",
-        "openHPI",
-        "OpenLearnWare",
-        "OpenRub",
-        "ORCA.nrw",
-        "Phaidra Uni Wien",
-        "Pressbooks Directory",  # new provider as of 2023-12-14
-        "RWTH Aachen GitLab",
-        "TIB AV-Portal",
-        "TU Delft OpenCourseWare",
-        "twillo",
-        "Universität Innsbruck OER Repositorium",
-        "VCRP",
-        "vhb",
-        "Virtual Linguistics Campus",
-        "ZOERR",
+        # "OER Portal Uni Graz",
+        # "oncampus",  # (temporarily) not available? (2023-12-14)
+        # "Open Music Academy",
+        # "Open Textbook Library",
+        # "Opencast Universität Osnabrück",
+        # "openHPI",
+        # "OpenLearnWare",
+        # "OpenRub",
+        # "ORCA.nrw",
+        # "Phaidra Uni Wien",
+        # "Pressbooks Directory",  # new provider as of 2023-12-14
+        # "RWTH Aachen GitLab",
+        # "TIB AV-Portal",
+        # "TU Delft OpenCourseWare",
+        # "twillo",
+        # "Universität Innsbruck OER Repositorium",
+        # "VCRP",
+        # "vhb",
+        # "Virtual Linguistics Campus",
+        # "ZOERR",
     ]
     ELASTIC_ITEMS_ALL = list()
 
@@ -122,6 +127,10 @@ class OersiSpider(scrapy.Spider, LomBase):
         # "peerTutor": "",  # ToDo: find mapping
         # "professional": "",  # ToDo: find mapping
     }
+    # BIRD-related: "vhb" response dict (from https://open.vhb.org/oersi.json)
+    vhb_oersi_json: dict | None = None
+    # BIRD-related "iMoox" response dict (from https://imoox.at/mooc/local/moochubs/classes/webservice.php)
+    imoox_json: dict | None = None
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -129,11 +138,15 @@ class OersiSpider(scrapy.Spider, LomBase):
         self.ELASTIC_PIT_ID = self.elastic_pit_get_id(self.elastic_pit_create())
         # querying the ElasticSearch API for metadata-sets of specific providers, this allows us to control which
         # providers we want to include/exclude by using the "ELASTIC_PROVIDERS_TO_CRAWL"-list
+        if not self.ELASTIC_PROVIDERS_TO_CRAWL:
+            # if no crawling targets were set (e.g. during debugging), the default behavior is to query all
+            # metadata providers from OERSI's ElasticSearch
+            self.elastic_fetch_list_of_provider_names()
         self.ELASTIC_ITEMS_ALL = self.elastic_fetch_all_provider_pages()
         # after all items have been collected, delete the ElasticSearch PIT
         json_response = self.elastic_pit_delete()
         if json_response:
-            logging.info(f"ElasticSearch API response (upon PIT delete): {json_response}")
+            self.logger.info(f"ElasticSearch API response (upon PIT delete): {json_response}")
 
     def start_requests(self):
         # yield dummy request, so that Scrapy's start_item method requirement is satisfied,
@@ -143,6 +156,30 @@ class OersiSpider(scrapy.Spider, LomBase):
     def handle_collected_elastic_items(self, response: scrapy.http.Response):
         random.shuffle(self.ELASTIC_ITEMS_ALL)  # shuffling the list of ElasticSearch items to improve concurrency and
         # distribute the load between several target domains.
+
+        # counting duplicates across "metadata provider"-queries:
+        urls_all: list = [x["_source"]["id"] for x in self.ELASTIC_ITEMS_ALL]
+        urls_counted = Counter(urls_all)
+        duplicates: set = set()
+        for item in urls_counted:
+            # if items occur more than once, we'll add their URL to the duplicate set (to compare it later)
+            if urls_counted[item] > 1:
+                duplicates.add(item)
+        duplicate_dict = dict()
+        for elastic_item in self.ELASTIC_ITEMS_ALL:
+            _source_id: str = elastic_item["_source"]["id"]
+            if _source_id in duplicates:
+                # if an object appears in more than one "MetadataProvider"-query response, we'll create a dictionary,
+                # where the "key" is the URL and the "value" is a list of duplicate objects (Type: list[dict])
+                if _source_id in duplicate_dict:
+                    duplicate_list: list = duplicate_dict[_source_id]
+                    duplicate_list.append(elastic_item)
+                    duplicate_dict.update({_source_id: duplicate_list})
+                else:
+                    duplicate_dict.update({_source_id: [elastic_item]})
+        # Dumping duplicates to local .json for further analysis:
+        # with open("oersi_duplicates.json", "w") as fp:
+        #     json.dump(duplicate_dict, fp)
         for elastic_item in self.ELASTIC_ITEMS_ALL:
             yield from self.check_item_and_yield_to_parse_method(elastic_item)
 
@@ -155,7 +192,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         item_url: str = self.get_item_url(elastic_item)
         if item_url:
             if self.shouldImport(response=None) is False:
-                logging.debug(
+                self.logger.debug(
                     "Skipping entry {} because shouldImport() returned false".format(
                         str(self.getId(response=None, elastic_item=elastic_item))
                     )
@@ -179,7 +216,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         See: https://www.elastic.co/guide/en/elasticsearch/reference/current/point-in-time-api.html
         """
         url = (
-            f"https://oersi.org/resources/api-internal/search/oer_data/_pit?keep_alive="
+            f"https://oersi.org/resources/api/search/oer_data/_pit?keep_alive="
             f"{self.ELASTIC_PARAMETER_KEEP_ALIVE}&pretty"
         )
         headers = {"accept": "application/json"}
@@ -199,18 +236,75 @@ class OersiSpider(scrapy.Spider, LomBase):
         Deletes the ElasticSearch PIT once it's no longer needed for page iteration. See:
         https://www.elastic.co/guide/en/elasticsearch/reference/current/point-in-time-api.html#close-point-in-time-api
         """
-        url = f"https://oersi.org/resources/api-internal/search/_pit"
+        url = f"https://oersi.org/resources/api/search/_pit"
         delete_request = requests.delete(url=url, json=self.ELASTIC_PIT_ID)
-        logging.debug(f"Deleting ElasticSearch PIT: {self.ELASTIC_PIT_ID}")
+        self.logger.debug(f"Deleting ElasticSearch PIT: {self.ELASTIC_PIT_ID}")
         return delete_request.json()
+
+    def elastic_fetch_list_of_provider_names(self):
+        _url = "https://oersi.org/resources/api/search/oer_data/_search"
+
+        _payload = {
+            "_source": False,
+            "size": 0,
+            "aggs": {"MetadataProviders": {"terms": {"field": "mainEntityOfPage.provider.name", "size": 500}}},
+        }
+        # remember to increase the "size"-parameter if the list of metadata-providers reaches > 500 results
+        _headers = {"Content-Type": "application/json", "accept": "application/json"}
+        response = requests.request("POST", _url, json=_payload, headers=_headers)
+        if response.ok:
+            response_json: dict = response.json()
+            if "aggregations" in response_json:
+                aggregations: dict = response_json["aggregations"]
+                try:
+                    buckets: list[dict] = aggregations["MetadataProviders"]["buckets"]
+                    metadata_provider_count_total: int = 0
+                    if buckets and isinstance(buckets, list):
+                        self.logger.debug(
+                            f"OERSI 'MetadataProviders'-query returned {len(buckets)} metadata providers."
+                        )
+                        self.logger.debug(f"{buckets}")
+                    for bucket_item in buckets:
+                        if "key" in bucket_item:
+                            metadata_provider_name: str = bucket_item["key"]
+                            if metadata_provider_name and isinstance(metadata_provider_name, str):
+                                self.ELASTIC_PROVIDERS_TO_CRAWL.append(metadata_provider_name)
+                        if "doc_count" in bucket_item:
+                            metadata_provider_count: int = bucket_item["doc_count"]
+                            if metadata_provider_count and isinstance(metadata_provider_count, int):
+                                metadata_provider_count_total += metadata_provider_count
+                    if self.ELASTIC_PROVIDERS_TO_CRAWL:
+                        self.logger.info(
+                            f"Successfully retrieved the following metadata providers for future API "
+                            f"requests:\n"
+                            f"{self.ELASTIC_PROVIDERS_TO_CRAWL}"
+                        )
+                        if metadata_provider_count_total:
+                            self.logger.info(
+                                f"Expecting {metadata_provider_count_total} ElasticSearch objects in " f"total."
+                            )
+                except KeyError as ke:
+                    self.logger.error(
+                        f"Failed to retrieve 'buckets'-list of metadata providers from OERSI "
+                        f"ElasticSearch response (please check (with a debugger) if the property "
+                        f"'aggregations.MetadataProviders.buckets' was part of the API response!)"
+                    )
+                    raise ke
+            else:
+                self.logger.error(
+                    f"Failed to retrieve list of metadata providers from OERSI's ElasticSearch API. "
+                    f"(The response object did not return a 'aggregations'-object. Please check the API!)"
+                )
 
     def elastic_query_provider_metadata(self, provider_name, search_after=None):
         """
-        Queries OERSI's ElasticSearch API for a metadata from a specific provider.
+        Queries OERSI's ElasticSearch API for metadata items from a specific metadata provider, as specified by the
+        "provider_name"-string.
 
-        See: https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#paginate-search-results
+        See:
+        https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#paginate-search-results
         """
-        url = "https://oersi.org/resources/api-internal/search/_search"
+        url = "https://oersi.org/resources/api/search/_search"
         if search_after is None:
             payload = {
                 "size": self.ELASTIC_PARAMETER_REQUEST_SIZE,
@@ -236,7 +330,6 @@ class OersiSpider(scrapy.Spider, LomBase):
             }
         headers = {"Content-Type": "application/json", "accept": "application/json"}
         response = requests.post(url=url, json=payload, headers=headers)
-        # logging.debug(response.text)
         return response.json()
 
     def elastic_fetch_all_provider_pages(self):
@@ -251,14 +344,26 @@ class OersiSpider(scrapy.Spider, LomBase):
         # 1:1 identical to the metadata-provider string values on OERSI.org.
         provider_target_from_env: str = env.get(key="OERSI_METADATA_PROVIDER", allow_null=True, default=None)
         if provider_target_from_env:
-            logging.info(f"Recognized OERSI_METADATA_PROVIDER .env setting. Value: {provider_target_from_env}")
+            self.logger.info(
+                f"Recognized OERSI_METADATA_PROVIDER .env setting. Limiting crawl to the following target(s): "
+                f"{provider_target_from_env}"
+            )
             self.ELASTIC_PROVIDERS_TO_CRAWL = [provider_target_from_env]
             if ";" in provider_target_from_env:
                 provider_list: list[str] = provider_target_from_env.split(";")
-                logging.info(
+                self.logger.info(
                     f"Recognized multiple providers within OERSI_METADATA_PROVIDER .env setting:" f"{provider_list}"
                 )
                 self.ELASTIC_PROVIDERS_TO_CRAWL = provider_list
+        # --- BIRD-related hooks ---
+        if "iMoox" in self.ELASTIC_PROVIDERS_TO_CRAWL:
+            self.fetch_imoox_data()
+        if "vhb" in self.ELASTIC_PROVIDERS_TO_CRAWL:
+            # experimental BIRD-Hook for "vhb"-courses!
+            # ToDo: refactor this implementation into its own (sub-)class ASAP!
+            #  (WARNING: This PoC will not scale well for over >50 Metadata-Providers within OERSI
+            #  and REQUIRES a separate infrastructure!)
+            self.fetch_vhb_data()
 
         has_next_page = True
         for provider_name in self.ELASTIC_PROVIDERS_TO_CRAWL:
@@ -270,17 +375,19 @@ class OersiSpider(scrapy.Spider, LomBase):
                 if "pit_id" in current_page_json_response:
                     if current_page_json_response.get("pit_id") != self.ELASTIC_PIT_ID.get("id"):
                         self.ELASTIC_PIT_ID = current_page_json_response.get("pit_id")
-                        logging.info(
+                        self.logger.info(
                             f"ElasticSearch: pit_id changed between queries, using the new pit_id "
                             f"{current_page_json_response.get('pit_id')} for subsequent queries."
                         )
-                if "hits" in current_page_json_response:
-                    total_count = current_page_json_response.get("hits").get("total").get("value")
-                    logging.debug(f"Expecting {total_count} items for the current API Pagination of {provider_name}")
                 if "hits" in current_page_json_response.get("hits"):
-                    provider_items: list = current_page_json_response.get("hits").get("hits")
+                    provider_items: list[dict] = current_page_json_response.get("hits").get("hits")
                     if provider_items:
-                        logging.debug(f"The provider_items list has {len(provider_items)} entries")
+                        self.logger.debug(f"The provider_items list has {len(provider_items)} entries")
+                        for provider_item in provider_items:
+                            # we need to keep track of the metadata provider because the ElasticSearch query parameter
+                            # will oftentimes NOT be the same string that we receive as the provider metadata value
+                            # from "mainEntityOfPage.provider.name"
+                            provider_item.update({"OERSI_QUERY_PROVIDER_NAME": provider_name})
                         all_items.extend(provider_items)
                         last_entry: dict = provider_items[-1]
                         # ToDo: pagination documentation
@@ -293,19 +400,50 @@ class OersiSpider(scrapy.Spider, LomBase):
                                 has_next_page = False
                                 break
                     else:
-                        logging.info(
+                        self.logger.info(
                             f"Reached the end of the ElasticSearch results for '{provider_name}' // "
                             f"Total amount of items collected (across all metadata-providers): {len(all_items)}"
                         )
                         break
         return all_items
 
+    def fetch_imoox_data(self):
+        imoox_response: requests.Response = requests.get("https://imoox.at/mooc/local/moochubs/classes/webservice.php")
+        self.logger.info(f"BIRD: Fetching 'course'-data from iMoox: {imoox_response.url} ...")
+        imoox_response_dict: dict = imoox_response.json()
+        if imoox_response_dict and isinstance(imoox_response_dict, dict):
+            if "data" in imoox_response_dict:
+                imoox_course_items = imoox_response_dict["data"]
+                self.logger.info(
+                    f"BIRD: Successfully retrieved {len(imoox_course_items)} items from {imoox_response.url} ."
+                )
+                self.imoox_json = copy.deepcopy(imoox_response_dict)
+        else:
+            self.logger.warning(f"BIRD: Failed to retrieve 'course'-data from 'iMoox' sourceOrganization.")
+
+    def fetch_vhb_data(self):
+        vhb_response: requests.Response = requests.get(url="https://open.vhb.org/oersi.json")
+        self.logger.info(f"BIRD: Fetching 'course'-data from vhb: {vhb_response.url} ...")
+        vhb_response_dict: dict = vhb_response.json()
+        if vhb_response_dict and isinstance(vhb_response_dict, dict):
+            if "data" in vhb_response_dict:
+                vhb_course_items = vhb_response_dict["data"]
+                self.logger.info(
+                    f"BIRD: Successfully retrieved {len(vhb_course_items)} items " f"from {vhb_response.url} ."
+                )
+                self.vhb_oersi_json = copy.deepcopy(vhb_response_dict)
+        else:
+            self.logger.warning(f"BIRD: Failed to retrieve 'course'-data from 'vhb' sourceOrganization.")
+
     def getId(self, response=None, elastic_item: dict = dict) -> str:
         """
-        Uses OERSI's ElasticSearch "_id"-field to collect an uuid. See:
-        https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-id-field.html
+        Uses OERSI's "_source.id"-property to collect a URI. According to the AMB Specifications, the URI can be either:
+        - a (direct) URL to the educational resource
+        - a URL pointing towards a landing page (describing the educational resource)
+
+        See: https://dini-ag-kim.github.io/amb/latest/#id
         """
-        return elastic_item["_id"]
+        return elastic_item["_source"]["id"]
 
     def getHash(self, response=None, elastic_item_source: dict = dict) -> str:
         """
@@ -322,25 +460,23 @@ class OersiSpider(scrapy.Spider, LomBase):
         if "dateCreated" in elastic_item_source:
             date_created: str = elastic_item_source["dateCreated"]
         if date_published:
-            hash_temp: str = f"{date_published}{self.version}"
+            hash_temp: str = f"{date_published}v{self.version}"
         elif date_created:
-            hash_temp: str = f"{date_created}{self.version}"
+            hash_temp: str = f"{date_created}v{self.version}"
         else:
-            hash_temp: str = f"{datetime.datetime.now().isoformat()}{self.version}"
+            hash_temp: str = f"{datetime.datetime.now().isoformat()}v{self.version}"
         return hash_temp
 
-    @staticmethod
-    def get_uuid(elastic_item: dict):
+    def get_uuid(self, elastic_item: dict):
         """
         Builds a UUID string from the to-be-parsed target URL and returns it.
         """
         # The "getUUID"-method of LomBase couldn't be cleanly overridden because at the point of time when we do this
         # check, there is no "Response"-object available yet.
-        item_url = OersiSpider.get_item_url(elastic_item=elastic_item)
+        item_url = self.get_item_url(elastic_item=elastic_item)
         return EduSharing.build_uuid(item_url)
 
-    @staticmethod
-    def get_item_url(elastic_item: dict) -> str | None:
+    def get_item_url(self, elastic_item: dict) -> str | None:
         """
         Retrieves the to-be-parsed URL from OERSI's '_source.id'-field.
         If that (REQUIRED) field was not available, returns None.
@@ -349,7 +485,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         if item_url:
             return item_url
         else:
-            logging.warning(f"OERSI Item {elastic_item['_id']} did not provide a URL string. Dropping item.")
+            self.logger.warning(f"OERSI Item {elastic_item['_id']} did not provide a URL string. Dropping item.")
             return None
 
     def hasChanged(self, response=None, elastic_item: dict = dict) -> bool:
@@ -358,18 +494,18 @@ class OersiSpider(scrapy.Spider, LomBase):
             return True
         if self.uuid:
             if self.get_uuid(elastic_item=elastic_item) == self.uuid:
-                logging.info(f"matching requested id: {self.uuid}")
+                self.logger.info(f"matching requested id: {self.uuid}")
                 return True
             return False
         if self.remoteId:
             if str(self.getId(response, elastic_item=elastic_item)) == self.remoteId:
-                logging.info(f"matching requested id: {self.remoteId}")
+                self.logger.info(f"matching requested id: {self.remoteId}")
                 return True
             return False
         db = EduSharing().find_item(self.getId(response, elastic_item=elastic_item), self)
         changed = db is None or db[1] != self.getHash(response, elastic_item_source=elastic_item["_source"])
         if not changed:
-            logging.info(f"Item {self.getId(response, elastic_item=elastic_item)} (uuid: {db[0]}) has not changed")
+            self.logger.info(f"Item {self.getId(response, elastic_item=elastic_item)} (uuid: {db[0]}) has not changed")
         return changed
 
     def get_lifecycle_author(
@@ -476,7 +612,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         # (for future reference:
         # vCard v3: https://datatracker.ietf.org/doc/html/rfc2426
         # vCard v4: https://www.rfc-editor.org/rfc/rfc6350.html#section-6.6.6 )
-        if "name" in affiliation_dict:
+        if affiliation_dict and isinstance(affiliation_dict, dict) and "name" in affiliation_dict:
             affiliation_name = affiliation_dict.get("name")
             lifecycle_affiliated_org = LomLifecycleItemloader()
             if affiliation_name:
@@ -495,8 +631,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                     )
                 lom_base_item_loader.add_value("lifecycle", lifecycle_affiliated_org.load_item())
 
-    @staticmethod
-    def validate_academic_title_string(honorific_prefix: str) -> str:
+    def validate_academic_title_string(self, honorific_prefix: str) -> str:
         """
         Some metadata-providers provide weird values for the 'honorificPrefix'-attribute within a "creator"- or
         "contributor"-item. This method checks for known edge-cases and drops the string if necessary.
@@ -507,7 +642,7 @@ class OersiSpider(scrapy.Spider, LomBase):
         #   ORCA.nrw: "http://hbz-nrw.de/regal#academicDegree/unkown", "unknown",
         #   Open Textbook Library: single backticks
         if "unknown" in honorific_prefix or "unkown" in honorific_prefix or len(honorific_prefix) == 1:
-            logging.debug(
+            self.logger.debug(
                 f"'honorificPrefix'-validation: The string {honorific_prefix} was recognized as an invalid "
                 f"edge-case value. Deleting string..."
             )
@@ -723,9 +858,8 @@ class OersiSpider(scrapy.Spider, LomBase):
                             lifecycle_org.add_value("url", org_url)
                     lom_item_loader.add_value("lifecycle", lifecycle_org.load_item())
 
-    @staticmethod
     def lifecycle_determine_type_of_identifier_and_save_uri(
-        item_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
+        self, item_dictionary: dict, lifecycle_item_loader: LomLifecycleItemloader
     ):
         """
         OERSI's "creator"/"contributor"/"affiliation" items might contain an 'id'-field which (optionally) provides
@@ -734,7 +868,8 @@ class OersiSpider(scrapy.Spider, LomBase):
         saved to an identifier-specific field of LomLifecycleItemLoader.
         If the URI string of "id" could not be recognized, it will save the value to 'lifecycle.url' as a fallback.
         """
-        if "id" in item_dictionary:
+        if "id" in item_dictionary and isinstance(item_dictionary["id"], str):
+            # "creator.id" can be 'null', therefore we need to explicitly check its type before trying to parse it
             uri_string: str = item_dictionary.get("id")
             if (
                 "orcid.org" in uri_string
@@ -751,7 +886,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                 if "wikidata.org" in uri_string:
                     lifecycle_item_loader.add_value("id_wikidata", uri_string)
             else:
-                logging.info(
+                self.logger.info(
                     f"The URI identifier '{uri_string}' was not recognized. "
                     f"Fallback: Saving its value to 'lifecycle.url'."
                 )
@@ -775,6 +910,490 @@ class OersiSpider(scrapy.Spider, LomBase):
             lifecycle_item_loader.add_value("lastName", last_name)
         elif name_string:
             lifecycle_item_loader.add_value("firstName", name_string)
+
+    def enrich_imoox_metadata(self, base_itemloader: BaseItemLoader, elastic_item: dict):
+        """
+        Combines the retrieved metadata from OERSI's elastic_item with iMoox (MOOCHub v3) metadata
+        if the identifiers match.
+        """
+        if self.imoox_json:
+            if "data" in self.imoox_json:
+                imoox_item_matched: dict | None = None
+                try:
+                    imoox_items: list[dict] = self.imoox_json["data"]
+                    for imoox_item in imoox_items:
+                        imoox_course_url: str = imoox_item["attributes"]["url"]
+                        if imoox_course_url and imoox_course_url == self.get_item_url(elastic_item):
+                            self.logger.debug(
+                                f"BIRD: Matched 'iMoox'-item {imoox_course_url} with OERSI "
+                                f"ElasticSearch item {elastic_item['_id']} "
+                                f"({elastic_item['_source']['id']})"
+                            )
+                            imoox_item_matched = imoox_item
+                except KeyError as ke:
+                    raise ke
+                if imoox_item_matched:
+                    course_itemloader: CourseItemLoader = CourseItemLoader()
+                    if "attributes" in imoox_item_matched:
+                        imoox_attributes: dict = imoox_item_matched["attributes"]
+                        # ToDo: MOOCHUb Spec v3 allows a list of (multiple, unique) date strings for
+                        #  - "startDate"
+                        #  - "endDate"
+                        #  -> "CourseItem" needs to be expanded to support multiple values for this field
+                        #
+                        #  (this problem is theoretical in nature at the moment,
+                        #  since "iMoox" currently provides only 1 value per property,
+                        #  but this might change in the future!)
+                        if "startDate" in imoox_attributes:
+                            start_dates: list[str] = imoox_attributes["startDate"]
+                            if start_dates and isinstance(start_dates, list):
+                                for start_date_raw in start_dates:
+                                    if start_date_raw and isinstance(start_date_raw, str):
+                                        course_itemloader.add_value("course_availability_from", start_date_raw)
+                                    else:
+                                        self.logger.warning(
+                                            f'Received unexpected type for "startDate" {start_date_raw} . '
+                                            f"Expected str, but received {type(start_date_raw)} instead."
+                                        )
+                        if "endDate" in imoox_attributes:
+                            end_dates: list[str] = imoox_attributes["endDate"]
+                            if end_dates and isinstance(end_dates, list):
+                                for end_date_raw in end_dates:
+                                    if end_date_raw and isinstance(end_date_raw, str):
+                                        course_itemloader.add_value("course_availability_until", end_date_raw)
+                                    else:
+                                        self.logger.warning(
+                                            f'Received unexpected type for "endDate" {end_date_raw}. '
+                                            f"Expected str, but received {type(end_date_raw)} instead."
+                                        )
+                        if "trailer" in imoox_attributes:
+                            # example data (as of 2024-05-27)
+                            # "trailer": {
+                            # 			"contentUrl": "https://www.youtube.com/watch?v=DljC8FPpE1s",
+                            # 			"type": "VideoObject",
+                            # 			"license": [
+                            # 				{
+                            # 					"identifier": "CC-BY-SA-4.0",
+                            # 					"url": "https://creativecommons.org/licenses/by-sa/4.0/"
+                            # 				}
+                            # 			]
+                            # 		},
+                            if "contentUrl" in imoox_attributes["trailer"]:
+                                imoox_course_trailer_url: str = imoox_attributes["trailer"]["contentUrl"]
+                                if imoox_course_trailer_url and isinstance(imoox_course_trailer_url, str):
+                                    course_itemloader.add_value("course_url_video", imoox_course_trailer_url)
+                        if "duration" in imoox_attributes and "workload" in imoox_attributes:
+                            # ToDo: "duration" and "workload" can currently only be saved as a (coupled)
+                            #  value since the destination is "cclom:typicallearningtime" for both fields
+                            #  which expects a (total) duration in milliseconds
+
+                            # iMoox provides "duration" as ISO-8601 formatted duration (period) strings.
+                            # Typical "duration" values (as of 2024-05-27): "P7W", "P12W" etc.
+                            # see MOOCHub v3 Schema:
+                            # https://github.com/MOOChub/schema/blob/main/moochub-schema.json#L907-L912
+                            amount_of_weeks: int | None = None
+                            duration_in_weeks_raw: str = imoox_attributes["duration"]
+                            if duration_in_weeks_raw and isinstance(duration_in_weeks_raw, str):
+                                duration_pattern: re.Pattern = re.compile(r"""^P(?P<amount_of_weeks>\d+)W$""")
+                                duration_result: re.Match | None = duration_pattern.search(duration_in_weeks_raw)
+                                if duration_result:
+                                    dura_dict: dict = duration_result.groupdict()
+                                    if "amount_of_weeks" in dura_dict:
+                                        amount_of_weeks = dura_dict["amount_of_weeks"]
+                                        # convert to Integer for further calculations
+                                        amount_of_weeks = int(amount_of_weeks)
+                            # ATTENTION: iMoox uses a different structure for "workload"-objects than vhb!
+                            #  (due to different MOOCHub versions)
+                            # example data (as of 2024-05-27):
+                            # "workload": {
+                            # 			"timeValue": 2,
+                            # 			"timeUnit": "h/week"
+                            # 		},
+                            # see MOOCHub v3 Schema - workload:
+                            # (https://github.com/MOOChub/schema/blob/main/moochub-schema.json#L1634-L1662),
+                            time_value: int | None = None
+                            time_unit: str | None = None
+                            if "timeUnit" in imoox_attributes["workload"]:
+                                # "timeUnit" can be one of several values:
+                                # "h/month", "h/week", "h/day"
+                                time_unit: str = imoox_attributes["workload"]["timeUnit"]
+                            if "timeValue" in imoox_attributes["workload"]:
+                                time_value: int = imoox_attributes["workload"]["timeValue"]
+                            if time_unit and time_value and amount_of_weeks:
+                                # "iMoox" provides all their durations / workloads in a week-related way,
+                                # while "cclom:typicallearningtime" expects ms. Therefore:
+                                # 1) we extract the amount of weeks from "duration"
+                                # 2) calculate: <amount_of_weeks> * <h/week> = total duration in h
+                                # 3) convert total duration from hours to seconds
+                                # (-> es_connector will handle conversion from s to ms)
+                                if time_unit == "h/week":
+                                    total_duration_in_hours: int = amount_of_weeks * time_value
+                                    duration_delta = datetime.timedelta(hours=total_duration_in_hours)
+                                    if duration_delta:
+                                        total_duration_in_seconds: int = int(duration_delta.total_seconds())
+                                        course_itemloader.add_value("course_duration", total_duration_in_seconds)
+                                        self.logger.debug(
+                                            f"BIRD: combined iMoox 'duration' "
+                                            f"( {duration_in_weeks_raw} ) and 'workload' "
+                                            f"( {time_value} {time_unit} ) to {total_duration_in_hours} h "
+                                            f"(-> {total_duration_in_seconds} s)."
+                                        )
+                                else:
+                                    # ToDo: convert "h/day" and "h/month" in a similar fashion
+                                    self.logger.warning(
+                                        f"BIRD: iMoox provided a time unit {time_unit} for 'workload' "
+                                        f"which couldn't be handled. "
+                                        f"(Please update the crawler!)"
+                                    )
+                        pass
+                    base_itemloader.add_value("course", course_itemloader.load_item())
+
+    def enrich_vhb_metadata(
+        self,
+        base_itemloader: BaseItemLoader,
+        elastic_item: dict,
+        lom_general_itemloader: LomGeneralItemloader,
+        in_languages: list[str] | None,
+    ):
+        """
+        Combines metadata from OERSI's elastic_item with MOOCHub v2.x metadata from the source (vhb)
+        if the identifiers match.
+        """
+        # Reminder: "VHB" (= "Virtuelle Hochschule Bayern") uses MOOCHub for their JSON export!
+        # The following implementation is therefore MOOCHub-specific
+        # and NEEDS to be refactored into a separate class hook ASAP!
+        if self.vhb_oersi_json:
+            if "data" in self.vhb_oersi_json:
+                try:
+                    vhb_items: list[dict] = self.vhb_oersi_json["data"]
+                    vhb_item_matched: dict | None = None
+                    for vhb_item in vhb_items:
+                        # since the vhb_item has a different "id", the only way to match the OERSI item
+                        # against the vhb item is by comparing their URLs:
+                        vhb_course_url: str = vhb_item["attributes"]["url"]
+                        if vhb_course_url and vhb_course_url == self.get_item_url(elastic_item):
+                            self.logger.debug(
+                                f"BIRD: Matched 'vhb'-item {vhb_course_url} with OERSI "
+                                f"ElasticSearch item {elastic_item['_id']}"
+                            )
+                            vhb_item_matched = vhb_item
+                except KeyError as ke:
+                    raise ke
+                if vhb_item_matched:
+                    # if we found a match, we're now trying to enrich the item with metadata from both
+                    # sources
+                    course_itemloader: CourseItemLoader = CourseItemLoader()
+                    if "attributes" in vhb_item_matched:
+                        if not in_languages and "languages" in vhb_item_matched["attributes"]:
+                            # beware: the vhb 'languages'-property is a string value!
+                            vhb_language: str | None = vhb_item_matched["attributes"]["languages"]
+                            if vhb_language and isinstance(vhb_language, str):
+                                lom_general_itemloader.add_value("language", vhb_language)
+                            elif vhb_language:
+                                self.logger.warning(
+                                    f"Received unexpected vhb 'languages'-type! " f"(Type: {type(vhb_language)}"
+                                )
+                        if "abstract" in vhb_item_matched["attributes"]:
+                            vhb_abstract: str = vhb_item_matched["attributes"]["abstract"]
+                            if vhb_abstract and isinstance(vhb_abstract, str):
+                                course_itemloader.add_value("course_description_short", vhb_abstract)
+                        if "learningObjectives" in vhb_item_matched["attributes"]:
+                            vhb_learning_objectives: str = vhb_item_matched["attributes"]["learningObjectives"]
+                            if vhb_learning_objectives and isinstance(vhb_learning_objectives, str):
+                                course_itemloader.add_value("course_learningoutcome", vhb_learning_objectives)
+                        if "outline" in vhb_item_matched["attributes"]:
+                            outline_raw: str = vhb_item_matched["attributes"]["outline"]
+                            if outline_raw and isinstance(outline_raw, str):
+                                # vhb "outline" -> course_schedule -> "ccm:oeh_course_schedule"
+                                # the vhb attribute "outline" describes a course's schedule (Kursablauf)
+                                # IMPORTANT: "outline" is not part of MOOCHub v2.x nor 3.x!
+                                course_itemloader.add_value("course_schedule", outline_raw)
+                            else:
+                                self.logger.warning(
+                                    f"Received vhb 'outline'-property of unexpected type: " f"{outline_raw}"
+                                )
+                        if "startDate" in vhb_item_matched["attributes"]:
+                            start_date_raw: str = vhb_item_matched["attributes"]["startDate"]
+                            if start_date_raw and isinstance(start_date_raw, str):
+                                course_itemloader.add_value("course_availability_from", start_date_raw)
+                            else:
+                                self.logger.warning(
+                                    f'Received unexpected type for "startDate" {start_date_raw} . '
+                                    f"Expected a string, but received {type(start_date_raw)} instead."
+                                )
+                        if "video" in vhb_item_matched["attributes"]:
+                            video_item: dict = vhb_item_matched["attributes"]["video"]
+                            if video_item:
+                                if "url" in video_item:
+                                    vhb_course_video_url: str = video_item["url"]
+                                    if vhb_course_video_url:
+                                        course_itemloader.add_value("course_url_video", vhb_course_video_url)
+                                # ToDo: "video.licenses" is of type list[dict]
+                                #  each "license"-dict can have an "id"- and "url"-property
+                        if "workload" in vhb_item_matched["attributes"]:
+                            vhb_workload_raw: str = vhb_item_matched["attributes"]["workload"]
+                            if vhb_workload_raw and isinstance(vhb_workload_raw, str):
+                                # vhb "workload"-values are described as a natural lange (German)
+                                # "<number> <unit>"-string, e.g.: "5 Stunden" or "60 Stunden".
+                                # Since edu-sharing expects seconds in "cclom:typicallearningtime",
+                                # we need to parse the string and convert it to seconds.
+                                vhb_workload: str = vhb_workload_raw.strip()
+                                duration_pattern = re.compile(r"""(?P<duration_number>\d+)\s*(?P<duration_unit>\w*)""")
+                                # ToDo: refactor into
+                                #  "MOOCHub (v2?) workload to BIRD course_duration" method
+                                duration_match: re.Match | None = duration_pattern.search(vhb_workload)
+                                duration_delta: datetime.timedelta = datetime.timedelta()
+                                if duration_match:
+                                    duration_result: dict = duration_match.groupdict()
+                                    if "duration_number" in duration_result:
+                                        duration_number_raw: str = duration_result["duration_number"]
+                                        duration_number: int = int(duration_number_raw)
+                                        if "duration_unit" in duration_result:
+                                            duration_unit: str = duration_result["duration_unit"]
+                                            duration_unit = duration_unit.lower()
+                                            match duration_unit:
+                                                case "sekunden":
+                                                    duration_delta = duration_delta + datetime.timedelta(
+                                                        seconds=duration_number
+                                                    )
+                                                case "minuten":
+                                                    duration_delta = duration_delta + datetime.timedelta(
+                                                        minutes=duration_number
+                                                    )
+                                                case "stunden":
+                                                    duration_delta = duration_delta + datetime.timedelta(
+                                                        hours=duration_number
+                                                    )
+                                                case "tage":
+                                                    duration_delta = duration_delta + datetime.timedelta(
+                                                        days=duration_number
+                                                    )
+                                                case "wochen":
+                                                    duration_delta = duration_delta + datetime.timedelta(
+                                                        weeks=duration_number
+                                                    )
+                                                case "monate":
+                                                    # timedelta has no parameter for months
+                                                    #  -> X months = X * (4 weeks)
+                                                    duration_delta = duration_delta + (
+                                                        duration_number * datetime.timedelta(weeks=4)
+                                                    )
+                                                case _:
+                                                    self.logger.warning(
+                                                        f"Failed to parse 'workload' time unit"
+                                                        f"from vhb course: "
+                                                        f"{vhb_item_matched}"
+                                                    )
+                                            if duration_delta:
+                                                workload_in_seconds: int = int(duration_delta.total_seconds())
+                                                if workload_in_seconds:
+                                                    course_itemloader.add_value("course_duration", workload_in_seconds)
+                    base_itemloader.add_value("course", course_itemloader.load_item())
+
+    def look_for_twillo_url_in_elastic_item(self, elastic_item: dict) -> str | None:
+        """
+        Look for a twillo.de URL with an "/edu-sharing/"-path within OERSI's "_source.id" and "mainEntityOfPage.id"
+        properties.
+        Returns the twillo URL string if successful, otherwise returns None.
+        """
+        twillo_url: str | None = None
+        twillo_url_from_source_id: str = self.getId(response=None, elastic_item=elastic_item)
+        twillo_url_from_maeop_id: str | None = None
+        twillo_edu_sharing_url_path: str = "twillo.de/edu-sharing/components/render/"
+        if "_source" in elastic_item:
+            elastic_item_source: dict = elastic_item["_source"]
+            if "mainEntityOfPage" in elastic_item_source:
+                main_entity_of_page: list[dict] = elastic_item_source["mainEntityOfPage"]
+                for maeop_item in main_entity_of_page:
+                    if "id" in maeop_item:
+                        maeop_id: str = maeop_item["id"]
+                        if maeop_id and twillo_edu_sharing_url_path in maeop_id:
+                            twillo_url_from_maeop_id = maeop_id
+        if twillo_url_from_source_id and twillo_edu_sharing_url_path in twillo_url_from_source_id:
+            twillo_url = twillo_url_from_source_id
+        elif twillo_url_from_maeop_id:
+            twillo_url = twillo_url_from_maeop_id
+        return twillo_url
+
+    @staticmethod
+    def extract_twillo_node_id_from_url(twillo_url: str) -> str | None:
+        """
+        Extract the twillo nodeId from a provided URL string.
+        """
+        if twillo_url and isinstance(twillo_url, str):
+            twillo_node_id: str | None = None
+            if "twillo.de/edu-sharing/components/render/" in twillo_url:
+                potential_twillo_node_id = twillo_url.split("/")[-1]
+                if potential_twillo_node_id and isinstance(potential_twillo_node_id, str):
+                    twillo_node_id = potential_twillo_node_id
+            if twillo_node_id:
+                return twillo_node_id
+            else:
+                return None
+
+    def request_metadata_for_twillo_node_id(
+        self,
+        base_itemloader: BaseItemLoader,
+        lom_base_itemloader: LomBaseItemloader,
+        lom_classification_itemloader: LomClassificationItemLoader,
+        lom_educational_itemloader: LomEducationalItemLoader,
+        lom_general_itemloader: LomGeneralItemloader,
+        lom_technical_itemloader: LomTechnicalItemLoader,
+        license_itemloader: LicenseItemLoader,
+        valuespaces_itemloader: ValuespaceItemLoader,
+        elastic_item: dict,
+        twillo_node_id: str,
+    ):
+        """
+        Query the edu-sharing repository of twillo.de for metadata of a specific nodeId.
+        If the request was successful, return the response dictionary.
+        """
+        twillo_api_request_url = (
+            f"https://www.twillo.de/edu-sharing/rest/rendering/v1/details/-home-/" f"{twillo_node_id}"
+        )
+        # note: we NEED to use the "rendering/v1/details/..."-API-endpoint because
+        # https://www.twillo.de/edu-sharing/rest/node/v1/nodes/-home-/{twillo_node_id}/metadata?propertyFilter=-all-
+        # throws "org.edu_sharing.restservices.DAOSecurityException"-errors (for hundreds of objects!),
+        # even though the queried learning objects are publicly available and reachable
+        twillo_request = scrapy.Request(
+            url=twillo_api_request_url,
+            priority=2,
+            callback=self.enrich_oersi_item_with_twillo_metadata,
+            cb_kwargs={
+                "elastic_item": elastic_item,
+                "twillo_node_id": twillo_node_id,
+                "base_itemloader": base_itemloader,
+                "lom_base_itemloader": lom_base_itemloader,
+                "lom_classification_itemloader": lom_classification_itemloader,
+                "lom_educational_itemloader": lom_educational_itemloader,
+                "lom_general_itemloader": lom_general_itemloader,
+                "lom_technical_itemloader": lom_technical_itemloader,
+                "license_itemloader": license_itemloader,
+                "valuespaces_itemloader": valuespaces_itemloader,
+            },
+        )
+        yield twillo_request
+
+    def enrich_oersi_item_with_twillo_metadata(
+        self,
+        response: scrapy.http.TextResponse,
+        base_itemloader: BaseItemLoader,
+        lom_base_itemloader: LomBaseItemloader,
+        lom_classification_itemloader: LomClassificationItemLoader,
+        lom_educational_itemloader: LomEducationalItemLoader,
+        lom_general_itemloader: LomGeneralItemloader,
+        lom_technical_itemloader: LomTechnicalItemLoader,
+        license_itemloader: LicenseItemLoader,
+        valuespaces_itemloader: ValuespaceItemLoader,
+        elastic_item: dict = None,
+        twillo_node_id: str = None,
+    ):
+        """
+        Process the twillo API response and enrich the OERSI item with twillo metadata properties (if possible).
+        If the twillo API response was invalid (or didn't provide the metadata we were looking for), yield the
+        (complete) BaseItem.
+
+        @param response: the twillo API response (JSON)
+        @param base_itemloader: BaseItemLoader object
+        @param lom_base_itemloader: LomBaseItemloader object
+        @param lom_classification_itemloader: LomClassificationItemloader object
+        @param lom_educational_itemloader: LomEducationalItemloader object
+        @param lom_general_itemloader: LomGeneralItemloader object
+        @param lom_technical_itemloader: LomTechnicalItemloader object
+        @param license_itemloader: LicenseItemloader object
+        @param valuespaces_itemloader: ValuespacesItemloader object
+        @param elastic_item: the ElasticSearch item from the OERSI API
+        @param twillo_node_id: the twillo "nodeId"
+        @return: the complete BaseItem object
+        """
+        twillo_response: scrapy.http.TextResponse = response
+        twillo_response_json: dict | None = None
+        twillo_metadata: dict | None = None
+        try:
+            twillo_response_json: dict = twillo_response.json()
+        except requests.exceptions.JSONDecodeError:
+            self.logger.warning(f"BIRD: Received invalid JSON response from {response.url} :" f"{twillo_response}")
+        if twillo_response_json and isinstance(twillo_response_json, dict):
+            if "node" in twillo_response_json:
+                # we assume that the response is valid if we receive a dictionary containing
+                # "node" as the main key
+                twillo_metadata = twillo_response_json
+            else:
+                self.logger.warning(
+                    f"BIRD: twillo API response for nodeId {twillo_node_id} " f"was invalid: {twillo_response_json}"
+                )
+        else:
+            self.logger.warning(
+                f"BIRD: Failed to extract additional metadata for twillo "
+                f"nodeId {twillo_node_id} ! "
+                f"Received HTTP Response Status {twillo_response.status}."
+            )
+
+        if twillo_metadata and isinstance(twillo_metadata, dict):
+            # the API response should contain a "node"-key which contains all properties within
+            node_dict: dict = twillo_metadata["node"]
+            if node_dict and "properties" in node_dict:
+                node_properties: dict = node_dict["properties"]
+                if node_properties:
+                    twillo_typical_learning_time: list[str] | None = None
+                    twillo_cclom_context: list[str] | None = None
+                    # ToDo:
+                    #  - twillo "Level" ("cclom:interactivitylevel") -> BIRD <?>
+                    #  - twillo "Event Format" ("cclom:interactivitytype") -> BIRD <?>
+                    #  - twillo "Technical Requirements" ("cclom:otherplatformrequirements") -> BIRD <?>
+                    if "cclom:typicallearningtime" in node_properties:
+                        # twillo "Duration" ("cclom:typicallearningtime") -> BIRD "course_duration"
+                        twillo_typical_learning_time: list[str] = node_properties["cclom:typicallearningtime"]
+                    if "cclom:context" in node_properties:
+                        # twillo "Function" ("cclom:context") -> BIRD "course_learningoutcome"
+                        twillo_cclom_context: list[str] = node_properties["cclom:context"]
+                    if "cclom:educational_description" in node_properties:
+                        educational_description_raw: list[str] = node_properties["cclom:educational_description"]
+                        if educational_description_raw and isinstance(educational_description_raw, list):
+                            # twillo Frontend: "Field Report" (= "cclom:educational_description")
+                            for edu_desc_item in educational_description_raw:
+                                if edu_desc_item and isinstance(edu_desc_item, str):
+                                    # strip whitespace and sort out the invalid (empty) strings first
+                                    edu_desc_item: str = edu_desc_item.strip()
+                                    # ToDo: move responsibility of cleaning up "description"-strings
+                                    #  into its own pipeline
+                                    if edu_desc_item:
+                                        lom_educational_itemloader.add_value("description", edu_desc_item)
+                    if twillo_typical_learning_time or twillo_cclom_context:
+                        course_item_loader = CourseItemLoader()
+                        if twillo_typical_learning_time:
+                            course_item_loader.add_value("course_duration", twillo_typical_learning_time)
+                        if twillo_cclom_context:
+                            context_cleaned: list[str] = list()
+                            if twillo_cclom_context and isinstance(twillo_cclom_context, list):
+                                for context_value in twillo_cclom_context:
+                                    if context_value and isinstance(context_value, str):
+                                        context_value = context_value.strip()
+                                        # whitespace typos and empty string values (" ") are removed
+                                        if context_value:
+                                            context_cleaned.append(context_value)
+                            if context_cleaned:
+                                course_item_loader.add_value("course_learningoutcome", context_cleaned)
+                        base_itemloader.add_value("course", course_item_loader.load_item())
+
+        # noinspection DuplicatedCode
+        lom_base_itemloader.add_value("general", lom_general_itemloader.load_item())
+        lom_base_itemloader.add_value("technical", lom_technical_itemloader.load_item())
+        lom_base_itemloader.add_value("educational", lom_educational_itemloader.load_item())
+        lom_base_itemloader.add_value("classification", lom_classification_itemloader.load_item())
+        base_itemloader.add_value("lom", lom_base_itemloader.load_item())
+        base_itemloader.add_value("valuespaces", valuespaces_itemloader.load_item())
+        base_itemloader.add_value("license", license_itemloader.load_item())
+
+        permissions = super().getPermissions(response)
+        base_itemloader.add_value("permissions", permissions.load_item())
+
+        response_loader = ResponseItemLoader()
+        identifier_url: str = self.get_item_url(elastic_item=elastic_item)
+        response_loader.add_value("url", identifier_url)
+        base_itemloader.add_value("response", response_loader.load_item())
+
+        yield base_itemloader.load_item()
 
     def parse(self, response=None, **kwargs):
         elastic_item: dict = kwargs.get("elastic_item")
@@ -833,8 +1452,10 @@ class OersiSpider(scrapy.Spider, LomBase):
             if thumbnail_url:
                 base.add_value("thumbnail", thumbnail_url)
         except KeyError:
-            logging.debug(f"OERSI Item {elastic_item['_id']} "
-                          f"(name: {elastic_item_source['name']}) did not provide a thumbnail.")
+            self.logger.debug(
+                f"OERSI Item {elastic_item['_id']} "
+                f"(name: {elastic_item_source['name']}) did not provide a thumbnail."
+            )
         if "image" in elastic_item_source:
             thumbnail_url = elastic_item_source.get("image")  # thumbnail
             if thumbnail_url:
@@ -861,21 +1482,17 @@ class OersiSpider(scrapy.Spider, LomBase):
                 for language_value in in_languages:
                     general.add_value("language", language_value)
 
-        # noinspection DuplicatedCode
-        lom.add_value("general", general.load_item())
-
         technical = LomTechnicalItemLoader()
         try:
             identifier_url: str = self.get_item_url(elastic_item=elastic_item)
             # this URL is REQUIRED and should always be available
             # see https://dini-ag-kim.github.io/amb/draft/#id
         except KeyError:
-            logging.warning(f"Item {elastic_item['_id']} did not have an item URL (AMB 'id' was missing)!")
+            self.logger.warning(f"Item {elastic_item['_id']} did not have an item URL (AMB 'id' was missing)!")
             return
         if identifier_url:
             general.replace_value("identifier", identifier_url)
             technical.add_value("location", identifier_url)
-        lom.add_value("technical", technical.load_item())
 
         organizations_from_affiliation_fields: set[str] = set()
         # this (temporary) set of strings is used to make a decision for OERSI's "sourceOrganization" field:
@@ -926,13 +1543,8 @@ class OersiSpider(scrapy.Spider, LomBase):
         if in_languages:
             for language_value in in_languages:
                 educational.add_value("language", language_value)
-        # noinspection DuplicatedCode
-        lom.add_value("educational", educational.load_item())
 
         classification = LomClassificationItemLoader()
-        lom.add_value("classification", classification.load_item())
-
-        base.add_value("lom", lom.load_item())
 
         vs = ValuespaceItemLoader()
         vs.add_value("new_lrt", Constants.NEW_LRT_MATERIAL)
@@ -1044,7 +1656,7 @@ class OersiSpider(scrapy.Spider, LomBase):
                             if about_id_key:
                                 vs.add_value("hochschulfaechersystematik", about_id_key)
                         else:
-                            logging.debug(
+                            self.logger.debug(
                                 f"The value of OERSI 'about.id' was not recognized during mapping to "
                                 f"valuespaces 'hochschulfaechersystematik': {about_id} ."
                             )
@@ -1094,8 +1706,6 @@ class OersiSpider(scrapy.Spider, LomBase):
                                     audience_key = self.MAPPING_AUDIENCE_TO_INTENDED_END_USER_ROLE.get(audience_key)
                                 vs.add_value("intendedEndUserRole", audience_key)
 
-        base.add_value("valuespaces", vs.load_item())
-
         license_loader = LicenseItemLoader()
         if "license" in elastic_item_source:
             license_url: str = elastic_item_source.get("license").get("id")
@@ -1104,7 +1714,48 @@ class OersiSpider(scrapy.Spider, LomBase):
                 license_url_mapped = license_mapper.get_license_url(license_string=license_url)
                 if license_url_mapped:
                     license_loader.add_value("url", license_url_mapped)
+
+        # --- BIRD HOOKS START HERE!
+        if "OERSI_QUERY_PROVIDER_NAME" in elastic_item:
+            # BIRD-related requirement: merge item with additional metadata retrieved directly from the source
+            if elastic_item["OERSI_QUERY_PROVIDER_NAME"]:
+                # checking if the "metadata provider name" that was used for the ElasticSearch query needs to be handled
+                query_parameter_provider_name: str = elastic_item["OERSI_QUERY_PROVIDER_NAME"]
+                if query_parameter_provider_name:
+                    if query_parameter_provider_name == "iMoox":
+                        self.enrich_imoox_metadata(base, elastic_item)
+                    if query_parameter_provider_name == "twillo":
+                        twillo_url: str | None = self.look_for_twillo_url_in_elastic_item(elastic_item)
+                        # a typical twillo URL could look like this example:
+                        # https://www.twillo.de/edu-sharing/components/render/106ed8e7-1d07-4a77-8ca2-19c9e28782ed
+                        # we need the nodeId (the last part of the url) to create an API request for its metadata
+                        twillo_node_id: str | None = self.extract_twillo_node_id_from_url(twillo_url)
+                        if twillo_node_id:
+                            # if a twillo nodeId was found, the complete item will be yielded by its own method
+                            yield from self.request_metadata_for_twillo_node_id(
+                                base_itemloader=base,
+                                lom_base_itemloader=lom,
+                                lom_classification_itemloader=classification,
+                                lom_educational_itemloader=educational,
+                                lom_general_itemloader=general,
+                                lom_technical_itemloader=technical,
+                                license_itemloader=license_loader,
+                                valuespaces_itemloader=vs,
+                                elastic_item=elastic_item,
+                                twillo_node_id=twillo_node_id,
+                            )
+                            return None  # necessary to not accidentally parse the same twillo item twice!
+                    if query_parameter_provider_name == "vhb":
+                        self.enrich_vhb_metadata(base, elastic_item, general, in_languages)
+        # --- BIRD HOOKS END HERE!
+
         # noinspection DuplicatedCode
+        lom.add_value("general", general.load_item())
+        lom.add_value("technical", technical.load_item())
+        lom.add_value("educational", educational.load_item())
+        lom.add_value("classification", classification.load_item())
+        base.add_value("lom", lom.load_item())
+        base.add_value("valuespaces", vs.load_item())
         base.add_value("license", license_loader.load_item())
 
         permissions = super().getPermissions(response)

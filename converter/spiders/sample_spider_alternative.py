@@ -112,8 +112,10 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
 
         technical = LomTechnicalItemLoader()
         # TODO: fill "technical"-keys with values for
-        #  - format                         required (expected: MIME-type, e.g. 'text/html' for web-sites)
         #  - location                       required (expected: URI / URL of a learning object / material)
+        #  - format                         optional  (expected: MIME-type, e.g. 'text/html' for web-sites.
+        #                                             Set this value only if absolutely necessary,
+        #                                             e.g. during imports via oeh_spider)
         #  - size                           optional
         #  - requirement                    optional
         #  - installationRemarks            optional
@@ -123,7 +125,6 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         # technical.add_value('key','value')
         # or replaced with:
         # technical.replace_value('key', 'value')
-        technical.add_value('format', 'text/html')  # e.g. if the learning object is a web-page
         technical.add_value('location', response.url)  # if the learning object has a unique URL that's being
         # navigated by the crawler
 
