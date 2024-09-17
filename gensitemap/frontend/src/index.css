@@ -1,0 +1,264 @@
+@import url(fonts/montserrat.css);
+
+body {
+  margin: 0;
+  font-family: "Source Sans Pro", sans-serif;
+}
+
+/* :root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+} */
+
+/* body {
+  margin: 0;
+  padding: 0;
+} */
+
+.page {
+  display: flex;
+  flex-direction: row;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background-color: #1a3c62;
+  color: white;
+  /* left sidebar, fixed width */
+  width: 240px;
+  padding: 16px 24px;
+}
+
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  background-color: #002750;
+  color: white;
+}
+
+.menubutton {
+  background-color: #1a3c62;
+  color: white;
+  padding: 16px 24px;
+  font-weight: bold;
+}
+
+.header-content {
+  /* padding: 16px 24px; */
+  /* vertically center content */
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+ul.menu {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+ul.menu li {
+  /* outline: 1px solid orange; */
+}
+
+ul.menu li a {
+  color: white;
+  text-decoration: none;
+  /* background-color: #333; */
+  /* padding: 8px 12px; */
+  padding: 0 12px;
+  display: block;
+  height: 100%;
+  /* vertically center text */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+ul.menu li a:hover {
+  color: #f9f9f9;
+  background-color: #1a3c62;
+}
+
+
+.inner-page {
+  background-color: #fff;
+  color: #333;
+  width: 100%;
+  min-height: 100%;
+  padding: 16px 24px;
+  box-sizing: border-box;
+}
+
+
+table.table {
+  width: 100%;
+  /* border-collapse: collapse; */
+  border-spacing: 0;
+  /* border: 1px solid #d9e2eb; */
+  border-radius: 8px;
+}
+
+table.table thead tr:first-child > *:first-child {
+  border-start-start-radius: 8px;
+}
+table.table thead tr:first-child > *:last-child {
+  border-start-end-radius: 8px;
+}
+table.table tbody tr:last-child > *:first-child {
+  border-end-start-radius: 8px;
+}
+table.table tbody tr:last-child > *:last-child {
+  border-end-end-radius: 8px;
+}
+
+table.table tr td,
+table.table tr th {
+  border: 0 solid #bfc7ce;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+  padding: 8px;
+  text-align: left;
+  
+}
+table.table tr th:first-child,
+table.table tr td:first-child {
+  border-left-width: 1px;
+}
+
+table.table thead tr:first-child th,
+table.table thead tr:first-child td {
+  border-top-width: 1px;
+}
+
+
+
+table.table td, table.table th {
+  /* border: 1px solid #888; */
+  padding: 8px;
+  /* border-radius: 8px; */
+}
+
+table.table th {
+  background-color: #d9e2eb;
+
+}
+
+
+h1, h2, h3, h4, h5, .table th {
+  font-weight: bold;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* alternating row colors */
+.table tbody tr:nth-child(odd) {
+  background-color: #f9f9f9;
+}
+
+
+ul.messages {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+ul.messages li {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.5em;
+}
+
+.messages .info {
+  background-color: rgba(28, 131, 225, 0.1);
+  color:  rgb(0, 66, 128);
+}
+
+.messages .warning {
+  background-color: rgba(255, 227, 18, 0.1);;
+  color:  rgb(146, 108, 5);
+}
+
+.messages .error {
+  background-color: rgba(255, 75, 75, 0.1);
+  color:  rgb(125, 53, 59);
+}
+
+.messages .success {
+  background-color: rgba(33, 195, 84, 0.1);
+  color:  rgb(23, 114, 51);
+}
+

@@ -1,0 +1,28 @@
+{
+  "src/fonts/montserrat-v26-latin-500.woff2": {
+    "file": "assets/montserrat-v26-latin-500-CN3hDfLq.woff2",
+    "src": "src/fonts/montserrat-v26-latin-500.woff2"
+  },
+  "src/fonts/montserrat-v26-latin-700.woff2": {
+    "file": "assets/montserrat-v26-latin-700-Dkxlx_w4.woff2",
+    "src": "src/fonts/montserrat-v26-latin-700.woff2"
+  },
+  "src/fonts/montserrat-v26-latin-regular.woff2": {
+    "file": "assets/montserrat-v26-latin-regular-BfmCfwfZ.woff2",
+    "src": "src/fonts/montserrat-v26-latin-regular.woff2"
+  },
+  "src/main.tsx": {
+    "file": "assets/main-C02ZHg6G.js",
+    "name": "main",
+    "src": "src/main.tsx",
+    "isEntry": true,
+    "css": [
+      "assets/main-Brk9oY_w.css"
+    ],
+    "assets": [
+      "assets/montserrat-v26-latin-regular-BfmCfwfZ.woff2",
+      "assets/montserrat-v26-latin-500-CN3hDfLq.woff2",
+      "assets/montserrat-v26-latin-700-Dkxlx_w4.woff2"
+    ]
+  }
+}
