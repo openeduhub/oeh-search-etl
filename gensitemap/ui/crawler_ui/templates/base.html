@@ -1,0 +1,50 @@
+{% load django_vite %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% vite_asset 'src/index.css' %}
+
+    {% block head %}
+    {% endblock %}
+  </head>
+
+  <body>
+    <div class="page">
+      {% comment %} <div class="sidebar">
+        Sidebar
+      </div> {% endcomment %}
+      <div class="main">
+        <div class="header">
+          <div class="menubutton">
+            Generic Crawler
+          </div>
+          <div class="header-content">
+            <ul class="menu">
+              <li><a href="{% url 'index' %}">Home</a></li>
+              <li><a href="{% url 'crawls_list' %}">Crawls</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="content">
+          <!-- show django messages -->
+          {% if messages %}
+          <ul class="messages">
+            {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          
+          {% block content %}
+          <!-- react content goes here: -->
+          <div id="root"></div>
+          {% endblock %}
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

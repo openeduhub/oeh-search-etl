@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load django_vite %}
+{% block head %}
+    <script>
+      function scripterror() {
+        const root = document.getElementById('root');
+        root.innerText = "Error, could not load the script. If you are running in development mode, make sure the vite server is running (npm run dev).";
+      }
+    </script>
+
+    {% vite_hmr_client %}
+    {% vite_react_refresh %}
+    {% vite_asset 'src/main.tsx' onerror="scripterror()" %}
+
+    <title>Django Vite Example</title>
+{% endblock %}
+
+{% block content %}
+<div class="inner-page">
+<h1>Filter Set</h1>
+<p>Filter #{{filterset.id}} '{{filterset.name}}' from {{filterset.created_at}}</p>
+<p><a href="{% url 'crawl_details' filterset.crawl_job.id %}">Crawl #{{filterset.crawl_job.id}}</a> from {{filterset.crawl_job.created_at}}</p>
+<p>Start URL: {{filterset.crawl_job.start_url}}</p>
+<p>Django admin link: <a href="{% url 'admin:crawls_filterset_change' filterset.id %}">Filter set admin</a></p>
+<!-- react content goes here: -->
+<div id="root" data-filter-set-id="{{ filterset.id }}" data-csrf-token="{{ csrf_token }}"></div>
+</div>
+
+{% endblock %}

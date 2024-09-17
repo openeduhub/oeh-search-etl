@@ -1,9 +1,10 @@
 from __future__ import annotations
 from django.contrib import admin
+from django.contrib.admin import display
 from django.http import HttpRequest
 from django.utils.safestring import mark_safe
 
-from .models import CrawlJob, CrawledURL
+from .models import CrawlJob, CrawledURL, FilterSet, FilterRule
 
 # Register your models here.
 
@@ -15,10 +16,31 @@ from .models import CrawlJob, CrawledURL
 #     readonly_fields = ['url', 'content', 'created_at', 'updated_at']
 #     can_delete = False
 
+class FilterSetAdmin(admin.ModelAdmin):
+    model = FilterSet
+    list_display = ['name', 'crawl_lob_link', 'created_at', 'updated_at']
+    readonly_fields = ['remaining_urls', 'created_at', 'updated_at']
+    # link fields in list
+    @mark_safe
+    @display(description='Crawl Job')
+    def crawl_lob_link(self, obj: FilterSet) -> str:
+        return f'<a href="/admin/crawls/crawljob/{obj.crawl_job.id}/">{obj.crawl_job}</a>'
+
+class FilterSetInline(admin.TabularInline):
+    model = FilterSet
+    extra = 0
+    fields = ['pk', 'created_at', 'updated_at']
+    readonly_fields = ['pk', 'created_at', 'updated_at']
+    can_delete = False
+    show_change_link = True
+
 
 class CrawlJobAdmin(admin.ModelAdmin):
-    list_display = ['start_url', 'follow_links', 'created_at', 'updated_at']
+    list_display = ['start_url', 'follow_links', 'created_at', 'updated_at', 'crawled_urls_count']
     fields = ['start_url', 'follow_links', 'created_at', 'updated_at', 'crawled_urls']
+    inlines = [
+        FilterSetInline,
+    ]
     #readonly_fields = ['start_url', 'follow_links', 'created_at', 'updated_at']
     # inlines = [
     #     CrawledURLInline,
@@ -40,6 +62,9 @@ class CrawlJobAdmin(admin.ModelAdmin):
         except Exception as e:
             print("Error in crawled_urls", e)
             return 'Error'
+        
+    def crawled_urls_count(self, obj: CrawlJob) -> int:
+        return obj.crawled_urls.count()
 
     # make this model read only
     def has_change_permission(self, request: HttpRequest, obj: CrawlJob=None) -> bool:
@@ -95,3 +120,4 @@ class CrawledURLAdmin(admin.ModelAdmin):
 
 admin.site.register(CrawlJob, CrawlJobAdmin)
 admin.site.register(CrawledURL, CrawledURLAdmin)
+admin.site.register(FilterSet, FilterSetAdmin)

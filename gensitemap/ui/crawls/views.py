@@ -1,10 +1,18 @@
-from crawls.serializers import FilterSetSerializer, FilterRuleSerializer
+import logging
+from typing import Any
+
 from crawls.models import FilterRule, FilterSet
+from crawls.serializers import FilterRuleSerializer, FilterSetSerializer
+from django.contrib import messages
+from django.urls import reverse_lazy
+from django.views.generic import CreateView, DetailView, FormView, ListView
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-import logging
+from .forms import StartCrawlForm
+from .models import CrawlJob
+
 log = logging.getLogger(__name__)
 
 class FilterSetViewSet(viewsets.ModelViewSet):
@@ -17,6 +25,7 @@ class FilterSetViewSet(viewsets.ModelViewSet):
         qs = self.get_object().crawl_job.crawled_urls
         for rule in self.get_object().rules.all():
             qs = qs.exclude(url__startswith=rule.rule)
+        qs = qs.all()
         urls = qs[:30].values_list('url', flat=True)
         is_complete = urls.count() == qs.count()
         
@@ -71,3 +80,77 @@ class FilterRuleViewSet(viewsets.ModelViewSet):
         # }
         return Response(result)
     
+
+class CrawlsListView(ListView):
+    model = CrawlJob
+    template_name = 'crawls_list.html'
+    context_object_name = 'crawls'
+
+    def get_queryset(self):
+        return CrawlJob.objects.all().order_by('-created_at')
+
+    # def get_context_data(self, **kwargs):
+    #     context = super().get_context_data(**kwargs)
+    #     return context
+    
+class CrawlDetailView(DetailView):
+    model = CrawlJob
+    template_name = 'crawl_detail.html'
+    context_object_name = 'crawl'
+
+    # def get_context_data(self, **kwargs):
+    #     context = super().get_context_data(**kwargs)
+    #     return context
+    
+class FilterSetDetailView(DetailView):
+    model = FilterSet
+    template_name = 'filterset_detail.html'
+    context_object_name = 'filterset'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        return context
+    
+class FilterSetCreateView(CreateView):
+    model = FilterSet
+    fields = ['name', 'crawl_job']
+    template_name = 'filterset_create.html'
+    #success_url = '/crawls/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        return context
+    
+    def get_success_url(self) -> str:
+        # return the new filter set's detail page
+        return reverse_lazy('filter_details', kwargs={'pk': self.object.pk})
+    
+    # get crawl job id from URL
+    def get_initial(self) -> dict[str, Any]:
+        initial = super().get_initial().copy()
+        # get crawl_job_id from GET parameters
+        crawl_job_id = self.request.GET.get('crawl_job_id')
+        # Raise error if crawl_job_id is not provided
+        if crawl_job_id is None:
+            raise ValueError("crawl_job_id is required")
+        initial['crawl_job'] = crawl_job_id
+        return initial
+    
+    # run code on successful form submission
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.info(self.request, 'Filter set created')
+        return response
+    
+
+class StartCrawlFormView(FormView):
+    template_name = 'start_crawl.html'
+    form_class = StartCrawlForm
+    success_url = '/crawls/'
+
+    def form_valid(self, form):
+        # Actually start the job here:
+        print("Hello world")
+        # show a django message that the crawl would have been started:
+        messages.info(self.request, 'Crawl started')
+        return super().form_valid(form)

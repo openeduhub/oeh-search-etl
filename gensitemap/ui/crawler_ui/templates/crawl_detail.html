@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block header %}
+<title>Crawls</title>
+{% endblock %}
+{% block content %}
+<div class="inner-page">
+<h1>Crawl</h1>
+<p>Id: #{{ crawl.id }}</p>
+<p>Start url: {{ crawl.start_url }}</p>
+<p>Created: {{ crawl.created_at }}</p>
+<p>Updated: {{ crawl.updated_at }}</p>
+<p>Django admin link: <a href="{% url 'admin:crawls_crawljob_change' crawl.id %}">Crawl admin</a></p>
+<h2>Filter Sets:</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Filter Set</th>
+            <th>Created</th>
+            <th>Unfiltered Pages</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for filter in crawl.filter_sets.all %}
+        <tr>
+            <td>
+            <a href="{% url 'filter_details' filter.id %}">Filter #{{ filter.id }}</a>
+            </td>
+            <td>{{ filter.created_at }}</td>
+            <td>{{ filter.remaining_urls }}</td>
+        </tr>
+    {% endfor %}
+</table>
+<!-- button to add a new filter set for this crawl -->
+<p><a href="{% url 'filterset_create' %}?crawl_job_id={{ crawl.id }}">Add new filter set</a></p>
+</div>
+{% endblock %}
+{% comment %} {% block footer %}
+{% endblock %} {% endcomment %}

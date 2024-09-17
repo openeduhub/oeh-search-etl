@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block header %}
+<title>Crawls</title>
+{% endblock %}
+{% block content %}
+<div class="inner-page">
+<h1>Crawls</h1>
+{% if crawls %}
+    
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Start URL</th>
+                <th>Created</th>
+                <th>Updated</th>
+                <th># Filters</th>
+                <th># Pages crawled</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for crawl in crawls %}
+            <tr>
+                <td>
+                <a href="{% url 'crawl_details' crawl.id %}">{{ crawl.start_url }}</a>
+                {% comment %} <a href="#">{{ crawl.start_url }}</a> {% endcomment %}
+                </td>
+                <td>{{ crawl.created_at }}</td>
+                <td>{{ crawl.updated_at }}</td>
+                <td>{{ crawl.filter_sets.count }}</td>
+                <td>{{ crawl.crawled_urls.count }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No crawls are available.</p>
+{% endif %}
+
+<p><a href="{% url 'crawl_create' %}">Start a new crawl</a></p>
+
+</div>
+{% endblock %}
+{% comment %} {% block footer %}
+{% endblock %} {% endcomment %}

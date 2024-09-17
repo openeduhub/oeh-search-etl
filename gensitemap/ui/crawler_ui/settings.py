@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,6 +29,8 @@ DEBUG = True
 ALLOWED_HOSTS = [
     '127.0.0.1',
     '127.0.0.1:8000',
+    'localhost',
+    'localhost:8000',
 ]
 
 
@@ -40,13 +43,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'crawler_ui',
     'crawls',
     'rest_framework',
     'corsheaders',
+    'django_vite',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -169,3 +175,42 @@ LOGGING = {
         },
     },
 }
+
+DJANGO_VITE = {
+  "default": {
+    # If dev mode is active, hot reloading is supported for the react components.
+    # In that case, you must run the vite server in the frontend directory (npm run dev).
+    # If you set this to false, you must build and bundle the frontend with npm run build,
+    # and then manage.py collectstatic.
+    "dev_mode": config("DJANGO_VITE_DEV_MODE", default=True, cast=bool),
+  }
+}
+
+# Where to get static files from
+STATICFILES_DIRS = [
+  BASE_DIR / "../frontend/assets_output"
+]
+
+# Where to put static files to serve them
+STATIC_ROOT = "/Users/jason/src/gen-crawler-ui/ui/static"
+
+
+# STATIC_URL = '/static/'
+# STATICFILES_BASE = BASE_DIR / "staticfiles"
+# REACT_JS_BUILD_DIR = STATICFILES_BASE / "frontend" / "prod" 
+# if DEBUG:
+#     REACT_JS_BUILD_DIR = STATICFILES_BASE / "frontend" / "dev"
+# STATICFILES_DIRS = [
+#     STATICFILES_BASE,
+# ]
+
+import re
+
+# http://whitenoise.evans.io/en/stable/django.html#WHITENOISE_IMMUTABLE_FILE_TEST
+
+def immutable_file_test(path, url):
+    # Match vite (rollup)-generated hashes, à la, `some_file-CSliV9zW.js`
+    return re.match(r"^.+[.-][0-9a-zA-Z_-]{8,12}\..+$", url)
+
+
+WHITENOISE_IMMUTABLE_FILE_TEST = immutable_file_test
