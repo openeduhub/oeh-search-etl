@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import re
-from typing import Generator, List
+from typing import Generator, Iterable, List
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from overrides import overrides
@@ -86,7 +86,7 @@ class YoutubeSpider(Spider):
         self.lomLoader = YoutubeLomLoader(self.name, self.version, **kwargs)
 
     @overrides  # Spider
-    def start_requests(self):
+    def start_requests(self) -> Iterable[Request]:
         if env.get("YOUTUBE_API_KEY", False) == "":
             logging.error("YOUTUBE_API_KEY is required for youtube_spider. Please check your '.env'-settings!")
             return
@@ -321,7 +321,7 @@ class YoutubeLomLoader(LomBase):
         return self.version + response.meta["item"]["snippet"]["publishedAt"]
 
     @overrides  # LomBase
-    async def mapResponse(self, response) -> items.ResponseItemLoader:
+    async def mapResponse(self, response, fetchData=False) -> items.ResponseItemLoader:
         return await LomBase.mapResponse(self, response, False)
 
     @overrides  # LomBase
@@ -389,7 +389,7 @@ class YoutubeLomLoader(LomBase):
         return technical
 
     @overrides  # LomBase
-    def getLOMEducational(self, response):
+    def getLOMEducational(self, response: Response) -> items.LomEducationalItemLoader:
         educational = LomBase.getLOMEducational(self, response)
         tar = items.LomAgeRangeItemLoader()
         tar.add_value("fromRange", self.parse_csv_field(response.meta["row"][CSVBase.COLUMN_TYPICAL_AGE_RANGE_FROM]))
