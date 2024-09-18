@@ -5,3 +5,4 @@ venv_*
 .env
 out
 z_api
+build/
