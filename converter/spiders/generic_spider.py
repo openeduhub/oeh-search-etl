@@ -31,6 +31,7 @@ from ..items import (
     KIdraItemLoader,
 )
 from ..util.license_mapper import LicenseMapper
+from ..util.generic_crawler_db import fetch_urls_passing_filterset
 from ..web_tools import WebEngine, WebTools
 import threading
 import json
@@ -162,67 +163,16 @@ class GenericSpider(Spider, LrmiBase):
 
         if not self.filter_set_id:
             return
-        
+
         log.info("Filter set ID: %s", self.filter_set_id)
         # List filter rules in this filter set
         connection = sqlite3.connect(db_path)
-        cursor = connection.cursor()
 
-        # Get crawl job id
-        cursor.execute("SELECT crawl_job_id FROM crawls_filterset WHERE id = ?", (self.filter_set_id,))
-        row = cursor.fetchone()
-        crawl_job_id = row[0]
-        log.info("Crawl job ID: %s", crawl_job_id)
+        matches = fetch_urls_passing_filterset(connection, self.filter_set_id)
 
-        # table: crawls_filterset, crawls_filterrule
-        cursor.execute("SELECT id, rule, include, position FROM crawls_filterrule WHERE filter_set_id = ? ORDER BY position ASC", (self.filter_set_id,))
-        filter_rules = cursor.fetchall()
-        log.info("Filter rules: %s", filter_rules)
-
-        expressions = []
-        params = []
-        for row in filter_rules:
-            rule_id, rule, include, position = row
-            log.info("Filter rule %d: %s (include: %s, position: %d)", rule_id, rule, include, position)
-            # expression is "url LIKE '%{rule}'"
-            expressions.append("url LIKE ?")
-            params.append(f"{rule}%")
-        
-        if expressions:
-            filter_expression = " OR ".join(expressions)
-        else:
-            filter_expression = "1=1"
-        
-        
-        # expressions.append("crawl_job_id == ?")
-        # params.append(crawl_job_id)
-        where_clause = "WHERE (" + filter_expression + ") AND crawl_job_id = ?"
-        params.append(crawl_job_id)
-        query = "SELECT url FROM crawls_crawledurl " + where_clause
-        log.info("Query: %s", query)
-        log.info("Params: %s", params)
-        cursor.execute(query, params)
-        urls = cursor.fetchall()
-        log.info("URLs found: %s", urls)
-        
-        for row in urls:
-            url = row[0]
-            log.info("Adding URL to start_urls: %s", url)
-            self.start_urls.append(url)
-
-        # connection = sqlite3.connect(db_path)
-        # cursor = connection.cursor()
-        # # create CrawlJob with SQL, return the id
-        # start_url = self.start_urls[0]
-        # #cursor.execute(f"INSERT INTO crawls_crawljob (start_url, follow_links) VALUES ('{start_url}', {self.follow_links})")
-        # # do it safely with ???
-        # cursor.execute("INSERT INTO crawls_crawljob (start_url, follow_links, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", (start_url, self.follow_links))
-        # connection.commit()
-        # crawl_job_id = cursor.lastrowid
-        # connection.close()
-        # self.crawl_job_id = crawl_job_id
-        # log.info("Created crawl job with id %d", crawl_job_id)
-
+        for row in matches:
+            log.info("Adding URL to start_urls: %s", row.url)
+            self.start_urls.append(row.url)
 
     def start_requests(self):
         url_from_dot_env = env.get(key="GENERIC_SPIDER_URL_TARGET", allow_null=True, default=None)
