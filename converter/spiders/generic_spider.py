@@ -158,6 +158,9 @@ class GenericSpider(Spider, LrmiBase):
         # data_playwright = asyncio.run(WebTools.fetchDataPlaywright(response.url))
         response = response.copy()
         # ToDo: validate "trafilatura"-fulltext-extraction from playwright (compared to the html2text approach)
+        if data_playwright is None:
+            log.warning("Playwright failed to fetch data for %s", response.url)
+            data_playwright = {"content": ""}
         playwright_text: str = data_playwright["content"]
         playwright_bytes: bytes = playwright_text.encode()
         trafilatura_text = trafilatura.extract(playwright_text)
@@ -165,8 +168,8 @@ class GenericSpider(Spider, LrmiBase):
         #  - default: use trafilatura by default?
         #  - advanced: which trafilatura parameters could be used to improve text extraction for "weird" results?
         #  - basic: fallback to html2text extraction (explicit .env setting)
-        trafilatura_meta_scrapy = trafilatura.extract_metadata(response.body).as_dict()
-        trafilatura_meta_playwright = trafilatura.extract_metadata(playwright_bytes).as_dict()
+        # trafilatura_meta_scrapy = trafilatura.extract_metadata(response.body).as_dict()
+        trafilatura_meta_playwright = trafilatura.extract_metadata(playwright_bytes)
         parsed_html = BeautifulSoup(data_playwright["content"], features="lxml")
         for tag in self.clean_tags:
             tags = parsed_html.find_all(tag) if parsed_html.find_all(tag) else []
@@ -179,7 +182,8 @@ class GenericSpider(Spider, LrmiBase):
         data_playwright["parsed_html"] = parsed_html
         data_playwright["text"] = WebTools.html2Text(html)
         data_playwright["trafilatura_text"] = trafilatura_text
-        data_playwright["trafilatura_meta"] = trafilatura_meta_playwright
+        if trafilatura_meta_playwright:
+            data_playwright["trafilatura_meta"] = trafilatura_meta_playwright.as_dict()
         response.meta["data"] = data_playwright
 
         selector_playwright = scrapy.Selector(text=playwright_text)
