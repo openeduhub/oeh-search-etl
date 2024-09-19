@@ -1,0 +1,24 @@
+FROM python:3.10.13-bookworm
+
+RUN mkdir /opt/scrapy
+
+WORKDIR /opt/scrapy
+
+RUN apt-get update && \
+    apt-get install -y wget && \
+    apt-get clean;
+
+COPY gensitemap/requirements.txt requirements.txt
+COPY gensitemap/scraper/ scraper/
+COPY gensitemap/ui/ ui/
+COPY gensitemap/frontend frontend/
+#COPY gensitemap/ui/entrypoint_django.sh ui/entrypoint_django.sh
+RUN pip3 install -r requirements.txt
+
+# COPY generate-scrapyd.sh generate-scrapyd.sh
+CMD [ "python3", "../ui/manage.py", "migrate", "--run-syncdb" ]
+WORKDIR /opt/scrapy/ui
+# WORKDIR /opt/scrapy/scraper
+# SHELL ["/bin/bash", "-c"]
+# RUN ../generate-scrapyd.sh
+ENTRYPOINT ["/opt/scrapy/ui/entrypoint_django.sh"]

@@ -1,0 +1,17 @@
+FROM node:20.17
+
+RUN mkdir /opt/front
+
+WORKDIR /opt/front
+
+COPY gensitemap/frontend frontend
+COPY entrypoint_frontend.sh frontend/entrypoint_frontend.sh
+
+RUN echo "NODE Version:" && node --version
+RUN echo "NPM Version:" && npm --version
+
+WORKDIR /opt/front/frontend
+
+RUN npm install
+
+ENTRYPOINT ["/opt/front/frontend/entrypoint_frontend.sh"]

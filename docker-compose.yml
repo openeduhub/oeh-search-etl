@@ -116,3 +116,35 @@ services:
       dockerfile: Dockerfile_sqlite
     restart: "no"
     entrypoint: [ "bash", "-c", "sqlite3" ]
+  frontend:
+    # expose:
+    #   - "5173"
+    ports:
+      - "0.0.0.0:5173:5173"
+    networks:
+      - scrapy
+    build:
+      context: .
+      network: host
+      dockerfile: Dockerfile_frontend
+    restart: "no"
+    # entrypoint: [ "bash", "-c", "npm", "run", "dev" ]
+  django:
+    # volumes:
+    #   - type: volume
+    #     source: sqlitebd
+    #     target: /opt/scrapy/ui
+    expose:
+      - "8000"
+    ports:
+      - "0.0.0.0:8000:8000"
+    networks:
+      - scrapy
+    build:
+      context: .
+      network: host
+      dockerfile: Dockerfile_django
+    restart: "no"
+    # entrypoint: [ "bash", "-c", "python", "manage.py", "runserver" ]
+    # healthcheck:
+    #   test: [ "CMD", "./venv_scrapyd/bin/scrapyd-deploy", "default" ]
