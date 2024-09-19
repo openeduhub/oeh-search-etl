@@ -45,7 +45,7 @@ def example_db():
 
 def test_inclusion(example_db):
     passing = fetch_urls_passing_filterset(example_db, 1)
-    passing_urls = [url[0] for url in passing]
+    passing_urls = [url.url for url in passing]
 
     assert 'https://www.weltderphysik.de/service/suche/' in passing_urls
     assert 'https://www.weltderphysik.de/vor-ort/physikatlas/' in passing_urls
@@ -56,7 +56,7 @@ def test_inclusion(example_db):
 
 def test_exclusion(example_db):
     passing = fetch_urls_passing_filterset(example_db, 1)
-    passing_urls = [url[0] for url in passing]
+    passing_urls = [url.url for url in passing]
 
     assert 'https://www.weltderphysik.de/' not in passing_urls
     assert 'https://www.weltderphysik.de/vor-ort/veranstaltungen/' not in passing_urls
@@ -66,3 +66,13 @@ def test_exclusion(example_db):
 def test_empty_filterset(example_db):
     passing = fetch_urls_passing_filterset(example_db, 2)
     assert len(passing) == 0
+
+
+def test_page_types(example_db):
+    passing = fetch_urls_passing_filterset(example_db, 1)
+    url_to_type = dict(passing)
+    assert url_to_type['https://www.weltderphysik.de/service/suche/'] == 'Service'
+    assert url_to_type['https://www.weltderphysik.de/vor-ort/physikatlas/'] == 'Videos'
+    assert url_to_type['https://www.weltderphysik.de/gebiet/teilchen/'] == 'New row'
+    assert url_to_type['https://www.weltderphysik.de/gebiet/materie/'] == 'New row'
+    assert url_to_type['https://www.weltderphysik.de/gebiet/leben/'] == 'New row'

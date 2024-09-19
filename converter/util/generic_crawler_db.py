@@ -15,6 +15,10 @@ class FilterRule(NamedTuple):
     include: bool
     position: int
 
+class CrawledUrl(NamedTuple):
+    url: str
+    page_type: str
+
 # Function to generate the sequential filter string and corresponding parameters
 def generate_url_filter(filter_rules: list[FilterRule]) -> tuple[str, list[str]]:
     conditions = []
@@ -92,9 +96,36 @@ def fetch_urls_passing_filterset(connection: sqlite3.Connection, filter_set_id: 
    
     # expressions.append("crawl_job_id == ?")
     # params.append(crawl_job_id)
-    where_clause = "WHERE (" + filter_expression + ") AND crawl_job_id = ?"
-    params.append(crawl_job_id)
-    query = "SELECT url FROM crawls_crawledurl AS cu " + where_clause
+    # where_clause = "WHERE (" + filter_expression + ") AND crawl_job_id = ?"
+    # params.append(crawl_job_id)
+    
+    query = f"""
+    SELECT 
+        cu.url, 
+        fr.page_type
+    FROM 
+        crawls_crawledurl cu
+    JOIN 
+        crawls_crawljob cj ON cu.crawl_job_id = cj.id
+    JOIN 
+        crawls_filterset fs ON cj.id = fs.crawl_job_id
+    JOIN 
+        crawls_filterrule fr ON fs.id = fr.filter_set_id
+    WHERE 
+        ({filter_expression}) AND 
+        fr.include = 1 AND
+        fs.id = ? AND
+        fr.position = (
+            SELECT MIN(position)
+            FROM crawls_filterrule AS fr_inner
+            WHERE fr_inner.filter_set_id = fs.id 
+            AND fr_inner.include = 1
+            AND cu.url LIKE (fr_inner.rule || '%')
+        );
+    """
+    params.append(str(filter_set_id))
+    
+    #query = "SELECT url FROM crawls_crawledurl AS cu " + where_clause
     log.info("Query: %s", query)
     log.info("Params: %s", params)
 
@@ -105,14 +136,9 @@ def fetch_urls_passing_filterset(connection: sqlite3.Connection, filter_set_id: 
 
     urls = cursor.fetchall()
     log.info("URLs found: %s", urls)
+    cursor.close()
     
-    result = []
-    for row in urls:
-        url = row[0]
-        # log.info("Adding URL to start_urls: %s", url)
-        result.append((url, "??"))
-
-    return result
+    return [CrawledUrl(*row) for row in urls]
 
 def debug_generate_query(query: str, params: str) -> str:
     """ Inserts the parameters into a prepared statement for debugging.
