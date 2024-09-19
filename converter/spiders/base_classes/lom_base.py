@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from scrapy import settings
 from scrapy.http import Response
@@ -10,7 +11,7 @@ from converter.web_tools import *
 
 
 class LomBase:
-    name = None
+    name: Optional[str] = None
     friendlyName = "LOM Based spider"
     ranking = 1
     version = (

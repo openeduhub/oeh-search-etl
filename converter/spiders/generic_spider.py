@@ -142,7 +142,7 @@ class GenericSpider(Spider, LrmiBase):
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = super().from_crawler(crawler, *args, **kwargs)
-        crawler.signals.connect(spider.spider_opened, signal=scrapy.signals.spider_opened)  # type: ignore
+        crawler.signals.connect(spider.spider_opened, signal=scrapy.signals.spider_opened)  # pylint: disable=no-member
         return spider
     
     def spider_opened(self, spider: GenericSpider):
@@ -258,10 +258,10 @@ class GenericSpider(Spider, LrmiBase):
         lrmi_thumbnail = self.getLRMI("thumbnailUrl", response=response)
         if lrmi_thumbnail:
             base_loader.add_value("thumbnail", lrmi_thumbnail)
-        meta_og_image: str = selector_playwright.xpath('//meta[@property="og:image"]/@content').get()
+        meta_og_image = selector_playwright.xpath('//meta[@property="og:image"]/@content').get()
         if meta_og_image:
             base_loader.add_value("thumbnail", meta_og_image)
-        meta_last_modified: str = selector_playwright.xpath('//meta[@name="last-modified"]/@content').get()
+        meta_last_modified = selector_playwright.xpath('//meta[@name="last-modified"]/@content').get()
         if meta_last_modified:
             base_loader.add_value("lastModified", meta_last_modified)
 
@@ -282,8 +282,8 @@ class GenericSpider(Spider, LrmiBase):
         # ToDo: try to grab as many OpenGraph metadata properties as possible (for reference, see: https://ogp.me)
 
         general_loader.add_value("title", response.meta["data"]["title"])
-        html_language: str = selector_playwright.xpath("//html/@lang").get()
-        meta_locale: str = selector_playwright.xpath('//meta[@property="og:locale"]/@content').get()
+        html_language = selector_playwright.xpath("//html/@lang").get()
+        meta_locale = selector_playwright.xpath('//meta[@property="og:locale"]/@content').get()
         # HTML language and locale properties haven proven to be pretty inconsistent, but they might be useful as
         # fallback values.
         # ToDo: websites might return languagecodes as 4-char values (e.g. "de-DE") instead of the 2-char value "de"
@@ -373,7 +373,7 @@ class GenericSpider(Spider, LrmiBase):
                     trafilatura_license_detected: str = response.meta["data"]["trafilatura_meta"]["license"]
                     if trafilatura_license_detected:
                         license_mapper = LicenseMapper()
-                        license_url_mapped: str = license_mapper.get_license_url(
+                        license_url_mapped = license_mapper.get_license_url(
                             license_string=trafilatura_license_detected
                         )
                         if license_url_mapped:
@@ -413,7 +413,7 @@ class GenericSpider(Spider, LrmiBase):
     def get_lifecycle_publisher(
         self, lom_loader: LomBaseItemloader, selector: scrapy.Selector, response: scrapy.http.Response
     ):
-        meta_publisher: str = selector.xpath('//meta[@name="publisher"]/@content').get()
+        meta_publisher = selector.xpath('//meta[@name="publisher"]/@content').get()
         if meta_publisher:
             lifecycle_publisher_loader = LomLifecycleItemloader()
             lifecycle_publisher_loader.add_value("role", "publisher")
@@ -425,7 +425,7 @@ class GenericSpider(Spider, LrmiBase):
     def get_lifecycle_author(
         self, lom_loader: LomBaseItemloader, selector: scrapy.Selector, response: scrapy.http.Response
     ):
-        meta_author: str = selector.xpath('//meta[@name="author"]/@content').get()
+        meta_author = selector.xpath('//meta[@name="author"]/@content').get()
         if meta_author:
             lifecycle_author_loader = LomLifecycleItemloader()
             lifecycle_author_loader.add_value("role", "author")
