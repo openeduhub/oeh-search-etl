@@ -1,8 +1,9 @@
 .idea/
 __pycache__/
 .venv/
-venv_*
+venv*/
 .env
 out
 z_api
 build/
+*.egg-info/
