@@ -1,7 +1,9 @@
 import asyncio
 import datetime
 import logging
+import os
 import re
+import sqlite3
 from typing import Any
 
 import scrapy.http
@@ -34,6 +36,8 @@ import threading
 import json
 from converter.util.sitemap import find_generate_sitemap
 
+log = logging.getLogger(__name__)
+
 class GenericSpider(Spider, LrmiBase):
     name = "generic_spider"
     friendlyName = "generic_spider"  # name as shown in the search ui
@@ -46,7 +50,7 @@ class GenericSpider(Spider, LrmiBase):
         # "https://www.planet-schule.de/thema/fridays-for-future-was-steckt-hinter-den-klima-streiks-film-100.html",
         # "https://www.dilertube.de/englisch/oer-video/algeria-in-a-nutshell.html",
         # "https://www.dilertube.de/alltagskultur-ernaehrung-soziales-aes/oer-video/erklaerfilm-medikamente-richtig-entsorgen.html",
-        "https://www.umwelt-im-unterricht.de/unterrichtsvorschlaege/der-mensch-hauptursache-fuer-den-rueckgang-der-biologischen-vielfalt",
+        # "https://www.umwelt-im-unterricht.de/unterrichtsvorschlaege/der-mensch-hauptursache-fuer-den-rueckgang-der-biologischen-vielfalt",
         # "https://www.umwelt-im-unterricht.de/hintergrund/die-endlagerung-hochradioaktiver-abfaelle",
         # "https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78",
         # "https://editor.mnweg.org/mnw/sammlung/bruchrechnen-m-10",
@@ -92,12 +96,20 @@ class GenericSpider(Spider, LrmiBase):
     z_api_text: z_api.AITextPromptsApi
     z_api_kidra: z_api.KidraApi
 
-    def __init__(self, urltocrawl="", validated_result="", ai_enabled="True", find_sitemap="False", max_urls="3", **kwargs):
+    def __init__(self, urltocrawl="", validated_result="", ai_enabled="True", find_sitemap="False", max_urls="3", filter_set_id="", **kwargs):
         LrmiBase.__init__(self, **kwargs)
 
         # self.validated_result = validated_result
         # validated_result = '{"curriculum":["http://w3id.org/openeduhub/vocabs/oeh-topics/66e5911e-ba75-4521-adb6-cbe24569500b"], "url": "https://blog.bitsrc.io/how-to-store-data-on-the-browser-with-javascript-9c57fc0f91b0", "title": "Test 2 How to Store Data in the Browser with JavaScript | Bits and Pieces", "description": "Test How to store data with localStorage and sessionStorage. The benefits of each, and when you should use one instead of the other", "keywords": ["Test JavaScript"], "disciplines": ["http://w3id.org/openeduhub/vocabs/discipline/320"], "educational_context": ["http://w3id.org/openeduhub/vocabs/educationalContext/fortbildung"], "license": {"author": ["Pedro Henrique"]}, "new_lrt": ["http://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb"], "intendedEndUserRole":["http://w3id.org/openeduhub/vocabs/intendedEndUserRole/counsellor"]}'
         # logging.warning("self.validated_result="+self.validated_result)
+
+        if filter_set_id != "":
+            self.filter_set_id = int(filter_set_id)
+        else:
+            self.filter_set_id = None
+
+        # temp hack
+        ai_enabled = "False"
 
         self.results_dict = {}
         if urltocrawl != "":
@@ -113,24 +125,104 @@ class GenericSpider(Spider, LrmiBase):
             urltocrawl = self.results_dict["url"]
             self.start_urls = [urltocrawl]
 
-        logging.warning("self.start_urls=" + self.start_urls[0])
+        # logging.warning("self.start_urls=" + self.start_urls[0])
         self.valuespaces = Valuespaces()
         # ToDo: optional .env Feature: "generic_spider" (AI=enabled) <-> "generic_minimal_spider" (AI=disabled)?
         if ai_enabled == "True":
             self.AI_ENABLED = True
-            logging.info(f"Starting generic_spider with AI_ENABLED flag!")
+            log.info("Starting generic_spider with AI_ENABLED flag!")
             z_api_config = z_api.Configuration.get_default_copy()
             z_api_config.api_key = {"ai-prompt-token": env.get("Z_API_KEY", False)}
             z_api_client = z_api.ApiClient(configuration=z_api_config)
             self.z_api_text = z_api.AITextPromptsApi(z_api_client)
             self.z_api_kidra = z_api.KidraApi(z_api_client)
         elif ai_enabled == "False":
-            logging.info(f"Starting generic_spider with MINIMAL settings. AI Services are DISABLED!")
+            log.info("Starting generic_spider with MINIMAL settings. AI Services are DISABLED!")
             self.AI_ENABLED = False
             # this optional flag allows us to control if we want to use AI-suggested metadata. We can compare the
             # items gathered by the "generic_spider_minimal" against the (AI-enabled) "generic_spider"
             self.name = "generic_spider_minimal"
             self.friendlyName = "generic_spider_minimal"
+
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        spider = super(GenericSpider, cls).from_crawler(crawler, *args, **kwargs)
+        crawler.signals.connect(spider.spider_opened, signal=scrapy.signals.spider_opened)
+        return spider
+    
+    def spider_opened(self, spider):
+        log.info("Opened spider %s", spider.name)
+        db_path = self.settings.get('GENERIC_CRAWLER_DB_PATH')
+        log.info("Using database at %s", db_path)
+        if db_path is not None:
+            log.info("File exists? %s", os.path.exists(db_path))
+        if db_path is None or not os.path.exists(db_path):
+            log.error("No database set or database not found. Please set GENERIC_CRAWLER_DB_PATH.")
+            return
+
+        if not self.filter_set_id:
+            return
+        
+        log.info("Filter set ID: %s", self.filter_set_id)
+        # List filter rules in this filter set
+        connection = sqlite3.connect(db_path)
+        cursor = connection.cursor()
+
+        # Get crawl job id
+        cursor.execute("SELECT crawl_job_id FROM crawls_filterset WHERE id = ?", (self.filter_set_id,))
+        row = cursor.fetchone()
+        crawl_job_id = row[0]
+        log.info("Crawl job ID: %s", crawl_job_id)
+
+        # table: crawls_filterset, crawls_filterrule
+        cursor.execute("SELECT id, rule, include, position FROM crawls_filterrule WHERE filter_set_id = ? ORDER BY position ASC", (self.filter_set_id,))
+        filter_rules = cursor.fetchall()
+        log.info("Filter rules: %s", filter_rules)
+
+        expressions = []
+        params = []
+        for row in filter_rules:
+            rule_id, rule, include, position = row
+            log.info("Filter rule %d: %s (include: %s, position: %d)", rule_id, rule, include, position)
+            # expression is "url LIKE '%{rule}'"
+            expressions.append("url LIKE ?")
+            params.append(f"{rule}%")
+        
+        if expressions:
+            filter_expression = " OR ".join(expressions)
+        else:
+            filter_expression = "1=1"
+        
+        
+        # expressions.append("crawl_job_id == ?")
+        # params.append(crawl_job_id)
+        where_clause = "WHERE (" + filter_expression + ") AND crawl_job_id = ?"
+        params.append(crawl_job_id)
+        query = "SELECT url FROM crawls_crawledurl " + where_clause
+        log.info("Query: %s", query)
+        log.info("Params: %s", params)
+        cursor.execute(query, params)
+        urls = cursor.fetchall()
+        log.info("URLs found: %s", urls)
+        
+        for row in urls:
+            url = row[0]
+            log.info("Adding URL to start_urls: %s", url)
+            self.start_urls.append(url)
+
+        # connection = sqlite3.connect(db_path)
+        # cursor = connection.cursor()
+        # # create CrawlJob with SQL, return the id
+        # start_url = self.start_urls[0]
+        # #cursor.execute(f"INSERT INTO crawls_crawljob (start_url, follow_links) VALUES ('{start_url}', {self.follow_links})")
+        # # do it safely with ???
+        # cursor.execute("INSERT INTO crawls_crawljob (start_url, follow_links, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", (start_url, self.follow_links))
+        # connection.commit()
+        # crawl_job_id = cursor.lastrowid
+        # connection.close()
+        # self.crawl_job_id = crawl_job_id
+        # log.info("Created crawl job with id %d", crawl_job_id)
+
 
     def start_requests(self):
         url_from_dot_env = env.get(key="GENERIC_SPIDER_URL_TARGET", allow_null=True, default=None)
