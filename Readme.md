@@ -135,3 +135,49 @@ If the web service fails consider to stop and restart the services by pressing `
 
 ## Still have questions? Check out our GitHub-Wiki!
 If you need help getting started or setting up your work environment, please don't hesitate to visit our GitHub Wiki at https://github.com/openeduhub/oeh-search-etl/wiki
+
+
+# About Docker containers
+
+## Scrapyd and sqlite database
+
+Create the volume to share the sqlite database of URLs
+```bash
+docker volume create --name sqlitedb
+```
+Build and run the container for `scrapyd` for the generic crawler project
+```bash
+docker compose up --build gensitemap
+```
+Schedule a job for the `scraper` project. Run the crawler to find URLs:
+```bash
+curl http://localhost:6802/schedule.json -d project=scraper -d spider=example -d start_url=https://biologie-lernprogramme.de/ -d follow_links=True
+```
+Build the container for the sqlite database
+```bash
+docker compose up --build sqlite_container
+```
+Access the Sqlite database and make a query:
+```bash
+docker run -it -v oeh-search-etl_sqlitebd:/home <image_ID> sh
+```
+then:
+```
+cd home
+sqlite3
+.open db.sqlite3
+SELECT * FROM crawls_crawledurl as cu
+ORDER BY cu.created_at DESC
+LIMIT 10;
+```
+
+## Front-end and Back-end
+
+Build and run the container for `django` for the back-end (with the scraper project and the database):
+```bash
+docker compose up --build django
+```
+Build and run the container for `frontend` React app:
+```bash
+docker compose up --build frontend
+```
