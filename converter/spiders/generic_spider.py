@@ -1,41 +1,35 @@
+from __future__ import annotations
+
 import asyncio
 import datetime
+import json
 import logging
 import os
 import re
 import sqlite3
-from typing import Any
+import threading
 
 import scrapy.http
-import trafilatura
+import trafilatura  # type: ignore
 from bs4 import BeautifulSoup
 from scrapy import Request
 from scrapy.spiders import Rule, Spider
 
 import z_api
-from valuespace_converter.app.valuespaces import Valuespaces
-from .base_classes import LrmiBase
-from .. import env
-from ..items import (
-    LicenseItemLoader,
-    BaseItemLoader,
-    LomBaseItemloader,
-    LomGeneralItemloader,
-    LomTechnicalItemLoader,
-    LomLifecycleItemloader,
-    LomEducationalItemLoader,
-    LomClassificationItemLoader,
-    ValuespaceItemLoader,
-    ResponseItemLoader,
-    AiPromptItemLoader,
-    KIdraItemLoader,
-)
-from ..util.license_mapper import LicenseMapper
-from ..util.generic_crawler_db import fetch_urls_passing_filterset
-from ..web_tools import WebEngine, WebTools
-import threading
-import json
 from converter.util.sitemap import find_generate_sitemap
+from valuespace_converter.app.valuespaces import Valuespaces
+
+from .. import env
+from ..items import (AiPromptItemLoader, BaseItemLoader, KIdraItemLoader,
+                     LicenseItemLoader, LomBaseItemloader,
+                     LomClassificationItemLoader, LomEducationalItemLoader,
+                     LomGeneralItemloader, LomLifecycleItemloader,
+                     LomTechnicalItemLoader, ResponseItemLoader,
+                     ValuespaceItemLoader)
+from ..util.generic_crawler_db import fetch_urls_passing_filterset
+from ..util.license_mapper import LicenseMapper
+from ..web_tools import WebEngine, WebTools
+from .base_classes import LrmiBase
 
 log = logging.getLogger(__name__)
 
@@ -98,7 +92,7 @@ class GenericSpider(Spider, LrmiBase):
     z_api_kidra: z_api.KidraApi
 
     def __init__(self, urltocrawl="", validated_result="", ai_enabled="True", find_sitemap="False", max_urls="3", filter_set_id="", **kwargs):
-        LrmiBase.__init__(self, **kwargs)
+        super().__init__(**kwargs)
 
         # self.validated_result = validated_result
         # validated_result = '{"curriculum":["http://w3id.org/openeduhub/vocabs/oeh-topics/66e5911e-ba75-4521-adb6-cbe24569500b"], "url": "https://blog.bitsrc.io/how-to-store-data-on-the-browser-with-javascript-9c57fc0f91b0", "title": "Test 2 How to Store Data in the Browser with JavaScript | Bits and Pieces", "description": "Test How to store data with localStorage and sessionStorage. The benefits of each, and when you should use one instead of the other", "keywords": ["Test JavaScript"], "disciplines": ["http://w3id.org/openeduhub/vocabs/discipline/320"], "educational_context": ["http://w3id.org/openeduhub/vocabs/educationalContext/fortbildung"], "license": {"author": ["Pedro Henrique"]}, "new_lrt": ["http://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb"], "intendedEndUserRole":["http://w3id.org/openeduhub/vocabs/intendedEndUserRole/counsellor"]}'
@@ -147,11 +141,14 @@ class GenericSpider(Spider, LrmiBase):
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
-        spider = super(GenericSpider, cls).from_crawler(crawler, *args, **kwargs)
-        crawler.signals.connect(spider.spider_opened, signal=scrapy.signals.spider_opened)
+        spider = super().from_crawler(crawler, *args, **kwargs)
+        crawler.signals.connect(spider.spider_opened, signal=scrapy.signals.spider_opened)  # type: ignore
         return spider
     
-    def spider_opened(self, spider):
+    def spider_opened(self, spider: GenericSpider):
+        """ Run when the spider is opened, before the crawl begins.
+            Open the database and get the list of URLs to crawl. """
+        
         log.info("Opened spider %s", spider.name)
         db_path = self.settings.get('GENERIC_CRAWLER_DB_PATH')
         log.info("Using database at %s", db_path)
@@ -177,7 +174,7 @@ class GenericSpider(Spider, LrmiBase):
     def start_requests(self):
         url_from_dot_env = env.get(key="GENERIC_SPIDER_URL_TARGET", allow_null=True, default=None)
         if url_from_dot_env:
-            logging.info(f"Recognized URL to crawl from '.env'-Setting 'GENERIC_SPIDER_URL_TARGET': {url_from_dot_env}")
+            log.info("Recognized URL to crawl from '.env'-Setting 'GENERIC_SPIDER_URL_TARGET': %s", url_from_dot_env)
             yield Request(url_from_dot_env, callback=self.parse)
         for url in self.start_urls:
             yield Request(url, callback=self.parse)
@@ -192,7 +189,7 @@ class GenericSpider(Spider, LrmiBase):
         """
         return f"{datetime.datetime.now().isoformat()}v{self.version}"
 
-    def parse(self, response: scrapy.http.Response, **kwargs) -> Any | None:
+    def parse(self, response: scrapy.http.Response, **kwargs):
         if not self.hasChanged(response):
             return
 
@@ -239,22 +236,19 @@ class GenericSpider(Spider, LrmiBase):
             if respect_robot_meta_tags:
                 # by default, we try to respect the webmaster's wish to not be indexed/crawled
                 if "noindex" in robot_meta_tags:
-                    logging.info(
-                        f"Robot Meta Tag 'noindex' identified. Aborting further parsing of item: " f"{response.url} ."
-                    )
+                    log.info("Robot Meta Tag 'noindex' identified. Aborting further parsing of item: %s .", response.url)
                     return None
                 if "nofollow" in robot_meta_tags:
                     # ToDo: don't follow any links, but parse the current response
                     #  -> yield response with 'nofollow'-setting in cb_kwargs
-                    logging.info(
-                        f"Robot Meta Tag 'nofollow' identified. Parsing item {response.url} , but WILL NOT "
-                        f"follow any links found within."
+                    log.info(
+                        "Robot Meta Tag 'nofollow' identified. Parsing item %s , but WILL NOT "
+                        "follow any links found within.", response.url
                     )
-                    pass
                 if "none" in robot_meta_tags:
-                    logging.info(
-                        f"Robot Meta Tag 'none' identified (= 'noindex, nofollow'). "
-                        f"Aborting further parsing of item: {response.url} itself and any links within it."
+                    log.info(
+                        "Robot Meta Tag 'none' identified (= 'noindex, nofollow'). "
+                        "Aborting further parsing of item: %s itself and any links within it.", response.url
                     )
                     return None
 
@@ -410,9 +404,9 @@ class GenericSpider(Spider, LrmiBase):
 
         if self.results_dict:
             base_loader = self.modify_base_item(base_loader)
-        logging.info("New URL processed:------------------------------------------")
-        logging.info(base_loader.load_item())
-        logging.info("------------------------------------------------------------")
+        log.info("New URL processed:------------------------------------------")
+        log.info(base_loader.load_item())
+        log.info("------------------------------------------------------------")
         # once all scrapy.Items are loaded into our "base", we yield the BaseItem by calling the .load_item() method
         yield base_loader.load_item()
 
