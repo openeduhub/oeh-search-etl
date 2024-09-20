@@ -237,29 +237,28 @@ class GenericSpider(Spider, LrmiBase):
         selector_playwright = scrapy.Selector(text=playwright_text)
         robot_meta_tags: list[str] = selector_playwright.xpath("//meta[@name='robots']/@content").getall()
         respect_robot_meta_tags = env.get_bool(key="RESPECT_ROBOT_META_TAGS", allow_null=True, default=True)
-        if robot_meta_tags:
+        if robot_meta_tags and respect_robot_meta_tags:
             # There are 3 Robot Meta Tags (<meta name="robots" content="VALUE">) that we need to respect:
             # - "noindex"       (= don't index the current URL)
             # - "nofollow"      (= don't follow any links on this site)
             # - "none"          (= shortcut for combined value "noindex, nofollow")
-            if respect_robot_meta_tags:
-                # by default, we try to respect the webmaster's wish to not be indexed/crawled
-                if "noindex" in robot_meta_tags:
-                    log.info("Robot Meta Tag 'noindex' identified. Aborting further parsing of item: %s .", response.url)
-                    return
-                if "nofollow" in robot_meta_tags:
-                    # ToDo: don't follow any links, but parse the current response
-                    #  -> yield response with 'nofollow'-setting in cb_kwargs
-                    log.info(
-                        "Robot Meta Tag 'nofollow' identified. Parsing item %s , but WILL NOT "
-                        "follow any links found within.", response.url
-                    )
-                if "none" in robot_meta_tags:
-                    log.info(
-                        "Robot Meta Tag 'none' identified (= 'noindex, nofollow'). "
-                        "Aborting further parsing of item: %s itself and any links within it.", response.url
-                    )
-                    return
+            # by default, we try to respect the webmaster's wish to not be indexed/crawled
+            if "noindex" in robot_meta_tags:
+                log.info("Robot Meta Tag 'noindex' identified. Aborting further parsing of item: %s .", response.url)
+                return
+            if "nofollow" in robot_meta_tags:
+                # ToDo: don't follow any links, but parse the current response
+                #  -> yield response with 'nofollow'-setting in cb_kwargs
+                log.info(
+                    "Robot Meta Tag 'nofollow' identified. Parsing item %s , but WILL NOT "
+                    "follow any links found within.", response.url
+                )
+            if "none" in robot_meta_tags:
+                log.info(
+                    "Robot Meta Tag 'none' identified (= 'noindex, nofollow'). "
+                    "Aborting further parsing of item: %s itself and any links within it.", response.url
+                )
+                return
 
         base_loader = BaseItemLoader()
         base_loader.add_value("sourceId", self.getId(response))
