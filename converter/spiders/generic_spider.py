@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import asyncio
 import datetime
 import json
 import logging
 import os
 import re
 import sqlite3
-import threading
 
 import scrapy.http
 import trafilatura  # type: ignore
@@ -189,27 +187,34 @@ class GenericSpider(Spider, LrmiBase):
         """
         return f"{datetime.datetime.now().isoformat()}v{self.version}"
 
-    def parse(self, response: scrapy.http.Response, **kwargs):
+    async def parse(self, response: scrapy.http.Response, **kwargs):
         if not self.hasChanged(response):
             return
 
-        data_playwright = run_async(WebTools.fetchDataPlaywright, response.url)
+        # data_playwright = run_async(WebTools.fetchDataPlaywright, response.url)
+        # this is playwrite_dict with 'content', 'screenshot_bytes' and so on
+        
+
+        url_data = await WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
+
         # data_playwright = asyncio.run(WebTools.fetchDataPlaywright(response.url))
         response = response.copy()
         # ToDo: validate "trafilatura"-fulltext-extraction from playwright (compared to the html2text approach)
-        if data_playwright is None:
-            log.warning("Playwright failed to fetch data for %s", response.url)
-            data_playwright = {"content": ""}
-        playwright_text: str = data_playwright["content"]
+        # if data_playwright is None:
+        #     log.warning("Playwright failed to fetch data for %s", response.url)
+        #     data_playwright = {"content": ""}
+        playwright_text: str = url_data["html"]
         playwright_bytes: bytes = playwright_text.encode()
-        trafilatura_text = trafilatura.extract(playwright_text)
+        # trafilatura_text = trafilatura.extract(playwright_text)
+        trafilatura_text = url_data["text"]
+        log.info("trafilatura_text: %s", trafilatura_text)
         # ToDo: implement text extraction .env toggle: default / advanced / basic?
         #  - default: use trafilatura by default?
         #  - advanced: which trafilatura parameters could be used to improve text extraction for "weird" results?
         #  - basic: fallback to html2text extraction (explicit .env setting)
         # trafilatura_meta_scrapy = trafilatura.extract_metadata(response.body).as_dict()
         trafilatura_meta_playwright = trafilatura.extract_metadata(playwright_bytes)
-        parsed_html = BeautifulSoup(data_playwright["content"], features="lxml")
+        parsed_html = BeautifulSoup(url_data["html"], features="lxml")
         for tag in self.clean_tags:
             tags = parsed_html.find_all(tag) if parsed_html.find_all(tag) else []
             for t in tags:
@@ -218,12 +223,16 @@ class GenericSpider(Spider, LrmiBase):
         for t in crawler_ignore:
             t.clear()
         html = parsed_html.prettify()
-        data_playwright["parsed_html"] = parsed_html
-        data_playwright["text"] = WebTools.html2Text(html)
-        data_playwright["trafilatura_text"] = trafilatura_text
+        data = {
+            # legacy, do we need these fields?
+            "content": url_data["html"],
+        }
+        data["parsed_html"] = parsed_html
+        data["text"] = WebTools.html2Text(html)
+        data["trafilatura_text"] = trafilatura_text
         if trafilatura_meta_playwright:
-            data_playwright["trafilatura_meta"] = trafilatura_meta_playwright.as_dict()
-        response.meta["data"] = data_playwright
+            data["trafilatura_meta"] = trafilatura_meta_playwright.as_dict()
+        response.meta["data"] = data
 
         selector_playwright = scrapy.Selector(text=playwright_text)
         robot_meta_tags: list[str] = selector_playwright.xpath("//meta[@name='robots']/@content").getall()
@@ -237,7 +246,7 @@ class GenericSpider(Spider, LrmiBase):
                 # by default, we try to respect the webmaster's wish to not be indexed/crawled
                 if "noindex" in robot_meta_tags:
                     log.info("Robot Meta Tag 'noindex' identified. Aborting further parsing of item: %s .", response.url)
-                    return None
+                    return
                 if "nofollow" in robot_meta_tags:
                     # ToDo: don't follow any links, but parse the current response
                     #  -> yield response with 'nofollow'-setting in cb_kwargs
@@ -250,7 +259,7 @@ class GenericSpider(Spider, LrmiBase):
                         "Robot Meta Tag 'none' identified (= 'noindex, nofollow'). "
                         "Aborting further parsing of item: %s itself and any links within it.", response.url
                     )
-                    return None
+                    return
 
         base_loader = BaseItemLoader()
         base_loader.add_value("sourceId", self.getId(response))
@@ -281,7 +290,8 @@ class GenericSpider(Spider, LrmiBase):
         #  - so it can handle websites when there are several JSON-LD containers within a single DOM
         # ToDo: try to grab as many OpenGraph metadata properties as possible (for reference, see: https://ogp.me)
 
-        general_loader.add_value("title", response.meta["data"]["title"])
+        general_loader.add_value('title', response.xpath('/html/head/title/text()').get())
+        # general_loader.add_value("title", response.meta["data"]["title"])
         html_language = selector_playwright.xpath("//html/@lang").get()
         meta_locale = selector_playwright.xpath('//meta[@property="og:locale"]/@content').get()
         # HTML language and locale properties haven proven to be pretty inconsistent, but they might be useful as
@@ -548,29 +558,29 @@ class GenericSpider(Spider, LrmiBase):
 
         return discipline_names
 
-class RunThread(threading.Thread):
-    def __init__(self, func, args, kwargs):
-        self.func = func
-        self.args = args
-        self.kwargs = kwargs
-        self.result = None
-        super().__init__()
+# class RunThread(threading.Thread):
+#     def __init__(self, func, args, kwargs):
+#         self.func = func
+#         self.args = args
+#         self.kwargs = kwargs
+#         self.result = None
+#         super().__init__()
 
-    def run(self):
-        self.result = asyncio.run(self.func(*self.args, **self.kwargs))
+#     def run(self):
+#         self.result = asyncio.run(self.func(*self.args, **self.kwargs))
 
-def run_async(func, *args, **kwargs):
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-    if loop and loop.is_running():
-        thread = RunThread(func, args, kwargs)
-        thread.start()
-        thread.join()
-        return thread.result
-    else:
-        return asyncio.run(func(*args, **kwargs))
+# def run_async(func, *args, **kwargs):
+#     try:
+#         loop = asyncio.get_running_loop()
+#     except RuntimeError:
+#         loop = None
+#     if loop and loop.is_running():
+#         thread = RunThread(func, args, kwargs)
+#         thread.start()
+#         thread.join()
+#         return thread.result
+#     else:
+#         return asyncio.run(func(*args, **kwargs))
 
 def get_urls_from_string(urls_string):
     urls = urls_string.split(",")
