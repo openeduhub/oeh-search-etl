@@ -199,6 +199,8 @@ class GenericSpider(Spider, LrmiBase):
 
         # data_playwright = asyncio.run(WebTools.fetchDataPlaywright(response.url))
         response = response.copy()
+        assert isinstance(response, scrapy.http.TextResponse)
+
         # ToDo: validate "trafilatura"-fulltext-extraction from playwright (compared to the html2text approach)
         # if data_playwright is None:
         #     log.warning("Playwright failed to fetch data for %s", response.url)
@@ -260,27 +262,21 @@ class GenericSpider(Spider, LrmiBase):
                 )
                 return
 
-        base_loader = BaseItemLoader()
+        base_loader = BaseItemLoader(selector=selector_playwright)
         base_loader.add_value("sourceId", self.getId(response))
         base_loader.add_value("hash", self.getHash(response))
-        lrmi_thumbnail = self.getLRMI("thumbnailUrl", response=response)
-        if lrmi_thumbnail:
-            base_loader.add_value("thumbnail", lrmi_thumbnail)
-        meta_og_image = selector_playwright.xpath('//meta[@property="og:image"]/@content').get()
-        if meta_og_image:
-            base_loader.add_value("thumbnail", meta_og_image)
-        meta_last_modified = selector_playwright.xpath('//meta[@name="last-modified"]/@content').get()
-        if meta_last_modified:
-            base_loader.add_value("lastModified", meta_last_modified)
+        base_loader.add_value("thumbnail", self.getLRMI("thumbnailUrl", response=response))
+        base_loader.add_xpath("thumbnail", '//meta[@property="og:image"]/@content')
+        base_loader.add_xpath("lastModified", '//meta[@name="last-modified"]/@content')
 
         # Creating the nested ItemLoaders according to our items.py data model
         lom_loader = LomBaseItemloader()
-        general_loader = LomGeneralItemloader()
-        technical_loader = LomTechnicalItemLoader()
+        general_loader = LomGeneralItemloader(response=response)
+        technical_loader = LomTechnicalItemLoader(selector=selector_playwright)
         educational_loader = LomEducationalItemLoader()
         classification_loader = LomClassificationItemLoader()
         valuespace_loader = ValuespaceItemLoader()
-        license_loader = LicenseItemLoader()
+        license_loader = LicenseItemLoader(selector=selector_playwright)
         permissions_loader = self.getPermissions(response)
         response_loader = ResponseItemLoader()
         kidra_loader = KIdraItemLoader()
@@ -289,27 +285,17 @@ class GenericSpider(Spider, LrmiBase):
         #  - so it can handle websites when there are several JSON-LD containers within a single DOM
         # ToDo: try to grab as many OpenGraph metadata properties as possible (for reference, see: https://ogp.me)
 
-        general_loader.add_value('title', response.xpath('/html/head/title/text()').get())
-        # general_loader.add_value("title", response.meta["data"]["title"])
-        html_language = selector_playwright.xpath("//html/@lang").get()
-        meta_locale = selector_playwright.xpath('//meta[@property="og:locale"]/@content').get()
+        #general_loader.add_xpath("title", '//meta[@property="og:title"]/@content')
+        general_loader.add_xpath("title", '//title/text()')
         # HTML language and locale properties haven proven to be pretty inconsistent, but they might be useful as
         # fallback values.
         # ToDo: websites might return languagecodes as 4-char values (e.g. "de-DE") instead of the 2-char value "de"
         #       -> we will have to detect/clean up languageCodes to edu-sharing's expected 2-char format
-        lrmi_language = self.getLRMI("inLanguage", response=response)
-        if lrmi_language:
-            general_loader.add_value("language", lrmi_language)
-        elif html_language:
-            general_loader.add_value("language", html_language)
-        elif meta_locale:
-            general_loader.add_value("language", meta_locale)
-        lrmi_description = self.getLRMI("description", "about", response=response)
-        if lrmi_description:
-            general_loader.add_value("description", lrmi_description)
-        lrmi_keywords: list[str] = self.getLRMI("keywords", response=response)
-        if lrmi_keywords:
-            general_loader.add_value("keyword", lrmi_keywords)
+        general_loader.add_value("language", self.getLRMI("inLanguage", response=response))
+        general_loader.add_xpath("language", "//html/@lang")
+        general_loader.add_xpath("language", '//meta[@property="og:locale"]/@content')
+        general_loader.add_value("description", self.getLRMI("description", "about", response=response))
+        general_loader.add_value("keyword", self.getLRMI("keywords", response=response))
 
         if self.AI_ENABLED:
             general_loader.add_value(
@@ -344,22 +330,14 @@ class GenericSpider(Spider, LrmiBase):
 
         lom_loader.add_value("general", general_loader.load_item())
 
-        lrmi_file_format = self.getLRMI("fileFormat", response=response)
-        if lrmi_file_format:
-            technical_loader.add_value("format", lrmi_file_format)
-        lrmi_content_size = self.getLRMI("ContentSize", response=response)
-        if lrmi_content_size:
-            technical_loader.add_value("size", lrmi_content_size)
-        lrmi_url = self.getLRMI("url", response=response)
-        if lrmi_url:
-            technical_loader.add_value("location", lrmi_url)
-        technical_loader.add_value("location", response.url)
+        technical_loader.add_value("format", self.getLRMI("fileFormat", response=response))
         technical_loader.replace_value("format", "text/html")  # ToDo: do we really want to hard-code this?
+        technical_loader.add_value("size", self.getLRMI("ContentSize", response=response))
+        technical_loader.add_value("location", self.getLRMI("url", response=response))
+        technical_loader.add_value("location", response.url)
         technical_loader.replace_value("size", len(response.body))
         # ToDo: 'size' should probably use the length of our playwright response, not scrapy's response.body
-        meta_og_url = selector_playwright.xpath('//meta[@property="og:url"]/@content').get()
-        if meta_og_url != response.url:
-            technical_loader.add_value("location", meta_og_url)
+        technical_loader.add_xpath("location", '//meta[@property="og:url"]/@content')
 
         self.get_lifecycle_author(lom_loader=lom_loader, selector=selector_playwright, response=response)
 
@@ -372,9 +350,8 @@ class GenericSpider(Spider, LrmiBase):
         # after LomBaseItem is filled with nested metadata, we build the LomBaseItem and add it to our BaseItem:
         base_loader.add_value("lom", lom_loader.load_item())
 
-        meta_author = selector_playwright.xpath('//meta[@name="author"]/@content').getall()
-        if meta_author:
-            license_loader.add_value("author", meta_author)
+        # Todo: does this deal with multiple authors correctly?
+        license_loader.add_xpath("author", '//meta[@name="author"]/@content')
         # trafilatura offers a license detection feature as part of its "extract_metadata()"-method
         if response.meta["data"]:
             if "trafilatura_meta" in response.meta["data"]:
@@ -385,14 +362,11 @@ class GenericSpider(Spider, LrmiBase):
                         license_url_mapped = license_mapper.get_license_url(
                             license_string=trafilatura_license_detected
                         )
-                        if license_url_mapped:
-                            # ToDo: this is a really risky assignment! Validation of trafilatura's license detection
-                            #  will be necessary! (this is a metadata field that needs to be confirmed by a human!)
-                            license_loader.add_value("url", license_url_mapped)
+                        # ToDo: this is a really risky assignment! Validation of trafilatura's license detection
+                        #  will be necessary! (this is a metadata field that needs to be confirmed by a human!)
+                        license_loader.add_value("url", license_url_mapped)
 
-        lrmi_lrt = self.getLRMI("learningResourceType", response=response)
-        if lrmi_lrt:
-            valuespace_loader.add_value("learningResourceType", lrmi_lrt)
+        valuespace_loader.add_value("learningResourceType", self.getLRMI("learningResourceType", response=response))
         # lrmi_intended_end_user_role = self.getLRMI("audience.educationalRole", response=response)  # ToDo: rework
         # # attention: serlo URLs will break the getLRMI() Method because JSONBase cannot extract the JSON-LD properly
         # # ToDo: maybe use the 'jmespath' Python package to retrieve this value more reliably
