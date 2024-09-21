@@ -102,7 +102,7 @@ class GenericSpider(Spider, LrmiBase):
             self.filter_set_id = None
 
         # temp hack
-        ai_enabled = "False"
+        # ai_enabled = "False"
 
         self.results_dict = {}
         if urltocrawl != "":
@@ -298,22 +298,18 @@ class GenericSpider(Spider, LrmiBase):
         general_loader.add_value("keyword", self.getLRMI("keywords", response=response))
 
         if self.AI_ENABLED:
+            excerpt = response.meta["data"]["text"][:4000]
             general_loader.add_value(
-                "description", self.resolve_z_api("description", response, base_itemloader=base_loader)
+                "description", self.resolve_z_api("description", excerpt, base_itemloader=base_loader)
             )
             general_loader.add_value(
-                "keyword", self.resolve_z_api("keyword", response, base_itemloader=base_loader, split=True)
+                "keyword", self.resolve_z_api("keyword", excerpt, base_itemloader=base_loader, split=True)
             )
-            curriculum = self.resolve_z_api("curriculum", response, base_itemloader=base_loader, split=True)
-            kidra_loader.add_value("curriculum", curriculum)
-            # valuespace_loader.add_value(
-            #     "curriculum", self.valuespaces.findInText("curriculum", curriculum)
-            # )
-            classification, reading_time = self.resolve_z_api("textStatistics", response, base_itemloader=base_loader, split=True)
+            kidra_loader.add_value("curriculum", self.zapi_get_curriculum(excerpt))
+            classification, reading_time = self.zapi_get_statistics(excerpt)
             kidra_loader.add_value("text_difficulty", classification)
             kidra_loader.add_value("text_reading_time", reading_time)
-            ki_disciplines = self.resolve_z_api("kidraDisciplines", response, base_itemloader=base_loader, split=True)
-            kidra_loader.add_value("kidraDisciplines", ki_disciplines)
+            kidra_loader.add_value("kidraDisciplines", self.zapi_get_disciplines(excerpt))
             # ToDo: map/replace the previously set 'language'-value by AI suggestions from Z-API?
 
             # ToDo: keywords will (often) be returned as a list of bullet points by the AI
@@ -373,9 +369,10 @@ class GenericSpider(Spider, LrmiBase):
         # if lrmi_intended_end_user_role:
         #     valuespace_loader.add_value("intendedEndUserRole", lrmi_intended_end_user_role)
         if self.AI_ENABLED:
+            excerpt = response.meta["data"]["text"][:4000]
             for v in ["educationalContext", "discipline", "intendedEndUserRole", "new_lrt"]:
                 valuespace_loader.add_value(
-                    v, self.valuespaces.findInText(v, self.resolve_z_api(v, response, base_itemloader=base_loader))
+                    v, self.valuespaces.findInText(v, self.resolve_z_api(v, excerpt, base_itemloader=base_loader))
                 )
             base_loader.add_value("kidra_raw", kidra_loader.load_item())
 
@@ -433,50 +430,50 @@ class GenericSpider(Spider, LrmiBase):
             elif date:
                 lifecycle_loader.add_value("date", date)
 
-    def resolve_z_api(self, field: str, response: scrapy.http.Response, base_itemloader: BaseItemLoader, split=False):
-        if field == "curriculum":
-            text = {"text": response.meta["data"]["text"][:4000]}
-            result = self.z_api_kidra.topics_flat_topics_flat_post(text)
-            result_dict = result.to_dict()
-            result = self.parse_topics(result_dict)
-            return result
-        elif field == "textStatistics":
-            text = response.meta["data"]["text"][:4000]
-            body = {"text": text, "reading_speed": 200, "generate_embeddings": False}
-            result = self.z_api_kidra.text_stats_analyze_text_post(body)
-            result_dict = result.to_dict()
-            classification, reading_time = self.parse_text_statistics(result_dict)
-            return classification, reading_time
-        elif field == "kidraDisciplines":
-            text = response.meta["data"]["text"][:4000]
-            body = {"text": text}
-            result = self.z_api_kidra.predict_subjects_kidra_predict_subjects_post(body)
-            result_dict = result.to_dict()
-            result = self.parse_kidra_disciplines(result_dict, score_threshold=0.3)
-            return result
-        else:
-            ai_prompt_itemloader = AiPromptItemLoader()
-            ai_prompt_itemloader.add_value("field_name", field)
-            prompt = self.prompts[field] % {"text": response.meta["data"]["text"][:4000]}
-            # ToDo: figure out a reasonable cutoff-length
-            # (prompts which are too long get thrown out by the AI services)
-            ai_prompt_itemloader.add_value("ai_prompt", prompt)
+    def zapi_get_curriculum(self, text: str) -> list[str]:
+        result = self.z_api_kidra.topics_flat_topics_flat_post({"text": text})
+        n_topics = 3
+        topics = result.topics[:n_topics]
+        topic_names = [topic.uri for topic in topics]
+        return topic_names
+    
+    def zapi_get_statistics(self, text: str) -> tuple[str, float]:
+        params = {"text": text, "reading_speed": 200, "generate_embeddings": False}
+        result = self.z_api_kidra.text_stats_analyze_text_post(params)
+        return result.classification, round(result.reading_time, 2)
+    
+    def zapi_get_disciplines(self, text: str) -> list[str]:
+        result = self.z_api_kidra.predict_subjects_kidra_predict_subjects_post({"text": text})
 
-            result = self.z_api_text.prompt(body=prompt)
-            result = result.responses[0].strip()
-            ai_prompt_itemloader.add_value("ai_response_raw", result)
-            # ToDo: error-handling when there is no valid response that we could return as a result
+        min_score = 0.3
+        uri_discipline = 'http://w3id.org/openeduhub/vocabs/discipline/'
+        discipline_names = [uri_discipline + d.id for d in result.disciplines if d.score > min_score]
 
-            # fix utf-8 chars
-            # result = codecs.decode(result, 'unicode-escape')
-            # data['text'] = data['text'].encode().decode('unicode-escape').encode('latin1').decode('utf-8')
-            if split:
-                result = list(map(lambda x: x.strip(), re.split(r"[,|\n]", result)))
-                # ToDo: fix 'split'-parameter:
-                #  - keyword-strings need to be split up in a cleaner way, this approach isn't precise enough for Serlo URLs
-            ai_prompt_itemloader.add_value("ai_response", result)
-            base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
-            return result
+        return discipline_names
+
+    def resolve_z_api(self, field: str, text: str, base_itemloader: BaseItemLoader, split=False):
+        ai_prompt_itemloader = AiPromptItemLoader()
+        ai_prompt_itemloader.add_value("field_name", field)
+        prompt = self.prompts[field] % {"text": text}
+        # ToDo: figure out a reasonable cutoff-length
+        # (prompts which are too long get thrown out by the AI services)
+        ai_prompt_itemloader.add_value("ai_prompt", prompt)
+
+        result = self.z_api_text.prompt(body=prompt)
+        result = result.responses[0].strip()
+        ai_prompt_itemloader.add_value("ai_response_raw", result)
+        # ToDo: error-handling when there is no valid response that we could return as a result
+
+        # fix utf-8 chars
+        # result = codecs.decode(result, 'unicode-escape')
+        # data['text'] = data['text'].encode().decode('unicode-escape').encode('latin1').decode('utf-8')
+        if split:
+            result = list(map(lambda x: x.strip(), re.split(r"[,|\n]", result)))
+            # ToDo: fix 'split'-parameter:
+            #  - keyword-strings need to be split up in a cleaner way, this approach isn't precise enough for Serlo URLs
+        ai_prompt_itemloader.add_value("ai_response", result)
+        base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
+        return result
 
     def modify_base_item(self, base_loader):
         title = self.results_dict['title']
@@ -508,28 +505,6 @@ class GenericSpider(Spider, LrmiBase):
         base_loader.load_item()['kidra_raw']['curriculum'] = curriculum
 
         return base_loader
-
-    def parse_topics(self, topics_result, n_topics = 3):
-        topics = topics_result["topics"][:n_topics]
-        topic_names = [topic['uri'] for topic in topics]
-        return topic_names
-
-    def parse_text_statistics(self, statistics_result):
-        classification = statistics_result["classification"]
-        reading_time = statistics_result["reading_time"]
-        reading_time = "{:.2f}".format( reading_time )
-        return classification, float(reading_time)
-
-    def parse_kidra_disciplines(self, disciplines_result, score_threshold=0.6):
-        uri_discipline = 'http://w3id.org/openeduhub/vocabs/discipline/'
-        disciplines = disciplines_result["disciplines"]
-        discipline_names = []
-        for discipline in disciplines:
-            score = discipline['score']
-            if score > score_threshold:
-                discipline_names.append( uri_discipline+discipline['id'] )
-
-        return discipline_names
 
 # class RunThread(threading.Thread):
 #     def __init__(self, func, args, kwargs):
