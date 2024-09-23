@@ -169,14 +169,6 @@ class GenericSpider(Spider, LrmiBase):
             log.info("Adding URL to start_urls: %s", row.url)
             self.start_urls.append(row.url)
 
-    def start_requests(self):
-        url_from_dot_env = env.get(key="GENERIC_SPIDER_URL_TARGET", allow_null=True, default=None)
-        if url_from_dot_env:
-            log.info("Recognized URL to crawl from '.env'-Setting 'GENERIC_SPIDER_URL_TARGET': %s", url_from_dot_env)
-            yield Request(url_from_dot_env, callback=self.parse)
-        for url in self.start_urls:
-            yield Request(url, callback=self.parse)
-
     def getId(self, response=None) -> str:
         """Return a stable identifier (URI) of the crawled item"""
         return response.url
