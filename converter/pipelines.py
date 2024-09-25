@@ -1103,7 +1103,7 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         if "title" in item["lom"]["general"]:
             title = str(item["lom"]["general"]["title"])
         entryUUID = EduSharing.build_uuid(item["response"]["url"] if "url" in item["response"] else item["hash"])
-        await self.insert_item(spider, entryUUID, item)
+        self.insert_item(spider, entryUUID, item)
         log.info("item " + entryUUID + " inserted/updated")
 
         # @TODO: We may need to handle Collections

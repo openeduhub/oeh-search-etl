@@ -1,15 +1,12 @@
-import asyncio
 import base64
 import json
 import logging
 import pprint
 import time
 import uuid
-from asyncio import Semaphore
 from enum import Enum
 from typing import List, Optional
 
-import httpx
 import requests
 import vobject
 from requests.auth import HTTPBasicAuth
@@ -113,8 +110,8 @@ class EduSharing:
     nodeApi: NODEV1Api
     groupCache: List[str]
     enabled: bool
-    _client_async = httpx.AsyncClient()
-    _sem: Semaphore = asyncio.Semaphore(25)
+    r_session: requests.Session = requests.Session()
+    # see: https://requests.readthedocs.io/en/latest/user/advanced/#session-objects
 
     def __init__(self):
         cookie_threshold = env.get("EDU_SHARING_COOKIE_REBUILD_THRESHOLD", True)
@@ -167,16 +164,14 @@ class EduSharing:
             raise e
         return response["node"]
 
-    async def set_node_text(self, uuid, item) -> bool:
+    def set_node_text(self, uuid, item) -> bool:
         if "fulltext" in item:
-            response = await self._client_async.post(
-                get_project_settings().get("EDU_SHARING_BASE_URL")
-                + "rest/node/v1/nodes/-home-/"
-                + uuid
-                + "/textContent?mimetype=text/plain",
-                headers=self.get_headers("multipart/form-data"),
+            response = self.r_session.post(
+                url=f"{get_project_settings().get("EDU_SHARING_BASE_URL")}"
+                    f"rest/node/v1/nodes/-home-/{uuid}"
+                    "/textContent?mimetype=text/plain",
                 data=item["fulltext"].encode("utf-8"),
-                timeout=None,
+                headers=self.get_headers("multipart/form-data"),
             )
             return response.status_code == 200
         # does currently not store data
@@ -200,44 +195,36 @@ class EduSharing:
         except ApiException as e:
             return False
 
-    async def set_node_binary_data(self, uuid, item) -> bool:
+    def set_node_binary_data(self, uuid, item) -> bool:
         if "binary" in item:
             log.info(
-                get_project_settings().get("EDU_SHARING_BASE_URL")
-                + "rest/node/v1/nodes/-home-/"
-                + uuid
-                + "/content?mimetype="
-                + item["lom"]["technical"]["format"]
+                f"{get_project_settings().get("EDU_SHARING_BASE_URL")}"
+                f"rest/node/v1/nodes/-home-/{uuid}"
+                f"/content?mimetype={item["lom"]["technical"]["format"]}"
             )
             files = {"file": item["binary"]}
-            response = await self._client_async.post(
-                get_project_settings().get("EDU_SHARING_BASE_URL")
-                + "rest/node/v1/nodes/-home-/"
-                + uuid
-                + "/content?mimetype="
-                + item["lom"]["technical"]["format"],
+            response = self.r_session.post(
+                url=f"{get_project_settings().get("EDU_SHARING_BASE_URL")}"
+                    f"rest/node/v1/nodes/-home-/{uuid}"
+                    f"/content?mimetype={item['lom']['technical']['format']}",
                 headers=self.get_headers(None),
                 files=files,
-                timeout=None,
             )
             return response.status_code == 200
         else:
             return False
 
-    async def set_node_preview(self, uuid, item) -> bool:
+    def set_node_preview(self, uuid, item) -> bool:
         if "thumbnail" in item:
             key = "large" if "large" in item["thumbnail"] else "small" if "small" in item["thumbnail"] else None
             if key:
                 files = {"image": base64.b64decode(item["thumbnail"][key])}
-                response = await self._client_async.post(
-                    get_project_settings().get("EDU_SHARING_BASE_URL")
-                    + "rest/node/v1/nodes/-home-/"
-                    + uuid
-                    + "/preview?mimetype="
-                    + item["thumbnail"]["mimetype"],
+                response = self.r_session.post(
+                    url=f"{get_project_settings().get("EDU_SHARING_BASE_URL")}"
+                        f"rest/node/v1/nodes/-home-/{uuid}"
+                        f"/preview?mimetype={item["thumbnail"]["mimetype"]}",
                     headers=self.get_headers(None),
                     files=files,
-                    timeout=None,
                 )
                 return response.status_code == 200
         else:
@@ -753,46 +740,47 @@ class EduSharing:
                 )
                 log.error(item["permissions"])
 
-    async def insert_item(self, spider, uuid, item):
-        async with self._sem:
-            # inserting items is controlled with a Semaphore, otherwise we'd get PoolTimeout Exceptions when there's a
-            # temporary burst of items that need to be inserted
-            node = self.sync_node(spider, "ccm:io", self.transform_item(uuid, spider, item))
-            self.set_node_permissions(node["ref"]["id"], item)
-            await self.set_node_preview(node["ref"]["id"], item)
-            if not await self.set_node_binary_data(node["ref"]["id"], item):
-                await self.set_node_text(node["ref"]["id"], item)
+    def insert_item(self, spider, uuid, item):
+        node = self.sync_node(spider, "ccm:io", self.transform_item(uuid, spider, item))
+        self.set_node_permissions(node["ref"]["id"], item)
+        self.set_node_preview(node["ref"]["id"], item)
+        if not self.set_node_binary_data(node["ref"]["id"], item):
+            self.set_node_text(node["ref"]["id"], item)
 
-    async def update_item(self, spider, uuid, item):
-        await self.insert_item(spider, uuid, item)
+    def update_item(self, spider, uuid, item):
+        self.insert_item(spider, uuid, item)
 
     @staticmethod
     def init_cookie():
-        log.debug("Init edu sharing cookie...")
+        log.debug("Init edu-sharing cookie...")
         settings = get_project_settings()
         auth = requests.get(
-            settings.get("EDU_SHARING_BASE_URL") + "rest/authentication/v1/validateSession",
+            url=f"{settings.get("EDU_SHARING_BASE_URL")}rest/authentication/v1/validateSession",
             auth=HTTPBasicAuth(
-                settings.get("EDU_SHARING_USERNAME"),
-                settings.get("EDU_SHARING_PASSWORD"),
+                username=f"{settings.get("EDU_SHARING_USERNAME")}",
+                password=f"{settings.get("EDU_SHARING_PASSWORD")}"
             ),
             headers={"Accept": "application/json"},
         )
-        isAdmin = json.loads(auth.text)["isAdmin"]
-        log.info("Got edu sharing cookie, admin status: " + str(isAdmin))
-        if isAdmin:
+        is_admin = json.loads(auth.text)["isAdmin"]
+        log.info(f"Got edu-sharing cookie, admin status: {is_admin}")
+        if is_admin:
+            # --- setting cookies for the (openAPI generated) API client:
             cookies = []
             for cookie in auth.headers["SET-COOKIE"].split(","):
                 cookies.append(cookie.split(";")[0])
             EduSharing.cookie = ";".join(cookies)
+            # --- setting cookies for the requests.Session object:
+            cookie_dict: dict = requests.utils.dict_from_cookiejar(auth.cookies)
+            EduSharing.r_session.cookies.update(cookie_dict)
         return auth
 
     def init_api_client(self):
         if EduSharing.cookie is None:
             settings = get_project_settings()
             auth = self.init_cookie()
-            isAdmin = json.loads(auth.text)["isAdmin"]
-            if isAdmin:
+            is_admin = json.loads(auth.text)["isAdmin"]
+            if is_admin:
                 configuration = Configuration()
                 configuration.host = settings.get("EDU_SHARING_BASE_URL") + "rest"
                 EduSharing.apiClient = ESApiClient(
@@ -849,9 +837,8 @@ class EduSharing:
                     return
             log.warning(auth.text)
             raise Exception(
-                "Could not authentify as admin at edu-sharing. Please check your settings for repository "
-                + settings.get("EDU_SHARING_BASE_URL")
-            )
+                f"Could not authenticate as admin at edu-sharing. Please check your settings for repository "
+                f"{settings.get("EDU_SHARING_BASE_URL")}")
 
     @staticmethod
     def build_uuid(url):
