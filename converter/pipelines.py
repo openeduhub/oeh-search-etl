@@ -939,13 +939,18 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
         db_item = self.find_item(item["sourceId"], spider)
         if db_item:
             if item["hash"] != db_item[1]:
-                log.debug(f"hash has changed, continuing pipelines for item {item['sourceId']}")
+                log.debug(f"EduSharingCheckPipeline: hash has changed. Continuing pipelines for item {item['sourceId']}")
             else:
-                log.debug(f"hash unchanged, skipping item {item['sourceId']}")
-                # self.update(item['sourceId'], spider)
-                # for tests, we update everything for now
-                # activate this later
-                # raise DropItem()
+                if "EDU_SHARING_FORCE_UPDATE" in spider.custom_settings and spider.custom_settings["EDU_SHARING_FORCE_UPDATE"]:
+                    log.debug(f"EduSharingCheckPipeline: hash unchanged for item {item['sourceId']}, "
+                              f"but detected active 'force item update'-setting (resetVersion / forceUpdate). "
+                              f"Continuing pipelines ...")
+                else:
+                    log.debug(f"EduSharingCheckPipeline: hash unchanged, skipping item {item['sourceId']}")
+                    # self.update(item['sourceId'], spider)
+                    # for tests, we update everything for now
+                    # activate this later
+                    # raise DropItem()
         return raw_item
 
 class EduSharingTypeValidationPipeline(BasicPipeline):
