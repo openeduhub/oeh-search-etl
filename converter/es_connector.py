@@ -412,16 +412,19 @@ class EduSharing:
 
         if "technical" in item["lom"]:
             if "duration" in item["lom"]["technical"]:
-                duration = item["lom"]["technical"]["duration"]
+                duration: str | int | None = item["lom"]["technical"]["duration"]
+                # after passing through the pipelines, the duration value should be in seconds
                 try:
-                    # edusharing requires milliseconds
+                    # edu-sharing requires values to be in milliseconds:
                     duration = int(float(duration) * 1000)
+                    # the edu-sharing API expects values to be wrapped in a string,
+                    # otherwise pydantic throws ValidationErrors during POST requests:
+                    duration = str(duration)
                 except ValueError:
                     log.debug(
                         f"The supplied 'technical.duration'-value {duration} could not be converted from "
                         f"seconds to milliseconds. ('cclom:duration' expects ms)"
                     )
-                    pass
                 spaces["cclom:duration"] = duration
             if "format" in item["lom"]["technical"]:
                 spaces["cclom:format"] = item["lom"]["technical"]["format"]

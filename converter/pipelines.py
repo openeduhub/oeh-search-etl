@@ -988,6 +988,15 @@ class EduSharingTypeValidationPipeline(BasicPipeline):
                     keywords: list[str] | set[str] | None = lom_general["keyword"]
                     if keywords and isinstance(keywords, set):
                         lom_general["keyword"] = list(keywords)
+            if "technical" in item_adapter["lom"]:
+                lom_technical: dict = item_adapter["lom"]["technical"]
+                if "duration" in lom_technical:
+                    duration: int | str | None = lom_technical["duration"]
+                    # after already passing through the ConvertTimePipeline,
+                    # the duration value should be an Integer (seconds)
+                    if duration and isinstance(duration, int):
+                        # the edu-sharing API expects values to be wrapped in a string
+                        lom_technical["duration"] = str(duration)
         return item
 
 
