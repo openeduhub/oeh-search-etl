@@ -43,6 +43,9 @@ class LomBase:
             logging.info(
                 f"resetVersion requested, will force update + reset versions for crawler {self.name}"
             )
+            # populate the custom_settings so we can read the value more comfortably
+            # when an item passes through the pipeline
+            self.custom_settings.update({"EDU_SHARING_FORCE_UPDATE": True})
             # EduSharing().deleteAll(self)
             EduSharing.resetVersion = True
             self.forceUpdate = True
