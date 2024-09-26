@@ -265,11 +265,11 @@ class ConvertTimePipeline(BasicPipeline):
         if "lastModified" in item:
             try:
                 item["lastModified"] = float(item["lastModified"])
-            except:
+            except ValueError:
                 try:
                     date = dateutil.parser.parse(item["lastModified"])
                     item["lastModified"] = int(date.timestamp())
-                except:
+                except ValueError:
                     log.warning(
                         "Unable to parse given lastModified date "
                         + item["lastModified"]
@@ -744,25 +744,39 @@ class ProcessThumbnailPipeline(BasicPipeline):
 
                 # this edge-case is necessary for spiders that only need playwright to gather a screenshot,
                 # but don't use playwright within the spider itself
+                lom_technical_location: list[str] | None = item["lom"]["technical"]["location"]
                 target_url: str = item["lom"]["technical"]["location"][0]
 
-                playwright_cookies = None
-                playwright_adblock_enabled = False
-                if spider.custom_settings:
-                    # some spiders might require setting specific cookies to take "clean" website screenshots
-                    # (= without cookie banners or ads).
-                    if "PLAYWRIGHT_COOKIES" in spider.custom_settings:
-                        playwright_cookies = spider.custom_settings.get("PLAYWRIGHT_COOKIES")
-                    if "PLAYWRIGHT_ADBLOCKER" in spider.custom_settings:
-                        playwright_adblock_enabled: bool = spider.custom_settings["PLAYWRIGHT_ADBLOCKER"]
-
-                playwright_dict = await WebTools.getUrlData(url=target_url,
-                                                            engine=WebEngine.Playwright,
-                                                            cookies=playwright_cookies,
-                                                            adblock=playwright_adblock_enabled)
-                screenshot_bytes = playwright_dict.get("screenshot_bytes")
-                img = Image.open(BytesIO(screenshot_bytes))
-                self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
+                playwright_dict = await self.take_website_screenshot_with_playwright(
+                    spider=spider,
+                    target_url=target_url)
+                try:
+                    screenshot_bytes: bytes | None = playwright_dict.get("screenshot_bytes")
+                except AttributeError:
+                    screenshot_bytes = None
+                    log.debug(f"Failed fallback #1: taking a website-screenshot of URL "
+                              f"{target_url} wasn't possible!")
+                    if lom_technical_location and isinstance(lom_technical_location, list) and len(
+                            lom_technical_location) >= 2:
+                        # this edge-case might happen during crawls of items with multiple URLs:
+                        # the first URL might be a direct-link to an audio/video file (example: podcast episode as .mp3)
+                        # while the second URL might point towards the webpage of said podcast episode
+                        target_url_2nd: str = lom_technical_location[1]
+                        if target_url_2nd and isinstance(target_url_2nd, str):
+                            log.debug(f"Second URL in LOM Technical Location detected. "
+                                      f"Trying to take a website-screenshot of {lom_technical_location[1]} (fallback #2)...")
+                            playwright_dict = await self.take_website_screenshot_with_playwright(
+                                spider=spider,
+                                target_url=target_url_2nd)
+                            try:
+                                screenshot_bytes: bytes | None = playwright_dict.get("screenshot_bytes")
+                            except AttributeError:
+                                screenshot_bytes = None
+                                log.warning(f"Failed fallback #2: taking a website-screenshot of URL "
+                                            f"{target_url_2nd} wasn't possible!")
+                if screenshot_bytes:
+                    img = Image.open(BytesIO(screenshot_bytes))
+                    self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
             else:
                 if settings_crawler.get("DISABLE_SPLASH") is False:
                     log.warning(
@@ -831,6 +845,22 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         "No thumbnail provided or resource was unavailable for fetching"
                     )
         return raw_item
+
+    async def take_website_screenshot_with_playwright(self, spider: scrapy.Spider, target_url: str):
+        playwright_cookies = None
+        playwright_adblock_enabled = False
+        if spider.custom_settings:
+            # some spiders might require setting specific cookies to take "clean" website screenshots
+            # (= without cookie banners or ads).
+            if "PLAYWRIGHT_COOKIES" in spider.custom_settings:
+                playwright_cookies = spider.custom_settings.get("PLAYWRIGHT_COOKIES")
+            if "PLAYWRIGHT_ADBLOCKER" in spider.custom_settings:
+                playwright_adblock_enabled: bool = spider.custom_settings["PLAYWRIGHT_ADBLOCKER"]
+        playwright_dict = await WebTools.getUrlData(url=target_url,
+                                                    engine=WebEngine.Playwright,
+                                                    cookies=playwright_cookies,
+                                                    adblock=playwright_adblock_enabled)
+        return playwright_dict
 
     @alru_cache(maxsize=128)
     async def download_thumbnail_url(self, url: str, spider: scrapy.Spider):
