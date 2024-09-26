@@ -989,6 +989,10 @@ class EduSharingTypeValidationPipeline(BasicPipeline):
                             lom_educational["typicalAgeRange"]["toRange"] = str(to_range)
             if "general" in item_adapter["lom"]:
                 lom_general: dict = item_adapter["lom"]["general"]
+                if "aggregationLevel" in lom_general:
+                    aggregation_level: int | str | None = lom_general["aggregationLevel"]
+                    if aggregation_level and isinstance(aggregation_level, int):
+                        lom_general["aggregationLevel"] = str(aggregation_level)
                 if "keyword" in lom_general:
                     keywords: list[str] | set[str] | None = lom_general["keyword"]
                     if keywords and isinstance(keywords, set):
