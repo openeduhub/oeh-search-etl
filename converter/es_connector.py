@@ -132,16 +132,16 @@ class EduSharing:
         return header_dict
 
     def sync_node(self, spider, type, properties):
-        groupBy = []
+        group_by = []
         if "ccm:replicationsourceorigin" in properties:
-            groupBy = ["ccm:replicationsourceorigin"]
+            group_by = ["ccm:replicationsourceorigin"]
         try:
             response = EduSharing.bulkApi.sync(
                 request_body=properties,
                 match=["ccm:replicationsource", "ccm:replicationsourceid"],
                 type=type,
                 group=spider.name,
-                group_by=groupBy,
+                group_by=group_by,
                 reset_version=EduSharing.resetVersion,
             )
         except ApiException as e:
@@ -192,7 +192,7 @@ class EduSharing:
                 send_copy=False,
             )
             return True
-        except ApiException as e:
+        except ApiException:
             return False
 
     def set_node_binary_data(self, uuid, item) -> bool:
@@ -416,7 +416,7 @@ class EduSharing:
                 try:
                     # edusharing requires milliseconds
                     duration = int(float(duration) * 1000)
-                except:
+                except ValueError:
                     log.debug(
                         f"The supplied 'technical.duration'-value {duration} could not be converted from "
                         f"seconds to milliseconds. ('cclom:duration' expects ms)"
@@ -444,8 +444,8 @@ class EduSharing:
                     continue
                 mapping = EduSharingConstants.LIFECYCLE_ROLES_MAPPING[person["role"].lower()]
                 # convert to a vcard string
-                firstName = person["firstName"] if "firstName" in person else ""
-                lastName = person["lastName"] if "lastName" in person else ""
+                first_name = person["firstName"] if "firstName" in person else ""
+                last_name = person["lastName"] if "lastName" in person else ""
                 title: str = person["title"] if "title" in person else ""
                 organization = person["organization"] if "organization" in person else ""
                 url = person["url"] if "url" in person else ""
@@ -463,8 +463,8 @@ class EduSharing:
                 address_type: str = person["address_type"] if "address_type" in person else ""
                 # create the vCard object first, then add attributes on-demand / if available
                 vcard = vobject.vCard()
-                vcard.add("n").value = vobject.vcard.Name(family=lastName, given=firstName)
-                vcard.add("fn").value = organization if organization else (firstName + " " + lastName).strip()
+                vcard.add("n").value = vobject.vcard.Name(family=last_name, given=first_name)
+                vcard.add("fn").value = organization if organization else (first_name + " " + last_name).strip()
                 # only the "fn"-attribute is required to serialize the vCard. (all other properties are optional)
                 if address_city or address_country or address_postal_code or address_region or address_street:
                     # The vCard v3 "ADR" property is used for physical addresses
@@ -530,7 +530,7 @@ class EduSharing:
                 else:
                     spaces[mapping] = [vcard.serialize(lineLength=10000)]
 
-        valuespaceMapping = {
+        valuespace_mapping = {
             "accessibilitySummary": "ccm:accessibilitySummary",
             "conditionsOfAccess": "ccm:conditionsOfAccess",
             "containsAdvertisement": "ccm:containsAdvertisement",
@@ -549,11 +549,11 @@ class EduSharing:
             "toolCategory": "ccm:toolCategory",
         }
         for key in item["valuespaces"]:
-            spaces[valuespaceMapping[key]] = item["valuespaces"][key]
+            spaces[valuespace_mapping[key]] = item["valuespaces"][key]
         # add raw values if the api supports it
         if EduSharing.version["major"] >= 1 and EduSharing.version["minor"] >= 1:
             for key in item["valuespaces_raw"]:
-                splitted = valuespaceMapping[key].split(":")
+                splitted = valuespace_mapping[key].split(":")
                 splitted[0] = "virtual"
                 spaces[":".join(splitted)] = item["valuespaces_raw"][key]
 
@@ -611,11 +611,11 @@ class EduSharing:
                 pass
             pass
 
-        mdsId = env.get("EDU_SHARING_METADATASET", allow_null=True, default="mds_oeh")
-        if mdsId != "default":
-            spaces["cm:edu_metadataset"] = mdsId
+        mds_id = env.get("EDU_SHARING_METADATASET", allow_null=True, default="mds_oeh")
+        if mds_id != "default":
+            spaces["cm:edu_metadataset"] = mds_id
             spaces["cm:edu_forcemetadataset"] = "true"
-            log.debug("Using metadataset " + mdsId)
+            log.debug("Using metadataset " + mds_id)
         else:
             log.debug("Using default metadataset")
 
@@ -643,7 +643,7 @@ class EduSharing:
                 log.info("Group " + uuid + " was found in edu-sharing (cache inconsistency), no need to create")
                 EduSharing.groupCache.append(uuid)
                 continue
-            except ApiException as e:
+            except ApiException:
                 log.info("Group " + uuid + " was not found in edu-sharing, creating it")
                 pass
 
@@ -691,14 +691,14 @@ class EduSharing:
                 # if not 'groups' in item['permissions'] and not 'mediacenters' in item['permissions']:
                 #    log.error('Invalid state detected: Permissions public is set to false but neither groups or mediacenters are set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!')
                 #    return
-                mergedGroups = []
+                merged_groups = []
                 if "groups" in item["permissions"]:
                     if "autoCreateGroups" in item["permissions"] and item["permissions"]["autoCreateGroups"] is True:
                         self.create_groups_if_not_exists(
                             item["permissions"]["groups"],
                             EduSharing.CreateGroupType.Regular,
                         )
-                    mergedGroups += list(
+                    merged_groups += list(
                         map(
                             lambda x: EduSharingConstants.GROUP_PREFIX + x,
                             item["permissions"]["groups"],
@@ -713,7 +713,7 @@ class EduSharing:
                             item["permissions"]["mediacenters"],
                             EduSharing.CreateGroupType.MediaCenter,
                         )
-                    mergedGroups += list(
+                    merged_groups += list(
                         map(
                             lambda x: EduSharingConstants.GROUP_PREFIX
                             + EduSharingConstants.MEDIACENTER_PROXY_PREFIX
@@ -721,7 +721,7 @@ class EduSharing:
                             item["permissions"]["mediacenters"],
                         )
                     )
-                for group in mergedGroups:
+                for group in merged_groups:
                     permissions["permissions"].append(
                         {
                             "authority": {
