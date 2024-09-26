@@ -960,6 +960,11 @@ class EduSharingTypeValidationPipeline(BasicPipeline):
     # ToDo: if you notice pydantic "ValidationError"s during crawls, implement handling of those edge-cases here!
     def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
         item_adapter = ItemAdapter(item)
+        if "hash" in item_adapter:
+            hash_value: int | str | None = item_adapter["hash"]
+            if hash_value and isinstance(hash_value, int):
+                # old crawlers might have returned hash values as integers, but the API expects a string
+                item_adapter["hash"] = str(hash_value)
         if "course" in item_adapter:
             course_item: dict = item_adapter["course"]
             if "course_duration" in course_item:
