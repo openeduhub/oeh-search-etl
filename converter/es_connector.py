@@ -334,7 +334,12 @@ class EduSharing:
                     )
         if "internal" in license:
             match license["internal"]:
-                case "CC_0" | "CC_BY" | "CC_BY_NC" | "CC_BY_NC_ND" | "CC_BY_NC_SA" | "CC_BY_ND" | "CC_BY_SA" | "PDM" | Constants.LICENSE_COPYRIGHT_FREE | Constants.LICENSE_COPYRIGHT_LAW | Constants.LICENSE_SCHULFUNK | Constants.LICENSE_UNTERRICHTS_UND_SCHULMEDIEN:
+                case ("CC_0" | "CC_BY" | "CC_BY_NC" | "CC_BY_NC_ND" | "CC_BY_NC_SA" | "CC_BY_ND" | "CC_BY_SA" | "PDM" |
+                      Constants.LICENSE_COPYRIGHT_FREE |
+                      Constants.LICENSE_COPYRIGHT_LAW |
+                      Constants.LICENSE_SCHULFUNK |
+                      Constants.LICENSE_UNTERRICHTS_UND_SCHULMEDIEN |
+                      Constants.LICENSE_NONPUBLIC):
                     spaces["ccm:commonlicense_key"] = license["internal"]
                 case Constants.LICENSE_CUSTOM:
                     spaces["ccm:commonlicense_key"] = "CUSTOM"
@@ -412,16 +417,19 @@ class EduSharing:
 
         if "technical" in item["lom"]:
             if "duration" in item["lom"]["technical"]:
-                duration = item["lom"]["technical"]["duration"]
+                duration: str | int | None = item["lom"]["technical"]["duration"]
+                # after passing through the pipelines, the duration value should be in seconds
                 try:
-                    # edusharing requires milliseconds
+                    # edu-sharing requires values to be in milliseconds:
                     duration = int(float(duration) * 1000)
+                    # the edu-sharing API expects values to be wrapped in a string,
+                    # otherwise pydantic throws ValidationErrors during POST requests:
+                    duration = str(duration)
                 except ValueError:
                     log.debug(
                         f"The supplied 'technical.duration'-value {duration} could not be converted from "
                         f"seconds to milliseconds. ('cclom:duration' expects ms)"
                     )
-                    pass
                 spaces["cclom:duration"] = duration
             if "format" in item["lom"]["technical"]:
                 spaces["cclom:format"] = item["lom"]["technical"]["format"]
