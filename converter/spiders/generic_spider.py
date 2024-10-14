@@ -6,11 +6,16 @@ import logging
 import os
 import re
 import sqlite3
+from typing import Optional, cast
 
 import scrapy.http
+import scrapy.signals
 import trafilatura  # type: ignore
 from bs4 import BeautifulSoup
-from scrapy.spiders import Rule, Spider
+from scrapy.http.response import Response
+from scrapy.http.response.text import TextResponse
+from scrapy.spiders import Spider
+from scrapy.spiders.crawl import Rule
 
 import z_api
 from converter.util.sitemap import find_generate_sitemap
@@ -30,49 +35,14 @@ from .base_classes import LrmiBase
 
 log = logging.getLogger(__name__)
 
+
 class GenericSpider(Spider, LrmiBase):
     name = "generic_spider"
     friendlyName = "generic_spider"  # name as shown in the search ui
     version = "0.1.4"
-    start_urls = [
-        # "https://www.planet-schule.de/schwerpunkt/total-phaenomenal-energie/sonnenenergie-film-100.html",  # the original Hackathon example URL
-        # "https://de.serlo.org/informatik/158541/definitionen-von-%E2%80%9Ebig-data%E2%80%9C",
-        # "https://de.serlo.org/mathe/62630/aufgaben-zum-volumen-eines-quaders",
-        # "https://www.planet-schule.de/schwerpunkt/dichter-dran/fontane-film-100.html",
-        # "https://www.planet-schule.de/thema/fridays-for-future-was-steckt-hinter-den-klima-streiks-film-100.html",
-        # "https://www.dilertube.de/englisch/oer-video/algeria-in-a-nutshell.html",
-        # "https://www.dilertube.de/alltagskultur-ernaehrung-soziales-aes/oer-video/erklaerfilm-medikamente-richtig-entsorgen.html",
-        # "https://www.umwelt-im-unterricht.de/unterrichtsvorschlaege/der-mensch-hauptursache-fuer-den-rueckgang-der-biologischen-vielfalt",
-        # "https://www.umwelt-im-unterricht.de/hintergrund/die-endlagerung-hochradioaktiver-abfaelle",
-        # "https://editor.mnweg.org/mnw/sammlung/das-menschliche-skelett-m-78",
-        # "https://editor.mnweg.org/mnw/sammlung/bruchrechnen-m-10",
-        # "https://www.bpb.de/themen/migration-integration/laenderprofile/277555/afghanistan-geschichte-politik-gesellschaft/",
-        # "https://www.bpb.de/themen/kolonialismus-imperialismus/postkolonialismus-und-globalgeschichte/236617/kolonialismus-und-postkolonialismus-schluesselbegriffe-der-aktuellen-debatte/",
-        # "https://www.geschichtsquellen.de/werk/3402",
-        # "https://www.geschichtsquellen.de/werk/4799",
-        # "https://www.weltderphysik.de/gebiet/teilchen/quanteneffekte/",
-        # "https://www.weltderphysik.de/mediathek/podcast/geothermie/",
-        # "https://histomania.com/app/Saralee_Thungthongkam_W468573",
-        # "https://histomania.com/app/Anna_Maria_von_Anhalt_W527486",
-        # "https://medienportal.siemens-stiftung.org/de/design-thinking#examples",
-        # "https://medienportal.siemens-stiftung.org/portal/main.php?todo=metadata_search&searcharea=portal&crits%5Bmedialang%5D=de&options%5BsearchAndOr%5D=1&crits%5Bfree%5D=Bl%C3%A4tterwald&crits%5Bmedialang%5D=de&options%5Bsort%5D=mediatype%2Ctimepublish+DESC",
-        # "https://medienportal.siemens-stiftung.org/de/service-learning-in-den-mint-faechern-109145",
-        # "https://apps.zum.de/apps/25726",
-        # "https://apps.zum.de/apps/25532",
-        # "https://www.inf-schule.de/datenbanksysteme/terra/relationaledb/konzept_tabelle",
-        # "https://www.inf-schule.de/rechner/bonsai/murmelrechner/universellermurmelrechner",
-        # "https://weltverbessern-lernen.de/materialupload/dirk-ehnts-modern-monetary-theory-erklaert/",
-        # "https://weltverbessern-lernen.de/materialupload/mehr-oder-weniger-wachstumskritik-von-links/",
-        # "https://weltverbessern-lernen.de/materialupload/5707/",
-        # "https://lernen.schule.de/das-notensystem/",
-        # "https://lernen.schule.de/das-menschliche-skelett/",
-        # "https://www.schulebewegt.ch/de/aufgaben/Streckung",
-        # "https://www.schulebewegt.ch/de/aufgaben/Hampelmann",
-    ]
-    rules = [
-        Rule(callback="parse"),
-    ]
-    custom_settings = {"WEB_TOOLS": WebEngine.Playwright, "ROBOTSTXT_OBEY": False}
+    start_urls = []
+    rules = [Rule(callback="parse")]
+    custom_settings = { "WEB_TOOLS": WebEngine.Playwright, "ROBOTSTXT_OBEY": False }
 
     clean_tags = ["nav", "header", "footer"]
     prompts = {
@@ -88,12 +58,9 @@ class GenericSpider(Spider, LrmiBase):
     z_api_text: z_api.AITextPromptsApi
     z_api_kidra: z_api.KidraApi
 
-    def __init__(self, urltocrawl="", validated_result="", ai_enabled="True", find_sitemap="False", max_urls="3", filter_set_id="", **kwargs):
+    def __init__(self, urltocrawl="", validated_result="", ai_enabled="True", find_sitemap="False",
+                 max_urls="3", filter_set_id="", **kwargs):
         super().__init__(**kwargs)
-
-        # self.validated_result = validated_result
-        # validated_result = '{"curriculum":["http://w3id.org/openeduhub/vocabs/oeh-topics/66e5911e-ba75-4521-adb6-cbe24569500b"], "url": "https://blog.bitsrc.io/how-to-store-data-on-the-browser-with-javascript-9c57fc0f91b0", "title": "Test 2 How to Store Data in the Browser with JavaScript | Bits and Pieces", "description": "Test How to store data with localStorage and sessionStorage. The benefits of each, and when you should use one instead of the other", "keywords": ["Test JavaScript"], "disciplines": ["http://w3id.org/openeduhub/vocabs/discipline/320"], "educational_context": ["http://w3id.org/openeduhub/vocabs/educationalContext/fortbildung"], "license": {"author": ["Pedro Henrique"]}, "new_lrt": ["http://w3id.org/openeduhub/vocabs/new_lrt/1846d876-d8fd-476a-b540-b8ffd713fedb"], "intendedEndUserRole":["http://w3id.org/openeduhub/vocabs/intendedEndUserRole/counsellor"]}'
-        # logging.warning("self.validated_result="+self.validated_result)
 
         if filter_set_id != "":
             self.filter_set_id = int(filter_set_id)
@@ -102,10 +69,11 @@ class GenericSpider(Spider, LrmiBase):
 
         self.results_dict = {}
         if urltocrawl != "":
-            urls = get_urls_from_string(urltocrawl)
+            urls = [url.strip() for url in urltocrawl.split(",")]
             if find_sitemap == "True" and len(urls) == 1:
                 max_sitemap_urls = int(max_urls)
-                sitemap_urls = find_generate_sitemap(urls[0], max_entries=max_sitemap_urls)
+                sitemap_urls = find_generate_sitemap(
+                    urls[0], max_entries=max_sitemap_urls)
                 self.start_urls = sitemap_urls
             else:
                 self.start_urls = urls
@@ -126,34 +94,40 @@ class GenericSpider(Spider, LrmiBase):
         if self.ai_enabled:
             log.info("Starting generic_spider with ai_enabled flag!")
             z_api_config = z_api.Configuration.get_default_copy()
-            z_api_config.api_key = {"ai-prompt-token": env.get("Z_API_KEY", False)}
+            z_api_config.api_key = {
+                "ai-prompt-token": env.get("Z_API_KEY", False)}
             z_api_client = z_api.ApiClient(configuration=z_api_config)
             self.z_api_text = z_api.AITextPromptsApi(z_api_client)
             self.z_api_kidra = z_api.KidraApi(z_api_client)
         else:
-            log.info("Starting generic_spider with MINIMAL settings. AI Services are DISABLED!")
-            # this optional flag allows us to control if we want to use AI-suggested metadata. We can compare the
-            # items gathered by the "generic_spider_minimal" against the (AI-enabled) "generic_spider"
+            log.info(
+                "Starting generic_spider with MINIMAL settings. AI Services are DISABLED!")
+            # this optional flag allows us to control if we want to use
+            # AI-suggested metadata. We can compare the items gathered
+            # by the "generic_spider_minimal" against the (AI-enabled)
+            # "generic_spider"
             self.name = "generic_spider_minimal"
             self.friendlyName = "generic_spider_minimal"
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = super().from_crawler(crawler, *args, **kwargs)
-        crawler.signals.connect(spider.spider_opened, signal=scrapy.signals.spider_opened)  # pylint: disable=no-member
+        crawler.signals.connect(
+            spider.spider_opened, signal=scrapy.signals.spider_opened)  # pylint: disable=no-member
         return spider
-    
+
     def spider_opened(self, spider: GenericSpider):
         """ Run when the spider is opened, before the crawl begins.
             Open the database and get the list of URLs to crawl. """
-        
+
         log.info("Opened spider %s", spider.name)
         db_path = self.settings.get('GENERIC_CRAWLER_DB_PATH')
         log.info("Using database at %s", db_path)
         if db_path is not None:
             log.info("File exists? %s", os.path.exists(db_path))
         if db_path is None or not os.path.exists(db_path):
-            log.error("No database set or database not found. Please set GENERIC_CRAWLER_DB_PATH.")
+            log.error(
+                "No database set or database not found. Please set GENERIC_CRAWLER_DB_PATH.")
             return
 
         if not self.filter_set_id:
@@ -169,76 +143,85 @@ class GenericSpider(Spider, LrmiBase):
             log.info("Adding URL to start_urls: %s", row.url)
             self.start_urls.append(row.url)
 
-    def getId(self, response=None) -> str:
+    def getId(self, response: Optional[Response] = None) -> str:
         """Return a stable identifier (URI) of the crawled item"""
+        assert response
         return response.url
 
-    def getHash(self, response=None) -> str:
+    def getHash(self, response: Optional[Response] = None) -> str:
         """
         Return a stable hash to detect content changes (for future crawls).
         """
         return f"{datetime.datetime.now().isoformat()}v{self.version}"
 
-    async def parse(self, response: scrapy.http.Response, **kwargs):
+    async def parse(self, response: Response):
         if not self.hasChanged(response):
             return
 
-        # data_playwright = run_async(WebTools.fetchDataPlaywright, response.url)
-        # this is playwrite_dict with 'content', 'screenshot_bytes' and so on
-        
-
         url_data = await WebTools.getUrlData(response.url, engine=WebEngine.Playwright)
+        if not url_data:
+            log.warning("Playwright failed to fetch data for %s", response.url)
+            return
 
-        # data_playwright = asyncio.run(WebTools.fetchDataPlaywright(response.url))
         response = response.copy()
-        assert isinstance(response, scrapy.http.TextResponse)
+        assert isinstance(response, TextResponse)
 
-        # ToDo: validate "trafilatura"-fulltext-extraction from playwright (compared to the html2text approach)
-        # if data_playwright is None:
-        #     log.warning("Playwright failed to fetch data for %s", response.url)
-        #     data_playwright = {"content": ""}
-        playwright_text: str = url_data["html"]
+        # ToDo: validate "trafilatura"-fulltext-extraction from playwright
+        # (compared to the html2text approach)
+        playwright_text: str = url_data["html"] or ""
         playwright_bytes: bytes = playwright_text.encode()
-        # trafilatura_text = trafilatura.extract(playwright_text)
         trafilatura_text = url_data["text"]
         log.info("trafilatura_text: %s", trafilatura_text)
         # ToDo: implement text extraction .env toggle: default / advanced / basic?
         #  - default: use trafilatura by default?
-        #  - advanced: which trafilatura parameters could be used to improve text extraction for "weird" results?
+        #  - advanced: which trafilatura parameters could be used to improve text extraction for
+        #    "weird" results?
         #  - basic: fallback to html2text extraction (explicit .env setting)
         # trafilatura_meta_scrapy = trafilatura.extract_metadata(response.body).as_dict()
-        trafilatura_meta_playwright = trafilatura.extract_metadata(playwright_bytes)
-        parsed_html = BeautifulSoup(url_data["html"], features="lxml")
+        trafilatura_meta_playwright = trafilatura.extract_metadata(
+            playwright_bytes)
+        parsed_html = BeautifulSoup(url_data["html"] or "", features="lxml")
         for tag in self.clean_tags:
-            tags = parsed_html.find_all(tag) if parsed_html.find_all(tag) else []
+            tags = parsed_html.find_all(
+                tag) if parsed_html.find_all(tag) else []
             for t in tags:
                 t.clear()
-        crawler_ignore = parsed_html.find_all(name=None, attrs={"data-crawler": "ignore"})
+        crawler_ignore = parsed_html.find_all(
+            name=None, attrs={"data-crawler": "ignore"})
         for t in crawler_ignore:
             t.clear()
         html = parsed_html.prettify()
-        data = {
+        text_html2text = WebTools.html2Text(html)
+        if trafilatura_meta_playwright:
+            trafilatura_meta = trafilatura_meta_playwright.as_dict()
+        else:
+            trafilatura_meta = {}
+
+        response.meta["data"] = {
             # legacy, do we need these fields?
             "content": url_data["html"],
+            "parsed_html": parsed_html,
+            "text": text_html2text,
+            "trafilatura_text": trafilatura_text,
+            "trafilatura_meta": trafilatura_meta,
         }
-        data["parsed_html"] = parsed_html
-        data["text"] = WebTools.html2Text(html)
-        data["trafilatura_text"] = trafilatura_text
-        if trafilatura_meta_playwright:
-            data["trafilatura_meta"] = trafilatura_meta_playwright.as_dict()
-        response.meta["data"] = data
 
         selector_playwright = scrapy.Selector(text=playwright_text)
-        robot_meta_tags: list[str] = selector_playwright.xpath("//meta[@name='robots']/@content").getall()
-        respect_robot_meta_tags = env.get_bool(key="RESPECT_ROBOT_META_TAGS", allow_null=True, default=True)
+        robot_meta_tags: list[str] = selector_playwright.xpath(
+            "//meta[@name='robots']/@content").getall()
+        respect_robot_meta_tags = env.get_bool(
+            key="RESPECT_ROBOT_META_TAGS", allow_null=True, default=True)
         if robot_meta_tags and respect_robot_meta_tags:
-            # There are 3 Robot Meta Tags (<meta name="robots" content="VALUE">) that we need to respect:
+            # There are 3 Robot Meta Tags (<meta name="robots" content="VALUE">) that we need to
+            # respect:
             # - "noindex"       (= don't index the current URL)
             # - "nofollow"      (= don't follow any links on this site)
             # - "none"          (= shortcut for combined value "noindex, nofollow")
             # by default, we try to respect the webmaster's wish to not be indexed/crawled
             if "noindex" in robot_meta_tags:
-                log.info("Robot Meta Tag 'noindex' identified. Aborting further parsing of item: %s .", response.url)
+                log.info(
+                    "Robot Meta Tag 'noindex' identified. Aborting further parsing of item: %s .",
+                    response.url)
                 return
             if "nofollow" in robot_meta_tags:
                 # ToDo: don't follow any links, but parse the current response
@@ -250,16 +233,20 @@ class GenericSpider(Spider, LrmiBase):
             if "none" in robot_meta_tags:
                 log.info(
                     "Robot Meta Tag 'none' identified (= 'noindex, nofollow'). "
-                    "Aborting further parsing of item: %s itself and any links within it.", response.url
+                    "Aborting further parsing of item: %s itself and any links within it.",
+                    response.url
                 )
                 return
 
         base_loader = BaseItemLoader(selector=selector_playwright)
         base_loader.add_value("sourceId", self.getId(response))
         base_loader.add_value("hash", self.getHash(response))
-        base_loader.add_value("thumbnail", self.getLRMI("thumbnailUrl", response=response))
-        base_loader.add_xpath("thumbnail", '//meta[@property="og:image"]/@content')
-        base_loader.add_xpath("lastModified", '//meta[@name="last-modified"]/@content')
+        base_loader.add_value("thumbnail", self.getLRMI(
+            "thumbnailUrl", response=response))
+        base_loader.add_xpath(
+            "thumbnail", '//meta[@property="og:image"]/@content')
+        base_loader.add_xpath(
+            "lastModified", '//meta[@name="last-modified"]/@content')
 
         # Creating the nested ItemLoaders according to our items.py data model
         lom_loader = LomBaseItemloader()
@@ -275,97 +262,120 @@ class GenericSpider(Spider, LrmiBase):
 
         # ToDo: rework LRMI JSON-LD extraction
         #  - so it can handle websites when there are several JSON-LD containers within a single DOM
-        # ToDo: try to grab as many OpenGraph metadata properties as possible (for reference, see: https://ogp.me)
+        # ToDo: try to grab as many OpenGraph metadata properties as possible (for reference, see:
+        # https://ogp.me)
 
-        #general_loader.add_xpath("title", '//meta[@property="og:title"]/@content')
+        # general_loader.add_xpath("title", '//meta[@property="og:title"]/@content')
         general_loader.add_xpath("title", '//title/text()')
-        # HTML language and locale properties haven proven to be pretty inconsistent, but they might be useful as
-        # fallback values.
-        # ToDo: websites might return languagecodes as 4-char values (e.g. "de-DE") instead of the 2-char value "de"
-        #       -> we will have to detect/clean up languageCodes to edu-sharing's expected 2-char format
-        general_loader.add_value("language", self.getLRMI("inLanguage", response=response))
+        # HTML language and locale properties haven proven to be pretty inconsistent, but they might
+        # be useful as fallback values.
+        # ToDo: websites might return languagecodes as 4-char values (e.g. "de-DE") instead of the
+        # 2-char value "de"
+        # -> we will have to detect/clean up languageCodes to edu-sharing's expected 2-char format
+        general_loader.add_value("language", self.getLRMI(
+            "inLanguage", response=response))
         general_loader.add_xpath("language", "//html/@lang")
-        general_loader.add_xpath("language", '//meta[@property="og:locale"]/@content')
-        general_loader.add_value("description", self.getLRMI("description", "about", response=response))
-        general_loader.add_value("keyword", self.getLRMI("keywords", response=response))
+        general_loader.add_xpath(
+            "language", '//meta[@property="og:locale"]/@content')
+        general_loader.add_value("description", self.getLRMI(
+            "description", "about", response=response))
+        general_loader.add_value(
+            "keyword", self.getLRMI("keywords", response=response))
 
         if self.ai_enabled:
-            excerpt = response.meta["data"]["text"][:4000]
+            excerpt = text_html2text[:4000]
             general_loader.add_value(
-                "description", self.resolve_z_api("description", excerpt, base_itemloader=base_loader)
+                "description", self.resolve_z_api(
+                    "description", excerpt, base_itemloader=base_loader)
             )
-            general_loader.add_value(
-                "keyword", self.resolve_z_api("keyword", excerpt, base_itemloader=base_loader, split=True)
-            )
-            kidra_loader.add_value("curriculum", self.zapi_get_curriculum(excerpt))
+            keyword_str = self.resolve_z_api(
+                "keyword", excerpt, base_itemloader=base_loader)
+            if keyword_str:
+                keywords = [s.strip()
+                            for s in re.split(r"[,|\n]", keyword_str)]
+                # TODO: does it work to pass a list to add_value?
+                general_loader.add_value("keyword", keywords)
+            kidra_loader.add_value(
+                "curriculum", self.zapi_get_curriculum(excerpt))
             classification, reading_time = self.zapi_get_statistics(excerpt)
             kidra_loader.add_value("text_difficulty", classification)
             kidra_loader.add_value("text_reading_time", reading_time)
-            kidra_loader.add_value("kidraDisciplines", self.zapi_get_disciplines(excerpt))
+            kidra_loader.add_value(
+                "kidraDisciplines", self.zapi_get_disciplines(excerpt))
             # ToDo: map/replace the previously set 'language'-value by AI suggestions from Z-API?
 
             # ToDo: keywords will (often) be returned as a list of bullet points by the AI
             #  -> we might have to detect & clean up the string first
         else:
-            if response.meta["data"]:
-                if "trafilatura_meta" in response.meta["data"]:
-                    if "description" in response.meta["data"]["trafilatura_meta"]:
-                        trafilatura_description = response.meta["data"]["trafilatura_meta"]["description"]
-                        general_loader.add_value("description", trafilatura_description)
-                    if "title" in response.meta["data"]["trafilatura_meta"]:
-                        trafilatura_title: str = response.meta["data"]["trafilatura_meta"]["title"]
-                        general_loader.replace_value("title", trafilatura_title)
+            if trafilatura_description := trafilatura_meta.get("description"):
+                general_loader.add_value(
+                    "description", trafilatura_description)
+            if trafilatura_title := trafilatura_meta.get("title"):
+                general_loader.replace_value("title", trafilatura_title)
 
         lom_loader.add_value("general", general_loader.load_item())
 
-        technical_loader.add_value("format", self.getLRMI("fileFormat", response=response))
-        technical_loader.replace_value("format", "text/html")  # ToDo: do we really want to hard-code this?
-        technical_loader.add_value("size", self.getLRMI("ContentSize", response=response))
-        technical_loader.add_value("location", self.getLRMI("url", response=response))
+        technical_loader.add_value(
+            "format", self.getLRMI("fileFormat", response=response))
+        # ToDo: do we really want to hard-code this?
+        technical_loader.replace_value("format", "text/html")
+        technical_loader.add_value("size", self.getLRMI(
+            "ContentSize", response=response))
+        technical_loader.add_value(
+            "location", self.getLRMI("url", response=response))
         technical_loader.add_value("location", response.url)
         technical_loader.replace_value("size", len(response.body))
-        # ToDo: 'size' should probably use the length of our playwright response, not scrapy's response.body
-        technical_loader.add_xpath("location", '//meta[@property="og:url"]/@content')
+        # ToDo: 'size' should probably use the length of our playwright response, not scrapy's
+        # response.body
+        technical_loader.add_xpath(
+            "location", '//meta[@property="og:url"]/@content')
 
-        self.get_lifecycle_author(lom_loader=lom_loader, selector=selector_playwright, response=response)
+        self.get_lifecycle_author(
+            lom_loader=lom_loader, selector=selector_playwright, response=response)
 
-        self.get_lifecycle_publisher(lom_loader=lom_loader, selector=selector_playwright, response=response)
+        self.get_lifecycle_publisher(
+            lom_loader=lom_loader, selector=selector_playwright, response=response)
 
-        # we might be able to extract author/publisher information from typical <meta> or <head> fields in the DOM
+        # we might be able to extract author/publisher information from typical <meta> or <head>
+        # fields in the DOM
         lom_loader.add_value("educational", educational_loader.load_item())
-        lom_loader.add_value("classification", classification_loader.load_item())
+        lom_loader.add_value(
+            "classification", classification_loader.load_item())
         lom_loader.add_value("technical", technical_loader.load_item())
-        # after LomBaseItem is filled with nested metadata, we build the LomBaseItem and add it to our BaseItem:
+        # after LomBaseItem is filled with nested metadata, we build the LomBaseItem and add it to
+        # our BaseItem:
         base_loader.add_value("lom", lom_loader.load_item())
 
         # Todo: does this deal with multiple authors correctly?
         license_loader.add_xpath("author", '//meta[@name="author"]/@content')
         # trafilatura offers a license detection feature as part of its "extract_metadata()"-method
-        if response.meta["data"]:
-            if "trafilatura_meta" in response.meta["data"]:
-                if "license" in response.meta["data"]["trafilatura_meta"]:
-                    trafilatura_license_detected: str = response.meta["data"]["trafilatura_meta"]["license"]
-                    if trafilatura_license_detected:
-                        license_mapper = LicenseMapper()
-                        license_url_mapped = license_mapper.get_license_url(
-                            license_string=trafilatura_license_detected
-                        )
-                        # ToDo: this is a really risky assignment! Validation of trafilatura's license detection
-                        #  will be necessary! (this is a metadata field that needs to be confirmed by a human!)
-                        license_loader.add_value("url", license_url_mapped)
 
-        valuespace_loader.add_value("learningResourceType", self.getLRMI("learningResourceType", response=response))
-        # lrmi_intended_end_user_role = self.getLRMI("audience.educationalRole", response=response)  # ToDo: rework
-        # # attention: serlo URLs will break the getLRMI() Method because JSONBase cannot extract the JSON-LD properly
+        if trafilatura_license_detected := trafilatura_meta.get("license"):
+            license_mapper = LicenseMapper()
+            license_url_mapped = license_mapper.get_license_url(
+                license_string=trafilatura_license_detected
+            )
+            # ToDo: this is a really risky assignment! Validation of trafilatura's license detection
+            #  will be necessary! (this is a metadata field that needs to be confirmed by a human!)
+            license_loader.add_value("url", license_url_mapped)
+
+        valuespace_loader.add_value("learningResourceType", self.getLRMI(
+            "learningResourceType", response=response))
+        # lrmi_intended_end_user_role = self.getLRMI("audience.educationalRole", response=response)
+        # ToDo: rework
+        # # attention: serlo URLs will break the getLRMI() Method because JSONBase cannot extract
+        # the JSON-LD properly
         # # ToDo: maybe use the 'jmespath' Python package to retrieve this value more reliably
         # if lrmi_intended_end_user_role:
         #     valuespace_loader.add_value("intendedEndUserRole", lrmi_intended_end_user_role)
         if self.ai_enabled:
-            excerpt = response.meta["data"]["text"][:4000]
+            excerpt = text_html2text[:4000]
             for v in ["educationalContext", "discipline", "intendedEndUserRole", "new_lrt"]:
-                valuespace_loader.add_value(
-                    v, self.valuespaces.findInText(v, self.resolve_z_api(v, excerpt, base_itemloader=base_loader))
-                )
+                ai_response = self.resolve_z_api(
+                    v, excerpt, base_itemloader=base_loader)
+                if ai_response:
+                    valuespace_loader.add_value(
+                        v, self.valuespaces.findInText(v, ai_response))
             base_loader.add_value("kidra_raw", kidra_loader.load_item())
 
         # loading all nested ItemLoaders into our BaseItemLoader:
@@ -379,42 +389,50 @@ class GenericSpider(Spider, LrmiBase):
         log.info("New URL processed:------------------------------------------")
         log.info(base_loader.load_item())
         log.info("------------------------------------------------------------")
-        # once all scrapy.Items are loaded into our "base", we yield the BaseItem by calling the .load_item() method
+
         yield base_loader.load_item()
 
-    def get_lifecycle_publisher(
-        self, lom_loader: LomBaseItemloader, selector: scrapy.Selector, response: scrapy.http.Response
-    ):
-        meta_publisher = selector.xpath('//meta[@name="publisher"]/@content').get()
+    def get_lifecycle_publisher(self, lom_loader: LomBaseItemloader, selector: scrapy.Selector,
+                                response: Response):
+        meta_publisher = selector.xpath(
+            '//meta[@name="publisher"]/@content').get()
         if meta_publisher:
             lifecycle_publisher_loader = LomLifecycleItemloader()
             lifecycle_publisher_loader.add_value("role", "publisher")
-            lifecycle_publisher_loader.add_value("organization", meta_publisher)
-            self.get_lifecycle_date(lifecycle_loader=lifecycle_publisher_loader, selector=selector, response=response)
+            lifecycle_publisher_loader.add_value(
+                "organization", meta_publisher)
+            self.get_lifecycle_date(
+                lifecycle_loader=lifecycle_publisher_loader, selector=selector, response=response)
 
-            lom_loader.add_value("lifecycle", lifecycle_publisher_loader.load_item())
+            lom_loader.add_value(
+                "lifecycle", lifecycle_publisher_loader.load_item())
 
-    def get_lifecycle_author(
-        self, lom_loader: LomBaseItemloader, selector: scrapy.Selector, response: scrapy.http.Response
-    ):
+    def get_lifecycle_author(self, lom_loader: LomBaseItemloader, selector: scrapy.Selector,
+                             response: Response):
         meta_author = selector.xpath('//meta[@name="author"]/@content').get()
         if meta_author:
             lifecycle_author_loader = LomLifecycleItemloader()
             lifecycle_author_loader.add_value("role", "author")
-            # author strings could be one or several names or organizations. The license loader expects a 'firstName'.
+            # author strings could be one or several names or organizations.
+            # The license loader expects a 'firstName'.
             lifecycle_author_loader.add_value("firstName", meta_author)
             # ToDo: (optional) try determining if names need to be sorted into
-            #  'firstName', 'lastName' or 'organization'-field-values
-            # ToDo: shoving the whole string into 'firstName' is a hacky approach that will cause organizations
-            #  to appear as persons within the "lifecycle"-metadata. fine-tune this approach later.
-            self.get_lifecycle_date(lifecycle_loader=lifecycle_author_loader, selector=selector, response=response)
+            # 'firstName', 'lastName' or 'organization'-field-values
+            # ToDo: shoving the whole string into 'firstName' is a hacky approach that will cause
+            # organizations to appear as persons within the "lifecycle"-metadata. fine-tune this
+            # approach later.
+            self.get_lifecycle_date(
+                lifecycle_loader=lifecycle_author_loader, selector=selector, response=response)
 
-            lom_loader.add_value("lifecycle", lifecycle_author_loader.load_item())
+            lom_loader.add_value(
+                "lifecycle", lifecycle_author_loader.load_item())
 
     @staticmethod
-    def get_lifecycle_date(lifecycle_loader: LomLifecycleItemloader, selector: scrapy.Selector, response):
+    def get_lifecycle_date(lifecycle_loader: LomLifecycleItemloader, selector: scrapy.Selector,
+                           response: Response):
         if "date" in response.meta["data"]["trafilatura_meta"]:
-            # trafilatura's metadata extraction scans for dates within <meta name="date" content"..."> Elements
+            # trafilatura's metadata extraction scans for dates within
+            # <meta name="date" content"..."> Elements
             date = selector.xpath('//meta[@name="date"]/@content').get()
             date_trafilatura: str = response.meta["data"]["trafilatura_meta"]["date"]
             if date_trafilatura:
@@ -423,27 +441,39 @@ class GenericSpider(Spider, LrmiBase):
                 lifecycle_loader.add_value("date", date)
 
     def zapi_get_curriculum(self, text: str) -> list[str]:
-        result = self.z_api_kidra.topics_flat_topics_flat_post({"text": text})
+        """ Determines the curriculum topic (Lehrplanthema) using the z-API. """
+        result = cast(z_api.TopicAssistantKeywordsResult,
+                      self.z_api_kidra.topics_flat_topics_flat_post({"text": text}))
         n_topics = 3
-        topics = result.topics[:n_topics]
-        topic_names = [topic.uri for topic in topics]
-        return topic_names
-    
+        if result.topics:
+            topics = result.topics[:n_topics]
+            topic_names = [topic.uri for topic in topics]
+            return topic_names
+        else:
+            return []
+
     def zapi_get_statistics(self, text: str) -> tuple[str, float]:
-        params = {"text": text, "reading_speed": 200, "generate_embeddings": False}
-        result = self.z_api_kidra.text_stats_analyze_text_post(params)
-        return result.classification, round(result.reading_time, 2)
-    
+        """ Queries the z-API to get the text difficulty and reading time. """
+        params = {"text": text, "reading_speed": 200,
+                  "generate_embeddings": False}
+        result = cast(z_api.TextStatisticsResult,
+                      self.z_api_kidra.text_stats_analyze_text_post(params))
+        return result.classification, round(result.reading_time, 2)  # type: ignore
+
     def zapi_get_disciplines(self, text: str) -> list[str]:
+        """ Gets the disciplines for a given text using the z-API. """
         result = self.z_api_kidra.predict_subjects_kidra_predict_subjects_post({"text": text})
 
         min_score = 0.3
         uri_discipline = 'http://w3id.org/openeduhub/vocabs/discipline/'
-        discipline_names = [uri_discipline + d.id for d in result.disciplines if d.score > min_score]
+        discipline_names = [
+            uri_discipline + d.id for d in result.disciplines if d.score > min_score  # type: ignore
+        ]
 
         return discipline_names
 
-    def resolve_z_api(self, field: str, text: str, base_itemloader: BaseItemLoader, split=False):
+    def resolve_z_api(self, field: str, text: str,
+                      base_itemloader: BaseItemLoader) -> Optional[str]:
         ai_prompt_itemloader = AiPromptItemLoader()
         ai_prompt_itemloader.add_value("field_name", field)
         prompt = self.prompts[field] % {"text": text}
@@ -451,20 +481,17 @@ class GenericSpider(Spider, LrmiBase):
         # (prompts which are too long get thrown out by the AI services)
         ai_prompt_itemloader.add_value("ai_prompt", prompt)
 
-        result = self.z_api_text.prompt(body=prompt)
-        result = result.responses[0].strip()
+        # TODO: add error checking
+        api_result = cast(z_api.TextPromptEntity,
+                          self.z_api_text.prompt(body=prompt))
+        if not api_result.responses:
+            log.error("No valid response from AI service for prompt: %s", prompt)
+            return None
+        result: str = api_result.responses[0].strip()
         ai_prompt_itemloader.add_value("ai_response_raw", result)
-        # ToDo: error-handling when there is no valid response that we could return as a result
-
-        # fix utf-8 chars
-        # result = codecs.decode(result, 'unicode-escape')
-        # data['text'] = data['text'].encode().decode('unicode-escape').encode('latin1').decode('utf-8')
-        if split:
-            result = list(map(lambda x: x.strip(), re.split(r"[,|\n]", result)))
-            # ToDo: fix 'split'-parameter:
-            #  - keyword-strings need to be split up in a cleaner way, this approach isn't precise enough for Serlo URLs
         ai_prompt_itemloader.add_value("ai_response", result)
-        base_itemloader.add_value("ai_prompts", ai_prompt_itemloader.load_item())
+        base_itemloader.add_value(
+            "ai_prompts", ai_prompt_itemloader.load_item())
         return result
 
     def modify_base_item(self, base_loader):
@@ -481,55 +508,35 @@ class GenericSpider(Spider, LrmiBase):
         curriculum = self.results_dict['curriculum']
         if len(self.results_dict['text_difficulty']) != 0:
             text_difficulty = self.results_dict['text_difficulty']
-            base_loader.load_item()['kidra_raw']['text_difficulty'] = text_difficulty
+            base_loader.load_item()[
+                'kidra_raw']['text_difficulty'] = text_difficulty
         if len(self.results_dict['text_reading_time']) != 0:
             text_reading_time = self.results_dict['text_reading_time']
-            base_loader.load_item()['kidra_raw']['text_reading_time'] = text_reading_time
+            base_loader.load_item()[
+                'kidra_raw']['text_reading_time'] = text_reading_time
 
+        # TODO: this looks wrong
         base_loader.load_item()['lom']['general']['title'] = title
         base_loader.load_item()['lom']['general']['description'] = description
         base_loader.load_item()['lom']['general']['keyword'] = keywords
         base_loader.load_item()['valuespaces']['new_lrt'] = new_lrt
-        base_loader.load_item()['valuespaces']['educationalContext'] = educational_context
-        base_loader.load_item()['valuespaces']['intendedEndUserRole'] = intendedEndUserRole
+        base_loader.load_item()[
+            'valuespaces']['educationalContext'] = educational_context
+        base_loader.load_item()[
+            'valuespaces']['intendedEndUserRole'] = intendedEndUserRole
         base_loader.load_item()['license'] = license
         # base_loader.load_item()['valuespaces']['curriculum'] = curriculum
         base_loader.load_item()['kidra_raw']['curriculum'] = curriculum
 
         return base_loader
 
-# class RunThread(threading.Thread):
-#     def __init__(self, func, args, kwargs):
-#         self.func = func
-#         self.args = args
-#         self.kwargs = kwargs
-#         self.result = None
-#         super().__init__()
-
-#     def run(self):
-#         self.result = asyncio.run(self.func(*self.args, **self.kwargs))
-
-# def run_async(func, *args, **kwargs):
-#     try:
-#         loop = asyncio.get_running_loop()
-#     except RuntimeError:
-#         loop = None
-#     if loop and loop.is_running():
-#         thread = RunThread(func, args, kwargs)
-#         thread.start()
-#         thread.join()
-#         return thread.result
-#     else:
-#         return asyncio.run(func(*args, **kwargs))
-
-def get_urls_from_string(urls_string):
-    urls = urls_string.split(",")
-    urls_list = []
-    for url in urls:
-        urls_list.append( url.strip() )
-    return urls_list
 
 def to_bool(value: str) -> bool:
+    """ Converts a string to a bool. Yes, true, t, 1 is True.
+        No, false, f, 0 is False. The function is case insensitive.
+        Returns a ValueError if the argument is something else.
+    """
+
     if value.lower() in ("yes", "true", "t", "1"):
         return True
     if value.lower() in ("no", "false", "f", "0"):
