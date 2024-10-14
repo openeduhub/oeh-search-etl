@@ -10,7 +10,6 @@ import sqlite3
 import scrapy.http
 import trafilatura  # type: ignore
 from bs4 import BeautifulSoup
-from scrapy import Request
 from scrapy.spiders import Rule, Spider
 
 import z_api
@@ -85,7 +84,7 @@ class GenericSpider(Spider, LrmiBase):
         "intendedEndUserRole": "Für welche Zielgruppen eignet sich folgender Text: %(text)s",
     }
     valuespaces: Valuespaces
-    AI_ENABLED: bool = True  # optional .env setting to turn off AI services (-> generic_spider_minimal)
+    ai_enabled: bool
     z_api_text: z_api.AITextPromptsApi
     z_api_kidra: z_api.KidraApi
 
@@ -100,9 +99,6 @@ class GenericSpider(Spider, LrmiBase):
             self.filter_set_id = int(filter_set_id)
         else:
             self.filter_set_id = None
-
-        # temp hack
-        # ai_enabled = "False"
 
         self.results_dict = {}
         if urltocrawl != "":
@@ -120,18 +116,22 @@ class GenericSpider(Spider, LrmiBase):
 
         # logging.warning("self.start_urls=" + self.start_urls[0])
         self.valuespaces = Valuespaces()
-        # ToDo: optional .env Feature: "generic_spider" (AI=enabled) <-> "generic_minimal_spider" (AI=disabled)?
-        if ai_enabled == "True":
-            self.AI_ENABLED = True
-            log.info("Starting generic_spider with AI_ENABLED flag!")
+
+        try:
+            self.ai_enabled = to_bool(ai_enabled)
+        except ValueError:
+            log.error("Invalid value for ai_enabled: %s", ai_enabled)
+            raise
+
+        if self.ai_enabled:
+            log.info("Starting generic_spider with ai_enabled flag!")
             z_api_config = z_api.Configuration.get_default_copy()
             z_api_config.api_key = {"ai-prompt-token": env.get("Z_API_KEY", False)}
             z_api_client = z_api.ApiClient(configuration=z_api_config)
             self.z_api_text = z_api.AITextPromptsApi(z_api_client)
             self.z_api_kidra = z_api.KidraApi(z_api_client)
-        elif ai_enabled == "False":
+        else:
             log.info("Starting generic_spider with MINIMAL settings. AI Services are DISABLED!")
-            self.AI_ENABLED = False
             # this optional flag allows us to control if we want to use AI-suggested metadata. We can compare the
             # items gathered by the "generic_spider_minimal" against the (AI-enabled) "generic_spider"
             self.name = "generic_spider_minimal"
@@ -289,7 +289,7 @@ class GenericSpider(Spider, LrmiBase):
         general_loader.add_value("description", self.getLRMI("description", "about", response=response))
         general_loader.add_value("keyword", self.getLRMI("keywords", response=response))
 
-        if self.AI_ENABLED:
+        if self.ai_enabled:
             excerpt = response.meta["data"]["text"][:4000]
             general_loader.add_value(
                 "description", self.resolve_z_api("description", excerpt, base_itemloader=base_loader)
@@ -360,7 +360,7 @@ class GenericSpider(Spider, LrmiBase):
         # # ToDo: maybe use the 'jmespath' Python package to retrieve this value more reliably
         # if lrmi_intended_end_user_role:
         #     valuespace_loader.add_value("intendedEndUserRole", lrmi_intended_end_user_role)
-        if self.AI_ENABLED:
+        if self.ai_enabled:
             excerpt = response.meta["data"]["text"][:4000]
             for v in ["educationalContext", "discipline", "intendedEndUserRole", "new_lrt"]:
                 valuespace_loader.add_value(
@@ -528,3 +528,10 @@ def get_urls_from_string(urls_string):
     for url in urls:
         urls_list.append( url.strip() )
     return urls_list
+
+def to_bool(value: str) -> bool:
+    if value.lower() in ("yes", "true", "t", "1"):
+        return True
+    if value.lower() in ("no", "false", "f", "0"):
+        return False
+    raise ValueError(f"Invalid boolean value: {value}")
