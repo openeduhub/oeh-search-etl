@@ -1,5 +1,3 @@
-import string
-
 import requests
 
 
@@ -45,7 +43,7 @@ class Valuespaces:
         return result
 
     @staticmethod
-    def findKey(valuespaceId: string, id: string, valuespace=None):
+    def findKey(valuespaceId: str, id: str, valuespace=None):
         if not valuespace:
             valuespace = Valuespaces.data[valuespaceId]
         for key in valuespace:
@@ -57,7 +55,7 @@ class Valuespaces:
                     return found
         return None
 
-    def findInText(self, valuespaceId: string, text: string, valuespace = None):
+    def findInText(self, valuespaceId: str, text: str, valuespace = None):
         if valuespace is None:
             valuespace: list[dict] = self.data[valuespaceId]
         result = []
