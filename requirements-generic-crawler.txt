@@ -1,6 +1,6 @@
 
 async-lru==2.0.4
-extruct==0.16.0
+extruct==0.17.0
 html2text==2024.2.26
 httpx==0.27.2
 importlib-resources==6.4.0
