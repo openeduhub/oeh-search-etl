@@ -324,6 +324,13 @@ class GenericSpider(Spider, LrmiBase):
 
             # ToDo: keywords will (often) be returned as a list of bullet points by the AI
             #  -> we might have to detect & clean up the string first
+            for v in ["educationalContext", "discipline", "intendedEndUserRole", "new_lrt"]:
+                ai_response = self.resolve_z_api(
+                    v, excerpt, base_itemloader=base_loader)
+                if ai_response:
+                    valuespace_loader.add_value(
+                        v, self.valuespaces.findInText(v, ai_response))
+            base_loader.add_value("kidra_raw", kidra_loader.load_item())
         else:
             if trafilatura_description := trafilatura_meta.get("description"):
                 general_loader.add_value(
@@ -377,24 +384,15 @@ class GenericSpider(Spider, LrmiBase):
             #  will be necessary! (this is a metadata field that needs to be confirmed by a human!)
             license_loader.add_value("url", license_url_mapped)
 
-        valuespace_loader.add_value("learningResourceType", self.getLRMI(
-            "learningResourceType", response=response))
         # lrmi_intended_end_user_role = self.getLRMI("audience.educationalRole", response=response)
+        # if lrmi_intended_end_user_role:
+        #     valuespace_loader.add_value("intendedEndUserRole", lrmi_intended_end_user_role)
         # ToDo: rework
         # # attention: serlo URLs will break the getLRMI() Method because JSONBase cannot extract
         # the JSON-LD properly
         # # ToDo: maybe use the 'jmespath' Python package to retrieve this value more reliably
-        # if lrmi_intended_end_user_role:
-        #     valuespace_loader.add_value("intendedEndUserRole", lrmi_intended_end_user_role)
-        if self.ai_enabled:
-            excerpt = text_html2text[:4000]
-            for v in ["educationalContext", "discipline", "intendedEndUserRole", "new_lrt"]:
-                ai_response = self.resolve_z_api(
-                    v, excerpt, base_itemloader=base_loader)
-                if ai_response:
-                    valuespace_loader.add_value(
-                        v, self.valuespaces.findInText(v, ai_response))
-            base_loader.add_value("kidra_raw", kidra_loader.load_item())
+        valuespace_loader.add_value("learningResourceType", self.getLRMI(
+            "learningResourceType", response=response))
 
         # loading all nested ItemLoaders into our BaseItemLoader:
         base_loader.add_value("license", license_loader.load_item())
