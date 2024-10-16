@@ -8,6 +8,7 @@ import re
 import sqlite3
 from typing import Optional, cast
 
+import openai
 import scrapy.http
 import scrapy.signals
 import trafilatura  # type: ignore
@@ -116,6 +117,26 @@ class GenericSpider(Spider, LrmiBase):
             z_api_client = z_api.ApiClient(configuration=z_api_config)
             self.z_api_text = z_api.AITextPromptsApi(z_api_client)
             self.z_api_kidra = z_api.KidraApi(z_api_client)
+
+            self.use_llm_api = self.settings.get('GENERIC_CRAWLER_USE_LLM_API', False)
+            if self.use_llm_api:
+                api_key = self.settings.get('GENERIC_CRAWLER_LLM_API_KEY', '')
+                if not api_key:
+                    raise RuntimeError(
+                        "No API key set for LLM API. Please set GENERIC_CRAWLER_LLM_API_KEY.")
+
+                base_url = self.settings.get('GENERIC_CRAWLER_LLM_API_BASE_URL', '')
+                if not base_url:
+                    raise RuntimeError(
+                        "No base URL set for LLM API. Please set GENERIC_CRAWLER_LLM_API_BASE_URL.")
+                
+                self.llm_model = self.settings.get('GENERIC_CRAWLER_LLM_MODEL', '')
+                if not self.llm_model:
+                    raise RuntimeError(
+                        "No model set for LLM API. Please set GENERIC_CRAWLER_LLM_MODEL.")
+                
+                self.llm_client = openai.OpenAI(api_key=api_key, base_url=base_url)
+
         else:
             log.info(
                 "Starting generic_spider with MINIMAL settings. AI Services are DISABLED!")
@@ -497,13 +518,21 @@ class GenericSpider(Spider, LrmiBase):
         # (prompts which are too long get thrown out by the AI services)
         ai_prompt_itemloader.add_value("ai_prompt", prompt)
 
-        # TODO: add error checking
-        api_result = cast(z_api.TextPromptEntity,
-                          self.z_api_text.prompt(body=prompt))
-        if not api_result.responses:
-            log.error("No valid response from AI service for prompt: %s", prompt)
-            return None
-        result: str = api_result.responses[0].strip()
+        if self.llm_client:
+            chat_completion = self.llm_client.chat.completions.create(
+                messages=[{"role":"system","content":"You are a helpful assistant"},{"role":"user","content":prompt}],
+                model=self.llm_model
+            )
+            log.info("LLM API response: %s", chat_completion)
+            result = chat_completion.choices[0].message.content or ""
+        else:
+            # TODO: add error checking
+            api_result = cast(z_api.TextPromptEntity,
+                            self.z_api_text.prompt(body=prompt))
+            if not api_result.responses:
+                log.error("No valid response from AI service for prompt: %s", prompt)
+                return None
+            result: str = api_result.responses[0].strip()
         ai_prompt_itemloader.add_value("ai_response_raw", result)
         ai_prompt_itemloader.add_value("ai_response", result)
         base_itemloader.add_value(
