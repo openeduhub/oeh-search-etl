@@ -2,7 +2,7 @@
 
 import logging
 import sqlite3
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 # import sqlparse
 
@@ -60,7 +60,8 @@ def generate_url_filter(filter_rules: list[FilterRule]) -> tuple[str, list[str]]
     return url_filter, parameters
 
 
-def fetch_urls_passing_filterset(connection: sqlite3.Connection, filter_set_id: int):
+def fetch_urls_passing_filterset(connection: sqlite3.Connection, filter_set_id: int,
+                                 limit: Optional[int] = None):
     log.info("Filter set ID: %s", filter_set_id)
     # List filter rules in this filter set
     cursor = connection.cursor()
@@ -98,6 +99,8 @@ def fetch_urls_passing_filterset(connection: sqlite3.Connection, filter_set_id: 
     # params.append(crawl_job_id)
     # where_clause = "WHERE (" + filter_expression + ") AND crawl_job_id = ?"
     # params.append(crawl_job_id)
+    if limit:
+        assert isinstance(limit, int)
     
     query = f"""
     SELECT 
@@ -121,7 +124,8 @@ def fetch_urls_passing_filterset(connection: sqlite3.Connection, filter_set_id: 
             WHERE fr_inner.filter_set_id = fs.id 
             AND fr_inner.include = 1
             AND cu.url LIKE (fr_inner.rule || '%')
-        );
+        )
+        {f"LIMIT {limit}" if limit else ""};
     """
     params.append(str(filter_set_id))
     

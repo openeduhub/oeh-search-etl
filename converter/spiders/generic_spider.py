@@ -62,21 +62,38 @@ class GenericSpider(Spider, LrmiBase):
                  max_urls="3", filter_set_id="", **kwargs):
         super().__init__(**kwargs)
 
+        log.info("Initializing GenericSpider")
+        log.info("Arguments:")
+        log.info("  urltocrawl: %r", urltocrawl)
+        log.info("  validated_result: %r", validated_result)
+        log.info("  ai_enabled: %r", ai_enabled)
+        log.info("  find_sitemap: %r", find_sitemap)
+        log.info("  max_urls: %r", max_urls)
+        log.info("  filter_set_id: %r", filter_set_id)
+
+        if urltocrawl and filter_set_id:
+            raise ValueError("You must set either 'urltocrawl' or 'filter_set_id', not both.")
+
+        if not urltocrawl and not filter_set_id:
+            raise ValueError("You must set either 'urltocrawl' or 'filter_set_id'.")
+
         if filter_set_id != "":
             self.filter_set_id = int(filter_set_id)
         else:
             self.filter_set_id = None
 
+        self.max_urls = int(max_urls)
+
         self.results_dict = {}
         if urltocrawl != "":
             urls = [url.strip() for url in urltocrawl.split(",")]
             if find_sitemap == "True" and len(urls) == 1:
-                max_sitemap_urls = int(max_urls)
                 sitemap_urls = find_generate_sitemap(
-                    urls[0], max_entries=max_sitemap_urls)
+                    urls[0], max_entries=self.max_urls)
                 self.start_urls = sitemap_urls
             else:
-                self.start_urls = urls
+                self.start_urls = urls[:self.max_urls]
+
         if validated_result != "":
             self.results_dict = json.loads(validated_result)
             urltocrawl = self.results_dict["url"]
@@ -137,8 +154,9 @@ class GenericSpider(Spider, LrmiBase):
         # List filter rules in this filter set
         connection = sqlite3.connect(db_path)
 
-        matches = fetch_urls_passing_filterset(connection, self.filter_set_id)
+        matches = fetch_urls_passing_filterset(connection, self.filter_set_id, limit=self.max_urls)
 
+        log.info("Adding %d URLs to start_urls", len(matches))
         for row in matches:
             log.info("Adding URL to start_urls: %s", row.url)
             self.start_urls.append(row.url)
