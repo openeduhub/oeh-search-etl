@@ -1,7 +1,9 @@
+import html
 import re
 from typing import Any, Iterable
 
 import scrapy
+from bs4 import BeautifulSoup
 from scrapy import Request
 from scrapy.http import Response
 
@@ -26,13 +28,16 @@ from converter.web_tools import WebEngine
 class PlanetNSpider(scrapy.Spider, LomBase):
     name = "planet_n_spider"
     friendlyName = "Planet N"
-    version = "0.0.1"
+    version = "0.0.2"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "AUTOTHROTTLE_TARGET_CONCURRENCY": 4,
         "WEB_TOOLS": WebEngine.Playwright,
     }
+
+    def __init__(self, **kwargs):
+        LomBase.__init__(self, **kwargs)
 
     def start_requests(self) -> Iterable[Request]:
         _api_first_page: str = self.build_wp_json_module_list_request_url()
@@ -171,6 +176,21 @@ class PlanetNSpider(scrapy.Spider, LomBase):
             _drop_item_flag = True
         return _drop_item_flag
 
+    def clean_up_string(self, text: str) -> str | None:
+        # ToDo: DocString
+        _text_clean: str | None = None
+        if text and isinstance(text, str):
+            # strings from Planet-N will contain HTML entities
+            _soup = BeautifulSoup(text, "html.parser")
+            _text_soup: str = _soup.get_text()
+            if _text_soup:
+                # Planet-N's strings contain trailing whitespaces or newlines, which we have to strip first:
+                _text_clean = _text_soup.strip()
+                return _text_clean
+        else:
+            self.logger.warning(f"Received unhandled input: provided 'text'-parameter was of type '{type(text)}'")
+            return None
+
     def parse(self, response: Response, **kwargs: Any):
         try:
             # the JSON response from Planet-N's WordPress API:
@@ -197,16 +217,26 @@ class PlanetNSpider(scrapy.Spider, LomBase):
             wp_date_modified: str = wp_item["modified"]
         wp_description_long: str | None = None
         if "description" in wp_item:
+            # description text will contain HTML entities
             wp_description_long: str = wp_item["description"]
+            wp_description_long_clean: str | None = self.clean_up_string(text=wp_description_long)
+            if wp_description_long_clean:
+                wp_description_long = wp_description_long_clean
         wp_description_excerpt: str | None = None
         if "excerpt" in wp_item and "rendered" in wp_item["excerpt"]:
             wp_description_excerpt: str = wp_item["excerpt"]["rendered"]
+            wp_description_excerpt_clean: str | None = self.clean_up_string(text=wp_description_excerpt)
+            if wp_description_excerpt_clean:
+                wp_description_excerpt = wp_description_excerpt_clean
         wp_keywords: list[str] | None = None
         if "keywords" in wp_item:
             wp_keywords: list[str] = wp_item["keywords"]
         wp_title: str | None = None
         if "title" in wp_item:
             wp_title: str = wp_item["title"]
+            if wp_title and isinstance(wp_title, str):
+                # titles will contain HTML entities (long dashes, "&" etc.)
+                wp_title = html.unescape(wp_title)
         wp_location_url: str | None = None
         if "location" in wp_item:
             wp_location_url: str = wp_item["location"]
@@ -239,10 +269,10 @@ class PlanetNSpider(scrapy.Spider, LomBase):
             lom_general_itemloader.add_value("title", wp_title)
         if wp_keywords:
             lom_general_itemloader.add_value("keyword", wp_keywords)
-        if wp_description_excerpt:
-            lom_general_itemloader.add_value("description", wp_description_excerpt)
-        elif wp_description_long:
+        if wp_description_long:
             lom_general_itemloader.add_value("description", wp_description_long)
+        elif wp_description_excerpt:
+            lom_general_itemloader.add_value("description", wp_description_excerpt)
         if og_image:
             # we assume that the OpenGraph locale attribute is correct and tells us the language of the learning object
             lom_general_itemloader.add_value("language", og_locale)
