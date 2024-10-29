@@ -27,7 +27,7 @@ from converter.web_tools import WebEngine
 
 class PlanetNSpider(scrapy.Spider, LomBase):
     name = "planet_n_spider"
-    friendlyName = "Planet N"
+    friendlyName = "Planet-N"
     version = "0.0.2"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
@@ -48,7 +48,13 @@ class PlanetNSpider(scrapy.Spider, LomBase):
 
     @staticmethod
     def build_wp_json_module_list_request_url(page: int = 1, results_per_page: int = 100) -> str:
-        # ToDo: DocString
+        """
+        Build the URLs for iterating through all result pages of Planet-N's WordPress JSON API.
+
+        :param page: page parameter (valid from: 1 to X)
+        :param results_per_page: the number of items that should be returned per query
+        :return: the "complete" URL for a single API request
+        """
         # the WP-JSON API endpoint pagination begins at 1, e.g.:
         # https://www.planet-n.de/wp-json/wp/v2/module?per_page=50&page=1
         _planet_n_wp_json_api: str = "https://www.planet-n.de/wp-json/wp/v2/module?"
@@ -60,13 +66,27 @@ class PlanetNSpider(scrapy.Spider, LomBase):
 
     @staticmethod
     def build_wp_json_individual_module_request_url(module_id: str | int) -> str:
-        # ToDo: DocString
+        """
+        Build the URL to request individual "module" items from Planet-N's WordPress JSON API.
+
+        :param module_id: the "module" id (a WordPress item ``id``)
+        :return: the "complete" URL to request a single item from the API
+        """
         # e.g.: https://www.planet-n.de/wp-json/wp/v2/module/2093
         _module_api_endpoint: str = f"https://www.planet-n.de/wp-json/wp/v2/module/{module_id}"
         return _module_api_endpoint
 
     def parse_api_results(self, response: scrapy.http.TextResponse, **kwargs: Any):
-        # ToDo: DocString
+        """
+        Try to parse the API response for individual "modules" and:
+        1) yield those "module" items as an individual ``scrapy.Request``
+        2) paginate to the next API results (if available)
+
+        :param response: WordPress JSON API response containing several "module" items
+        :param kwargs:
+        :return: yield ``scrapy.Request`` for each contained item of the API response that should be parsed
+        and yield another ``scrapy.Request`` to query the next API page (hopefully containing results)
+        """
         if response.status == 200:
             response_json: list[dict] = response.json()
             # if the response is valid, the JSON should contain up to 50 elements that we need to (individually) parse
@@ -91,14 +111,22 @@ class PlanetNSpider(scrapy.Spider, LomBase):
         pass
 
     def parse_api_item(self, response: scrapy.http.TextResponse, **kwargs: Any):
-        # ToDo: DocString
+        """
+        Try to parse the API response for an individual "module"-request from Planet-N's WordPress JSON API
+        and yield the URL to scrapy's ``parse()``-method.
+
+        :param response: the WP-JSON API response of an individual item
+        :param kwargs:
+        :return: yield a ``scrapy.Request`` if the API response could be parsed to a ``dict``,
+        otherwise return ``None``.
+        """
         if response.status == 200:
             _response_dict: dict = response.json()
             item_url: str = _response_dict["link"]
             yield scrapy.Request(
                 url=item_url,
                 callback=self.parse,
-                cb_kwargs={"wp_item": _response_dict},  # we'll read metadata from this dict in the parser() method
+                cb_kwargs={"wp_item": _response_dict},  # we'll read metadata from this dict in the parse() method
             )
         else:
             self.logger.warning(
@@ -107,7 +135,13 @@ class PlanetNSpider(scrapy.Spider, LomBase):
             return None
 
     def getId(self, response=None, wp_item: dict = None) -> str:
-        # ToDo: DocString
+        """
+        Read the ``id`` (Type: ``int``) property from the WordPress item and return it as a string.
+
+        :param response: not used in this method (but typically an HTML ``scrapy.http.Response`` object)
+        :param wp_item: the WordPress item from Planet-N
+        :return: the WordPress item ``id`` (Type: ``str``)
+        """
         if wp_item:
             # WordPress identifiers are Integer values, e.g.:
             # the API request https://www.planet-n.de/wp-json/wp/v2/module/1596 ("id"-value: 1596)
@@ -119,7 +153,13 @@ class PlanetNSpider(scrapy.Spider, LomBase):
             self.logger.error(f"Could not read 'id' from API response for item {response.url} !")
 
     def getHash(self, response=None, wp_item: dict = None) -> str:
-        # ToDo: DocString
+        """
+        Read the ``hash`` property from the WordPress item and build a hash string.
+
+        :param response: not used in this method (but typically an HTML ``scrapy.http.Response`` object)
+        :param wp_item: the WordPress item from Planet-N
+        :return: a hash string in this pattern: ``"<hash_value>v<crawler_version>"``
+        """
         if wp_item:
             _hash: str = wp_item["hash"]
             return f"{_hash}v{self.version}"
@@ -154,7 +194,18 @@ class PlanetNSpider(scrapy.Spider, LomBase):
         return changed
 
     def check_if_item_should_be_dropped(self, response: scrapy.http.Response, wp_item: dict):
-        # ToDo: DocString
+        """
+        Determine if the provided WordPress item from Planet-N should be dropped by checking for three conditions:
+        1) are there any robot meta tags in the DOM header that indicate a wish against webcrawling of this URL?
+        2) is the crawler attribute "shouldImport" set to False?
+        (-> item should be skipped)
+        3) has the item's hash value changed?
+        (-> if the hash value has not changed -> item should be skipped)
+
+        :param response: the scrapy.http.Response object (HTML)
+        :param wp_item: the corresponding WordPress item
+        :return: ``True`` if the item should be dropped, ``False`` otherwise
+        """
         _drop_item_flag: bool = False  # we assume that items should be crawled
         robot_meta_tags: list[str] = response.xpath("//meta[@name='robots']/@content").get()
         # checking if items should be crawled or not: if we detect "noindex" or "none" in the robot meta tags,
@@ -177,7 +228,12 @@ class PlanetNSpider(scrapy.Spider, LomBase):
         return _drop_item_flag
 
     def clean_up_string(self, text: str) -> str | None:
-        # ToDo: DocString
+        """
+        Strips the provided string from HTML entities and unnecessary whitespaces or newlines.
+
+        :param text: the "raw" input string
+        :return: the "cleaned up" string (or None if the wrong input type was detected)
+        """
         _text_clean: str | None = None
         if text and isinstance(text, str):
             # strings from Planet-N will contain HTML entities
