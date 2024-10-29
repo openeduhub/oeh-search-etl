@@ -647,6 +647,11 @@ class ProcessThumbnailPipeline(BasicPipeline):
         # checking if the (optional) attribute WEB_TOOLS exists:
         web_tools = settings_crawler.get("WEB_TOOLS", default=WebEngine.Splash)
         _splash_success: bool | None = None  # control flag flips to False if Splash can't handle a URL
+        _thumbnail_fallback_enabled: bool = env.get_bool(key="THUMBNAIL_FALLBACK", allow_null=True, default=True)
+        # By default, we try to guarantee a thumbnail for the processed items,
+        # but some datasets (OERSI / SODIX) point towards external URLs that cause errors and timeouts
+        # while trying to take a website screenshot.
+        # For those edge-cases, disabling the fallback might be a preferable choice.
 
         # if screenshot_bytes is provided (the crawler has already a binary representation of the image,
         # the pipeline will convert/scale the given image
@@ -731,8 +736,12 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     )
                     del item["thumbnail"]
                     return await self.process_item(raw_item, spider)
-        elif "location" in item["lom"]["technical"] and len(item["lom"]["technical"]["location"]) > 0:
+        elif _thumbnail_fallback_enabled and "location" in item["lom"]["technical"] and len(
+                item["lom"]["technical"]["location"]) > 0:
+            # try to take a website-screenshot with either Splash or Playwright, depending on the chosen .env settings
+            # if there is at least one URL string in "LOM technical location"-field.
             if settings_crawler.get("SPLASH_URL") and web_tools == WebEngine.Splash:
+                # take a website screenshot using the Splash container
                 target_url: str = item["lom"]["technical"]["location"][0]
                 _splash_url: str = f"{settings_crawler.get('SPLASH_URL')}/render.png"
                 _splash_parameter_wait: str = f"{settings_crawler.get('SPLASH_WAIT')}"
