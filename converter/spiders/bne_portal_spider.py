@@ -1,5 +1,6 @@
 import datetime
 import re
+from collections import namedtuple
 from typing import Iterable
 
 import scrapy
@@ -23,6 +24,11 @@ from converter.items import (
 from converter.spiders.base_classes import LomBase
 from converter.web_tools import WebEngine
 
+AuthorMetadata = namedtuple(
+            typename="AuthorMetadata",
+            field_names=["author", "publication_year"],
+            defaults=None
+        )
 
 class BnePortalSpider(scrapy.Spider, LomBase):
     """
@@ -32,13 +38,8 @@ class BnePortalSpider(scrapy.Spider, LomBase):
 
     name = "bne_portal_spider"
     friendlyName = "BNE-Portal"
-    version = "0.0.3"  # last update: 2024-08-08
-    playwright_cookies: list[dict] = [
-        {
-            "name": "gsbbanner",
-            "value": "closed"
-        }
-    ]
+    version = "0.0.4"  # last update: 2024-11-05
+    playwright_cookies: list[dict] = [{"name": "gsbbanner", "value": "closed"}]
     current_session_cookie: dict = dict()
     # By using two cookie attributes ("gsbbanner" and "AL_SESS-S"), we enable playwright to skip the rendering of
     # cookie banners while taking website screenshots (e.g., when no thumbnail was provided by BNE).
@@ -78,7 +79,16 @@ class BnePortalSpider(scrapy.Spider, LomBase):
     }
 
     BILDUNGSBEREICH_TO_EDUCATIONAL_CONTEXT: dict = {
-        # "bildungsbereichübergreifend": "",  # will be added to keywords due to impossible mapping
+        "bildungsbereichsübergreifend": [
+            "berufliche_bildung",
+            "elementarbereich",
+            "erwachsenenbildung",
+            "fortbildung",
+            "grundschule",
+            "hochschule",
+            "sekundarstufe_1",
+            "sekundarstufe_2",
+        ],
         "Frühkindliche Bildung": "elementarbereich",
         # "non-formale/ informelle Bildung": "",  # will be added to keywords due to impossible mapping
         "Primarbereich": "grundschule",
@@ -90,7 +100,11 @@ class BnePortalSpider(scrapy.Spider, LomBase):
         "Ernährung": "04006",  # Ernährung und Hauswirtschaft
         "Gesellschaftslehre": "48005",  # Gesellschaftskunde
         "Interkulturelles Lernen": "340",  # Interkulturelle Bildung
+        "Nachhaltiges Wirtschaftswachstum/Arbeit": "700",  # Wirtschaftskunde
     }
+
+    def __init__(self, **kwargs):
+        LomBase.__init__(self, **kwargs)
 
     def start_requests(self) -> Iterable[Request]:
         start_url_lernmaterialien: str = (
@@ -233,6 +247,73 @@ class BnePortalSpider(scrapy.Spider, LomBase):
         else:
             return None
 
+
+    def get_author_and_publication_year_from_sub_headlines(self, sub_headlines: list[str]) -> AuthorMetadata:
+        """
+        Try to retrieve author metadata (author name and publication year) from a list of strings that BNE-Portal
+        typically provides within the sub-headline of an item.
+
+        :param sub_headlines: a (raw) list of strings as they appear in the sub-headlines of an BNE item
+        :return: a ``namedtuple`` object containing a (cleaned-up) author string and the publication year
+        (if the provided string contained such metadata).
+        """
+        # The provided sub-headlines are heterogeneous freetext strings which might or might not contain information
+        # about the author(s) and the publication year.
+        # In the best case scenario, the patterns might look like this:
+        # <author, publication year>
+        # example: https://www.bne-portal.de/bne/shareddocs/lernmaterialien/de/mission-atto.html#searchFacets
+        # but could also span over several lines and not adhere to a larger pattern, e.g.:
+        # https://www.bne-portal.de/bne/shareddocs/lernmaterialien/de/generationen-gestalten-entwicklung-bildungsmaterial-zum-globalen-lernen.html#searchFacets
+        # or not contain any publication year at all, e.g.:
+        # https://www.bne-portal.de/bne/shareddocs/lernmaterialien/de/klimabildung-grundschule.html#searchFacets
+
+        _author_combined: str = str()  # this variable will hold the combined string before it can be parsed
+
+        if sub_headlines and isinstance(sub_headlines, list):
+            for sub_headline in sub_headlines:
+                if sub_headline and isinstance(sub_headline, str):
+                    # each string might contain leading whitespaces or newlines
+                    headline_str: str = sub_headline.strip()
+                    if headline_str:
+                        _author_combined = f"{_author_combined}{headline_str}"
+        else:
+            self.logger.warning(f"The provided sub-headlines cannot be parsed since they are not of the expected type. "
+                                f"Expected: list[str], but received {type(sub_headlines)}!")
+        _author: str | None = None
+        _publication_year: str | None = None
+        if _author_combined:
+            best_case_pattern = re.compile(r"^(?P<author_string>.+),\s(?P<publication_year>\d{4}|[kK]eine Angabe)$")
+            # this pattern handles the most frequent cases:
+            #  - <Urheber, Publication Year>
+            #  - <Urheber, keine Angabe>
+            match = best_case_pattern.search(_author_combined)
+            if match:
+                match_dict: dict[str, str] = match.groupdict()
+                _author = match_dict["author_string"]
+                if match_dict["publication_year"].isdigit():
+                    # we want to return the publication year only if it's valid ("keine Angabe" is filtered out)
+                    _publication_year = match_dict["publication_year"]
+            else:
+                # if there was no match, the string could be one of many edge-cases:
+                #  - <Urheber> (without any comma or publication year)
+                #  - <Urheber (Hrsg.)> (without any comma or publication year)
+                #  - <Urheber und Urheber> / <Urheber, Urheber, Urheber> / <Urheber/Urheber>
+                #  - multiple sub-headlines: https://www.bne-portal.de/bne/shareddocs/lernmaterialien/de/kita-global-mit-kinderaugen-um-die-welt.html#searchFacets
+                # for those cases, we only return the (combined) author string and leave the publication year empty
+                _author = _author_combined
+        _result = AuthorMetadata(author=_author, publication_year=_publication_year)
+        return _result
+
+    @staticmethod
+    def set_lifecycle_publisher_default(lom_base_itemloader: LomBaseItemloader):
+        lom_lifecycle_itemloader: LomLifecycleItemloader = LomLifecycleItemloader()
+        lom_lifecycle_itemloader.add_value("role", "publisher")
+        lom_lifecycle_itemloader.add_value("organization", "Bundesministerium für Bildung und Forschung")
+        lom_lifecycle_itemloader.add_value(
+            "url", "https://www.bne-portal.de/bne/de/services/impressum/impressum_node.html"
+        )
+        lom_base_itemloader.add_value("lifecycle", lom_lifecycle_itemloader.load_item())
+
     def getId(self, response=None) -> str:
         # BNE-Portal.de does not provide an identifier for their items, therefore we resort to the URL
         return response.url
@@ -288,6 +369,10 @@ class BnePortalSpider(scrapy.Spider, LomBase):
             "//strong[contains(text(),'Bildungsbereich')]/../text()"
         ).getall()
         bne_kosten_raw: list[str] | None = response.xpath("//strong[contains(text(),'Kosten')]/../text()").getall()
+        bne_urheber_raw: list[str] | None = response.xpath("//div[@class='c-pub-teaser__sub-headline']/p/text()").getall()
+        bne_urheber_tuple: AuthorMetadata = self.get_author_and_publication_year_from_sub_headlines(bne_urheber_raw)
+        bne_author: str | None = bne_urheber_tuple.author
+        bne_publication_year: str | None = bne_urheber_tuple.publication_year
 
         bne_format_clean: list[str] | None = self.clean_up_and_split_list_of_strings(bne_format_raw)
         bne_thema_clean: list[str] | None = self.clean_up_and_split_list_of_strings(bne_thema_raw)
@@ -338,7 +423,10 @@ class BnePortalSpider(scrapy.Spider, LomBase):
             for bb_str in bne_bildungsbereich_clean:
                 if bb_str in self.BILDUNGSBEREICH_TO_EDUCATIONAL_CONTEXT:
                     bb_mapped: str = self.BILDUNGSBEREICH_TO_EDUCATIONAL_CONTEXT.get(bb_str)
-                    educational_context_set.add(bb_mapped)
+                    if bb_mapped and isinstance(bb_mapped, str):
+                        educational_context_set.add(bb_mapped)
+                    elif bb_mapped and isinstance(bb_mapped, list):
+                        educational_context_set.update(bb_mapped)
                 elif bb_str:
                     educational_context_set.add(bb_str)
                     if "bildungsbereichübergreifend" in bb_str or "non-formale/ informelle Bildung" in bb_str:
@@ -355,7 +443,8 @@ class BnePortalSpider(scrapy.Spider, LomBase):
                         cost_str: str = cost_str.lower()
                         if "kostenfrei" in cost_str:
                             price = "no"
-                            pass
+                            if "nicht kostenfrei" in cost_str:
+                                price = "yes"
                         elif "kostenpflichtig" in cost_str:
                             price = "yes"
                         elif "€" in cost_str:
@@ -419,17 +508,26 @@ class BnePortalSpider(scrapy.Spider, LomBase):
         else:
             lom_technical_itemloader.add_value("location", response.url)
 
-        lom_lifecycle_itemloader: LomLifecycleItemloader = LomLifecycleItemloader()
-        lom_lifecycle_itemloader.add_value("role", "publisher")
-        lom_lifecycle_itemloader.add_value("organization", "Bundesministerium für Bildung und Forschung")
-        lom_lifecycle_itemloader.add_value(
-            "url", "https://www.bne-portal.de/bne/de/services/impressum/impressum_node.html"
-        )
-        lom_base_itemloader.add_value("lifecycle", lom_lifecycle_itemloader.load_item())
+        if bne_author:
+            # ToDo (optional): there can be multiple organizations within one string, but they're too heterogeneous
+            #  to correctly split them up into individual entries.
+            #  Therefore, we assume that the author string should be handled as one organization
+            lifecycle_publisher = LomLifecycleItemloader()
+            lifecycle_publisher.add_value("role", "publisher")
+            lifecycle_publisher.add_value("organization", bne_author)
+            if bne_publication_year:
+                lifecycle_publisher.add_value("date", bne_publication_year)
+        else:
+            self.set_lifecycle_publisher_default(lom_base_itemloader)
 
         license_itemloader: LicenseItemLoader = LicenseItemLoader()
-        license_itemloader.add_value("author", "Bundesministerium für Bildung und Forschung")
-        license_itemloader.add_value("internal", Constants.LICENSE_COPYRIGHT_FREE)
+        if bne_author:
+            license_itemloader.add_value("author", bne_author)
+            if bne_publication_year:
+                license_itemloader.replace_value("author", f"{bne_author}, {bne_publication_year}")
+        else:
+            license_itemloader.add_value("author", "Bundesministerium für Bildung und Forschung")
+        license_itemloader.add_value("internal", Constants.LICENSE_CUSTOM)
         license_description: str = (
             "Das Copyright für Texte liegt, soweit nicht anders vermerkt, "
             "beim Bundesministerium für Bildung und Forschung (nachfolgend BMBF). Das "
@@ -459,6 +557,12 @@ class BnePortalSpider(scrapy.Spider, LomBase):
             valuespace_itemloader.add_value("new_lrt", new_lrt_list)
         if price:
             valuespace_itemloader.add_value("price", price)
+            if price == "yes":
+                license_itemloader.replace_value("internal", Constants.LICENSE_COPYRIGHT_LAW)
+                # a decision was made on 2024-10-30: drop items that are considered "kostenpflichtig"
+                # (those items are not OER-compatible and should not be crawled at all)
+                # ToDo: refactor this part of the program flow into a OER-Pipeline for WLO
+                return None
 
         response_itemloader: ResponseItemLoader = ResponseItemLoader()
         response_itemloader.add_value("headers", response.headers)
