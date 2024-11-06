@@ -146,7 +146,12 @@ class EduSharing:
             )
         except ApiException as e:
             # ToDo:
-            #  - error-handling for code 500 ("java.util.concurrent.TimeoutException")
+            #  - find a graceful way to handle http status 500 ("java.util.concurrent.TimeoutException"),
+            #  e.g. when the edu-sharing repository is being restarted during an active crawl process
+            if e.status == 401:
+                # if edu-sharing "forgets" the current admin-session, we have to re-init the API client
+                self.init_api_client()
+                return None
             try:
                 json_error: dict = json.loads(e.body)
                 if json_error["error"] == "java.lang.IllegalStateException":
