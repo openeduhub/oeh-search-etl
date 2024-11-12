@@ -19,6 +19,7 @@ from scrapy.spiders import Spider
 from scrapy.spiders.crawl import Rule
 
 import z_api
+import z_api.exceptions
 from converter.util.sitemap import find_generate_sitemap
 from valuespace_converter.app.valuespaces import Valuespaces
 
@@ -58,6 +59,9 @@ class GenericSpider(Spider, LrmiBase):
     ai_enabled: bool
     z_api_text: z_api.AITextPromptsApi
     z_api_kidra: z_api.KidraApi
+    llm_client: Optional[openai.OpenAI] = None
+    use_llm_api: bool = False
+    llm_model: str = ""
 
     def __init__(self, urltocrawl="", validated_result="", ai_enabled="True", find_sitemap="False",
                  max_urls="3", filter_set_id="", **kwargs):
@@ -117,26 +121,6 @@ class GenericSpider(Spider, LrmiBase):
             z_api_client = z_api.ApiClient(configuration=z_api_config)
             self.z_api_text = z_api.AITextPromptsApi(z_api_client)
             self.z_api_kidra = z_api.KidraApi(z_api_client)
-
-            self.use_llm_api = self.settings.get('GENERIC_CRAWLER_USE_LLM_API', False)
-            if self.use_llm_api:
-                api_key = self.settings.get('GENERIC_CRAWLER_LLM_API_KEY', '')
-                if not api_key:
-                    raise RuntimeError(
-                        "No API key set for LLM API. Please set GENERIC_CRAWLER_LLM_API_KEY.")
-
-                base_url = self.settings.get('GENERIC_CRAWLER_LLM_API_BASE_URL', '')
-                if not base_url:
-                    raise RuntimeError(
-                        "No base URL set for LLM API. Please set GENERIC_CRAWLER_LLM_API_BASE_URL.")
-                
-                self.llm_model = self.settings.get('GENERIC_CRAWLER_LLM_MODEL', '')
-                if not self.llm_model:
-                    raise RuntimeError(
-                        "No model set for LLM API. Please set GENERIC_CRAWLER_LLM_MODEL.")
-                
-                self.llm_client = openai.OpenAI(api_key=api_key, base_url=base_url)
-
         else:
             log.info(
                 "Starting generic_spider with MINIMAL settings. AI Services are DISABLED!")
@@ -181,6 +165,35 @@ class GenericSpider(Spider, LrmiBase):
         for row in matches:
             log.info("Adding URL to start_urls: %s", row.url)
             self.start_urls.append(row.url)
+
+        self.setup_llm_client()
+
+    def setup_llm_client(self):
+        self.use_llm_api = self.settings.get('GENERIC_CRAWLER_USE_LLM_API', False)
+        log.info("GENERIC_CRAWLER_USE_LLM_API: %r", self.use_llm_api)
+        if not self.use_llm_api:
+            return
+
+        api_key = self.settings.get('GENERIC_CRAWLER_LLM_API_KEY', '')
+        if not api_key:
+            raise RuntimeError(
+                "No API key set for LLM API. Please set GENERIC_CRAWLER_LLM_API_KEY.")
+
+        base_url = self.settings.get('GENERIC_CRAWLER_LLM_API_BASE_URL', '')
+        if not base_url:
+            raise RuntimeError(
+                "No base URL set for LLM API. Please set GENERIC_CRAWLER_LLM_API_BASE_URL.")
+
+        self.llm_model = self.settings.get('GENERIC_CRAWLER_LLM_MODEL', '')
+        if not self.llm_model:
+            raise RuntimeError(
+                "No model set for LLM API. Please set GENERIC_CRAWLER_LLM_MODEL.")
+        
+        log.info("Using LLM API with the following settings:")
+        log.info("GENERIC_CRAWLER_LLM_API_KEY: <set>")
+        log.info("GENERIC_CRAWLER_LLM_API_BASE_URL: %r", base_url)
+        log.info("GENERIC_CRAWLER_LLM_MODEL: %r", self.llm_model)
+        self.llm_client = openai.OpenAI(api_key=api_key, base_url=base_url)
 
     def getId(self, response: Optional[Response] = None) -> str:
         """Return a stable identifier (URI) of the crawled item"""
@@ -323,17 +336,8 @@ class GenericSpider(Spider, LrmiBase):
 
         if self.ai_enabled:
             excerpt = text_html2text[:4000]
-            general_loader.add_value(
-                "description", self.resolve_z_api(
-                    "description", excerpt, base_itemloader=base_loader)
-            )
-            keyword_str = self.resolve_z_api(
-                "keyword", excerpt, base_itemloader=base_loader)
-            if keyword_str:
-                keywords = [s.strip()
-                            for s in re.split(r"[,|\n]", keyword_str)]
-                # TODO: does it work to pass a list to add_value?
-                general_loader.add_value("keyword", keywords)
+            self.query_llm(excerpt, general_loader, base_loader, valuespace_loader)
+
             kidra_loader.add_value(
                 "curriculum", self.zapi_get_curriculum(excerpt))
             classification, reading_time = self.zapi_get_statistics(excerpt)
@@ -342,15 +346,6 @@ class GenericSpider(Spider, LrmiBase):
             kidra_loader.add_value(
                 "kidraDisciplines", self.zapi_get_disciplines(excerpt))
             # ToDo: map/replace the previously set 'language'-value by AI suggestions from Z-API?
-
-            # ToDo: keywords will (often) be returned as a list of bullet points by the AI
-            #  -> we might have to detect & clean up the string first
-            for v in ["educationalContext", "discipline", "intendedEndUserRole", "new_lrt"]:
-                ai_response = self.resolve_z_api(
-                    v, excerpt, base_itemloader=base_loader)
-                if ai_response:
-                    valuespace_loader.add_value(
-                        v, self.valuespaces.findInText(v, ai_response))
             base_loader.add_value("kidra_raw", kidra_loader.load_item())
         else:
             if trafilatura_description := trafilatura_meta.get("description"):
@@ -479,8 +474,13 @@ class GenericSpider(Spider, LrmiBase):
 
     def zapi_get_curriculum(self, text: str) -> list[str]:
         """ Determines the curriculum topic (Lehrplanthema) using the z-API. """
-        result = cast(z_api.TopicAssistantKeywordsResult,
-                      self.z_api_kidra.topics_flat_topics_flat_post({"text": text}))
+        try:
+            result = cast(z_api.TopicAssistantKeywordsResult,
+                        self.z_api_kidra.topics_flat_topics_flat_post({"text": text}))
+        except z_api.exceptions.ApiException:
+            log.error("Failed to get curriculum topics from z-API")
+            return []
+
         n_topics = 3
         if result.topics:
             topics = result.topics[:n_topics]
@@ -493,13 +493,22 @@ class GenericSpider(Spider, LrmiBase):
         """ Queries the z-API to get the text difficulty and reading time. """
         params = {"text": text, "reading_speed": 200,
                   "generate_embeddings": False}
-        result = cast(z_api.TextStatisticsResult,
-                      self.z_api_kidra.text_stats_analyze_text_post(params))
+        try:
+            result = cast(z_api.TextStatisticsResult,
+                        self.z_api_kidra.text_stats_analyze_text_post(params))
+        except z_api.exceptions.ApiException:
+            log.error("Failed to get text statistics from z-API")
+            return "", 0.0
+
         return result.classification, round(result.reading_time, 2)  # type: ignore
 
     def zapi_get_disciplines(self, text: str) -> list[str]:
         """ Gets the disciplines for a given text using the z-API. """
-        result = self.z_api_kidra.predict_subjects_kidra_predict_subjects_post({"text": text})
+        try:
+            result = self.z_api_kidra.predict_subjects_kidra_predict_subjects_post({"text": text})
+        except z_api.exceptions.ApiException:
+            log.error("Failed to get disciplines from z-API")
+            return []
 
         min_score = 0.3
         uri_discipline = 'http://w3id.org/openeduhub/vocabs/discipline/'
@@ -508,6 +517,33 @@ class GenericSpider(Spider, LrmiBase):
         ]
 
         return discipline_names
+
+    def query_llm(self, excerpt: str, general_loader: LomGeneralItemloader,
+                  base_loader: BaseItemLoader, valuespace_loader: ValuespaceItemLoader):
+        """ Performs the LLM queries for the given text, and fills the
+            corresponding ItemLoaders. """
+
+        general_loader.add_value(
+            "description", self.resolve_z_api(
+                "description", excerpt, base_itemloader=base_loader)
+        )
+        keyword_str = self.resolve_z_api(
+            "keyword", excerpt, base_itemloader=base_loader)
+        if keyword_str:
+            keywords = [s.strip()
+                        for s in re.split(r"[,|\n]", keyword_str)]
+            # TODO: does it work to pass a list to add_value?
+            general_loader.add_value("keyword", keywords)
+
+        # ToDo: keywords will (often) be returned as a list of bullet points by the AI
+        #  -> we might have to detect & clean up the string first
+        for v in ["educationalContext", "discipline", "intendedEndUserRole", "new_lrt"]:
+            ai_response = self.resolve_z_api(
+                v, excerpt, base_itemloader=base_loader)
+            if ai_response:
+                valuespace_loader.add_value(
+                    v, self.valuespaces.findInText(v, ai_response))
+
 
     def resolve_z_api(self, field: str, text: str,
                       base_itemloader: BaseItemLoader) -> Optional[str]:
