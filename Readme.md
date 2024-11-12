@@ -21,6 +21,55 @@ source .venv/bin/activate   # (on Linux Unix)
 - As a sample/template, please take a look at the `sample_spider.py`
 - To learn more about the LOM standard we're using, you'll find useful information at https://en.wikipedia.org/wiki/Learning_object_metadata
 
+## Run the generic Crawler via Docker Compose
+
+Check out this repository, and the https://github.com/jdmansour/gen-crawler-ui repository next to each other. Create a file `env.sh` with the following content:
+
+```bash
+export EDU_SHARING_USERNAME="admin"
+export EDU_SHARING_PASSWORD="<password here>"
+export EDU_SHARING_BASE_URL="https://repository.pre-staging.openeduhub.net/edu-sharing/"
+export API_MODE=false
+export Z_API_KEY="<key here>"
+export CRAWLER="generic_spider"
+export ARGS=""
+export GENERIC_CRAWLER_LLM_API_KEY="<LLM api key here>"
+export GENERIC_CRAWLER_USE_LLM_API="True"
+```
+
+Then, in the `gen-crawler-ui` directory, run the following command:
+
+```bash
+docker compose up  --build
+```
+
+If you want to update the generic crawler, while the containers are running, you can use scrapy-deploy to do so:
+
+```bash
+# in oeh-search-etl:
+# first time:
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements-generic-crawler.txt
+
+# then:
+. .venv/bin/activate
+scrapyd-deploy
+```
+
+## Run unit tests
+
+There are not many tests yet, but you can run them with:
+
+```bash
+. .venv/bin/activate
+pytest tests
+```
+
+----
+
+*Below is the old documentation for the generic crawler*
+
 ## Run the web service for the Generic crawler via Docker
 
 A web service that implements the FastAPI web framework is added to the project.
