@@ -2,7 +2,8 @@ import logging
 from typing import Optional
 
 from scrapy import settings
-from scrapy.http import Response
+from scrapy.http.response import Response
+from scrapy.http.response.text import TextResponse
 
 from converter.constants import Constants
 from converter.es_connector import EduSharing
@@ -11,7 +12,7 @@ from converter.web_tools import *
 
 
 class LomBase:
-    name: Optional[str] = None
+    name: str
     friendlyName = "LOM Based spider"
     ranking = 1
     version = (
@@ -50,21 +51,21 @@ class LomBase:
             self.forceUpdate = True
 
     # override to improve performance and automatically handling id
-    def getId(self, response:Response=None) -> str:
+    def getId(self, response: Response) -> str:
         raise NotImplementedError(f'{self.__class__.__name__}.getId callback is not defined')
 
     # override to improve performance and automatically handling hash
-    def getHash(self, response:Response=None) -> str:
+    def getHash(self, response: Response) -> str:
         raise NotImplementedError(f'{self.__class__.__name__}.getHash callback is not defined')
 
     # return the unique uri for the entry
-    def getUri(self, response:Response=None) -> str:
+    def getUri(self, response: Response) -> str:
         return response.url
 
-    def getUUID(self, response:Response=None) -> str:
+    def getUUID(self, response: Response) -> str:
         return EduSharing.build_uuid(self.getUri(response))
 
-    def hasChanged(self, response:Response=None) -> bool:
+    def hasChanged(self, response: Response) -> bool:
         if self.forceUpdate:
             return True
         if self.uuid:
@@ -84,7 +85,7 @@ class LomBase:
         return changed
 
     # you might override this method if you don't want to import specific entries
-    def shouldImport(self, response:Response=None) -> bool:
+    def shouldImport(self, response: Response) -> bool:
         return True
 
     async def parse(self, response):
@@ -136,13 +137,13 @@ class LomBase:
         r.add_value("url", self.getUri(response))
         return r
 
-    def getValuespaces(self, response: Response):
+    def getValuespaces(self, response: TextResponse):
         valuespaces = ValuespaceItemLoader(response=response)
         # we assume that content is imported. Please use replace_value if you import something different
         valuespaces.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
         return valuespaces
 
-    def getLOM(self, response: Response) -> LomBaseItemloader:
+    def getLOM(self, response: TextResponse) -> LomBaseItemloader:
         lom = LomBaseItemloader(response=response)
         lom.add_value("general", self.getLOMGeneral(response).load_item())
         lifecycle = self.getLOMLifecycle(response)
@@ -157,35 +158,35 @@ class LomBase:
         lom.add_value("classification", self.getLOMClassification(response).load_item())
         return lom
 
-    def getBase(self, response:Response=None) -> BaseItemLoader:
+    def getBase(self, response: Response) -> BaseItemLoader:
         base = BaseItemLoader()
         base.add_value("sourceId", self.getId(response))
         base.add_value("hash", self.getHash(response))
         return base
 
-    def getLOMGeneral(self, response:Response=None) -> LomGeneralItemloader:
+    def getLOMGeneral(self, response: TextResponse) -> LomGeneralItemloader:
         return LomGeneralItemloader(response=response)
 
-    def getLOMLifecycle(self, response:Response=None) -> LomLifecycleItemloader:
+    def getLOMLifecycle(self, response: TextResponse) -> LomLifecycleItemloader:
         """
         return one or more lifecycle element
         If you want to return more than one, use yield and generate multiple LomLifecycleItemloader
         """
         return LomLifecycleItemloader(response=response)
 
-    def getLOMTechnical(self, response:Response=None) -> LomTechnicalItemLoader:
+    def getLOMTechnical(self, response: TextResponse) -> LomTechnicalItemLoader:
         return LomTechnicalItemLoader(response=response)
 
-    def getLOMEducational(self, response:Response=None) -> LomEducationalItemLoader:
+    def getLOMEducational(self, response: TextResponse) -> LomEducationalItemLoader:
         return LomEducationalItemLoader(response=response)
 
-    def getLicense(self, response:Response=None) -> LicenseItemLoader:
+    def getLicense(self, response: TextResponse) -> LicenseItemLoader:
         return LicenseItemLoader(response=response)
 
-    def getLOMClassification(self, response:Response=None) -> LomClassificationItemLoader:
+    def getLOMClassification(self, response: TextResponse) -> LomClassificationItemLoader:
         return LomClassificationItemLoader(response=response)
 
-    def getPermissions(self, response:Response=None) -> PermissionItemLoader:
+    def getPermissions(self, response: TextResponse) -> PermissionItemLoader:
         permissions = PermissionItemLoader(response=response)
         # default all materials to public, needs to be changed depending on the spider!
         settings = get_project_settings()
