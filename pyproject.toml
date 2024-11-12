@@ -1,16 +1,15 @@
 [project]
+name = "oeh-search-etl"
 description = "Crawls educational sites for use in wirlernenonline.de"
 authors = [
-    "Torsten Simon <simon@edu-sharing.net>"
+    {name = "Torsten Simon", email = "simon@edu-sharing.net"}
 ]
 maintainers = [
-    "Andreas Schnäpp <981166+Criamos@users.noreply.github.com>"
+    {name = "Andreas Schnäpp", email = "981166+Criamos@users.noreply.github.com"}
 ]
 readme = "README.md"
-python = "^3.11"
-homepage = "https://github.com/openeduhub/oeh-search-etl"
-repository = "https://github.com/openeduhub/oeh-search-etl"
-documentation = "https://github.com/openeduhub/oeh-search-etl"
+requires-python = ">=3.11"
+version = "0.1.0"
 
 keywords = ["metadata", "oer", "crawl", " wirlernenonline"]
 
@@ -21,6 +20,11 @@ classifiers = [
     "Topic :: Education :: Testing",
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
 ]
+
+[project.urls]
+homepage = "https://github.com/openeduhub/oeh-search-etl"
+source = "https://github.com/openeduhub/oeh-search-etl"
+documentation = "https://github.com/openeduhub/oeh-search-etl"
 
 [tool.black]
 line-length = 120
