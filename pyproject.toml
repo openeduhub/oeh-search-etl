@@ -91,6 +91,14 @@ async-lru = "2.0.4"
 urllib3 = "^2.2.2"
 beautifulsoup4 = "^4.12.3"
 
+# see: https://docs.pytest.org/en/stable/reference/customize.html#pyproject-toml
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests"
+]
+
 [tool.poetry.group.edu_sharing_client.dependencies]
 # these dependencies are used (and automatically generated) by the "openapi-generator-cli"-generated client
 # see: /edu_sharing_openapi/pyproject.toml
