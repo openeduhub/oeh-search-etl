@@ -220,6 +220,7 @@ class NormLicensePipeline(BasicPipeline):
                     | Constants.LICENSE_CC_BY_SA_30
                     | Constants.LICENSE_CC_BY_SA_40
                     | Constants.LICENSE_CC_ZERO_10
+                    | Constants.LICENSE_PDM
                 ):
                     item["license"]["oer"] = OerType.ALL
                 case _:
@@ -253,6 +254,66 @@ class NormLicensePipeline(BasicPipeline):
 
         return raw_item
 
+
+class OERFilterPipeline(BasicPipeline):
+    """
+    Drop items that are not OER-compatible.
+    OER compatible licenses are: CC BY, CC BY-SA, CC Zero and Public Domain.
+    """
+    OER_COMPATIBLE_LICENSES: list[str] = [
+        # CC BY versions
+        Constants.LICENSE_CC_BY_10,
+        Constants.LICENSE_CC_BY_20,
+        Constants.LICENSE_CC_BY_25,
+        Constants.LICENSE_CC_BY_30,
+        Constants.LICENSE_CC_BY_40,
+        # CC BY-SA versions
+        Constants.LICENSE_CC_BY_SA_10,
+        Constants.LICENSE_CC_BY_SA_20,
+        Constants.LICENSE_CC_BY_SA_25,
+        Constants.LICENSE_CC_BY_SA_30,
+        Constants.LICENSE_CC_BY_SA_40,
+        # CC Zero and Public Domain
+        Constants.LICENSE_CC_ZERO_10,
+        Constants.LICENSE_PDM,
+    ]
+    OER_COMPATIBLE_INTERNAL_LICENSES: list[str] = [
+        "CC_0",
+        "CC_BY",
+        "CC_BY_SA",
+        "PDM"
+    ]
+    def process_item(self, raw_item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        """
+        Checks if an item is OER-compatible by looking at its license values and the price of an item.
+        :param raw_item: the ``scrapy.Item`` in question
+        :param spider: the ``scrapy.Spider`` which crawled said item
+        :return: Raises an ``scrapy.exceptions.DropItem`` Exception if the item is not OER-compatible.
+        Otherwise, returns the ``scrapy.Item``.
+        """
+        item = ItemAdapter(raw_item)
+        item_is_oer_compatible: bool = False
+        if "license" in item:
+            if "url" in item["license"]:
+                license_url: str = item["license"]["url"]
+                if license_url in self.OER_COMPATIBLE_LICENSES:
+                    # Item is OER compatible
+                    item_is_oer_compatible = True
+            if "internal" in item["license"]:
+                license_internal: str = item["license"]["internal"]
+                if license_internal in self.OER_COMPATIBLE_INTERNAL_LICENSES:
+                    item_is_oer_compatible = True
+        if "valuespaces" in item:
+            if "price" in item["valuespaces"]:
+                price: str = item["valuespaces"]["price"]
+                if price == "yes":
+                    item_is_oer_compatible = False
+                    log.info(f"Item {item['sourceId']} is not OER-compatible due to its price. Dropping item ...")
+        if not item_is_oer_compatible:
+            raise DropItem(f"Item {item['sourceId']} is not OER-compatible due to its license or price. "
+                           f"Dropping item...")
+        else:
+            return raw_item
 
 class ConvertTimePipeline(BasicPipeline):
     """

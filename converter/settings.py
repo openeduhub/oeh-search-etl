@@ -144,6 +144,17 @@ ITEM_PIPELINES = {
         else "converter.pipelines.EduSharingStorePipeline"
     ): 1000,
 }
+# OER Filter: Parse only OER-compatible items
+# (Caution: This setting drops items if they cannot be clearly identified as OER materials!)
+oer_filter_enabled = env.get_bool("OER_FILTER", allow_null=True, default=False)
+if oer_filter_enabled:
+    logging.info("OER-Filter Pipeline is ENABLED! Only OER-compatible items will be stored!")
+    ITEM_PIPELINES.update(
+        {
+            "converter.pipelines.OERFilterPipeline": 295,
+            # drop items before they reach the thumbnail pipeline to skip unnecessary HTTP requests
+        }
+    )
 
 # add custom pipelines from the .env file, if any
 ADDITIONAL_PIPELINES = env.get("CUSTOM_PIPELINES", True)
