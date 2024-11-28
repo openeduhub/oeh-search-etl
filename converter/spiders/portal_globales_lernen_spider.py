@@ -31,7 +31,7 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
 
     name = "portal_globales_lernen_spider"
     friendlyName = "Portal für Globales Lernen"
-    version = "0.0.2"
+    version = "0.0.3"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -47,15 +47,15 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
 
     FORMAT_TO_NEW_LRT: dict = {
         "bildungsmaterial": "1846d876-d8fd-476a-b540-b8ffd713fedb",  # Material
-        "aktion": "68a43516-889e-4ce9-8e03-248307bd99ff",  # "offene und kreative Aktivität (Lehr- und Lernmaterial)"
+        "aktion": "955590ae-5f06-4513-98e9-91dfa8d5a05e",  # "Termin, Event und Veranstaltung"
         "app": "cefccf75-cba3-427d-9a0f-35b4fedcbba1",  # Tool
-        # "außerschulischer Lernort": "",
-        # "ausstellung": "",
-        # "austauschprogramm": "",
-        # "beratungsangebot": "",
+        "außerschulischer lernort": "92dcc3ec-fe94-451c-95ac-ea305e0e7597",  # "außerschulisches Angebot"
+        "ausstellung": "c903a62a-17b0-4646-b2b8-a1a02a84e8cc",  # "außerschulisches Angebot (Bildungsangebot)"
+        "austauschprogramm": "c903a62a-17b0-4646-b2b8-a1a02a84e8cc",  # "außerschulisches Angebot (Bildungsangebot)"
+        "beratungsangebot": "c903a62a-17b0-4646-b2b8-a1a02a84e8cc",  # "außerschulisches Angebot (Bildungsangebot)"
         "bericht": "b98c0c8c-5696-4537-82fa-dded7236081e",  # "Artikel und Einzelpublikation"
         "beschluss": "0f519bd5-069c-4d32-b6d3-a373ac96724c",  # "Fachliche News"
-        "bildungsserver": "ac0ad1e8-d1a2-42f2-961e-5aa9b8157fa5",  # "Datenbank"
+        "bildungsserver": "3869b453-d3c1-4b34-8f25-9127e9d68766",  # "Quelle"
         "broschüre/handreichung": "6a15628c-0e59-43e3-9fc5-9a7f7fa261c4",  # "Skript, Handout und Handreichung"
         "datenbank": "ac0ad1e8-d1a2-42f2-961e-5aa9b8157fa5",  # "Datenbank"
         "evaluierung/wirkungsbeobachtung": "0f519bd5-069c-4d32-b6d3-a373ac96724c",  # "Fachliche News"
@@ -63,27 +63,30 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
         "fachpublikation globales lernen / bne": "b98c0c8c-5696-4537-82fa-dded7236081e",  # "Artikel und Einzelpublikation"
         "film mit begleitmaterial": "7a6e9608-2554-4981-95dc-47ab9ba924de",  # "Video (Material)"
         "fortbildung/weiterbildung": "4fe167ea-1f40-44b7-8c17-355f256b4fc9",  # "Fortbildungsangebot"
-        # "freiwilligendienst": "",
+        "freiwilligendienst": "c903a62a-17b0-4646-b2b8-a1a02a84e8cc",  # "außerschulisches Angebot (Bildungsangebot)"
         "informations- und lernplattform": "d8c3ef03-b3ab-4a5e-bcc9-5a546fefa2e9",  # "Webseite"
-        # "kampagne": "",
+        "kampagne": "c903a62a-17b0-4646-b2b8-a1a02a84e8cc",  # "außerschulisches Angebot (Bildungsangebot)"
         "lernkiste/-koffer": "5098cf0b-1c12-4a1b-a6d3-b3f29621e11d",  # "Unterrichtsbaustein"
-        "methodensammlung/-handbuch": "477115fd-5042-4174-ac39-7c05f8a24766",  # "Pädagogische Methode, Konzept"
-        "multimediales": ["ec2682af-08a9-4ab1-a324-9dca5151e99f", "7a6e9608-2554-4981-95dc-47ab9ba924de"],  # Audio / Video
+        "methodensammlung/-handbuch": "5098cf0b-1c12-4a1b-a6d3-b3f29621e11d",  # "Unterrichtsbaustein"
+        "multimediales": [
+            "ec2682af-08a9-4ab1-a324-9dca5151e99f",  # Audio
+            "7a6e9608-2554-4981-95dc-47ab9ba924de",  # Video
+        ],
         "online-spiel/online-kurs": "4e16015a-7862-49ed-9b5e-6c1c6e0ffcd1",  # Kurs
         # "open educational resource – oer": "",
         "plan- und gesellschaftsspiel": "a120ce77-59f5-4564-8d49-73f4a0de1594",  # "Lernen, Quiz und Spiel"
         "podcast": "6e821748-ad12-4ac1-bb14-9b54493e2c50",  # "Radio, Podcastfolge und Interview"
         "poster": "c382a478-74e0-42f1-96dd-fcfb5c27f746",  # "Poster und Plakat"
-        # "projektfinanzierung": "",
+        "projektfinanzierung": "0f519bd5-069c-4d32-b6d3-a373ac96724c",  # "fachliche News"
         "projekttage/-wochen": "22823ca9-7175-4b24-892e-19ebbf5fe0e7",  # "Projekt (Lehr- und Lernmaterial)"
         "rahmenvereinbarungen": "0f519bd5-069c-4d32-b6d3-a373ac96724c",  # "Fachliche News"
         # "referentinnenvermittlung": "",
-        # "schulauszeichnung/schulprofilbildung": "",
-        # "schulentwicklung": "",
-        # "schulpartnerschaften": "",
+        "schulauszeichnung/schulprofilbildung": "0f519bd5-069c-4d32-b6d3-a373ac96724c",  # "Fachliche News"
+        "schulentwicklung": "0f519bd5-069c-4d32-b6d3-a373ac96724c",  # "Fachliche News"
+        "schulpartnerschaften": "0f519bd5-069c-4d32-b6d3-a373ac96724c",  # Fachliche News
         "studie": "b98c0c8c-5696-4537-82fa-dded7236081e",  # "Artikel und Einzelpublikation"
         "studiengang": "337eb29c-1ea8-41dc-9caf-e469eea29177",  # "Studiengang"
-        # "umsetzungsprojekt / länderinitiative (OR)": "",
+        "umsetzungsprojekt / länderinitiative (OR)": "0f519bd5-069c-4d32-b6d3-a373ac96724c",  # "Fachliche News"
         "veranstaltung": "955590ae-5f06-4513-98e9-91dfa8d5a05e",  # "Termin, Event und Veranstaltung"
         "videoclip/erklärvideo": "a0218a48-a008-4975-a62a-27b1a83d454f",  # "Erklärvideo und gefilmtes Experiment"
         "wettbewerb": "81578410-73df-4320-83fd-2e6e0c0fd189",  # Wettbewerbe
@@ -145,8 +148,6 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
                 yield scrapy.Request(
                     url=overview_absolute_url, callback=self.gather_item_urls_from_search_result_overview, priority=1
                 )
-                # ToDo: re-enable above request & set priority to 1 after debugging
-                #  (to gather all item URLs first, then parse the individual URLs afterwards)
         yield from self.gather_item_urls_from_search_result_overview(response)
 
     def gather_item_urls_from_search_result_overview(self, response: scrapy.http.HtmlResponse):
