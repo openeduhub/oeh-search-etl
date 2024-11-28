@@ -7,9 +7,19 @@ import trafilatura
 from scrapy import Request
 
 from converter.constants import Constants
-from converter.items import BaseItemLoader, LomBaseItemloader, LomGeneralItemloader, LomTechnicalItemLoader, \
-    LomLifecycleItemloader, LomEducationalItemLoader, ValuespaceItemLoader, LicenseItemLoader, ResponseItemLoader, \
-    PermissionItemLoader, LomClassificationItemLoader
+from converter.items import (
+    BaseItemLoader,
+    LomBaseItemloader,
+    LomGeneralItemloader,
+    LomTechnicalItemLoader,
+    LomLifecycleItemloader,
+    LomEducationalItemLoader,
+    ValuespaceItemLoader,
+    LicenseItemLoader,
+    ResponseItemLoader,
+    PermissionItemLoader,
+    LomClassificationItemLoader,
+)
 from converter.spiders.base_classes import LomBase
 from converter.web_tools import WebEngine
 
@@ -18,6 +28,7 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
     """
     Crawler for "Portal Globales Lernen" (https://www.globaleslernen.de)
     """
+
     name = "portal_globales_lernen_spider"
     friendlyName = "Portal für Globales Lernen"
     version = "0.0.2"
@@ -82,25 +93,29 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
         "fächerübergreifend": "999",  # Sonstiges
         "politische bildung": "480",  # Politik
         "religion / ethik": ["520", "160"],  # Religion / Ethik
-        "wirtschaft": "700"
+        "wirtschaft": "700",
     }
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
     def start_requests(self) -> Iterable[Request]:
-        url_suche_bildungsmaterialien: str = ("https://www.globaleslernen.de/de/suche?combine="
-                                              "&field_media_types_target_id%5B0%5D=2636"
-                                              "&field_media_types_target_id%5B1%5D=2636"
-                                              "&field_media_types_target_id%5B2%5D=2636"
-                                              "&field_media_types_target_id%5B3%5D=2636")
+        url_suche_bildungsmaterialien: str = (
+            "https://www.globaleslernen.de/de/suche?combine="
+            "&field_media_types_target_id%5B0%5D=2636"
+            "&field_media_types_target_id%5B1%5D=2636"
+            "&field_media_types_target_id%5B2%5D=2636"
+            "&field_media_types_target_id%5B3%5D=2636"
+        )
         url_suche: str = "https://www.globaleslernen.de/de/suche"
-        yield scrapy.Request(url=url_suche_bildungsmaterialien,
-                             callback=self.gather_urls_from_first_page_of_search_results)
+        yield scrapy.Request(
+            url=url_suche_bildungsmaterialien, callback=self.gather_urls_from_first_page_of_search_results
+        )
 
     def gather_urls_from_first_page_of_search_results(self, response: scrapy.http.HtmlResponse):
         last_page_link: str | None = response.xpath(
-            "//nav[@class='pager']/ul/li[@class='pager__item pager__item--last']/a/@href").get()
+            "//nav[@class='pager']/ul/li[@class='pager__item pager__item--last']/a/@href"
+        ).get()
         last_page_number: int | None = None
         page_number_pattern = re.compile(r"""page=(?P<page_number>\d+)$""")
         if last_page_link:
@@ -109,29 +124,27 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
                 last_page_str: str = regex_result.groupdict()["page_number"]
                 last_page_number: int = int(last_page_str)
             else:
-                self.logger.error(f"Failed to retrieve 'Last Page'-number via RegEx. Please check if the page parameter"
-                                  f" is still available within the relative URL: {last_page_link}")
+                self.logger.error(
+                    f"Failed to retrieve 'Last Page'-number via RegEx. Please check if the page parameter"
+                    f" is still available within the relative URL: {last_page_link}"
+                )
         else:
-            self.logger.error(f"Failed to retrieve 'Last Page'-Button href from search overview at {response.url} . "
-                              f"(The crawler cannot navigate through the search results without this href element, "
-                              f"please check the XPath-expression with a debugger!)")
+            self.logger.error(
+                f"Failed to retrieve 'Last Page'-Button href from search overview at {response.url} . "
+                f"(The crawler cannot navigate through the search results without this href element, "
+                f"please check the XPath-expression with a debugger!)"
+            )
         overview_urls: list[str] = list()
         if last_page_number:
-            overview_url_without_page_param = re.sub(
-                pattern=page_number_pattern,
-                repl="",
-                string=last_page_link
-            )
+            overview_url_without_page_param = re.sub(pattern=page_number_pattern, repl="", string=last_page_link)
             for overview_page_number in range(1, last_page_number + 1):
                 # result iteration starts at page 0
-                overview_relative_url: str = (
-                    f"{overview_url_without_page_param}page={overview_page_number}"
-                )
+                overview_relative_url: str = f"{overview_url_without_page_param}page={overview_page_number}"
                 overview_absolute_url: str = response.urljoin(overview_relative_url)
                 overview_urls.append(overview_absolute_url)
-                yield scrapy.Request(url=overview_absolute_url,
-                                     callback=self.gather_item_urls_from_search_result_overview,
-                                     priority=1)
+                yield scrapy.Request(
+                    url=overview_absolute_url, callback=self.gather_item_urls_from_search_result_overview, priority=1
+                )
                 # ToDo: re-enable above request & set priority to 1 after debugging
                 #  (to gather all item URLs first, then parse the individual URLs afterwards)
         yield from self.gather_item_urls_from_search_result_overview(response)
