@@ -20,7 +20,7 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
     """
     name = "portal_globales_lernen_spider"
     friendlyName = "Portal für Globales Lernen"
-    version = "0.0.1"
+    version = "0.0.2"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -85,6 +85,9 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
         "wirtschaft": "700"
     }
 
+    def __init__(self, **kwargs):
+        LomBase.__init__(self, **kwargs)
+
     def start_requests(self) -> Iterable[Request]:
         url_suche_bildungsmaterialien: str = ("https://www.globaleslernen.de/de/suche?combine="
                                               "&field_media_types_target_id%5B0%5D=2636"
@@ -142,7 +145,7 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
                 yield scrapy.Request(url=item_url, callback=self.parse)
 
     def getId(self, response=None) -> str:
-        # PGL does not provide an identifier for their items, therefore, we resort to the URL
+        # PGL does not provide an identifier for their items; therefore, we resort to the URL
         return response.url
 
     def getHash(self, response=None) -> str:
@@ -152,7 +155,6 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
         return hash_value
 
     def parse(self, response: scrapy.http.HtmlResponse, **kwargs: Any) -> Any:
-        # ToDo: confirm that we can use the same parse()-method for all PGL items (not only "Bildungsmaterialien")
         trafilatura_fulltext = trafilatura.extract(filecontent=response.body)
 
         if self.shouldImport(response) is False:
@@ -283,6 +285,9 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
         if educontext_set:
             edu_context: list[str] = list(educontext_set)
             valuespace_itemloader.add_value("educationalContext", edu_context)
+        if disciplines:
+            discipline_list: list[str] = list(disciplines)
+            valuespace_itemloader.add_value("discipline", discipline_list)
 
         permission_itemloader: PermissionItemLoader = self.getPermissions(response=response)
         response_itemloader: ResponseItemLoader = ResponseItemLoader()
