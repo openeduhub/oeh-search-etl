@@ -239,10 +239,16 @@ class NormLicensePipeline(BasicPipeline):
                 if "date" in lifecycle_contributor:
                     lifecycle_date: str | datetime.datetime = lifecycle_contributor["date"]
                     if lifecycle_date and isinstance(lifecycle_date, str):
-                        # ToDo: dateparser default behavior transforms incomplete dates (like "2023"),
-                        #  which might not be desired behaviour -> should incomplete dates be dropped or autocompleted?
+                        # the dateparser default behavior transforms incomplete "YYYY"-dates (like "2023") to
+                        # YYYY-MM-DD, where MM and DD are the current month/day (which might not be desired behavior
+                        # if we ever want to discern "autocompleted" dates and "precise" parsed dates).
+                        # To make the distinction between precise and parsed-and-autocompleted dates more feasible,
+                        # we'll transform incomplete dates to YYYY-01-01.
                         # see: https://dateparser.readthedocs.io/en/latest/introduction.html#incomplete-dates
-                        lifecycle_contributor["date"] = dateparser.parse(lifecycle_date)
+                        lifecycle_contributor["date"] = dateparser.parse(lifecycle_date, settings={
+                            "PREFER_MONTH_OF_YEAR": "first",
+                            "PREFER_DAY_OF_MONTH": "first",
+                        })
                     elif lifecycle_date and isinstance(lifecycle_date, datetime.datetime):
                         # happy-case: the 'date' property is of type datetime
                         pass
