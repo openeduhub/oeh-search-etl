@@ -32,9 +32,6 @@ configure_logging(settings = {
 })
 
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
-REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
-# fixes Scrapy DeprecationWarning on startup (Scrapy v2.10+)
-# (see: https://docs.scrapy.org/en/latest/topics/request-response.html#request-fingerprinter-implementation):
 
 # Default behaviour for regular crawlers of non-license-controlled content
 # When set True, every item will have GROUP_EVERYONE attached in edu-sharing
