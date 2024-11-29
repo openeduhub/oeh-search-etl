@@ -31,7 +31,7 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
 
     name = "portal_globales_lernen_spider"
     friendlyName = "Portal für Globales Lernen"
-    version = "0.0.3"
+    version = "0.0.4"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -93,7 +93,7 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
     }
 
     SCHULFACH_TO_DISCIPLINE: dict = {
-        "fächerübergreifend": "999",  # Sonstiges
+        "fächerübergreifend": "720",  # "Allgemein"
         "politische bildung": "480",  # Politik
         "religion / ethik": ["520", "160"],  # Religion / Ethik
         "wirtschaft": "700",
@@ -188,12 +188,13 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
         if pgl_bildungsbereich and isinstance(pgl_bildungsbereich, list):
             for bb_item in pgl_bildungsbereich:
                 if bb_item and isinstance(bb_item, str):
+                    if "außerschulische" in bb_item or "bildungsübergreifende" in bb_item:
+                        # adding these values to the keyword set before the string is transformed to lowercase
+                        keyword_set.add(bb_item)
                     bb_item = bb_item.lower()
                     if bb_item in self.BILDUNGSBEREICH_TO_EDUCATIONAL_CONTEXT:
                         bb_mapped: str = self.BILDUNGSBEREICH_TO_EDUCATIONAL_CONTEXT.get(bb_item)
                         educontext_set.add(bb_mapped)
-                    elif "außerschulische" in bb_item or "bildungsübergreifende" in bb_item:
-                        keyword_set.add(bb_item)
                     else:
                         educontext_set.add(bb_item)
         pgl_thema: list[str] | None = response.xpath("//div[@class='edu-field2 edu-top']/text()").getall()
@@ -223,10 +224,6 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
             keyword_set.update(pgl_sdg)
         pgl_author: str | None = response.xpath("//div[@class='edu-field2 edu-aut']/text()").get()
         pgl_erscheinungsjahr: str | None = response.xpath("//div[@class='edu-field2 edu-dat']/text()").get()
-        if pgl_erscheinungsjahr and isinstance(pgl_erscheinungsjahr, str):
-            # "Erscheinungsjahr"-values are saved to the keywords because the pipeline for Lifecycle.Itemloader
-            # expects a more precise date than just the publication year
-            keyword_set.add(pgl_erscheinungsjahr)
         pgl_schulfach: list[str] | None = response.xpath("//div[@class='edu-field2 edu-sub']/text()").getall()
         disciplines: set[str] | None = set()
         if pgl_schulfach and isinstance(pgl_schulfach, list):
@@ -240,9 +237,9 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
                         disciplines.update(schulfach_mapped)
                     elif schulfach_mapped and isinstance(schulfach_mapped, str):
                         disciplines.add(schulfach_mapped)
-                    else:
-                        # this case should be the most common one (since there are only a few mappings necessary)
-                        disciplines.add(schulfach_item)
+                else:
+                    # this case should be the most common one (since there are only a few mappings necessary)
+                    disciplines.add(schulfach_item)
         pgl_thumbnail: str | None = response.xpath("//div[@class='edu-mat']/a/img/@src").get()
 
         # Loading up the item with metadata starts here:
@@ -275,11 +272,15 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
         lom_educational_itemloader: LomEducationalItemLoader = LomEducationalItemLoader()
 
         if pgl_author and isinstance(pgl_author, str):
-            # PGL provides exactly one author text string per item
-            lifecycle_author: LomLifecycleItemloader = LomLifecycleItemloader()
-            lifecycle_author.add_value("role", "author")
-            lifecycle_author.add_value("organization", pgl_author)
-            lom_base_itemloader.add_value("lifecycle", lifecycle_author.load_item())
+            # PGL provides exactly one organization text string per item
+            lifecycle_publisher: LomLifecycleItemloader = LomLifecycleItemloader()
+            lifecycle_publisher.add_value("role", "publisher")
+            lifecycle_publisher.add_value("organization", pgl_author)
+            if pgl_erscheinungsjahr:
+                # PGL provides only incomplete "YYYY"-dates, which the pipeline will transform to YYYY-01-01
+                pgl_erscheinungsjahr = pgl_erscheinungsjahr.strip()
+                lifecycle_publisher.add_value("date", pgl_erscheinungsjahr)
+            lom_base_itemloader.add_value("lifecycle", lifecycle_publisher.load_item())
 
         lom_technical_itemloader: LomTechnicalItemLoader = LomTechnicalItemLoader()
         # lom_technical_itemloader.add_value("format", "text/html")
@@ -299,6 +300,9 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
         if educontext_set:
             edu_context: list[str] = list(educontext_set)
             valuespace_itemloader.add_value("educationalContext", edu_context)
+        # 2024-11-28: as suggested by Jan and the editors,
+        # all PGL items should be considered as part of the "Nachhaltigkeit"-discipline
+        disciplines.add("64018")  # Nachhaltigkeit
         if disciplines:
             discipline_list: list[str] = list(disciplines)
             valuespace_itemloader.add_value("discipline", discipline_list)
