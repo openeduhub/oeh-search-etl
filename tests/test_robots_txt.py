@@ -119,3 +119,30 @@ def test_if_ai_usage_is_allowed_with_robots_txt_that_forbids_ai_scraping(monkeyp
         url="https://www.golem.de/robots.txt",
     )
     assert ai_usage_allowed is False
+
+# to run these tests, just comment out the ``pytest.mark.skip`` decorator
+@pytest.mark.skip(reason="These tests cause HTTP requests and should only be run on-demand within your IDE. "
+                         "They are flaky by nature and could break without notice!")
+@pytest.mark.parametrize(
+    "test_input,expected",
+    [
+        pytest.param("https://www.zum.de/robots.txt", True,
+                     id="ZUM.de does not forbid AI scrapers. Last checked on: 2024-12-05"),
+        pytest.param("https://www.dilertube.de/robots.txt", True,
+                     id="DiLerTube does not forbid AI scrapers. Last checked on: 2024-12-05"),
+        pytest.param("https://www.lehrer-online.de/robots.txt", True,
+                     id="Lehrer-Online does not forbid AI scrapers. Last checked on: 2024-12-05"),
+        pytest.param("https://www.scienceinschool.org/robots.txt", True,
+                     id="Science in School does not forbid AI scrapers. Last checked on: 2024-12-05"),
+        pytest.param("https://www.leifiphysik.de/robots.txt", False,
+                     id="Leifi-Physik forbids (a lot) of AI scrapers. Last checked on: 2024-12-05"),
+        pytest.param("https://www.golem.de/robots.txt", False,
+                     id="Golem.de forbids several AI scrapers. Last checked on: 2024-12-05"),
+        pytest.param("https://taz.de/robots.txt", False,
+                     id="taz.de forbids several AI scrapers (GPTBot, Bytespider). Last checked on: 2024-12-05"),
+    ]
+)
+def test_if_ai_usage_is_allowed_with_live_examples(test_input: str, expected: bool):
+    """This test is flaky by nature as it uses third-party ``robots.txt``-files, which might change without notice,
+    and should only be run when you want to debug with live examples."""
+    assert is_ai_usage_allowed(url=test_input) is expected
