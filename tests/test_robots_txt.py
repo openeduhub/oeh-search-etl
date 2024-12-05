@@ -15,6 +15,23 @@ class MockResponseURLNotFound:
         return None
 
 
+class MockResponseRestrictive:
+    """Mocks a ``requests.Response`` object for a website with a restrictive ``robots.txt`` file."""
+
+    # this example was inspired by https://schule.uni-erfurt.de/robots.txt
+    # (which is part of the OERSI dataset, provided by "digiLL")
+    status_code = 200
+    reason = "OK"
+    text = """
+User-agent: *
+Disallow: /
+    """
+
+    @staticmethod
+    def get(*args, **kwargs):
+        return MockResponseRestrictive()
+
+
 class MockResponseAIScrapersForbidden:
     """Mocks a ``requests.Response`` for a website with a ``robots.txt``-file that forbids AI scraping.
     (This real example was found on golem.de)"""
@@ -140,7 +157,25 @@ def test_if_ai_usage_is_allowed_with_robots_txt_that_forbids_ai_scraping(monkeyp
     assert ai_usage_allowed is False
 
 
-# to run these tests, just comment out the ``pytest.mark.skip`` decorator
+def test_if_ai_usage_is_allowed_with_restrictive_robots_txt(monkeypatch):
+    """Mocks a ``robots.txt`` file that generally forbids every user agent from scraping anything."""
+
+    def mock_get(*args, **kwargs):
+        return MockResponseRestrictive()
+
+    monkeypatch.setattr(requests, "get", mock_get)
+    ai_usage_allowed: bool = is_ai_usage_allowed(
+        url="https://schule.uni-erfurt.de/robots.txt",
+    )
+    # Attention: this behavior was implemented deliberately in contrast to normal robots.txt behavior.
+    # This implementation follows our use-case of determining if webmasters explicitly disallow AI scrapers,
+    # by assuming that robots.txt files with
+    # wildcard user agents that forbid all robots from doing anything
+    # haven't updated their robots.txt directives w.r.t. AI scrapers yet.
+    assert ai_usage_allowed is True
+
+
+# to run these tests, comment out the ``pytest.mark.skip``-decorator
 @pytest.mark.skip(
     reason="These tests fire HTTP requests and should only be run on-demand within your IDE for debugging purposes. "
     "They are flaky by nature and could break without notice, therefore they are skipped in the CI/CD pipelines!"
@@ -149,37 +184,39 @@ def test_if_ai_usage_is_allowed_with_robots_txt_that_forbids_ai_scraping(monkeyp
     "test_input,expected",
     [
         pytest.param(
-            "https://www.zum.de/robots.txt", True, id="ZUM.de does not forbid AI scrapers. Last checked on: 2024-12-05"
+            "https://www.zum.de/robots.txt",
+            True,
+            # ZUM.de does not forbid AI scrapers. Last checked on: 2024-12-05
         ),
         pytest.param(
             "https://www.dilertube.de/robots.txt",
             True,
-            id="DiLerTube does not forbid AI scrapers. Last checked on: 2024-12-05",
+            # DiLerTube does not forbid AI scrapers. Last checked on: 2024-12-05
         ),
         pytest.param(
             "https://www.lehrer-online.de/robots.txt",
             True,
-            id="Lehrer-Online does not forbid AI scrapers. Last checked on: 2024-12-05",
+            # Lehrer-Online does not forbid AI scrapers. Last checked on: 2024-12-05
         ),
         pytest.param(
             "https://www.scienceinschool.org/robots.txt",
             True,
-            id="Science in School does not forbid AI scrapers. Last checked on: 2024-12-05",
+            # Science in School does not forbid AI scrapers. Last checked on: 2024-12-05
         ),
         pytest.param(
             "https://www.leifiphysik.de/robots.txt",
             False,
-            id="Leifi-Physik forbids (a lot) of AI scrapers. Last checked on: 2024-12-05",
+            # Leifi-Physik disallows (a lot) of AI scrapers. Last checked on: 2024-12-05
         ),
         pytest.param(
             "https://www.golem.de/robots.txt",
             False,
-            id="Golem.de forbids several AI scrapers. Last checked on: 2024-12-05",
+            # Golem.de disallows several AI scrapers. Last checked on: 2024-12-05
         ),
         pytest.param(
             "https://taz.de/robots.txt",
             False,
-            id="taz.de forbids several AI scrapers (GPTBot, Bytespider). Last checked on: 2024-12-05",
+            # taz.de disallows several AI scrapers (GPTBot, Bytespider). Last checked on: 2024-12-05
         ),
     ],
 )
