@@ -124,10 +124,3 @@ def is_ai_usage_allowed(url: str, robots_txt: str = None) -> bool:
         )
         return _ai_usage_allowed
 
-
-if __name__ == "__main__":
-    logger.info("Fetching robots.txt...")
-    # ToDo:
-    #  - implement a re-usable LomBase method (-> check against response.url for each item)
-    #  - implement this function as a pipeline?
-    pass
