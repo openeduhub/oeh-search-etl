@@ -68,7 +68,7 @@ def _remove_wildcard_user_agent_from_robots_txt(robots_txt: str) -> str:
     _wildcard_agent_match: re.Match | None = _wildcard_pattern.search(robots_txt)
     if _wildcard_agent_match:
         # remove the wildcard user agent from the parsed robots.txt string
-        robots_txt_without_wildcard_agent: str = robots_txt.replace(_wildcard_agent_match.string, "")
+        robots_txt_without_wildcard_agent: str = robots_txt.replace(_wildcard_agent_match.group(), "")
         return robots_txt_without_wildcard_agent
     else:
         # if no wildcard user agent was detected, do nothing.
