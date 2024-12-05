@@ -29,7 +29,7 @@ AI_USER_AGENTS: list[str] = [
 # ToDo: the list of known AI user agents could be refactored into a SkoHub Vocab
 
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=512)
 def fetch_robots_txt(url: str) -> str | None:
     """
     Fetch the robots.txt file from the given URL.
