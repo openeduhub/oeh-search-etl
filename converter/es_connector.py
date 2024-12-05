@@ -584,6 +584,13 @@ class EduSharing:
                 if "toRange" in tar:
                     spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
 
+        if "ai_allow_usage" in item:
+            # this property is automatically filled by the RobotsTxtPipeline
+            if isinstance(item["ai_allow_usage"], bool):
+                _ai_allow_usage: bool = item["ai_allow_usage"]
+                # the edu-sharing API client expects the value to be of type string
+                spaces["ccm:ai_allow_usage"] = str(_ai_allow_usage)
+
         if "course" in item:
             if "course_availability_from" in item["course"]:
                 # as of 2024-05-14: "ccm:oeh_event_begin" expects a datetime value
