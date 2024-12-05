@@ -32,6 +32,29 @@ Disallow: /
         return MockResponseRestrictive()
 
 
+class MockResponseRestrictiveMixed:
+    """Mocks a ``requests.Response`` object for a restrictive ``robots.txt`` file
+    that generally disallows any robots from doing anything, but allows some AI user agents.
+    """
+
+    status_code = 200
+    reason = "OK"
+    text = """
+User-agent: *
+Disallow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+    """
+
+    @staticmethod
+    def get(*args, **kwargs):
+        return MockResponseRestrictiveMixed()
+
+
 class MockResponseAIScrapersForbidden:
     """Mocks a ``requests.Response`` for a website with a ``robots.txt``-file that forbids AI scraping.
     (This real example was found on golem.de)"""
@@ -174,6 +197,19 @@ def test_if_ai_usage_is_allowed_with_restrictive_robots_txt(monkeypatch):
     # haven't updated their robots.txt directives w.r.t. AI scrapers yet.
     assert ai_usage_allowed is True
 
+def test_if_ai_usage_is_allowed_with_restrictive_but_mixed_robots_txt(monkeypatch):
+    def mock_get(*args, **kwargs):
+        return MockResponseRestrictiveMixed()
+    monkeypatch.setattr(requests, "get", mock_get)
+    # the mocked response should mimic a test-case where a webmaster (for some reason):
+    # - disallowed all robots from interacting with the site (-> ignored)
+    # - does not like ChatGPT to crawl its content (-> expected: False)
+    # - but for some reason likes to be part of the anthropic AI dataset (-> expected: True)
+    # the expected end result, according to our current 1-hit-KO implementation should be: ``False``
+    ai_usage_allowed: bool = is_ai_usage_allowed(
+        url="https://this-case-is-of-theoretical-nature.de/robots.txt",
+    )
+    assert ai_usage_allowed is False
 
 # to run these tests, comment out the ``pytest.mark.skip``-decorator
 @pytest.mark.skip(
