@@ -1,3 +1,4 @@
+import re
 from functools import lru_cache
 
 import requests
@@ -50,6 +51,30 @@ def fetch_robots_txt(url: str) -> str | None:
         return response.text
 
 
+def _remove_wildcard_user_agent_from_robots_txt(robots_txt: str) -> str:
+    """
+    Remove the wildcard user agent part of a string from the given ``robots.txt``-string.
+
+    :param robots_txt: text content of a ``robots.txt``-file
+    :return: ``robots.txt``-file content without the wildcard user agent. If no wildcard user agent was found, return the original string without alterations.
+    """
+    # the user agent directive can appear in different forms and spellings
+    # (e.g. "user agent:", "useragent:", "user-agent:", "User-agent:" etc.)
+    # and is followed by a newline with "disallow: /"
+    _wildcard_pattern: re.Pattern = re.compile(
+        r"(?P<user_agent_directive>[u|U]ser[\s|-]?[a|A]gent:\s*[*]\s*)"
+        r"(?P<disallow_directive>[d|D]isallow:\s*/\s+)"
+    )
+    _wildcard_agent_match: re.Match | None = _wildcard_pattern.search(robots_txt)
+    if _wildcard_agent_match:
+        # remove the wildcard user agent from the parsed robots.txt string
+        robots_txt_without_wildcard_agent: str = robots_txt.replace(_wildcard_agent_match.string, "")
+        return robots_txt_without_wildcard_agent
+    else:
+        # if no wildcard user agent was detected, do nothing.
+        return robots_txt
+
+
 def _parse_robots_txt_with_protego(robots_txt: str) -> Protego | None:
     """
     Parse a ``robots.txt``-string with ``Protego``.
@@ -58,6 +83,7 @@ def _parse_robots_txt_with_protego(robots_txt: str) -> Protego | None:
     :return: returns a ``Protego``-object if the string could be parsed successfully, otherwise returns ``None``
     """
     if robots_txt and isinstance(robots_txt, str):
+        robots_txt = _remove_wildcard_user_agent_from_robots_txt(robots_txt)
         protego_object: Protego = Protego.parse(robots_txt)
         return protego_object
     else:
@@ -123,4 +149,3 @@ def is_ai_usage_allowed(url: str, robots_txt: str = None) -> bool:
             url=url,
         )
         return _ai_usage_allowed
-
