@@ -347,7 +347,6 @@ class ConvertTimePipeline(BasicPipeline):
             tll_duration_in_seconds = determine_duration_and_convert_to_seconds(
                 time_raw=tll_raw, item_field_name="LomEducationalItem.typicalLearningTime"
             )
-            # ToDo: update es_connector and connect this property with the backend
             item["lom"]["educational"]["typicalLearningTime"] = tll_duration_in_seconds
 
         if "technical" in item["lom"]:

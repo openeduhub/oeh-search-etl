@@ -583,6 +583,14 @@ class EduSharing:
                     spaces["ccm:educationaltypicalagerange_from"] = tar["fromRange"]
                 if "toRange" in tar:
                     spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
+            if "typicalLearningTime" in item["lom"]["educational"]:
+                tlt: int | str | None = item["lom"]["educational"]["typicalLearningTime"]
+                if (
+                        tlt and isinstance(tlt,str) and tlt.isnumeric()
+                        or tlt and isinstance(tlt, int)
+                ):
+                    tlt_in_ms: int = int(tlt) * 1000
+                    spaces["cclom:typicallearningtime"] = tlt_in_ms
 
         if "ai_allow_usage" in item:
             # this property is automatically filled by the RobotsTxtPipeline
