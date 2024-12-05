@@ -42,6 +42,7 @@ from converter.es_connector import EduSharing
 from converter.items import BaseItem
 from converter.util.edu_sharing_source_template_helper import EduSharingSourceTemplateHelper
 from converter.util.language_mapper import LanguageMapper
+from converter.util.robots_txt import is_ai_usage_allowed
 from converter.web_tools import WebTools, WebEngine
 from valuespace_converter.app.valuespaces import Valuespaces
 
@@ -1107,6 +1108,43 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
                     # raise DropItem()
         return raw_item
 
+class RobotsTxtPipeline(BasicPipeline):
+    """
+    Analyze the ``robots.txt``-file of an item
+    to look for indicators if said item is allowed to be used for AI training.
+    """
+    def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        item_adapter = ItemAdapter(item)
+        if "ai_allow_usage" in item_adapter:
+            # if the scrapy Field is already filled before hitting this pipeline,
+            # we can assume that a crawler-specific implementation already filled this field and do a type-validation
+            _ai_allowed: bool = item_adapter["ai_allow_usage"]
+            if isinstance(_ai_allowed, bool):
+                return item
+            else:
+                log.warning(f"Wrong type for BaseItem.ai_allow_usage detected: "
+                            f"Expected a 'bool'-value, but received type {type(_ai_allowed)} .")
+        else:
+            # default behavior: the pipeline should fill up the "ai_allow_usage"-field for every item
+            _item_url: str | None = None
+            try:
+                _response_url: str | None = item_adapter["response"]["url"]
+                _lom_technical_location: list[str] | None = item_adapter["lom"]["technical"]["location"]
+                if _response_url and isinstance(_response_url, str):
+                    _item_url = _response_url
+                elif _lom_technical_location and isinstance(_lom_technical_location, list):
+                    # LOM Technical location might contain several URLs, we'll try to grab the first one
+                    if len(_lom_technical_location) >= 1:
+                        _item_url = _lom_technical_location[0]
+            except KeyError:
+                # Not all items have URLs in the scrapy fields we're looking into.
+                # Binary files might have neither ``BaseItem.response.url`` nor ``BaseItem.lom.technical.location``
+                pass
+            if _item_url:
+                # only try to fetch a robots.txt file if we successfully grabbed a URL from the item
+                _ai_allowed: bool = is_ai_usage_allowed(url=_item_url)
+                item_adapter["ai_allow_usage"] = _ai_allowed
+        return item
 
 class EduSharingTypeValidationPipeline(BasicPipeline):
     """
