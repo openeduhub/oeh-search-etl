@@ -1,8 +1,6 @@
-import logging
-
 import pytest
 
-from .language_mapper import LanguageMapper
+from converter.util.language_mapper import LanguageMapper
 
 
 class TestLanguageMapper:
