@@ -44,7 +44,7 @@ User-agent: *
 Disallow: /
 
 User-agent: anthropic-ai
-Allow: /
+Disallow: 
 
 User-agent: ChatGPT-User
 Disallow: /
