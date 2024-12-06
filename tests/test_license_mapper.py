@@ -1,7 +1,7 @@
 import pytest
 
 from converter.constants import Constants
-from .license_mapper import LicenseMapper
+from converter.util.license_mapper import LicenseMapper
 
 
 class TestLicenseMapper:

@@ -70,6 +70,8 @@ class SampleSpiderAlternative(CrawlSpider, LomBase):
         #                                   human readable string of text) store its within the 'fulltext' field.)
         #                                   If no 'fulltext' value was provided, the pipelines will try to fetch
         #                                   'full text' content from "ResponseItem.text" and save it here.
+        #  - ai_allow_usage     optional    (filled automatically by the ``RobotsTxtPipeline`` and expects a boolean)
+        #                                   indicates if an item is allowed to be used in AI training.
         base.add_value('sourceId', response.url)
         # if the source doesn't have a "datePublished" or "lastModified"-value in its header or JSON_LD,
         # you might have to help yourself with a unique string consisting of the datetime of the crawl + self.version

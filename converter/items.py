@@ -337,6 +337,7 @@ class CourseItem(Item):
     """
     BIRD-specific metadata properties intended only for courses.
     """
+
     course_availability_from = Field()
     """Corresponding edu-sharing property: ``ccm:oeh_event_begin`` (expects ISO datetime string)"""
     course_availability_until = Field()
@@ -380,6 +381,9 @@ class BaseItem(Item):
     - ``ValuespaceItem``
     """
 
+    ai_allow_usage = Field()
+    """Stores a ``bool``-value to keep track of items that are allowed to be used in AI training. 
+    Corresponding edu-sharing property: ``ccm:ai_allow_usage``"""
     binary = Field()
     """Binary data which should be uploaded to edu-sharing (= raw data, e.g. ".pdf"-files)."""
     collection = Field(output_processor=JoinMultivalues())
