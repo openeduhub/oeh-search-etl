@@ -1190,6 +1190,21 @@ class EduSharingTypeValidationPipeline(BasicPipeline):
                     keywords: list[str] | set[str] | None = lom_general["keyword"]
                     if keywords and isinstance(keywords, set):
                         lom_general["keyword"] = list(keywords)
+                if "identifier" in lom_general:
+                    identifiers: list[str] | list[int] | None = lom_general["identifier"]
+                    _identifier_strings: list[str] = []
+                    if identifiers and isinstance(identifiers, list):
+                        for identifier in identifiers:
+                            if identifier and isinstance(identifier, int):
+                                # some APIs provide identifiers as integers,
+                                # but the edu-sharing API expects all values to be of type string
+                                _identifier_strings.append(str(identifier))
+                            elif identifier and isinstance(identifier, str):
+                                _identifier_strings.append(identifier)
+                            else:
+                                log.warning(f"LOM General identifier {identifier} is not a valid identifier. "
+                                            f"(Expected type str, but received {type(identifier)})")
+                        lom_general["identifier"] = _identifier_strings
             if "technical" in item_adapter["lom"]:
                 lom_technical: dict = item_adapter["lom"]["technical"]
                 if "duration" in lom_technical:
