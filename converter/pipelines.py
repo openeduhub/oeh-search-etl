@@ -42,6 +42,7 @@ from converter.es_connector import EduSharing
 from converter.items import BaseItem
 from converter.util.edu_sharing_source_template_helper import EduSharingSourceTemplateHelper
 from converter.util.language_mapper import LanguageMapper
+from converter.util.robots_txt import is_ai_usage_allowed
 from converter.web_tools import WebTools, WebEngine
 from valuespace_converter.app.valuespaces import Valuespaces
 
@@ -220,6 +221,7 @@ class NormLicensePipeline(BasicPipeline):
                     | Constants.LICENSE_CC_BY_SA_30
                     | Constants.LICENSE_CC_BY_SA_40
                     | Constants.LICENSE_CC_ZERO_10
+                    | Constants.LICENSE_PDM
                 ):
                     item["license"]["oer"] = OerType.ALL
                 case _:
@@ -238,7 +240,16 @@ class NormLicensePipeline(BasicPipeline):
                 if "date" in lifecycle_contributor:
                     lifecycle_date: str | datetime.datetime = lifecycle_contributor["date"]
                     if lifecycle_date and isinstance(lifecycle_date, str):
-                        lifecycle_contributor["date"] = dateparser.parse(lifecycle_date)
+                        # the dateparser default behavior transforms incomplete "YYYY"-dates (like "2023") to
+                        # YYYY-MM-DD, where MM and DD are the current month/day (which might not be desired behavior
+                        # if we ever want to discern "autocompleted" dates and "precise" parsed dates).
+                        # To make the distinction between precise and parsed-and-autocompleted dates more feasible,
+                        # we'll transform incomplete dates to YYYY-01-01.
+                        # see: https://dateparser.readthedocs.io/en/latest/introduction.html#incomplete-dates
+                        lifecycle_contributor["date"] = dateparser.parse(lifecycle_date, settings={
+                            "PREFER_MONTH_OF_YEAR": "first",
+                            "PREFER_DAY_OF_MONTH": "first",
+                        })
                     elif lifecycle_date and isinstance(lifecycle_date, datetime.datetime):
                         # happy-case: the 'date' property is of type datetime
                         pass
@@ -250,6 +261,66 @@ class NormLicensePipeline(BasicPipeline):
 
         return raw_item
 
+
+class OERFilterPipeline(BasicPipeline):
+    """
+    Drop items that are not OER-compatible.
+    OER compatible licenses are: CC BY, CC BY-SA, CC Zero and Public Domain.
+    """
+    OER_COMPATIBLE_LICENSES: list[str] = [
+        # CC BY versions
+        Constants.LICENSE_CC_BY_10,
+        Constants.LICENSE_CC_BY_20,
+        Constants.LICENSE_CC_BY_25,
+        Constants.LICENSE_CC_BY_30,
+        Constants.LICENSE_CC_BY_40,
+        # CC BY-SA versions
+        Constants.LICENSE_CC_BY_SA_10,
+        Constants.LICENSE_CC_BY_SA_20,
+        Constants.LICENSE_CC_BY_SA_25,
+        Constants.LICENSE_CC_BY_SA_30,
+        Constants.LICENSE_CC_BY_SA_40,
+        # CC Zero and Public Domain
+        Constants.LICENSE_CC_ZERO_10,
+        Constants.LICENSE_PDM,
+    ]
+    OER_COMPATIBLE_INTERNAL_LICENSES: list[str] = [
+        "CC_0",
+        "CC_BY",
+        "CC_BY_SA",
+        "PDM"
+    ]
+    def process_item(self, raw_item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        """
+        Checks if an item is OER-compatible by looking at its license values and the price of an item.
+        :param raw_item: the ``scrapy.Item`` in question
+        :param spider: the ``scrapy.Spider`` which crawled said item
+        :return: Raises an ``scrapy.exceptions.DropItem`` Exception if the item is not OER-compatible.
+        Otherwise, returns the ``scrapy.Item``.
+        """
+        item = ItemAdapter(raw_item)
+        item_is_oer_compatible: bool = False
+        if "license" in item:
+            if "url" in item["license"]:
+                license_url: str = item["license"]["url"]
+                if license_url in self.OER_COMPATIBLE_LICENSES:
+                    # Item is OER compatible
+                    item_is_oer_compatible = True
+            if "internal" in item["license"]:
+                license_internal: str = item["license"]["internal"]
+                if license_internal in self.OER_COMPATIBLE_INTERNAL_LICENSES:
+                    item_is_oer_compatible = True
+        if "valuespaces" in item:
+            if "price" in item["valuespaces"]:
+                price: str = item["valuespaces"]["price"]
+                if price == "yes":
+                    item_is_oer_compatible = False
+                    log.info(f"Item {item['sourceId']} is not OER-compatible due to its price. Dropping item ...")
+        if not item_is_oer_compatible:
+            raise DropItem(f"Item {item['sourceId']} is not OER-compatible due to its license or price. "
+                           f"Dropping item...")
+        else:
+            return raw_item
 
 class ConvertTimePipeline(BasicPipeline):
     """
@@ -276,7 +347,6 @@ class ConvertTimePipeline(BasicPipeline):
             tll_duration_in_seconds = determine_duration_and_convert_to_seconds(
                 time_raw=tll_raw, item_field_name="LomEducationalItem.typicalLearningTime"
             )
-            # ToDo: update es_connector and connect this property with the backend
             item["lom"]["educational"]["typicalLearningTime"] = tll_duration_in_seconds
 
         if "technical" in item["lom"]:
@@ -647,6 +717,11 @@ class ProcessThumbnailPipeline(BasicPipeline):
         # checking if the (optional) attribute WEB_TOOLS exists:
         web_tools = settings_crawler.get("WEB_TOOLS", default=WebEngine.Splash)
         _splash_success: bool | None = None  # control flag flips to False if Splash can't handle a URL
+        _thumbnail_fallback_enabled: bool = env.get_bool(key="THUMBNAIL_FALLBACK", allow_null=True, default=True)
+        # By default, we try to guarantee a thumbnail for the processed items,
+        # but some datasets (OERSI / SODIX) point towards external URLs that cause errors and timeouts
+        # while trying to take a website screenshot.
+        # For those edge-cases, disabling the fallback might be a preferable choice.
 
         # if screenshot_bytes is provided (the crawler has already a binary representation of the image,
         # the pipeline will convert/scale the given image
@@ -731,8 +806,12 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     )
                     del item["thumbnail"]
                     return await self.process_item(raw_item, spider)
-        elif "location" in item["lom"]["technical"] and len(item["lom"]["technical"]["location"]) > 0:
+        elif _thumbnail_fallback_enabled and "location" in item["lom"]["technical"] and len(
+                item["lom"]["technical"]["location"]) > 0:
+            # try to take a website-screenshot with either Splash or Playwright, depending on the chosen .env settings
+            # if there is at least one URL string in "LOM technical location"-field.
             if settings_crawler.get("SPLASH_URL") and web_tools == WebEngine.Splash:
+                # take a website screenshot using the Splash container
                 target_url: str = item["lom"]["technical"]["location"][0]
                 _splash_url: str = f"{settings_crawler.get('SPLASH_URL')}/render.png"
                 _splash_parameter_wait: str = f"{settings_crawler.get('SPLASH_WAIT')}"
@@ -1028,6 +1107,43 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
                     # raise DropItem()
         return raw_item
 
+class RobotsTxtPipeline(BasicPipeline):
+    """
+    Analyze the ``robots.txt``-file of an item
+    to look for indicators if said item is allowed to be used for AI training.
+    """
+    def process_item(self, item: scrapy.Item, spider: scrapy.Spider) -> Optional[scrapy.Item]:
+        item_adapter = ItemAdapter(item)
+        if "ai_allow_usage" in item_adapter:
+            # if the scrapy Field is already filled before hitting this pipeline,
+            # we can assume that a crawler-specific implementation already filled this field and do a type-validation
+            _ai_allowed: bool = item_adapter["ai_allow_usage"]
+            if isinstance(_ai_allowed, bool):
+                return item
+            else:
+                log.warning(f"Wrong type for BaseItem.ai_allow_usage detected: "
+                            f"Expected a 'bool'-value, but received type {type(_ai_allowed)} .")
+        else:
+            # default behavior: the pipeline should fill up the "ai_allow_usage"-field for every item
+            _item_url: str | None = None
+            try:
+                _response_url: str | None = item_adapter["response"]["url"]
+                _lom_technical_location: list[str] | None = item_adapter["lom"]["technical"]["location"]
+                if _response_url and isinstance(_response_url, str):
+                    _item_url = _response_url
+                elif _lom_technical_location and isinstance(_lom_technical_location, list):
+                    # LOM Technical location might contain several URLs, we'll try to grab the first one
+                    if len(_lom_technical_location) >= 1:
+                        _item_url = _lom_technical_location[0]
+            except KeyError:
+                # Not all items have URLs in the scrapy fields we're looking into.
+                # Binary files might have neither ``BaseItem.response.url`` nor ``BaseItem.lom.technical.location``
+                pass
+            if _item_url:
+                # only try to fetch a robots.txt file if we successfully grabbed a URL from the item
+                _ai_allowed: bool = is_ai_usage_allowed(url=_item_url)
+                item_adapter["ai_allow_usage"] = _ai_allowed
+        return item
 
 class EduSharingTypeValidationPipeline(BasicPipeline):
     """
@@ -1074,6 +1190,21 @@ class EduSharingTypeValidationPipeline(BasicPipeline):
                     keywords: list[str] | set[str] | None = lom_general["keyword"]
                     if keywords and isinstance(keywords, set):
                         lom_general["keyword"] = list(keywords)
+                if "identifier" in lom_general:
+                    identifiers: list[str] | list[int] | None = lom_general["identifier"]
+                    _identifier_strings: list[str] = []
+                    if identifiers and isinstance(identifiers, list):
+                        for identifier in identifiers:
+                            if identifier and isinstance(identifier, int):
+                                # some APIs provide identifiers as integers,
+                                # but the edu-sharing API expects all values to be of type string
+                                _identifier_strings.append(str(identifier))
+                            elif identifier and isinstance(identifier, str):
+                                _identifier_strings.append(identifier)
+                            else:
+                                log.warning(f"LOM General identifier {identifier} is not a valid identifier. "
+                                            f"(Expected type str, but received {type(identifier)})")
+                        lom_general["identifier"] = _identifier_strings
             if "technical" in item_adapter["lom"]:
                 lom_technical: dict = item_adapter["lom"]["technical"]
                 if "duration" in lom_technical:

@@ -6,14 +6,14 @@ from typing import NoReturn
 load_dotenv()
 
 
-def get(key: str, allow_null: bool = False, default: str = None) -> str:
+def get(key: str, allow_null: bool = False, default: str = None) -> str | None:
     """
     Get environment variable by key.
 
     Exits on undefined variable unless either `allow_null` or `default` is set.
     """
     value = os.getenv(key, default)
-    if value != None:
+    if value is not None:
         return value
     elif allow_null:
         return None
@@ -21,9 +21,9 @@ def get(key: str, allow_null: bool = False, default: str = None) -> str:
         _fail_on_missing_key(key)
 
 
-def get_bool(key: str, allow_null: bool = False, default: bool = None) -> bool:
+def get_bool(key: str, allow_null: bool = False, default: bool = None) -> bool | None:
     value = os.getenv(key)
-    if value != None:
+    if value is not None:
         if value.lower() in ["true", "1", "yes"]:
             return True
         elif value.lower() in ["false", "0", "no"]:
@@ -32,7 +32,7 @@ def get_bool(key: str, allow_null: bool = False, default: bool = None) -> bool:
             raise RuntimeError(
                 "Failed to parse value for boolean variable {}: {}".format(key, value)
             )
-    if default != None:
+    if default is not None:
         return default
     elif allow_null:
         return None

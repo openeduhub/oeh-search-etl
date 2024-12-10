@@ -32,9 +32,6 @@ configure_logging(settings = {
 })
 
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
-REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
-# fixes Scrapy DeprecationWarning on startup (Scrapy v2.10+)
-# (see: https://docs.scrapy.org/en/latest/topics/request-response.html#request-fingerprinter-implementation):
 
 # Default behaviour for regular crawlers of non-license-controlled content
 # When set True, every item will have GROUP_EVERYONE attached in edu-sharing
@@ -131,6 +128,7 @@ ITEM_PIPELINES = {
     "converter.pipelines.NormLanguagePipeline": 150,
     "converter.pipelines.ConvertTimePipeline": 200,
     "converter.pipelines.ProcessValuespacePipeline": 250,
+    "converter.pipelines.RobotsTxtPipeline": 255,
     "converter.pipelines.CourseItemPipeline": 275,
     "converter.pipelines.ProcessThumbnailPipeline": 300,
     "converter.pipelines.EduSharingTypeValidationPipeline": 325,
@@ -144,6 +142,17 @@ ITEM_PIPELINES = {
         else "converter.pipelines.EduSharingStorePipeline"
     ): 1000,
 }
+# OER Filter: Parse only OER-compatible items
+# (Caution: This setting drops items if they cannot be clearly identified as OER materials!)
+oer_filter_enabled = env.get_bool("OER_FILTER", allow_null=True, default=False)
+if oer_filter_enabled:
+    logging.info("OER-Filter Pipeline is ENABLED! Only OER-compatible items will be stored!")
+    ITEM_PIPELINES.update(
+        {
+            "converter.pipelines.OERFilterPipeline": 295,
+            # drop items before they reach the thumbnail pipeline to skip unnecessary HTTP requests
+        }
+    )
 
 # add custom pipelines from the .env file, if any
 ADDITIONAL_PIPELINES = env.get("CUSTOM_PIPELINES", True)

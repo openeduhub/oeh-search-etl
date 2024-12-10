@@ -146,7 +146,12 @@ class EduSharing:
             )
         except ApiException as e:
             # ToDo:
-            #  - error-handling for code 500 ("java.util.concurrent.TimeoutException")
+            #  - find a graceful way to handle http status 500 ("java.util.concurrent.TimeoutException"),
+            #  e.g. when the edu-sharing repository is being restarted during an active crawl process
+            if e.status == 401:
+                # if edu-sharing "forgets" the current admin-session, we have to re-init the API client
+                self.init_api_client()
+                return None
             try:
                 json_error: dict = json.loads(e.body)
                 if json_error["error"] == "java.lang.IllegalStateException":
@@ -578,6 +583,21 @@ class EduSharing:
                     spaces["ccm:educationaltypicalagerange_from"] = tar["fromRange"]
                 if "toRange" in tar:
                     spaces["ccm:educationaltypicalagerange_to"] = tar["toRange"]
+            if "typicalLearningTime" in item["lom"]["educational"]:
+                tlt: int | str | None = item["lom"]["educational"]["typicalLearningTime"]
+                if (
+                        tlt and isinstance(tlt,str) and tlt.isnumeric()
+                        or tlt and isinstance(tlt, int)
+                ):
+                    tlt_in_ms: int = int(tlt) * 1000
+                    spaces["cclom:typicallearningtime"] = tlt_in_ms
+
+        if "ai_allow_usage" in item:
+            # this property is automatically filled by the RobotsTxtPipeline
+            if isinstance(item["ai_allow_usage"], bool):
+                _ai_allow_usage: bool = item["ai_allow_usage"]
+                # the edu-sharing API client expects the value to be of type string
+                spaces["ccm:ai_allow_usage"] = str(_ai_allow_usage)
 
         if "course" in item:
             if "course_availability_from" in item["course"]:
