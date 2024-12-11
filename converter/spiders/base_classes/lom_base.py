@@ -1,5 +1,4 @@
-import logging
-
+from loguru import logger
 from scrapy import settings
 
 from converter.constants import Constants
@@ -34,13 +33,13 @@ class LomBase:
         if "remoteId" in kwargs:
             self.remoteId = kwargs["remoteId"]
         if "cleanrun" in kwargs and kwargs["cleanrun"] == "true":
-            logging.info(
+            logger.info(
                 f"cleanrun requested, will force update for crawler {self.name}"
             )
             # EduSharing().deleteAll(self)
             self.forceUpdate = True
         if "resetVersion" in kwargs and kwargs["resetVersion"] == "true":
-            logging.info(
+            logger.info(
                 f"resetVersion requested, will force update + reset versions for crawler {self.name}"
             )
             # populate the custom_settings so we can read the value more comfortably
@@ -70,18 +69,18 @@ class LomBase:
             return True
         if self.uuid:
             if self.getUUID(response) == self.uuid:
-                logging.info(f"matching requested id: {self.uuid}")
+                logger.info(f"matching requested id: {self.uuid}")
                 return True
             return False
         if self.remoteId:
             if str(self.getId(response)) == self.remoteId:
-                logging.info(f"matching requested id: {self.remoteId}")
+                logger.info(f"matching requested id: {self.remoteId}")
                 return True
             return False
         db = EduSharing().find_item(self.getId(response), self)
         changed = db is None or db[1] != self.getHash(response)
         if not changed:
-            logging.info(f"Item {self.getId(response)} (uuid: {db[0]}) has not changed")
+            logger.info(f"Item {self.getId(response)} (uuid: {db[0]}) has not changed")
         return changed
 
     # you might override this method if you don't want to import specific entries
@@ -90,7 +89,7 @@ class LomBase:
 
     async def parse(self, response):
         if self.shouldImport(response) is False:
-            logging.debug(
+            logger.debug(
                 "Skipping entry {} because shouldImport() returned false".format(str(self.getId(response)))
             )
             return None
@@ -102,7 +101,7 @@ class LomBase:
         main.add_value("valuespaces", self.getValuespaces(response).load_item())
         main.add_value("license", self.getLicense(response).load_item())
         main.add_value("permissions", self.getPermissions(response).load_item())
-        # logging.debug(main.load_item())
+        # logger.debug(main.load_item())
         response_itemloader = await self.mapResponse(response)
         main.add_value("response", response_itemloader.load_item())
         return main.load_item()
