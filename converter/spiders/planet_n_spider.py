@@ -28,12 +28,56 @@ from converter.web_tools import WebEngine
 class PlanetNSpider(scrapy.Spider, LomBase):
     name = "planet_n_spider"
     friendlyName = "Planet-N"
-    version = "0.0.2"
+    version = "0.0.3"
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "AUTOTHROTTLE_TARGET_CONCURRENCY": 4,
         "WEB_TOOLS": WebEngine.Playwright,
+    }
+
+    # ToDo: the Planet-N cookiebanner obstructs part of the website-screenshot
+    #  -> reverse-engineer a method to hide the cookiebanner before the pipeline takes a screenshot
+
+    MODULE_SUBJECT_TO_DISCIPLINE_MAPPING = {
+        "bildende-kunst": "060",  # Kunst
+        "biologie": "080",  # Biologie
+        "chemie": "100",  # Chemie
+        "deutsch": "120",  # Deutsch
+        "englisch": "20001",  # Englisch
+        "erdkunde-geographie-weltkunde": "220",  # Geografie
+        "ethik-religion-werte": ["160", "520"],  # Ethik / Religion
+        "franzoesisch": "20002",  # Französisch
+        "gemeinschaft-gesellschaft-politik-sozialkunde": [
+            "48005",
+            "480",
+            "44007",
+        ],  # Gesellschaftskunde / Politik / Sozialpädagogik (Sozialkunde)
+        "geschichte": "240",  # Geschichte
+        "latein": "20005",  # Latein
+        "mathematik": "380",  # Mathematik
+        "philosophie": "450",  # Philosophie
+        "physik": "460",  # Physik
+        "russisch": "20006",  # Russisch
+        "spanisch": "20007",  # Spanisch
+        "sport": "600",  # Sport
+        # "verbraucherkunde": "",  # ToDo: mapping not possible -> no equivalent discipline available
+        "wirtschaft": "700",  # Wirtschaftskunde
+    }
+
+    TAG_TO_NEW_LRT = {
+        "aktion": "68a43516-889e-4ce9-8e03-248307bd99ff",  # offene und kreative Aktivität (Lehr- und Lernmaterial)
+        "allgemein": "1846d876-d8fd-476a-b540-b8ffd713fedb",  # Material
+        "audio": "ec2682af-08a9-4ab1-a324-9dca5151e99f",  # Audio
+        "bild": "a6d1ac52-c557-4151-bc6f-0d99b0b96fb9",  # Bild
+        "diagramm": "f7228fb5-105d-4313-afea-66dd59b1b6f8",  # Graph, Diagramm und Charts
+        "schaubild": "1dc4ed81-718c-4b76-86cb-947a86875973",  # Veranschaulichung, Schaubild und Tafelbild
+        "slideshow": "92c7a50c-6243-45d9-8b11-e79cbbda6305",  # Präsentation
+        "spiel": "a120ce77-59f5-4564-8d49-73f4a0de1594",  # Lernen, Quiz und Spiel
+        "statistik": "345cba59-9fa0-4ec8-ba93-2c75f4a40003",  # Daten
+        "tabelle": "933ceef8-c7ae-4af3-9229-4bd86334dfea",  # Tabellen
+        "text": "0cef3ce9-e106-47ae-836a-48f9ed04384e",  # Dokumente und textbasierte Inhalte
+        "video": "7a6e9608-2554-4981-95dc-47ab9ba924de",  # Video (Material)
     }
 
     def __init__(self, **kwargs):
@@ -265,6 +309,13 @@ class PlanetNSpider(scrapy.Spider, LomBase):
         # Reading metadata from the WP JSON API item:
         wp_item_id: str = self.getId(response=response, wp_item=wp_item)
         wp_item_hash: str = self.getHash(response=response, wp_item=wp_item)
+        wp_class: list[str] | None = None
+        if "class_list" in wp_item:
+            # the "class_list" property contains several prefixed values:
+            # "tag-<value>" contains a non-descriptive mix of keywords, disciplines and WordPress-internal status information
+            # "module_subject-<value>" can contain disciplines (Schulfächer)
+            # "module_topic-<value>" contains keywords
+            wp_class = wp_item["class_list"]
         wp_date: str | None = None
         if "date" in wp_item:
             wp_date: str = wp_item["date"]
@@ -311,8 +362,8 @@ class PlanetNSpider(scrapy.Spider, LomBase):
         base_itemloader.add_value("hash", wp_item_hash)
         if wp_date_modified:
             base_itemloader.add_value("lastModified", wp_date_modified)
-        if og_image:
-            base_itemloader.add_value("thumbnail", og_image)
+        # if og_image:
+        #     base_itemloader.add_value("thumbnail", og_image)
         if wp_fulltext:
             base_itemloader.add_value("fulltext", wp_fulltext)
 
@@ -356,9 +407,65 @@ class PlanetNSpider(scrapy.Spider, LomBase):
         valuespace_itemloader: ValuespaceItemLoader = ValuespaceItemLoader()
         valuespace_itemloader.add_value("discipline", "64018")  # Nachhaltigkeit
         valuespace_itemloader.add_value("new_lrt", Constants.NEW_LRT_MATERIAL)
+        # this crawler uses a crawler source template (Quellen-Datensatz) to inherit values from:
+        # - intendedEndUserRole
+        # - educationalContext
+        _tags: list[str] = []
+        _modules: list[str] = []
+        if wp_class and isinstance(wp_class, list):
+            for _class_entry in wp_class:
+                # individual entries of the "class-list"-property can look like this:
+                # "module_subject-gemeinschaft-gesellschaft-politik-sozialkunde",
+                # "tag-bild"
+                if "tag-" in _class_entry:
+                    # we'll try to map these values to our "new_lrt"-vocab, but need to clean up the strings first
+                    _tag_cleaned = _class_entry.replace("tag-", "")
+                    _tags.append(_tag_cleaned)
+                if "module_subject-" in _class_entry:
+                    # we'll try to map these values to our "discipline"-vocab, but need to clean up the strings first
+                    _module_cleaned = _class_entry.replace("module_subject-", "")
+                    _modules.append(_module_cleaned)
+        new_lrts_mapped: set[str] = set()
+        if _tags and isinstance(_tags, list):
+            for _tag in _tags:
+                if _tag in self.TAG_TO_NEW_LRT:
+                    _new_lrt_mapped: str | list[str] = self.TAG_TO_NEW_LRT[_tag]
+                    if _new_lrt_mapped and isinstance(_new_lrt_mapped, str):
+                        new_lrts_mapped.add(_new_lrt_mapped)
+                    if _new_lrt_mapped and isinstance(_new_lrt_mapped, list):
+                        new_lrts_mapped.update(_new_lrt_mapped)
+        if new_lrts_mapped:
+            new_lrt_list: list[str] = list(new_lrts_mapped)
+            valuespace_itemloader.add_value("new_lrt", new_lrt_list)
+        else:
+            # as discussed with Jan on 2024-12-11:
+            # each item can be considered to be a teaching module ("Unterrichtsbaustein")
+            valuespace_itemloader.add_value("new_lrt", "5098cf0b-1c12-4a1b-a6d3-b3f29621e11d")
+
+        disciplines_mapped: set[str] = set()
+        if _modules and isinstance(_modules, list):
+            for _module in _modules:
+                if _module in self.MODULE_SUBJECT_TO_DISCIPLINE_MAPPING:
+                    _discipline_mapped: str | list[str] = self.MODULE_SUBJECT_TO_DISCIPLINE_MAPPING[_module]
+                    if _discipline_mapped and isinstance(_discipline_mapped, str):
+                        disciplines_mapped.add(_discipline_mapped)
+                    if _discipline_mapped and isinstance(_discipline_mapped, list):
+                        disciplines_mapped.update(_discipline_mapped)
+        if disciplines_mapped:
+            discipline_list: list[str] = list(disciplines_mapped)
+            valuespace_itemloader.add_value("discipline", discipline_list)
 
         license_itemloader: LicenseItemLoader = LicenseItemLoader()
         license_itemloader.add_value("author", meta_author)
+        license_itemloader.add_value("internal", Constants.LICENSE_CUSTOM)
+        custom_license_description: str = (
+            "Vorbehaltlich der verlinkten externen Inhalte, "
+            "sind die Inhalte dieser Website lizenziert unter einer CC BY-NC-SA 4.0 Lizenz. "
+            "Als Namensnennung genügt die Angabe „Planet-N“."
+        )
+        # as discussed with Jan on 2024-12-11 we're hard-coding the license description according to
+        # https://www.planet-n.de/info/ -> Headline: "Nutzung der Website"
+        license_itemloader.add_value("description", custom_license_description)
 
         permission_itemloader: PermissionItemLoader = super().getPermissions(response=response)
 
