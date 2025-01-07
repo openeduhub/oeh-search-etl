@@ -2,11 +2,8 @@ import logging
 from pprint import pp
 
 import requests
-
 from converter import env
-
-logging.basicConfig(level=logging.DEBUG)
-log = logging.getLogger(__name__)
+from loguru import logger
 
 
 class EduSharingSourceTemplateHelper:
@@ -76,7 +73,7 @@ class EduSharingSourceTemplateHelper:
             # (e.g., crawling against production)
             self._set_edu_sharing_url(edu_sharing_base_url_from_dot_env)
         else:
-            log.info(
+            logger.info(
                 f"Could not read '.env'-Setting 'EDU_SHARING_BASE_URL'. Please check your '.env'-file! "
                 f"(For additional help, see: oeh-search-etl/converter/.env.example )."
             )
@@ -112,7 +109,7 @@ class EduSharingSourceTemplateHelper:
             self._payload = payload
             return payload
         else:
-            log.error(
+            logger.error(
                 f"Cannot build query payload without valid crawler_name. Please make sure that you instantiate "
                 f"EduSharingTemplateHelper with a valid 'crawler_name'-parameter!"
             )
@@ -135,7 +132,7 @@ class EduSharingSourceTemplateHelper:
             try:
                 result_dict = response.json()
             except requests.exceptions.JSONDecodeError as jde:
-                log.error(f"The edu-sharing response could not be parsed as JSON. Response:\n" f"{response.text}")
+                logger.error(f"The edu-sharing response could not be parsed as JSON. Response:\n" f"{response.text}")
                 raise jde
 
             try:
@@ -143,7 +140,7 @@ class EduSharingSourceTemplateHelper:
                 pagination_total = pagination["total"]
                 pagination_count = pagination["count"]
             except KeyError:
-                log.error(
+                logger.error(
                     f"Missing 'pagination'-object in edu-sharing response. "
                     f"Aborting EduSharingSourceTemplateHelper process..."
                 )
@@ -155,19 +152,19 @@ class EduSharingSourceTemplateHelper:
                 pass
             else:
                 # unexpected API behavior -> abort here by returning None
-                log.error(
+                logger.error(
                     f"The edu-sharing API returned an unexpected number of crawler 'source template' results:\n"
                     f"Expected 'pagination.count': 1 (received: {pagination_count} ) // "
                     f"expected 'pagination.total': 1 (received: {pagination_total} )"
                 )
                 if pagination_count == 0 and pagination_total == 0:
-                    log.error(
+                    logger.error(
                         f"Please make sure that a 'source template' ('Quellen-Datensatz'-template) for crawler "
                         f"'{self._crawler_name}' exists within the specified edu-sharing repository "
                         f"{self._edu_sharing_base_url} !"
                     )
                 if pagination_count > 1 or pagination_total > 1:
-                    log.error(
+                    logger.error(
                         f"edu-sharing returned more than one 'crawler source template' for the specified "
                         f"crawler '{self._crawler_name}'. "
                     )
@@ -193,7 +190,7 @@ class EduSharingSourceTemplateHelper:
                         # 					"ccm:oeh_languageLevel"
                         # 				]
                         whitelist_keys: list[str] = nodes_properties[_oeh_cdi]
-                        log.info(f"'{_oeh_cdi}' contains the following properties: \n" f"{whitelist_keys}")
+                        logger.info(f"'{_oeh_cdi}' contains the following properties: \n" f"{whitelist_keys}")
                         if whitelist_keys and isinstance(whitelist_keys, list):
                             for whitelist_key in whitelist_keys:
                                 # the values for each property need to be looked up separately
@@ -203,16 +200,16 @@ class EduSharingSourceTemplateHelper:
                                 if whitelisted_property_value:
                                     _whitelisted_properties.update({f"{whitelist_key}": whitelisted_property_value})
                         else:
-                            log.error(
+                            logger.error(
                                 f"Received unexpected value type of metadata property '{_oeh_cdi}': "
                                 f"{type(whitelist_keys)} . (Expected type: 'list[str]')"
                             )
                     else:
-                        log.error(
+                        logger.error(
                             f"Could not find '{_oeh_cdi}' in edu-sharing API response. "
                             f"Source template retrieval FAILED!"
                         )
-                        log.debug(response.text)
+                        logger.debug(response.text)
                 except KeyError as ke:
                     raise ke
 
@@ -229,7 +226,7 @@ class EduSharingSourceTemplateHelper:
 
                 return _whitelisted_properties
             else:
-                log.error(
+                logger.error(
                     f"edu-sharing API returned an unexpected 'nodes'-object:"
                     f"Expected list[dict] of length 1, received length: {len(nodes_list)} .\n"
                     f"Please make sure that a 'source template' ('Quellendatensatz'-template) for crawler "
@@ -238,13 +235,13 @@ class EduSharingSourceTemplateHelper:
                 return None
         else:
             # sad-case: we catch unexpected HTTP responses here
-            log.error(
+            logger.error(
                 f"Received unexpected HTTP response (status code: {status_code} ) from the edu-sharing "
                 f"repository while trying to retrieve whitelisted 'source template'-metadata-properties."
             )
             if status_code == 401:
                 # ToDo: specify exact edu-sharing version that provides the necessary API endpoint
-                log.error(
+                logger.error(
                     f"edu-sharing API returned HTTP Status Code {status_code}. "
                     f"(This might happen when the necessary API endpoint might not be available (yet) in the "
                     f"edu-sharing repository (edu-sharing v8.1+ required).)"
@@ -252,7 +249,7 @@ class EduSharingSourceTemplateHelper:
             if status_code == 500:
                 # code 500 might be accompanied by 'java.lang.NullPointerException' -> print whole response
                 # happens when the payload of our submitted request was empty
-                log.error(f"edu-sharing API returned HTTP status code {status_code}:\n" f"{response.text}")
+                logger.error(f"edu-sharing API returned HTTP status code {status_code}:\n" f"{response.text}")
                 response.raise_for_status()
             # ToDo: extend Error-Handling for additional edge-cases (as / if they occur)
             return None
@@ -267,7 +264,7 @@ class EduSharingSourceTemplateHelper:
         # check user-defined .env Setting first if 'crawler source dataset' should be ignored:
         est_enabled: bool = env.get_bool(key="EDU_SHARING_SOURCE_TEMPLATE_ENABLED", allow_null=True, default=None)
         if est_enabled:
-            log.info(
+            logger.info(
                 f".env setting 'EDU_SHARING_SOURCE_TEMPLATE_ENABLED' is ACTIVE. Trying to retrieve whitelisted "
                 f"properties..."
             )
@@ -286,21 +283,21 @@ class EduSharingSourceTemplateHelper:
                         "Aborting crawl process..."
                     )
             else:
-                log.error(
+                logger.error(
                     f"Could not build payload object to retrieve 'source template'-properties from "
                     f"edu-sharing repository. "
                     f"\nJSON Payload for crawler_name '{self._crawler_name}' was:\n"
                     f"{self._payload}"
                     f"\n(payload REQUIRES a valid 'crawler_name'!)"
                 )
-                log.info(
+                logger.info(
                     "Aborting crawl... (If you didn't mean to retrieve an edu-sharing 'source template', please "
                     "set the .env variable 'EDU_SHARING_SOURCE_TEMPLATE_ENABLED' to False!)"
                 )
                 return None
         else:
             # if the setting is explicitly disabled, do nothing -> continue with normal crawler behaviour
-            log.info(
+            logger.info(
                 f"Recognized '.env'-Setting EDU_SHARING_SOURCE_TEMPLATE_ENABLED: '{est_enabled}'.\n"
                 f"Crawler source dataset will be IGNORED. Continuing with default crawler behaviour..."
             )
@@ -308,7 +305,6 @@ class EduSharingSourceTemplateHelper:
 
 
 if __name__ == "__main__":
-    log.setLevel("DEBUG")
     crawler_name_for_testing: str = "zum_deutschlernen_spider"
     # crawler_name_for_testing: str = "does_not_exist_spider"
     est_helper: EduSharingSourceTemplateHelper = EduSharingSourceTemplateHelper(crawler_name=crawler_name_for_testing)

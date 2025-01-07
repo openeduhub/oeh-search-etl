@@ -1,8 +1,6 @@
-import logging
-
 import requests
-
 from converter import env
+from loguru import logger
 
 
 class EduSharingPreCheck:
@@ -43,8 +41,6 @@ class EduSharingPreCheck:
 
     payload = ""
 
-    logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
-
     replication_source_id_list: list[str] = list()
 
     def __init__(self):
@@ -59,20 +55,20 @@ class EduSharingPreCheck:
         """
         edu_sharing_url: str = env.get("EDU_SHARING_BASE_URL", True, None)
         saved_search_node_id: str = env.get("EDU_SHARING_PRECHECK_SAVED_SEARCH_ID", True, None)
-        logging.info(
+        logger.info(
             f"PreCheck utility warmup: Checking '.env'-file for EDU_SHARING_BASE_URL and "
             f"EDU_SHARING_PRECHECK_SAVED_SEARCH_ID ..."
         )
         if edu_sharing_url and saved_search_node_id:
             url_combined: str = f"{edu_sharing_url}{self.edu_sharing_rest_api_path}{saved_search_node_id}"
-            logging.info(
+            logger.info(
                 f"PreCheck utility: Recognized .env settings for CONTINUED crawl. Assembled URL string: "
                 f"{url_combined}"
             )
             self.edu_sharing_url = url_combined
             self.saved_search_node_id = saved_search_node_id
         else:
-            logging.error(
+            logger.error(
                 f"PreCheck utility: Could not retrieve valid .env settings for EDU_SHARING_BASE and "
                 f"EDU_SHARING_PRECHECK_SAVED_SEARCH_ID. Please make sure that both settings are valid if "
                 f"you want to COMPLETE/COMPLEMENT a previously aborted crawl."
@@ -95,7 +91,7 @@ class EduSharingPreCheck:
         """
         json_response = response.json()
         nodes: list[dict] = json_response["nodes"]
-        logging.info(f"Collecting 'ccm:replicationsourceid's from: {response.url}")
+        logger.info(f"Collecting 'ccm:replicationsourceid's from: {response.url}")
         if nodes:
             # as long as there are nodes, we haven't reached the final page of the API yet.
             for node in nodes:
@@ -107,7 +103,7 @@ class EduSharingPreCheck:
                             self.replication_source_id_list.append(replication_source_id)
             self.query_next_page()
         else:
-            logging.info(
+            logger.info(
                 f"Reached the last API page: {response.url} // \nTotal amount of ids collected: {len(self.replication_source_id_list)}"
             )
 
@@ -131,14 +127,14 @@ class EduSharingPreCheck:
 
         """
         if self.replication_source_id_list:
-            logging.info(
+            logger.info(
                 f"PreCheck utility: Successfully collected {len(self.replication_source_id_list)} "
                 f"'ccm:replicationsourceid'-strings."
             )
             self.replication_source_id_list.sort()
             return self.replication_source_id_list
         else:
-            logging.warning(
+            logger.warning(
                 f"PreCheck utility: The list of 'ccm:replicationsourceid'-strings appears to be empty. "
                 f"This might happen if the API Pagination is interrupted by connection problems to the "
                 f"edu-sharing repo."
