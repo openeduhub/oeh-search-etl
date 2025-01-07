@@ -222,13 +222,13 @@ class WebTools:
         # relevant docs for this implementation: https://hub.docker.com/r/browserless/chrome#playwright and
         # https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp
         async with async_playwright() as p:
-            ws_cdp_endpoint = env.get("PLAYWRIGHT_WS_ENDPOINT")
+            ws_cdp_endpoint = f"{env.get("PLAYWRIGHT_WS_ENDPOINT")}/chrome/playwright"
             if cls._playwright_adblocker:
                 # advertisements pollute the HTML body and obstruct website screenshots, which is why we try to block
                 # them from rendering via the built-in adblocker (uBlock Origin) of the browserless docker image.
                 # see: https://docs.browserless.io/chrome-flags/#blocking-ads
-                ws_cdp_endpoint = f"{ws_cdp_endpoint}/?blockAds=true"
-            browser = await p.chromium.connect_over_cdp(endpoint_url=ws_cdp_endpoint)
+                ws_cdp_endpoint = f"{ws_cdp_endpoint}?blockAds=true"
+            browser = await p.chromium.connect(ws_endpoint=ws_cdp_endpoint)
             browser_context = await browser.new_context()
             if cls._playwright_cookies:
                 # Some websites may require setting specific cookies to render properly
