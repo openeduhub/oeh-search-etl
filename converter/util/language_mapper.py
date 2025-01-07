@@ -1,8 +1,8 @@
-import logging
 import re
 
 import babel
 import langcodes
+from loguru import logger
 
 
 class LanguageMapper:
@@ -11,10 +11,6 @@ class LanguageMapper:
     def __init__(self, languages: list[str] = None):
         self.languages = languages
 
-    logging.basicConfig(
-        format="%(asctime)s\t%(levelname)s: %(message)s",
-        level=logging.DEBUG,
-    )
 
     @staticmethod
     def _normalize_string_to_language_code(raw_string: str) -> str | None:
@@ -35,7 +31,7 @@ class LanguageMapper:
             if "separator" in regex_result_dict:
                 separator: str = regex_result_dict["separator"]
         else:
-            logging.debug(f"The raw string {raw_string} does not look like a typical Locale string.")
+            logger.debug(f"The raw string {raw_string} does not look like a typical Locale string.")
 
         if regex_result and separator:
             # this case happens when the raw string looks like "de_DE" or "en-US"
@@ -76,7 +72,7 @@ class LanguageMapper:
         if self.languages and isinstance(self.languages, str):
             # since every step from here on expects a list of strings, typecasting to list[str] provides some minor
             # Quality of Life
-            logging.debug(f"LanguageMapper was instantiated with a string, converting to Type list[str]...")
+            logger.debug(f"LanguageMapper was instantiated with a string, converting to Type list[str]...")
             self.languages: list[str] = [self.languages]
 
         if self.languages and isinstance(self.languages, list):
@@ -90,7 +86,7 @@ class LanguageMapper:
                     language_item = language_item.strip()
 
                     if len(language_item) < 2:
-                        # logging.debug(
+                        # logger.debug(
                         #     f"LanguageMapper detected an INVALID language string: '{language_item}' (string length is "
                         #     f"too short to be valid. Dropping string...)"
                         # )
@@ -100,7 +96,7 @@ class LanguageMapper:
                     if 2 <= len(language_item) <= 5 and len(language_item) != 4:
                         # this case covers the majority of pre-formatted language-codes, e.g.:
                         # "de", "EN", "de-DE", "de_DE", "en_US" or "sgn"
-                        # logging.debug(
+                        # logger.debug(
                         #     f"LanguageMapper detected a potential 2-to-4-letter language code: '{language_item}'"
                         # )
                         normalized_str: str | None = self._normalize_string_to_language_code(language_item)
@@ -110,7 +106,7 @@ class LanguageMapper:
                             edge_cases.add(language_item)
                     if len(language_item) == 4 or len(language_item) > 5:
                         # natural language edge-cases like "Deutsch", "german", "englisch" are handled here
-                        # logging.debug(
+                        # logger.debug(
                         #     f"LanguageMapper detected a POTENTIALLY INVALID language string: '{language_item}'. "
                         #     f"(String is too long to be a 2- or 4-letter-code). "
                         #     f"Trying to match natural language string to language code..."
@@ -121,7 +117,7 @@ class LanguageMapper:
                             # see: https://github.com/rspeer/langcodes/tree/master#recognizing-language-names-in-natural-language
                             if langcodes_result:
                                 langcode_detected = langcodes_result.to_tag()
-                                # logging.debug(
+                                # logger.debug(
                                 #     f"Detected language code '{langcode_detected}' from string '{language_item}'."
                                 # )
                                 # ToDo - optional: maybe compare distance between 'langcodes' and 'babel' result?
@@ -135,7 +131,7 @@ class LanguageMapper:
                             edge_cases.add(language_item)
 
             if edge_cases:
-                logging.info(
+                logger.info(
                     f"LanguageMapper could NOT map the following edge-cases to a normalized language code: "
                     f"{list(edge_cases)}"
                 )
@@ -150,7 +146,7 @@ class LanguageMapper:
                 # sad case: if not a single mapping was possible, our result set is empty
                 return None
         else:
-            logging.warning(f"LanguageMapper expected list[str] but received unexpected type {type(self.languages)} ")
+            logger.warning(f"LanguageMapper expected list[str] but received unexpected type {type(self.languages)} ")
             return None
 
 

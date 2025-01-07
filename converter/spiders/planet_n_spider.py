@@ -28,16 +28,22 @@ from converter.web_tools import WebEngine
 class PlanetNSpider(scrapy.Spider, LomBase):
     name = "planet_n_spider"
     friendlyName = "Planet-N"
-    version = "0.0.3"
+    version = "0.0.4"
+    playwright_cookies: list[dict] = [
+        {
+            "name": "SimpleCookieControl",
+            "value": "deny"
+        }
+    ]
+    # see: https://wordpress.com/plugins/simple-cookie-control
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "AUTOTHROTTLE_TARGET_CONCURRENCY": 4,
         "WEB_TOOLS": WebEngine.Playwright,
+        "PLAYWRIGHT_COOKIES": playwright_cookies,
+        "PLAYWRIGHT_ADBLOCKER": True,
     }
-
-    # ToDo: the Planet-N cookiebanner obstructs part of the website-screenshot
-    #  -> reverse-engineer a method to hide the cookiebanner before the pipeline takes a screenshot
 
     MODULE_SUBJECT_TO_DISCIPLINE_MAPPING = {
         "bildende-kunst": "060",  # Kunst

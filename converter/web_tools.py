@@ -6,12 +6,11 @@ from enum import Enum
 import html2text
 import httpx
 import trafilatura
+from converter import env
+from loguru import logger
 from playwright.async_api import async_playwright
 from scrapy.utils.project import get_project_settings
 
-from converter import env
-
-log = logging.getLogger(__name__)
 logging.getLogger("trafilatura").setLevel(logging.INFO)  # trafilatura is quite spammy
 
 ignored_file_extensions: list[str] = [
@@ -120,13 +119,13 @@ class WebTools:
             # checking if the provided URL is actually a string
             for file_extension in ignored_file_extensions:
                 if url.endswith(file_extension):
-                    log.warning(
+                    logger.warning(
                         f"Problematic file extension {file_extension} detected in URL {url} ! "
                         f"Headless browsers can't render this file type."
                     )
                     return True
         else:
-            log.debug(f"URL {url} does not appear to be a string value. WebTools REQUIRE an URL string.")
+            logger.debug(f"URL {url} does not appear to be a string value. WebTools REQUIRE an URL string.")
             return False
 
     @classmethod
@@ -149,7 +148,7 @@ class WebTools:
             # Thumbnail Pipeline
             # ToDo: handle websites that redirect to binary downloads gracefully
             #   - maybe by checking the MIME-Type in response headers first?
-            log.warning(
+            logger.warning(
                 f"File extension in URL {url} detected which cannot be rendered by headless browsers. "
                 f"Skipping WebTools rendering for this url..."
             )
@@ -223,20 +222,20 @@ class WebTools:
         # relevant docs for this implementation: https://hub.docker.com/r/browserless/chrome#playwright and
         # https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp
         async with async_playwright() as p:
-            ws_cdp_endpoint = env.get("PLAYWRIGHT_WS_ENDPOINT")
+            ws_cdp_endpoint = f"{env.get("PLAYWRIGHT_WS_ENDPOINT")}/chrome/playwright"
             if cls._playwright_adblocker:
                 # advertisements pollute the HTML body and obstruct website screenshots, which is why we try to block
                 # them from rendering via the built-in adblocker (uBlock Origin) of the browserless docker image.
                 # see: https://docs.browserless.io/chrome-flags/#blocking-ads
-                ws_cdp_endpoint = f"{ws_cdp_endpoint}/?blockAds=true"
-            browser = await p.chromium.connect_over_cdp(endpoint_url=ws_cdp_endpoint)
+                ws_cdp_endpoint = f"{ws_cdp_endpoint}?blockAds=true"
+            browser = await p.chromium.connect(ws_endpoint=ws_cdp_endpoint)
             browser_context = await browser.new_context()
             if cls._playwright_cookies:
                 # Some websites may require setting specific cookies to render properly
                 # (e.g., to skip or close annoying cookie banners).
                 # Playwright supports passing cookies to requests
                 # see: https://playwright.dev/python/docs/api/class-browsercontext#browser-context-add-cookies
-                log.debug(f"Preparing cookies for Playwright HTTP request...")
+                logger.debug(f"Preparing cookies for Playwright HTTP request...")
                 prepared_cookies: list[dict] = list()
                 for cookie_object in cls._playwright_cookies:
                     if isinstance(cookie_object, dict):
@@ -251,7 +250,7 @@ class WebTools:
                             }
                             prepared_cookies.append(cookie)
                         else:
-                            log.warning(f"Cannot set custom cookie for Playwright (headless browser) request due to "
+                            logger.warning(f"Cannot set custom cookie for Playwright (headless browser) request due to "
                                         f"missing properties: 'name' and 'value' are REQUIRED attributes "
                                         f"within a cookie object (type: dict)! "
                                         f"Discarding cookie: {cookie_object}")
