@@ -1,9 +1,7 @@
-import logging
 import re
 
 from converter.constants import Constants
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class LicenseMapper:
@@ -18,7 +16,6 @@ class LicenseMapper:
             Use this information to set 'internal' to 'CUSTOM' and save the string as a custom license description.
     """
 
-    logging.basicConfig(level=logging.DEBUG)  # ToDo: remove me after debugging
 
     cc_pattern = re.compile(
         r"(?<=c{2}.)(?P<CC_TYPE>by(.[acdns]{2}){0,3})"
