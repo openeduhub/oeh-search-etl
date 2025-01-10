@@ -31,12 +31,24 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
 
     name = "portal_globales_lernen_spider"
     friendlyName = "Portal für Globales Lernen"
-    version = "0.0.4"
+    version = "0.0.5"  # last update: 2025-01-10
+
+    playwright_cookies: list[dict] = [
+        {
+            "name": "cookiesjsr",
+            "value": "%7B%22functional%22%3Afalse%2C%22recaptcha%22%3Afalse%2C%22analytics%22%3Afalse%7D",
+        }
+    ]
+    # Portal für Globales Lernen uses "Drupal 10" as their CMS and the "COOKiES Consent Management"-Module.
+    # see: https://www.drupal.org/project/cookies & https://github.com/jfeltkamp/cookiesjsr
+    # When clicking the "reject all"-button, a "callback.json"-payload is sent and all subsequent HTTP requests
+    # send along the above "cookiesjsr"-cookie to hide the consent management banner from popping up again.
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
         "AUTOTHROTTLE_TARGET_CONCURRENCY": 2,
         "WEB_TOOLS": WebEngine.Playwright,
+        "PLAYWRIGHT_COOKIES": playwright_cookies,
         # "ROBOTSTXT_OBEY": False,
         # "COOKIES_DEBUG": True,
     }
@@ -274,7 +286,7 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
         if pgl_author and isinstance(pgl_author, str):
             # PGL provides exactly one organization text string per item
             lifecycle_publisher: LomLifecycleItemloader = LomLifecycleItemloader()
-            lifecycle_publisher.add_value("role", "publisher")
+            lifecycle_publisher.add_value("role", "author")
             lifecycle_publisher.add_value("organization", pgl_author)
             if pgl_erscheinungsjahr:
                 # PGL provides only incomplete "YYYY"-dates, which the pipeline will transform to YYYY-01-01
@@ -282,14 +294,23 @@ class PortalGlobalesLernenSpider(scrapy.Spider, LomBase):
                 lifecycle_publisher.add_value("date", pgl_erscheinungsjahr)
             lom_base_itemloader.add_value("lifecycle", lifecycle_publisher.load_item())
 
+        lifecycle_metadata_provider: LomLifecycleItemloader = LomLifecycleItemloader()
+        # see: https://www.globaleslernen.de/de/die-ewik/impressum
+        lifecycle_metadata_provider.add_value("role", "metadata_provider")
+        lifecycle_metadata_provider.add_value("organization", "World University Service (WUS) Deutsches Komitee e.V.")
+        lifecycle_metadata_provider.add_value("url", response.url)
+        if pgl_erscheinungsjahr:
+            lifecycle_metadata_provider.add_value("date", pgl_erscheinungsjahr)
+        lom_base_itemloader.add_value("lifecycle", lifecycle_metadata_provider.load_item())
+
         lom_technical_itemloader: LomTechnicalItemLoader = LomTechnicalItemLoader()
         # lom_technical_itemloader.add_value("format", "text/html")
         # ToDo: debug the crawler results first without setting "format" to text/html
         lom_technical_itemloader.add_value("location", response.url)
 
         license_itemloader: LicenseItemLoader = LicenseItemLoader()
-        # see: https://www.globaleslernen.de/de/die-ewik/impressum
-        license_itemloader.add_value("author", "World University Service (WUS) Deutsches Komitee e.V.")
+        if pgl_author and isinstance(pgl_author, str):
+            license_itemloader.add_value("author", pgl_author)
         license_itemloader.add_value("internal", Constants.LICENSE_COPYRIGHT_FREE)
 
         valuespace_itemloader: ValuespaceItemLoader = ValuespaceItemLoader()
