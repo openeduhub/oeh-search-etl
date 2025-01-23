@@ -1,6 +1,7 @@
 import requests
-from converter import env
 from loguru import logger
+
+from converter import env
 
 
 class EduSharingPreCheck:
@@ -34,7 +35,7 @@ class EduSharingPreCheck:
         "contentType": "FILES",
         "propertyFilter": "ccm:replicationsourceid",
         "maxItems": f"{max_item_parameter}",
-        f"skipCount": f"{skip_item_parameter}",
+        "skipCount": f"{skip_item_parameter}",
         "sortProperties": "cm:created",
         "sortAscending": "true",
     }
@@ -56,8 +57,8 @@ class EduSharingPreCheck:
         edu_sharing_url: str = env.get("EDU_SHARING_BASE_URL", True, None)
         saved_search_node_id: str = env.get("EDU_SHARING_PRECHECK_SAVED_SEARCH_ID", True, None)
         logger.info(
-            f"PreCheck utility warmup: Checking '.env'-file for EDU_SHARING_BASE_URL and "
-            f"EDU_SHARING_PRECHECK_SAVED_SEARCH_ID ..."
+            "PreCheck utility warmup: Checking '.env'-file for EDU_SHARING_BASE_URL and "
+            "EDU_SHARING_PRECHECK_SAVED_SEARCH_ID ..."
         )
         if edu_sharing_url and saved_search_node_id:
             url_combined: str = f"{edu_sharing_url}{self.edu_sharing_rest_api_path}{saved_search_node_id}"
@@ -69,9 +70,9 @@ class EduSharingPreCheck:
             self.saved_search_node_id = saved_search_node_id
         else:
             logger.error(
-                f"PreCheck utility: Could not retrieve valid .env settings for EDU_SHARING_BASE and "
-                f"EDU_SHARING_PRECHECK_SAVED_SEARCH_ID. Please make sure that both settings are valid if "
-                f"you want to COMPLETE/COMPLEMENT a previously aborted crawl."
+                "PreCheck utility: Could not retrieve valid .env settings for EDU_SHARING_BASE and "
+                "EDU_SHARING_PRECHECK_SAVED_SEARCH_ID. Please make sure that both settings are valid if "
+                "you want to COMPLETE/COMPLEMENT a previously aborted crawl."
             )
 
     def build_query_string(self):
@@ -79,7 +80,7 @@ class EduSharingPreCheck:
             "contentType": "FILES",
             "propertyFilter": "ccm:replicationsourceid",
             "maxItems": f"{self.max_item_parameter}",
-            f"skipCount": f"{self.skip_item_parameter}",
+            "skipCount": f"{self.skip_item_parameter}",
             "sortProperties": "cm:created",
             "sortAscending": "true",
         }
@@ -135,9 +136,9 @@ class EduSharingPreCheck:
             return self.replication_source_id_list
         else:
             logger.warning(
-                f"PreCheck utility: The list of 'ccm:replicationsourceid'-strings appears to be empty. "
-                f"This might happen if the API Pagination is interrupted by connection problems to the "
-                f"edu-sharing repo."
+                "PreCheck utility: The list of 'ccm:replicationsourceid'-strings appears to be empty. "
+                "This might happen if the API Pagination is interrupted by connection problems to the "
+                "edu-sharing repository."
             )
 
     def get_replication_source_id_list(self) -> list[str]:

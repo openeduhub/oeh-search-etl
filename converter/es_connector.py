@@ -408,7 +408,7 @@ class EduSharing:
                         custom.update(whitelisted_properties)
                         item["custom"] = custom
                 else:
-                    # otherwise create the 'BaseItem.custom'-field
+                    # otherwise, create the 'BaseItem.custom'-field
                     item["custom"] = whitelisted_properties
 
         # map custom fields directly into the edu-sharing properties:
@@ -838,8 +838,8 @@ class EduSharing:
                     # if about["services"] is an empty list (instead of the expected list[dict]),
                     # we're falling back to the about["version"]-dict that might look like this:
                     # {'major': 1, 'minor': 1, 'renderservice': '9.0', 'repository': '9.0'}
-                    logger.info(f"Failed to retrieve BULK v1 API version from edu-sharing during APi client init: "
-                             f"about['services'] was empty (expected: list[dict]). Using about['version'] fallback...")
+                    logger.info("Failed to retrieve BULK v1 API version from edu-sharing during APi client init: "
+                                "about['services'] was empty (expected: list[dict]). Using about['version'] fallback...")
                     EduSharing.version = about["version"]
                 version_str: str = f"{EduSharing.version['major']}.{EduSharing.version['minor']}"
                 if (
@@ -847,7 +847,7 @@ class EduSharing:
                     or EduSharing.version["minor"] < 0
                     or EduSharing.version["minor"] > 1
                 ):
-                    raise Exception(f"Given repository API version is unsupported: " + version_str)
+                    raise Exception(f"Given repository API version is unsupported: {version_str}")
                 else:
                     logger.info("Detected edu-sharing bulk api with version " + version_str)
                 if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is True:

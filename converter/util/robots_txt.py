@@ -62,8 +62,7 @@ def _remove_wildcard_user_agent_from_robots_txt(robots_txt: str) -> str:
     # (e.g. "user agent:", "useragent:", "user-agent:", "User-agent:" etc.)
     # and is followed by a newline with "disallow: /"
     _wildcard_pattern: re.Pattern = re.compile(
-        r"(?P<user_agent_directive>[u|U]ser[\s|-]?[a|A]gent:\s*[*]\s*)"
-        r"(?P<disallow_directive>[d|D]isallow:\s*/\s+)"
+        r"(?P<user_agent_directive>[u|U]ser[\s|-]?[a|A]gent:\s*[*]\s*)" r"(?P<disallow_directive>[d|D]isallow:\s*/\s+)"
     )
     _wildcard_agent_match: re.Match | None = _wildcard_pattern.search(robots_txt)
     if _wildcard_agent_match:
@@ -99,9 +98,9 @@ def _check_protego_object_against_list_of_known_ai_user_agents(protego_object: P
     :return: Returns ``True`` if the given ``url`` is allowed to be scraped by AI user agents. If the ``robots.txt``-file forbids AI scrapers, returns ``False``.
     """
     if url is None:
-        raise ValueError(f"url cannot be None. (Please provide a valid URL string!)")
+        raise ValueError("url cannot be None. (Please provide a valid URL string!)")
     if protego_object is None:
-        raise ValueError(f"This method requires a valid protego object.")
+        raise ValueError("This method requires a valid protego object.")
     else:
         ai_usage_allowed: bool = True  # assumption: if not explicitly disallowed by the robots.txt, AI usage is allowed
         for user_agent in AI_USER_AGENTS:

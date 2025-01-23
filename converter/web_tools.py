@@ -6,10 +6,11 @@ from enum import Enum
 import html2text
 import httpx
 import trafilatura
-from converter import env
 from loguru import logger
 from playwright.async_api import async_playwright
 from scrapy.utils.project import get_project_settings
+
+from converter import env
 
 logging.getLogger("trafilatura").setLevel(logging.INFO)  # trafilatura is quite spammy
 
@@ -235,7 +236,7 @@ class WebTools:
                 # (e.g., to skip or close annoying cookie banners).
                 # Playwright supports passing cookies to requests
                 # see: https://playwright.dev/python/docs/api/class-browsercontext#browser-context-add-cookies
-                logger.debug(f"Preparing cookies for Playwright HTTP request...")
+                logger.debug("Preparing cookies for Playwright HTTP request...")
                 prepared_cookies: list[dict] = list()
                 for cookie_object in cls._playwright_cookies:
                     if isinstance(cookie_object, dict):
