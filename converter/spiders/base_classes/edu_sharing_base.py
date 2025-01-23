@@ -1,16 +1,15 @@
-import logging
+import json
 import sys
 
 import requests
-
-from .lom_base import LomBase, LomAgeRangeItemLoader
+import vobject
 from scrapy.http import JsonRequest
 from scrapy.spiders import Spider
-import json
-import vobject
-from converter.es_connector import EduSharingConstants
+
 import converter.env as env
-from ...items import LomLifecycleItemloader
+from converter.es_connector import EduSharingConstants
+from .lom_base import LomBase
+from ...items import LomLifecycleItemloader, LomAgeRangeItemLoader
 
 
 class EduSharingBase(Spider, LomBase):
@@ -33,7 +32,7 @@ class EduSharingBase(Spider, LomBase):
 
         if importSearchId:
             self.importSearchId = importSearchId
-            logging.info("Importing only data based on the search query: {}".format(self.importSearchId))
+            self.logger.info("Importing only data based on the search query: {}".format(self.importSearchId))
 
     def buildUrl(self, offset=0):
         if self.importSearchId:
@@ -116,7 +115,7 @@ class EduSharingBase(Spider, LomBase):
                     if r.status_code == 200:
                         base.replace_value("fulltext", r.text)
                 except:
-                    logging.warning(
+                    self.logger.warning(
                         "error fetching data from " + str(response.meta["item"]["downloadUrl"]),
                         sys.exc_info()[0],
                     )
@@ -281,7 +280,7 @@ class EduSharingBase(Spider, LomBase):
                     case "1":
                         valuespaces.add_value("conditionsOfAccess", "no_login")
                     case _:
-                        logging.warning(f"edu-sharing property 'ccm:oeh_quality_login' returned an unexpected value: "
+                        self.logger.warning(f"edu-sharing property 'ccm:oeh_quality_login' returned an unexpected value: "
                                         f"{oeh_quality_login_value} for node-ID {response.meta['item']['ref']['id']}")
         valuespaces.add_value("dataProtectionConformity", self.getProperty("ccm:dataProtectionConformity", response))
         valuespaces.add_value("discipline", self.getProperty("ccm:taxonid", response))
