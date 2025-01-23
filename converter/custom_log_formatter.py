@@ -1,6 +1,8 @@
-from scrapy.logformatter import LogFormatter
 import logging
 import os
+
+from loguru import logger
+from scrapy.logformatter import LogFormatter
 
 
 class CustomLogFormatter(LogFormatter):
@@ -26,3 +28,13 @@ class CustomLogFormatter(LogFormatter):
             "msg": self.ITEMERRORMSG,
             "args": {"item": item["lom"],},
         }
+
+
+class PropagateHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        """Propagate Loguru messages to Python's built-in logger.
+        (This is necessary to have the log counts appear in scrapy's stats module.)
+        """
+        logging.getLogger(record.name).handle(record)
+
+logger.add(PropagateHandler(), format="{message}")
