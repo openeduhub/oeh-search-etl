@@ -7,35 +7,43 @@ from scrapy.spiders import CrawlSpider
 
 from converter.constants import Constants
 from converter.valuespace_helper import ValuespaceHelper
-from .base_classes import LrmiBase, LomBase
+
 from ..items import (
-    LicenseItemLoader,
-    LomLifecycleItemloader,
-    ResponseItemLoader,
     BaseItemLoader,
-    LomGeneralItemloader,
-    LomTechnicalItemLoader,
-    ValuespaceItemLoader,
+    LicenseItemLoader,
     LomBaseItemloader,
+    LomGeneralItemloader,
+    LomLifecycleItemloader,
+    LomTechnicalItemLoader,
+    ResponseItemLoader,
+    ValuespaceItemLoader,
 )
 from ..util.license_mapper import LicenseMapper
 from ..web_tools import WebEngine
+from .base_classes import LomBase, LrmiBase
 
 
 class DigitallearninglabSpider(CrawlSpider, LrmiBase):
     name = "digitallearninglab_spider"
     friendlyName = "digital.learning.lab"
     url = "https://digitallearninglab.de"
-    version = "0.1.4"  # last update: 2024-02-09
+    version = "0.1.4"  # last update: 2025-01-24
+    playwright_cookies: list[dict] = [
+        {
+            "name": "cookiesAccepted",
+            "value": "true"
+        }
+    ]
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
         # Digital Learning Lab recognizes and blocks crawlers that are too fast:
         # without the Autothrottle we'll be seeing HTTP Errors 503 (and therefore missing out on lots of items)
-        # "AUTOTHROTTLE_DEBUG": True,
+        "AUTOTHROTTLE_DEBUG": True,
         "AUTOTHROTTLE_TARGET_CONCURRENCY": 2,
         "AUTOTHROTTLE_START_DELAY": 0.25,
         "WEB_TOOLS": WebEngine.Playwright,
+        "PLAYWRIGHT_ADBLOCKER": True,
     }
     apiUrl = "https://digitallearninglab.de/api/%type?q=&sorting=latest&page=%page"
     # API Counts (as of 2023-03-08)
@@ -51,14 +59,19 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
         return await LrmiBase.mapResponse(self, response)
 
     def getId(self, response):
-        return response.meta["item"].get("id")
+        _id: int = response.meta["item"].get("id")
+        # we need to typecast this value to str,
+        # otherwise the edu-sharing API client will throw a ValidationError
+        _id: str = str(_id)
+        return _id
 
     def getHash(self, response):
-        modified = self.getLRMI("dateModified", response=response)
-        if modified:
-            return f"{modified}v{self.version}"
+        _modified = self.getLRMI("dateModified", response=response)
+        if _modified:
+            return f"{_modified}v{self.version}"
         # fallback if LRMI was not parsable
-        return time.time()
+        _current_time: str = str(time.time())
+        return _current_time
 
     def start_request(self, type: str, page: int) -> scrapy.Request:
         return scrapy.Request(
@@ -120,7 +133,8 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
         else:
             # fallback via DLL API: shorter "teaser"-description
             general.add_value("description", html.unescape(response.meta["item"].get("teaser")))
-        # general.add_value('keyword', list(filter(lambda x: x,map(lambda x: x.strip(), response.xpath('//*[@id="ContentModuleApp"]//*[@class="topic-name"]//text()').getall()))))
+        # general.add_value('keyword', list(filter(lambda x: x, map(lambda x: x.strip(), response.xpath(
+        #     '//*[@id="ContentModuleApp"]//*[@class="topic-name"]//text()').getall()))))
         return general
 
     def getLOMTechnical(self, response):
@@ -178,7 +192,8 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
                     author_name: str = author_item["name"]
                     authors.add(author_name)
         if authors:
-            license_loader.add_value("author", authors)
+            author_list: list[str] = list(authors)
+            license_loader.add_value("author", author_list)
         if license_raw:
             license_mapper = LicenseMapper()
             license_url = license_mapper.get_license_url(license_string=license_raw)
@@ -203,7 +218,7 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
         #  - 'conditionsOfAccess'
         #  - dataProtectionConformity?
         try:
-            range = (
+            edu_context_range = (
                 response.xpath(
                     '//ul[@class="sidebar__information"]/li[@class="sidebar__information-item"]/*[contains(@class,"icon-level")]/parent::*//text()'
                 )
@@ -212,12 +227,12 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
                 .strip()
                 .split(" - ")
             )
-            if len(range):
+            if len(edu_context_range):
                 vs_loader.add_value(
                     "educationalContext",
-                    ValuespaceHelper.educationalContextByGrade(range),
+                    ValuespaceHelper.educationalContextByGrade(edu_context_range),
                 )
-        except:
+        except AttributeError:
             pass
         try:
             discipline = response.xpath(
@@ -225,7 +240,7 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
             ).getall()
             vs_loader.add_value("discipline", discipline)
             # ToDo: implement a proper 'discipline'-mapping with the 'digitalCompetencies'-update of the crawler
-        except:
+        except AttributeError:
             pass
         item_type = response.meta["item"].get("type")
         # the DLL API currently provides only 3 values for "type": 'teaching-module', 'tool', 'trend'
@@ -243,18 +258,17 @@ class DigitallearninglabSpider(CrawlSpider, LrmiBase):
             )
             # @TODO: proper mapping, maybe specialised tool field?
             vs_loader.add_value("new_lrt", tool_type)
-        except:
+        except AttributeError:
             pass
         # ToDo: fix above PEP8:E722 warnings (too broad 'except' clauses) asap
         return vs_loader
 
     async def parse(self, response: scrapy.http.HtmlResponse, **kwargs):
         if self.shouldImport(response) is False:
-            logging.debug("Skipping entry {} because shouldImport() returned false".format(str(self.getId(response))))
+            logging.debug(f"Skipping entry {str(self.getId(response))} because shouldImport() returned false")
             return None
-        if self.getId(response) is not None and self.getHash(response) is not None:
-            if not self.hasChanged(response):
-                return None
+        if self.getId(response) is not None and self.getHash(response) is not None and not self.hasChanged(response):
+            return None
         base: BaseItemLoader = self.getBase(response)
         # ToDo: educational -> competencies ("ccm:competencies")?
         lom: LomBaseItemloader = self.getLOM(response)
