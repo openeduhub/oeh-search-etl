@@ -4,7 +4,7 @@ import scrapy
 import trafilatura
 
 from converter.constants import Constants
-from converter.items import LicenseItem, LomTechnicalItem, ValuespaceItem, LomGeneralItem, LomGeneralItemloader
+from converter.items import LicenseItem, LomGeneralItem, LomGeneralItemloader, LomTechnicalItem, ValuespaceItem
 from converter.spiders.base_classes import MediaWikiBase
 from converter.web_tools import WebEngine
 
@@ -13,9 +13,16 @@ class ZUMSpider(MediaWikiBase, scrapy.Spider):
     name = "zum_spider"
     friendlyName = "ZUM-Unterrichten"
     url = "https://unterrichten.zum.de/"
-    version = "0.1.5"  # last update: 2023-08-29
+    version = "0.1.5"  # last update: 2025-01-24
     license = Constants.LICENSE_CC_BY_SA_40
-    custom_settings = {"WEB_TOOLS": WebEngine.Playwright, "AUTOTHROTTLE_ENABLED": True, "AUTOTHROTTLE_DEBUG": True}
+    playwright_cookies: list[dict] = [{"name": "zumunterrichtencookiewarning_dismissed", "value": "true"}]
+    custom_settings = {
+        "WEB_TOOLS": WebEngine.Playwright,
+        "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_DEBUG": True,
+        "PLAYWRIGHT_COOKIES": playwright_cookies,
+        "PLAYWRIGHT_ADBLOCKER": True,
+    }
 
     def __init__(self, **kwargs):
         MediaWikiBase.__init__(self, **kwargs)
