@@ -244,11 +244,30 @@ class WebTools:
                         # Each cookie must have the following (REQUIRED) properties:
                         # "name" (type: str), "value" (type: str) and "url" (type: str)
                         if "name" in cookie_object and "value" in cookie_object:
+                            # required cookie attributes: name / value
                             cookie = {
                                 "name": cookie_object["name"],
                                 "value": cookie_object["value"],
-                                "url": url
                             }
+                            if "domain" in cookie_object and "path" in cookie_object:
+                                # playwright requires a domain and path pair or an url
+                                cookie.update({"domain": cookie_object["domain"]})
+                                cookie.update({"path": cookie_object["path"]})
+                            else:
+                                # default case: use the current URL if no explicit domain and path was set for a cookie
+                                cookie.update({"url": url})
+                            # --- optional cookie attributes ---
+                            if "expires" in cookie_object:
+                                cookie.update({"expires": cookie_object["expires"]})
+                            if "httpOnly" in cookie_object:
+                                cookie.update({"httpOnly": cookie_object["httpOnly"]})
+                            if "secure" in cookie_object:
+                                cookie.update({"secure": cookie_object["secure"]})
+                            if "sameSite" in cookie_object:
+                                # can be either "Strict", "Lax" or "None"
+                                # reminder: if the sameSite cookie attribute is set,
+                                # the "secure"-attribute is required!
+                                cookie.update({"sameSite": cookie_object["sameSite"]})
                             prepared_cookies.append(cookie)
                         else:
                             logger.warning(f"Cannot set custom cookie for Playwright (headless browser) request due to "
