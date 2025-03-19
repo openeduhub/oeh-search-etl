@@ -79,6 +79,7 @@ class WebTools:
     # settings, see: https://www.browserless.io/docs/docker)
     _playwright_cookies: list[dict] = list()
     _playwright_adblocker: bool = False
+    _playwright_storage_state: dict = None
 
     @classmethod
     async def __safely_get_splash_response(cls, url: str):
@@ -133,13 +134,15 @@ class WebTools:
     async def getUrlData(cls, url: str,
                          engine: WebEngine = WebEngine.Playwright,
                          adblock: bool = None,
-                         cookies: list[dict] = None):
+                         cookies: list[dict] = None,
+                         storage_state: dict = None):
         """
         Sends an HTTP request through one of the (dockerized) headless browsers for JavaScript-enabled HTML rendering.
         @param url: the to-be-rendered URL
         @param engine: the WebEngine of choice (either "Splash" or "Playwright")
         @param adblock: (playwright only!) block ads for this HTTP Request (via uBlock Origin) if set to True
         @param cookies: (playwright only!) a list of cookies (type: list[dict]) that shall be transmitted during the
+        @param storage_state: (playwright only!) a dictionary to initialize the BrowserContext with
         HTTP request
         @return:
         """
@@ -160,6 +163,8 @@ class WebTools:
         if adblock:
             # controls if the built-in adblocker of "browserless" should be enabled for Playwright
             cls._playwright_adblocker = adblock
+        if storage_state:
+            cls._playwright_storage_state = storage_state
         if engine == WebEngine.Splash:
             return await cls.__safely_get_splash_response(url)
         elif engine == WebEngine.Playwright:
@@ -230,7 +235,14 @@ class WebTools:
                 # see: https://docs.browserless.io/chrome-flags/#blocking-ads
                 ws_cdp_endpoint = f"{ws_cdp_endpoint}?blockAds=true"
             browser = await p.chromium.connect(ws_endpoint=ws_cdp_endpoint)
-            browser_context = await browser.new_context()
+            if cls._playwright_storage_state:
+                # create a new tab with a predetermined storage state
+                # (e.g.: when both "cookies" and "localStorage" are necessary to hide a cookie consent banner
+                # or other popups)
+                # see: https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-storage-state
+                browser_context = await browser.new_context(storage_state=cls._playwright_storage_state)
+            else:
+                browser_context = await browser.new_context()
             if cls._playwright_cookies:
                 # Some websites may require setting specific cookies to render properly
                 # (e.g., to skip or close annoying cookie banners).

@@ -972,15 +972,22 @@ class ProcessThumbnailPipeline(BasicPipeline):
     async def take_website_screenshot_with_playwright(self, spider: scrapy.Spider, target_url: str):
         playwright_cookies = None
         playwright_adblock_enabled = False
+        playwright_storage_state = None
         if spider.custom_settings:
             # some spiders might require setting specific cookies to take "clean" website screenshots
             # (= without cookie banners or ads).
             if "PLAYWRIGHT_COOKIES" in spider.custom_settings:
                 playwright_cookies = spider.custom_settings.get("PLAYWRIGHT_COOKIES")
+            if "PLAYWRIGHT_STORAGE_STATE" in spider.custom_settings:
+                playwright_storage_state = spider.custom_settings.get("PLAYWRIGHT_STORAGE_STATE")
             if "PLAYWRIGHT_ADBLOCKER" in spider.custom_settings:
                 playwright_adblock_enabled: bool = spider.custom_settings["PLAYWRIGHT_ADBLOCKER"]
         playwright_dict = await WebTools.getUrlData(
-            url=target_url, engine=WebEngine.Playwright, cookies=playwright_cookies, adblock=playwright_adblock_enabled
+            url=target_url,
+            engine=WebEngine.Playwright,
+            cookies=playwright_cookies,
+            adblock=playwright_adblock_enabled,
+            storage_state=playwright_storage_state,
         )
         return playwright_dict
 
