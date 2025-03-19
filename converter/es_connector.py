@@ -845,7 +845,7 @@ class EduSharing:
                 if (
                     EduSharing.version["major"] != 1
                     or EduSharing.version["minor"] < 0
-                    or EduSharing.version["minor"] > 1
+                    or EduSharing.version["minor"] > 2
                 ):
                     raise Exception(f"Given repository API version is unsupported: {version_str}")
                 else:
