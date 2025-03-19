@@ -1,8 +1,12 @@
 import logging
+from collections.abc import Generator
 from datetime import datetime
+from typing import Any
 
+import dateutil.relativedelta
 import scrapy.selector.unified
 import w3lib.html
+from scrapy import Request
 from scrapy.spiders import XMLFeedSpider
 
 from converter import env
@@ -10,16 +14,69 @@ from converter.constants import Constants
 from converter.es_connector import EduSharing
 from converter.items import (
     BaseItemLoader,
-    LomBaseItemloader,
-    LomGeneralItemloader,
-    LomTechnicalItemLoader,
-    LomLifecycleItemloader,
-    LomEducationalItemLoader,
-    ValuespaceItemLoader,
     LicenseItemLoader,
+    LomBaseItemloader,
+    LomEducationalItemLoader,
+    LomGeneralItemloader,
+    LomLifecycleItemloader,
+    LomTechnicalItemLoader,
     ResponseItemLoader,
+    ValuespaceItemLoader,
 )
 from converter.spiders.base_classes import LomBase
+from converter.web_tools import WebEngine
+
+
+def prepare_playwright_local_storage() -> dict:
+    # Lehrer-Online uses the "sgalinski Cookie Consent" TYPO3 extension to display a cookie consent banner:
+    # see: https://extensions.typo3.org/extension/sg_cookie_optin
+    now = datetime.now()
+    next_year = now + dateutil.relativedelta.relativedelta(years=1)
+    timestamp_next_year: int = int(next_year.timestamp())
+    # apparently, the TYPO3 cookie extension does not like it when float values are submitted,
+    # which is why we typecast the float to int before saving the timestamps within the respective "expires"-attributes
+    lehrer_online_local_storage: dict = {
+        "cookies": [
+            {
+                "name": "cookie_optin",
+                "value": "essential:1|iframes:0",
+                "domain": "www.lehrer-online.de",
+                "path": "/",
+                "secure": True,
+                "sameSite": "None",
+                "expires": timestamp_next_year,
+            },
+            {
+                "name": "Lehrer-Online_Popup-Banner",
+                "value": "akzeptiert",
+                "domain": "www.lehrer-online.de",
+                "path": "/",
+                "expires": timestamp_next_year,
+            },
+        ],
+        "origins": [
+            {
+                "origin": "https://www.lehrer-online.de",
+                "localStorage": [
+                    {
+                        "name": "SgCookieOptin.lastPreferences",
+                        "value": "{"
+                        f'"timestamp":{timestamp_next_year},'
+                        '"cookieValue":"essential:1|iframes:0",'
+                        '"isAll":false,"version":1,"identifier":1,'
+                        '"uuid":"9c4dfa36-ac19-469d-84b7-e9156ca201fb"'
+                        "}",
+                    }
+                ],
+            }
+        ],
+    }
+    # ToDo: dynamically retrieve the localStorage state upon crawler bootup
+    #  - step 1: implement method to click "only necessary cookies" once during init
+    #  - step 2: read BrowserContext storage_state
+    #  - step 3: save storage_state to spider's custom_settings
+    #  - step 4: replace this (hard-coded) forged localStorage state
+    return lehrer_online_local_storage
 
 
 class LehrerOnlineSpider(XMLFeedSpider, LomBase):
@@ -30,11 +87,14 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         # the limit parameter controls the amount of results PER CATEGORY (NOT the total amount of results)
         # API response with a "limit"-value set to 10.000 might take more than 90s (17.7 MB, 5912 URLs to crawl)
     ]
-    version = "0.0.7"  # last update: 2023-08-10
+    version = "0.0.7"  # last update: 2025-03-19
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
+        "WEB_TOOLS": WebEngine.Playwright,
+        "PLAYWRIGHT_ADBLOCKER": True,
+        "PLAYWRIGHT_STORAGE_STATE": prepare_playwright_local_storage(),
         # "DUPEFILTER_DEBUG": True
     }
     iterator = "iternodes"
@@ -140,16 +200,20 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         "Wirtschaftslehre": "Economics",
     }
 
-    def getId(self, response=None, **kwargs) -> str:
+    def __init__(self, **kwargs):
+        LomBase.__init__(self, **kwargs)
+
+    def getId(self, response=None, **kwargs) -> Any | None:
         # By the time we call this method, there is no usable 'response.url' available (the URL would point to the API
         # for each item), which is why we need to use the metadata dictionary from the API Response here.
         try:
             material_url = kwargs["kwargs"]["metadata_dict"]["url"]
             return material_url
         except KeyError:
-            logging.error(f"'getId'-method could not retrieve metadata_dict['url']. Falling back to 'response.url'")
+            logging.error("'getId'-method could not retrieve metadata_dict['url']. Falling back to 'response.url'")
+            return None
 
-    def getHash(self, response=None, **kwargs) -> str:
+    def getHash(self, response=None, **kwargs) -> str | None:
         if "kwargs" in kwargs:
             if "metadata_dict" in kwargs["kwargs"]:
                 metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
@@ -157,11 +221,13 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 return hash_value
             else:
                 logging.error(
-                    f"Could not create 'hash' for item. (Failed to retrieve 'metadata_dict' in kwargs of "
-                    f"getHash()-method.)"
+                    "Could not create 'hash' for item. (Failed to retrieve 'metadata_dict' in kwargs of "
+                    "getHash()-method.)"
                 )
+                return None
+        return None
 
-    def parse_node(self, response, selector: scrapy.selector.unified.Selector) -> scrapy.Request:
+    def parse_node(self, response, selector: scrapy.selector.unified.Selector) -> Generator[Request, Any]:
         """
         Parses the Lehrer-Online API for individual <datensatz>-nodes and yields URLs found within <url_ressource>-tags
         to the parse()-method. Additionally, this method builds a "cleaned up" metadata_dict that gets handed over
@@ -215,9 +281,8 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             metadata_dict.update({"title": title_raw})
 
         in_language: str = selector.xpath("sprache/text()").get()
-        if in_language:
-            if in_language == "Deutsch":
-                metadata_dict.update({"language": "de"})
+        if in_language and in_language == "Deutsch":
+            metadata_dict.update({"language": "de"})
 
         description_short: str = selector.xpath("beschreibung/text()").get()
         if description_short:
@@ -359,7 +424,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             educational_context = list()
             # we need to map some values to our educationalContext vocabulary
             for edu_context_item in educational_context_cleaned_up:
-                if edu_context_item in self.MAPPING_EDU_CONTEXT.keys():
+                if edu_context_item in self.MAPPING_EDU_CONTEXT:
                     edu_context_temp = self.MAPPING_EDU_CONTEXT.get(edu_context_item)
                     educational_context.append(edu_context_temp)
                 else:
@@ -478,14 +543,12 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                         # ToDo: revert this workaround in the next version of the crawler
                         #  (after the "Herkunft des Inhalts"-topic has been resolved)
                         logging.info(
-                            f"Temporarily skipping {material_url} from crawling (due to Team4-decision on "
-                            f"2023-08-10)."
+                            f"Temporarily skipping {material_url} from crawling (due to Team4-decision on 2023-08-10)."
                         )
                         pass
                     elif "pubertaet.lehrer-online.de" in material_url and "pubertaet" in skip_portal_setting:
                         logging.info(
-                            f"Temporarily skipping {material_url} due to chosen '.env'-Setting for "
-                            f"'LO_SKIP_PORTAL'."
+                            f"Temporarily skipping {material_url} due to chosen '.env'-Setting for 'LO_SKIP_PORTAL'."
                         )
                         pass
                     else:
@@ -499,8 +562,10 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                     )
         else:
             # if no material_url is provided, we cannot crawl anything, therefore skip the item
-            logging.debug(f"Lehrer-Online API returned a node without a 'material_url'-value. (The title of the node "
-                          f"was '{title_raw}'.")
+            logging.debug(
+                f"Lehrer-Online API returned a node without a 'material_url'-value. (The title of the node "
+                f"was '{title_raw}'."
+            )
             pass
 
     def getUri(self, response=None, **kwargs) -> str:
@@ -563,12 +628,15 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         if self.shouldImport(response) is False:
             logging.debug(f"Skipping entry {identifier_url} because shouldImport() returned false")
             drop_item_flag = True
-        if identifier_url is not None and hash_str is not None:
-            if not self.hasChanged(response, kwargs={"metadata_dict": metadata_dict}):
-                drop_item_flag = True
+        if (
+            identifier_url is not None
+            and hash_str is not None
+            and not self.hasChanged(response, kwargs={"metadata_dict": metadata_dict})
+        ):
+            drop_item_flag = True
         return drop_item_flag
 
-    def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
+    def parse(self, response: scrapy.http.Response, **kwargs) -> Generator[Any]:
         """
         Uses the metadata_dict that was built in parse_node() and extracts additional metadata from the DOM itself to
         create and fill a BaseItem with the gathered metadata.
