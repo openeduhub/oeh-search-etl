@@ -6,6 +6,7 @@ from typing import Any
 import dateutil.relativedelta
 import scrapy.selector.unified
 import w3lib.html
+from bs4 import BeautifulSoup
 from scrapy import Request
 from scrapy.spiders import XMLFeedSpider
 
@@ -87,7 +88,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         # the limit parameter controls the amount of results PER CATEGORY (NOT the total amount of results)
         # API response with a "limit"-value set to 10.000 might take more than 90s (17.7 MB, 5912 URLs to crawl)
     ]
-    version = "0.0.7"  # last update: 2025-03-19
+    version = "0.0.8"  # last update: 2025-03-20
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -152,6 +153,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     }
 
     MAPPING_MATERIAL_TYPE_TO_NEW_LRT = {
+        "Bildungsnachricht": "dc5763ab-6f47-4aa3-9ff3-1303efbeef6e",  # "Nachrichten und Neuigkeiten
         "Blog": "5204fc81-5dac-4cc4-a28b-aad5c241fa19",  # "Webblog (dynamisch)"
         "Cartoon": "667f5063-70b9-400c-b1f7-7702ec9487f1",  # "Cartoon, Comic"
         "Dossier": "7381f17f-50a6-4ce1-b3a0-9d85a482eec0",  # "Unterrichtsplanung"
@@ -164,9 +166,12 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         "Kopiervorlage": "6a15628c-0e59-43e3-9fc5-9a7f7fa261c4",  # "Skript, Handout und Handreichung"
         "News": "dc5763ab-6f47-4aa3-9ff3-1303efbeef6e",  # "Nachrichten und Neuigkeiten"
         "Rechtsfall": "dc5763ab-6f47-4aa3-9ff3-1303efbeef6e",  # "Nachrichten und Neuigkeiten"
+        "Schulrechtsfall": "dc5763ab-6f47-4aa3-9ff3-1303efbeef6e",  # "Nachrichten und Neuigkeiten"
         # ToDo: could this be mapped to either "Fachliche News", "Alltags News" or "Pädagogische News"?
+        "Themendossier": "7381f17f-50a6-4ce1-b3a0-9d85a482eec0",  # "Unterrichtsplanung"
         "Unterrichtseinheit": "ef58097d-c1de-4e6a-b4da-6f10e3716d3d",  # "Unterrichtseinheit"
         "Videos": "7a6e9608-2554-4981-95dc-47ab9ba924de",  # "Video (Material)"
+        "Witze & Cartoons": "667f5063-70b9-400c-b1f7-7702ec9487f1",  # "Cartoon, Comic"
     }
 
     MAPPING_RIGHTS_TO_URLS = {
@@ -180,24 +185,51 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         "CC-by-sa": Constants.LICENSE_CC_BY_SA_30,
         "CC-by-sa 4.0": Constants.LICENSE_CC_BY_SA_40,
     }
-
+    # "Fach"-values can be retrieved from the dropdown menu within the search bar at lehrer-online.de
     MAPPING_FACH_TO_DISCIPLINES = {
-        "Arbeitsschutz und Arbeitssicherheit": "Arbeitssicherheit",
-        "Berufs- und Arbeitswelt": "Arbeitslehre",
-        "Berufsvorbereitung, Berufsalltag, Arbeitsrecht": "Arbeitslehre",
-        "Ernährung und Gesundheit": ["Ernährung und Hauswirtschaft", "Gesundheit"],
-        "Fächerübergreifender Unterricht": "Allgemein",
-        "Geschichte, Politik und Gesellschaftswissenschaften": ["Geschichte", "Politik", "Gesellschaftskunde"],
-        "Gesundheit und Gesundheitsschutz": "Gesundheit",
-        "Informationstechnik": "Informatik",
-        "Klima, Umwelt, Nachhaltigkeit": "Nachhaltigkeit",
-        "MINT: Mathematik, Informatik, Naturwissenschaften und Technik": "MINT",
-        "Natur und Umwelt": ["Environmental education", "Homeland lessons"],  # Umwelterziehung, Sachunterricht
-        "Religion und Ethik": ["Religion", "Ethik"],
-        "Sport und Bewegung": "Sport",
-        "SoWi": ["Social education", "Economics"],
-        "WiSo": ["Economics", "Social education"],
-        "Wirtschaftslehre": "Economics",
+        "Arbeitsschutz / Arbeitssicherheit": "04014",  # Arbeitssicherheit
+        "Berufs- und Arbeitswelt": "020",  # Arbeitslehre
+        "Berufsvorbereitung, Berufsalltag, Arbeitsrecht": "020",  # Arbeitslehre
+        "Berufsvorbereitung /Berufsalltag / Arbeitsrecht": "020",  # Arbeitslehre
+        # sic! "/Berufsalltag" is a typo in LO's "Fach"-values
+        "Biologie / Ernährung und Gesundheit / Natur und Umwelt": ["080", "04006", "260"],
+        # Biologie; Ernährung und Hauswirtschaft; Gesundheit
+        "Chemie / Natur & Umwelt": "100",  # Chemie
+        "DaF / DaZ": "28002",  # Deutsch als Zweitsprache
+        "Deutsch / Kommunikation / Lesen & Schreiben": [""],  # ToDo
+        "Ernährung und Gesundheit": ["04006", "260"],  # Ernährung und Hauswirtschaft; Gesundheit
+        "Ernährung & Gesundheit": ["04006", "260"],  # Ernährung und Hauswirtschaft; Gesundheit
+        "Ernährung & Gesundheit / Gesundheitsschutz / Pflege, Therapie, Medizin": ["04006", "260"],
+        # Ernährung und Hauswirtschaft; Gesundheit
+        "Fächerübergreifend": "720",  # Allgemein
+        "Fächerübergreifender Unterricht": "720",  # Allgemein
+        "Geographie / Jahreszeiten": "220",  # Geografie
+        "Geschichte / Früher & Heute": "240",  # Geschichte
+        "Geschichte, Politik und Gesellschaftswissenschaften": ["240", "480", "48005"],
+        # Geschichte; Politik; Gesellschaftskunde
+        "Gesundheit und Gesundheitsschutz": "260",  # Gesundheit
+        "Gesundheitsbildung": "260",  # Gesundheit
+        # "Ich und meine Welt": "",  # ToDo: cannot be mapped
+        "Informationstechnik": "320",
+        "Informatik / Wirtschaftsinformatik / Computer, Internet & Co.": ["320", "700"],  # Informatik; Wirtschaftskunde
+        "Klima, Umwelt, Nachhaltigkeit": "64018",  # Nachhaltigkeit
+        "Kunst / Kultur": ["060", "340"],  # Kunst; Interkulturelle Bildung
+        "Mathematik / Rechnen & Logik": "Mathematik",
+        "MINT: Mathematik, Informatik, Naturwissenschaften und Technik": "04003",  # MINT
+        "Natur und Umwelt": ["640", "28010"],  # Umwelterziehung; Sachunterricht
+        "Orga / Bürowirtschaft": ["020", "04013"],  # Arbeitslehre; Wirtschaft und Verwaltung
+        "Pädagogik": "44007",  # Sozialpädagogik
+        "Physik / Astronomie": ["460", "46014"],  # Physik, Astronomie
+        "Politik / WiSo / SoWi": ["480", "44007", "700"],  # Politik; Wirtschaftskunde; Sozialkunde
+        # "Polnisch": "",  # ToDo: doesn't exist in our discipline vocab (yet)
+        "Rechnungswesen": ["020", "04013"],  # Arbeitslehre; Wirtschaft und Verwaltung
+        "Religion / Ethik": ["520", "160"],  # Religion; Ethik
+        "Sport und Bewegung": "600",  # Sport
+        "Sport / Bewegung": "600",  # Sport
+        "SoWi": ["44007", "700"],  # Sozialkunde; Wirtschaftskunde
+        "Technik / Sache & Technik": "04003",  # MINT
+        "WiSo": ["700", "44007"],  # Wirtschaftskunde; Sozialkunde
+        "Wirtschaftslehre": "700",  # Wirtschaftskunde
     }
 
     def __init__(self, **kwargs):
@@ -286,12 +318,20 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
 
         description_short: str = selector.xpath("beschreibung/text()").get()
         if description_short:
+            # the description string contains HTML elements which need to be stripped
+            description_short_soup = BeautifulSoup(description_short, "html.parser")
+            description_short = description_short_soup.get_text()
+            if description_short and isinstance(description_short, str):
+                description_short = description_short.strip()
             metadata_dict.update({"description_short": description_short})
 
         description_long: str = selector.xpath("beschreibung_lang/text()").get()
         if description_long:
-            description_long = w3lib.html.replace_tags(description_long)
-            description_long = w3lib.html.replace_entities(description_long)
+            # the long description contains HTML elements which need to be stripped
+            description_long_soup = BeautifulSoup(description_long, "html.parser")
+            description_long = description_long_soup.get_text()
+            if description_long and isinstance(description_long, str):
+                description_long = description_long.strip()
             metadata_dict.update({"description_long": description_long})
 
         thumbnail_url: str = selector.xpath("bild_url/text()").get()
@@ -384,7 +424,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 if potential_discipline_item in self.MAPPING_FACH_TO_DISCIPLINES:
                     # since not every "fach"-value is the same as our discipline-vocabs, mapping is necessary
                     discipline = self.MAPPING_FACH_TO_DISCIPLINES.get(potential_discipline_item)
-                    if type(discipline) is list:
+                    if isinstance(discipline, list):
                         disciplines_mapped.update(discipline)
                     else:
                         disciplines_mapped.add(discipline)
