@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from datetime import datetime
 from typing import Any
 
@@ -83,11 +83,6 @@ def prepare_playwright_local_storage() -> dict:
 class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     name = "lehreronline_spider"
     friendlyName = "Lehrer-Online"
-    start_urls = [
-        "https://www.lehrer-online.de/?type=3030&limit=10000"
-        # the limit parameter controls the amount of results PER CATEGORY (NOT the total amount of results)
-        # API response with a "limit"-value set to 10.000 might take more than 90s (17.7 MB, 5912 URLs to crawl)
-    ]
     version = "0.0.8"  # last update: 2025-03-20
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
@@ -234,6 +229,15 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
+
+    def start_requests(self) -> Iterable[Request]:
+        _start_urls: list[str] = ["https://www.lehrer-online.de/?type=3030&limit=10000"]
+        # the limit parameter controls the number of results PER CATEGORY (NOT the total number of results)
+        # API response with a "limit"-value set to 10.000 might take more than 90s (17.7 MB, 5912 URLs to crawl)
+        for url in _start_urls:
+            # scrapy's autothrottle would slow down all requests within the first few minutes
+            # due to the slow response of the initial API request
+            yield Request(url, meta={"autothrottle_dont_adjust_delay": True})
 
     def getId(self, response=None, **kwargs) -> Any | None:
         # By the time we call this method, there is no usable 'response.url' available (the URL would point to the API
