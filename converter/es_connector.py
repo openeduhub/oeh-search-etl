@@ -166,7 +166,7 @@ class EduSharing:
             raise e
         return response["node"]
 
-    def set_node_text(self, uuid, item) -> bool:
+    def set_node_text(self, uuid, item) -> bool | None:
         if "fulltext" in item:
             response = self.r_session.post(
                 url=f"{get_project_settings().get("EDU_SHARING_BASE_URL")}"
@@ -216,7 +216,7 @@ class EduSharing:
         else:
             return False
 
-    def set_node_preview(self, uuid, item) -> bool:
+    def set_node_preview(self, uuid, item) -> bool | None:
         if "thumbnail" in item:
             key = "large" if "large" in item["thumbnail"] else "small" if "small" in item["thumbnail"] else None
             if key:
