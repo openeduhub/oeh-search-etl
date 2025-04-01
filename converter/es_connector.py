@@ -4,7 +4,7 @@ import pprint
 import time
 import uuid
 from enum import Enum
-from typing import List, Optional
+from typing import List
 
 import requests
 import vobject
@@ -51,7 +51,7 @@ class ESApiClient(ApiClient):
     COOKIE_REBUILD_THRESHOLD = 60 * 5
     lastRequestTime = 0
 
-    def deserialize(self, response_text: str, response_type: str, content_type: Optional[str]):
+    def deserialize(self, response_text: str, response_type: str, content_type: str | None):
         """Deserializes response into an object.
 
         :param response_text: RESTResponse object to be deserialized.
