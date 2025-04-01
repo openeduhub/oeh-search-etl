@@ -394,7 +394,7 @@ class EduSharing:
         if hasattr(spider, "edu_sharing_source_template_whitelist"):
             # check if there were whitelisted metadata properties in the edu-sharing source template
             # (= "Quellen-Datensatz"-Template) that need to be attached to all items
-            whitelisted_properties: dict = getattr(spider, "edu_sharing_source_template_whitelist")
+            whitelisted_properties: dict = spider.edu_sharing_source_template_whitelist
             if whitelisted_properties:
                 # if whitelisted properties exist, we re-use the 'custom' field in our data model (if possible).
                 # by inserting the whitelisted metadata properties early in the program flow, they should automatically
