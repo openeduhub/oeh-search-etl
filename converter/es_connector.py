@@ -455,23 +455,23 @@ class EduSharing:
                     continue
                 mapping = EduSharingConstants.LIFECYCLE_ROLES_MAPPING[person["role"].lower()]
                 # convert to a vcard string
-                first_name = person["firstName"] if "firstName" in person else ""
-                last_name = person["lastName"] if "lastName" in person else ""
-                title: str = person["title"] if "title" in person else ""
-                organization = person["organization"] if "organization" in person else ""
-                url = person["url"] if "url" in person else ""
-                email = person["email"] if "email" in person else ""
-                date = person["date"] if "date" in person else None
-                id_gnd: str = person["id_gnd"] if "id_gnd" in person else ""
-                id_orcid: str = person["id_orcid"] if "id_orcid" in person else ""
-                id_ror: str = person["id_ror"] if "id_ror" in person else ""
-                id_wikidata: str = person["id_wikidata"] if "id_wikidata" in person else ""
-                address_city: str = person["address_city"] if "address_city" in person else ""
-                address_country: str = person["address_country"] if "address_country" in person else ""
-                address_postal_code: str = person["address_postal_code"] if "address_postal_code" in person else ""
-                address_region: str = person["address_region"] if "address_region" in person else ""
-                address_street: str = person["address_street"] if "address_street" in person else ""
-                address_type: str = person["address_type"] if "address_type" in person else ""
+                first_name = person.get("firstName", "")
+                last_name = person.get("lastName", "")
+                title: str = person.get("title", "")
+                organization = person.get("organization", "")
+                url = person.get("url", "")
+                email = person.get("email", "")
+                date = person.get("date", None)
+                id_gnd: str = person.get("id_gnd", "")
+                id_orcid: str = person.get("id_orcid", "")
+                id_ror: str = person.get("id_ror", "")
+                id_wikidata: str = person.get("id_wikidata", "")
+                address_city: str = person.get("address_city", "")
+                address_country: str = person.get("address_country", "")
+                address_postal_code: str = person.get("address_postal_code", "")
+                address_region: str = person.get("address_region", "")
+                address_street: str = person.get("address_street", "")
+                address_type: str = person.get("address_type", "")
                 # create the vCard object first, then add attributes on-demand / if available
                 vcard = vobject.vCard()
                 vcard.add("n").value = vobject.vcard.Name(family=last_name, given=first_name)
