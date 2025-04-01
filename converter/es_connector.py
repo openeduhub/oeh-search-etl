@@ -495,9 +495,12 @@ class EduSharing:
                         # if we transfer learning objects via "oeh_spdier"
                         # or if a crawler sets the type manually
                         rfc2426_valid_address_types = ["dom", "intl", "postal", "parcel", "home", "work", "pref"]
-                        if address_type and isinstance(address_type, str):
-                            if address_type in rfc2426_valid_address_types:
-                                vcard.adr.type_param = address_type
+                        if (
+                            address_type
+                            and isinstance(address_type, str)
+                            and address_type in rfc2426_valid_address_types
+                        ):
+                            vcard.adr.type_param = address_type
                         if address_type and isinstance(address_type, list):
                             address_type_clean: list[str] | None = None
                             for at_item in address_type:
