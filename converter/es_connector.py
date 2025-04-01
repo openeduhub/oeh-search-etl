@@ -564,6 +564,20 @@ class EduSharing:
         _disciplines_and_hochschulfaecher: set = set()
         for key in item["valuespaces"]:
             match key:
+                case "conditionsOfAccess":
+                    spaces[valuespace_mapping[key]] = item["valuespaces"][key]
+                    # if a conditionsOfAccess value is available, also set the equivalent "ccm:oeh_quality_login"-value
+                    _conditions_of_access: list[str] | None = spaces[valuespace_mapping[key]]
+                    if _conditions_of_access and isinstance(_conditions_of_access, list):
+                        # conditionsOfAccess is expected to have exactly one value (since the vocab works like an enum)
+                        _coa_value: str = _conditions_of_access[0]
+                        if _coa_value and isinstance(_coa_value, str):
+                            if _coa_value.endswith("/no_login"):
+                                # edu-sharing frontend: "Ohne Login zugänglich"
+                                spaces["ccm:oeh_quality_login"] = ["1"]
+                            elif _coa_value.endswith("/login") or _coa_value.endswith("/login_for_additional_features"):
+                                # edu-sharing frontend: "Zugang nur mit Login"
+                                spaces["ccm:oeh_quality_login"] = ["0"]
                 case "discipline":
                     _disciplines_and_hochschulfaecher.update(item["valuespaces"][key])
                 case "hochschulfaechersystematik":
@@ -574,6 +588,7 @@ class EduSharing:
         if _disciplines_and_hochschulfaecher:
             # if either discipline or hochschulfaechersystematik values are present, save them to ``ccm:taxonid``
             spaces["ccm:taxonid"] = list(_disciplines_and_hochschulfaecher)
+
         # add raw values if the api supports it
         if EduSharing.version["major"] >= 1 and EduSharing.version["minor"] >= 1:
             for key in item["valuespaces_raw"]:
