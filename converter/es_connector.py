@@ -4,7 +4,6 @@ import pprint
 import time
 import uuid
 from enum import Enum
-from typing import List
 
 import requests
 import vobject
@@ -106,7 +105,7 @@ class EduSharing:
     iamApi: IAMV1Api
     mediacenterApi: MEDIACENTERV1Api
     nodeApi: NODEV1Api
-    groupCache: List[str]
+    groupCache: list[str]
     enabled: bool
     r_session: requests.Session = requests.Session()
     # see: https://requests.readthedocs.io/en/latest/user/advanced/#session-objects
