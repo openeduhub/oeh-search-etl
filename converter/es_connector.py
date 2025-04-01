@@ -75,7 +75,7 @@ class ESApiClient(ApiClient):
 
     def __getattribute__(self, name):
         attr = object.__getattribute__(self, name)
-        if hasattr(attr, "__call__"):
+        if callable(attr):
 
             def newfunc(*args, **kwargs):
                 if time.time() - ESApiClient.lastRequestTime > ESApiClient.COOKIE_REBUILD_THRESHOLD:
