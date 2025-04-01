@@ -869,7 +869,7 @@ class EduSharing:
                             EduSharing.iamApi.search_groups(EduSharingConstants.HOME, "", max_items=1000000)["groups"],
                         )
                     )
-                    logger.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
+                    logger.debug(f"Built up edu-sharing group cache: {EduSharing.groupCache}")
                     return
                 else:
                     return
