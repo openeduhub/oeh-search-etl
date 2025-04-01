@@ -549,7 +549,7 @@ class EduSharing:
             "discipline": "ccm:taxonid",
             "educationalContext": "ccm:educationalcontext",
             "fskRating": "ccm:fskRating",
-            "hochschulfaechersystematik": "ccm:oeh_taxonid_university",
+            "hochschulfaechersystematik": "ccm:taxonid",
             "intendedEndUserRole": "ccm:educationalintendedenduserrole",
             "languageLevel": "ccm:oeh_languageLevel",
             "learningResourceType": "ccm:educationallearningresourcetype",
@@ -559,8 +559,21 @@ class EduSharing:
             "sourceContentType": "ccm:sourceContentType",
             "toolCategory": "ccm:toolCategory",
         }
+        # As of 2025-03-24 the "discipline"- and "hochschulfaechersystematik"-vocab values
+        # need to be stored in the same edu-sharing property (``ccm:taxonid``).
+        _disciplines_and_hochschulfaecher: set = set()
         for key in item["valuespaces"]:
-            spaces[valuespace_mapping[key]] = item["valuespaces"][key]
+            match key:
+                case "discipline":
+                    _disciplines_and_hochschulfaecher.update(item["valuespaces"][key])
+                case "hochschulfaechersystematik":
+                    _disciplines_and_hochschulfaecher.update(item["valuespaces"][key])
+                case _:
+                    # default case
+                    spaces[valuespace_mapping[key]] = item["valuespaces"][key]
+        if _disciplines_and_hochschulfaecher:
+            # if either discipline or hochschulfaechersystematik values are present, save them to ``ccm:taxonid``
+            spaces["ccm:taxonid"] = list(_disciplines_and_hochschulfaecher)
         # add raw values if the api supports it
         if EduSharing.version["major"] >= 1 and EduSharing.version["minor"] >= 1:
             for key in item["valuespaces_raw"]:
@@ -590,12 +603,11 @@ class EduSharing:
                     tlt_in_ms: int = int(tlt) * 1000
                     spaces["cclom:typicallearningtime"] = tlt_in_ms
 
-        if "ai_allow_usage" in item:
-            # this property is automatically filled by the RobotsTxtPipeline
-            if isinstance(item["ai_allow_usage"], bool):
-                _ai_allow_usage: bool = item["ai_allow_usage"]
-                # the edu-sharing API client expects the value to be of type string
-                spaces["ccm:ai_allow_usage"] = str(_ai_allow_usage)
+        if "ai_allow_usage" in item and isinstance(item["ai_allow_usage"], bool):
+            # The "ai_allow_usage"-property is automatically filled by the RobotsTxtPipeline.
+            _ai_allow_usage: bool = item["ai_allow_usage"]
+            # The edu-sharing API client expects the value to be of type string
+            spaces["ccm:ai_allow_usage"] = str(_ai_allow_usage)
 
         if "course" in item:
             if "course_availability_from" in item["course"]:

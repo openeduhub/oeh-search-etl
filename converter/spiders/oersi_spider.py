@@ -1619,7 +1619,7 @@ class OersiSpider(scrapy.Spider, LomBase):
             about: list[dict] = elastic_item_source.get("about")
             # see: https://dini-ag-kim.github.io/amb/draft/#about
             # "about" is an OPTIONAL field.
-            # The equivalent edu-sharing field will be "ccm:oeh_taxonid_university".
+            # The equivalent edu-sharing field will be "ccm:taxonid".
             # each about-field is a list of dictionaries. Here's an example from Open Music Academy:
             # [
             # 		{
