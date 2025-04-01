@@ -446,11 +446,9 @@ class EduSharing:
             for person in item["lom"]["lifecycle"]:
                 if "role" not in person:
                     continue
-                if not person["role"].lower() in EduSharingConstants.LIFECYCLE_ROLES_MAPPING:
+                if person["role"].lower() not in EduSharingConstants.LIFECYCLE_ROLES_MAPPING:
                     logger.warning(
-                        "The lifecycle role "
-                        + person["role"]
-                        + " is currently not supported by the edu-sharing connector"
+                        f"The lifecycle role {person['role']} is currently not supported by the edu-sharing connector"
                     )
                     continue
                 mapping = EduSharingConstants.LIFECYCLE_ROLES_MAPPING[person["role"].lower()]
