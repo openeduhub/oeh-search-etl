@@ -661,9 +661,10 @@ class EduSharing:
             logger.debug("Using default metadataset")
 
         for key in spaces:
-            if type(spaces[key]) is tuple:
+            if isinstance(spaces[key], tuple):
                 spaces[key] = list([x for y in spaces[key] for x in y])
-            if not type(spaces[key]) is list:
+            if not isinstance(spaces[key], list):
+                # values are expected to be wrapped in a list
                 spaces[key] = [spaces[key]]
 
         logger.debug(f"Transformed item:\n{pprint.pformat(spaces)}")
