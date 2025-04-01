@@ -712,7 +712,10 @@ class EduSharing:
             if public is True:
                 if "groups" in item["permissions"] or "mediacenters" in item["permissions"]:
                     logger.error(
-                        "Invalid state detected: Permissions public is set to true but groups or mediacenters are also set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!"
+                        "Invalid state detected: Permissions public is set to true "
+                        "but groups or mediacenters are also set. "
+                        "Please use either public = true without groups/mediacenters "
+                        "or public = false and set group/mediacenters. No permissions will be set!"
                     )
                     return
                 permissions["permissions"].append(
@@ -730,8 +733,11 @@ class EduSharing:
             else:
                 # Makes not much sense, may no permissions at all should be set
                 # if not 'groups' in item['permissions'] and not 'mediacenters' in item['permissions']:
-                #    logger.error('Invalid state detected: Permissions public is set to false but neither groups or mediacenters are set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!')
-                #    return
+                # logger.error('Invalid state detected: Permissions public is set to false but neither groups '
+                #              'or mediacenters are set. '
+                #              'Please use either public = true without groups/mediacenters '
+                #              'or public = false and set group/mediacenters. No permissions will be set!')
+                # return
                 merged_groups = []
                 if "groups" in item["permissions"]:
                     if "autoCreateGroups" in item["permissions"] and item["permissions"]["autoCreateGroups"] is True:
@@ -777,7 +783,8 @@ class EduSharing:
                     )
             if not self.set_permissions(uuid, permissions):
                 logger.error(
-                    "Failed to set permissions, please check that the given groups/mediacenters are existing in the repository or set the autoCreate mode to true"
+                    "Failed to set permissions, please check that the given groups/mediacenters are existing "
+                    "in the repository or set the autoCreate mode to true"
                 )
                 logger.error(item["permissions"])
 
@@ -853,8 +860,11 @@ class EduSharing:
                     # if about["services"] is an empty list (instead of the expected list[dict]),
                     # we're falling back to the about["version"]-dict that might look like this:
                     # {'major': 1, 'minor': 1, 'renderservice': '9.0', 'repository': '9.0'}
-                    logger.info("Failed to retrieve BULK v1 API version from edu-sharing during APi client init: "
-                                "about['services'] was empty (expected: list[dict]). Using about['version'] fallback...")
+                    logger.info(
+                        "Failed to retrieve BULK v1 API version from edu-sharing during APi client init: "
+                        "about['services'] was empty (expected: list[dict]). "
+                        "Using about['version'] fallback..."
+                    )
                     EduSharing.version = about["version"]
                 version_str: str = f"{EduSharing.version['major']}.{EduSharing.version['minor']}"
                 if (
