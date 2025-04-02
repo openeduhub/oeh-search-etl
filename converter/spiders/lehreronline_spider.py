@@ -83,7 +83,7 @@ def prepare_playwright_local_storage() -> dict:
 class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     name = "lehreronline_spider"
     friendlyName = "Lehrer-Online"
-    version = "0.0.8"  # last update: 2025-03-20
+    version = "0.0.9"  # last update: 2025-04-02
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -189,9 +189,9 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         # sic! "/Berufsalltag" is a typo in LO's "Fach"-values
         "Biologie / Ernährung und Gesundheit / Natur und Umwelt": ["080", "04006", "260"],
         # Biologie; Ernährung und Hauswirtschaft; Gesundheit
-        "Chemie / Natur & Umwelt": "100",  # Chemie
+        "Chemie / Natur & Umwelt": ["100", "640"],  # Chemie; Umwelterziehung
         "DaF / DaZ": "28002",  # Deutsch als Zweitsprache
-        "Deutsch / Kommunikation / Lesen & Schreiben": [""],  # ToDo
+        "Deutsch / Kommunikation / Lesen & Schreiben": "120",
         "Ernährung und Gesundheit": ["04006", "260"],  # Ernährung und Hauswirtschaft; Gesundheit
         "Ernährung & Gesundheit": ["04006", "260"],  # Ernährung und Hauswirtschaft; Gesundheit
         "Ernährung & Gesundheit / Gesundheitsschutz / Pflege, Therapie, Medizin": ["04006", "260"],
@@ -249,19 +249,26 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             logging.error("'getId'-method could not retrieve metadata_dict['url']. Falling back to 'response.url'")
             return None
 
-    def getHash(self, response=None, **kwargs) -> str | None:
+    def getHash(self, response=None, **kwargs) -> str:
+        _hash_fallback: str = datetime.now().isoformat()
         if "kwargs" in kwargs:
             if "metadata_dict" in kwargs["kwargs"]:
-                metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
-                hash_value: str = f"{metadata_dict.get('date_published')}v{self.version}"
-                return hash_value
+                try:
+                    # preferably use the publication date for hashing the item
+                    metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
+                    _date_published: str | None = metadata_dict.get("date_published")
+                    hash_value: str = f"{_date_published}v{self.version}"
+                    return hash_value
+                except KeyError:
+                    pass
             else:
                 logging.error(
                     "Could not create 'hash' for item. (Failed to retrieve 'metadata_dict' in kwargs of "
-                    "getHash()-method.)"
+                    "getHash()-method.) Falling back to datetime.now() hash."
                 )
-                return None
-        return None
+        # if no publication date was available, the current datetime is used for hashing
+        hash_value: str = f"{_hash_fallback}v{self.version}"
+        return hash_value
 
     def parse_node(self, response, selector: scrapy.selector.unified.Selector) -> Generator[Request, Any]:
         """
@@ -396,9 +403,6 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 date_published_datetime: datetime = datetime.strptime(date_published, "%Y-%m-%d")
                 date_published = date_published_datetime.isoformat()
                 metadata_dict.update({"date_published": date_published})
-            else:
-                # since date_published is used for our hash, we need this fallback in case it isn't available in the API
-                metadata_dict.update({"date_published": datetime.now().isoformat()})
 
         # ToDo: there is a <verfallsdatum>-Element, that is (in the API) currently empty 100% of the time, check again
         #  during the next crawler-update if this data is available in the API by then
@@ -669,6 +673,14 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         drop_item_flag: bool = False  # by default, we assume that all items should be crawled
         identifier_url: str = self.getId(response, kwargs={"metadata_dict": metadata_dict})
         hash_str: str = self.getHash(response, kwargs={"metadata_dict": metadata_dict})
+        try:
+            _origin_folder_name: str = metadata_dict["origin_folder_name"]
+            if _origin_folder_name and isinstance(_origin_folder_name, str) and "premium_only" in _origin_folder_name:
+                # drop premium-only items by default
+                drop_item_flag = True
+                return drop_item_flag
+        except KeyError:
+            pass
         if self.shouldImport(response) is False:
             logging.debug(f"Skipping entry {identifier_url} because shouldImport() returned false")
             drop_item_flag = True
@@ -771,6 +783,11 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             vs.add_value("discipline", metadata_dict.get("discipline"))
         if "educational_context" in metadata_dict:
             vs.add_value("educationalContext", metadata_dict.get("educational_context"))
+        if "keywords" in metadata_dict:
+            # There are several items where Lehrer-Online doesn't provide metadata for educationalContext,
+            # but keeps the values we are looking for in their keywords instead.
+            # Throwing those keywords against our metadata vocab should result in some additional hits.
+            vs.add_value("educationalContext", metadata_dict.get("keywords"))
         if "intended_end_user" in metadata_dict:
             vs.add_value("intendedEndUserRole", metadata_dict.get("intended_end_user"))
             vs.add_value("intendedEndUserRole", "teacher")  # ToDo: remove this hard-coded value as soon
@@ -795,7 +812,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 license_title: str = response.xpath('//div[@class="license-title"]/text()').get()
                 license_text: str = response.xpath('//div[@class="license-text"]/text()').get()
                 if license_text and license_title:
-                    license_full_desc: str = license_text.join(license_title)
+                    license_full_desc: str = f"{license_title}\n{license_text}"
                     license_loader.add_value("description", license_full_desc)
                 else:
                     license_loader.add_value("description", license_description)
@@ -807,6 +824,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         # if "expiration_date" in metadata_dict:
         #     # ToDo: activate gathering of expiration_date once the data is available in the API
         #     #  - make sure that the dateparser correctly recognizes the date
+        #     # as of 2025-04-02 the field is still 100% empty (by Lehrer-Online)
         #     expiration_date = metadata_dict.get("expiration_date")
         #     license_loader.add_value('expirationDate', expiration_date)
         base.add_value("license", license_loader.load_item())
