@@ -36,7 +36,7 @@ from scrapy.utils.project import get_project_settings
 from twisted.internet.defer import Deferred
 
 from converter import env
-from converter.constants import *
+from converter.constants import Constants, OerType
 from converter.es_connector import EduSharing
 from converter.items import BaseItem
 from converter.util.edu_sharing_source_template_helper import EduSharingSourceTemplateHelper
