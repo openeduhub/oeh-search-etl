@@ -415,7 +415,9 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float, item_
                 if seconds_float:
                     time_in_seconds = int(seconds_float)
             except ValueError:
-                logger.warning(f"Unable to convert string {time_raw} (type: {type(time_raw)}) to 'int'-value (seconds).")
+                logger.warning(
+                    f"Unable to convert string {time_raw} (type: {type(time_raw)}) to 'int'-value (seconds)."
+                )
         if time_raw.isnumeric():
             try:
                 time_in_seconds = int(time_raw)
@@ -614,8 +616,8 @@ class CourseItemPipeline(BasicPipeline):
                     course_workload: str = course_adapter["course_workload"]
                     if course_workload:
                         logger.error(
-                            f"Cannot process BIRD 'course_workload'-property: this field is not implemented yet! "
-                            f"(Please update the 'CourseItemPipeline' (pipelines.py) and es_connector.py!)"
+                            "Cannot process BIRD 'course_workload'-property: this field is not implemented yet! "
+                            "(Please update the 'CourseItemPipeline' (pipelines.py) and es_connector.py!)"
                         )
                         pass
                 pass
@@ -755,7 +757,9 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 return await self.process_item(raw_item, spider)
             time_end: datetime = datetime.datetime.now()
             logger.debug(f"Loading thumbnail from {url} took {time_end - time_start} (incl. awaiting).")
-            logger.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
+            logger.debug(
+                f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} "
+            )
             if thumbnail_response.status != 200:
                 logger.debug(
                     f"Thumbnail-Pipeline received an unexpected response (status: {thumbnail_response.status}) "
@@ -1329,11 +1333,11 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
                 )
             else:
                 logger.error(
-                    f"Edu-Sharing Source Template retrieval failed. "
-                    f"(Does a 'Quellendatensatz' exist in the edu-sharing repository for this spider?)"
+                    "Edu-Sharing Source Template retrieval failed. "
+                    "(Does a 'Quellendatensatz' exist in the edu-sharing repository for this spider?)"
                 )
         else:
-            logger.debug(f"Edu-Sharing Source Template feature is NOT ENABLED. Continuing EduSharingStorePipeline...")
+            logger.debug("Edu-Sharing Source Template feature is NOT ENABLED. Continuing EduSharingStorePipeline...")
 
     async def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
