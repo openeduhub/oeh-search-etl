@@ -10,24 +10,24 @@ import base64
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 import csv
 import datetime
-import logging
 import re
 import time
 from abc import ABCMeta
 from asyncio import Future
 from io import BytesIO
-from typing import BinaryIO, TextIO, Optional
+from typing import BinaryIO, Optional, TextIO
 
-import PIL
 import dateparser
 import dateutil.parser
 import isodate
+import PIL
 import scrapy
 import scrapy.crawler
 import twisted.internet.error
-from PIL import Image
 from async_lru import alru_cache
 from itemadapter import ItemAdapter
+from loguru import logger
+from PIL import Image
 from scrapy import settings
 from scrapy.exceptions import DropItem
 from scrapy.exporters import JsonItemExporter
@@ -43,10 +43,8 @@ from converter.items import BaseItem
 from converter.util.edu_sharing_source_template_helper import EduSharingSourceTemplateHelper
 from converter.util.language_mapper import LanguageMapper
 from converter.util.robots_txt import is_ai_usage_allowed
-from converter.web_tools import WebTools, WebEngine
+from converter.web_tools import WebEngine, WebTools
 from valuespace_converter.app.valuespaces import Valuespaces
-
-log = logging.getLogger(__name__)
 
 
 class BasicPipeline(metaclass=ABCMeta):
@@ -254,7 +252,7 @@ class NormLicensePipeline(BasicPipeline):
                         # happy-case: the 'date' property is of type datetime
                         pass
                     elif lifecycle_date:
-                        log.warning(
+                        logger.warning(
                             f"Lifecycle Pipeline received invalid 'date'-value: {lifecycle_date} !"
                             f"Expected type 'str' or 'datetime', but received: {type(lifecycle_date)} instead."
                         )
@@ -315,7 +313,7 @@ class OERFilterPipeline(BasicPipeline):
                 price: str = item["valuespaces"]["price"]
                 if price == "yes":
                     item_is_oer_compatible = False
-                    log.info(f"Item {item['sourceId']} is not OER-compatible due to its price. Dropping item ...")
+                    logger.info(f"Item {item['sourceId']} is not OER-compatible due to its price. Dropping item ...")
         if not item_is_oer_compatible:
             raise DropItem(f"Item {item['sourceId']} is not OER-compatible due to its license or price. "
                            f"Dropping item...")
@@ -339,7 +337,7 @@ class ConvertTimePipeline(BasicPipeline):
                     date = dateutil.parser.parse(item["lastModified"])
                     item["lastModified"] = int(date.timestamp())
                 except ValueError:
-                    log.warning("Unable to parse given lastModified date " + item["lastModified"])
+                    logger.warning("Unable to parse given lastModified date " + item["lastModified"])
                     del item["lastModified"]
 
         if "typicalLearningTime" in item["lom"]["educational"]:
@@ -381,7 +379,7 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float, item_
             if len(t_split) == 3:
                 time_in_seconds = int(t_split[0]) * 60 * 60 + int(t_split[1]) * 60 + int(t_split[2])
             else:
-                log.warning(
+                logger.warning(
                     f"Encountered unhandled edge-case in '{item_field_name}': "
                     f"Expected format 'hh:mm:ss', but received {time_raw} instead."
                 )
@@ -397,7 +395,7 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float, item_
                     # timedelta object can't handle conversion from months to .total_seconds()
                     # see: https://github.com/gweis/isodate/issues/44
                     # and https://docs.python.org/3/library/datetime.html#datetime.timedelta
-                    log.warning(
+                    logger.warning(
                         f"Unhandled value detected: Cannot transform {time_raw} to total seconds!"
                         f"(months (M) or years (Y) aren't standardized duration units)"
                     )
@@ -407,7 +405,7 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float, item_
                     #    -> this would require RegEx parsing and string replacement of the month/year parts
                     #  2) or keep the string representation AND find a better suited edu-sharing property for durations
             else:
-                log.warning(
+                logger.warning(
                     f"Encountered unhandled edge-case in '{item_field_name}': "
                     f"Expected ISO-8601 duration string, but received {time_raw} instead."
                 )
@@ -418,12 +416,12 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float, item_
                 if seconds_float:
                     time_in_seconds = int(seconds_float)
             except ValueError:
-                log.warning(f"Unable to convert string {time_raw} (type: {type(time_raw)}) to 'int'-value (seconds).")
+                logger.warning(f"Unable to convert string {time_raw} (type: {type(time_raw)}) to 'int'-value (seconds).")
         if time_raw.isnumeric():
             try:
                 time_in_seconds = int(time_raw)
             except ValueError:
-                log.warning(
+                logger.warning(
                     f"Unable to convert 'duration'-value {time_raw} (type ({type(time_raw)}) "
                     f"to 'int'-value (seconds)."
                 )
@@ -433,19 +431,19 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float, item_
         try:
             time_in_seconds = int(time_raw)
         except ValueError:
-            log.warning(
+            logger.warning(
                 f"'duration' value {time_raw} could not be normalized to seconds. "
                 f"(Unhandled edge-case: Expected int or float value, "
                 f"but received {type(time_raw)} instead."
             )
     if not time_in_seconds:
         if isinstance(time_in_seconds, int) and time_in_seconds == 0:
-            log.debug(
+            logger.debug(
                 f"Detected zero duration for '{item_field_name}'.  "
                 f"Received raw value: {time_raw} of type {type(time_raw)} ."
             )
         else:
-            log.warning(
+            logger.warning(
                 f"Unable to convert '{item_field_name}'-value (type: {type(time_raw)}) from {time_raw} "
                 f"to numeric value (seconds)."
             )
@@ -472,7 +470,7 @@ class CourseItemPipeline(BasicPipeline):
                         caf_iso: str = caf_parsed.isoformat()
                         course_adapter["course_availability_from"] = caf_iso
                     else:
-                        log.warning(
+                        logger.warning(
                             f'Failed to parse "course_availability_from"-property '
                             f'"{course_availability_from}" to a valid "datetime"-object. \n'
                             f"(Please check the object {item_adapter['sourceId']} "
@@ -480,7 +478,7 @@ class CourseItemPipeline(BasicPipeline):
                         )
                         del course_adapter["course_availability_from"]
                 else:
-                    log.warning(
+                    logger.warning(
                         f"Cannot process BIRD 'course_availability_from'-property {course_availability_from} "
                         f"(Expected a string, but received {type(course_availability_from)} instead."
                     )
@@ -496,14 +494,14 @@ class CourseItemPipeline(BasicPipeline):
                         cau_iso: str = cau_parsed.isoformat()
                         course_adapter["course_availability_until"] = cau_iso
                     else:
-                        log.warning(
+                        logger.warning(
                             f"Failed to parse \"{course_availability_until}\" to a valid 'datetime'-object. "
                             f"(Please check the object {item_adapter['sourceId']} for unhandled edge-cases or "
                             f"extend the CourseItemPipeline!)"
                         )
                         del course_adapter["course_availability_until"]
                 else:
-                    log.warning(
+                    logger.warning(
                         f'Cannot process BIRD "course_availability_until"-property {course_availability_until} '
                         f"(Expected a string, but received {type(course_availability_until)} instead.) "
                         f"Deleting property..."
@@ -517,7 +515,7 @@ class CourseItemPipeline(BasicPipeline):
                     # happy-case: the description is a string
                     pass
                 else:
-                    log.warning(
+                    logger.warning(
                         f"Cannot process BIRD 'course_description_short'-property for item "
                         f"{item_adapter['sourceId']} . Expected a string, but received "
                         f"{type(course_description_short)} instead. Deleting property..."
@@ -537,13 +535,13 @@ class CourseItemPipeline(BasicPipeline):
                     elif course_duration == 0:
                         # a duration of zero seconds is not a valid time duration, but most likely just a limitation
                         # of different backend systems how they store "empty" values for this metadata property.
-                        log.debug(
+                        logger.debug(
                             f"Received zero duration value within 'course_duration'-property of item "
                             f"{item_adapter['sourceId']}. Deleting property ..."
                         )
                         del course_adapter["course_duration"]
                 else:
-                    log.warning(
+                    logger.warning(
                         f"Cannot process BIRD 'course_duration'-property for item {item_adapter['sourceId']} . "
                         f"Expected a single (positive) integer value (in seconds), "
                         f"but received {type(course_duration)} instead. Deleting property..."
@@ -565,14 +563,14 @@ class CourseItemPipeline(BasicPipeline):
                                 course_learning_outcome_clean.append(clo_candidate)
                             else:
                                 # if the list item isn't a string, we won't save it to the cleaned up list
-                                log.warning(
+                                logger.warning(
                                     f"Received unexpected type as part of 'course_learningoutcome': "
                                     f"Expected list[str], but received a {type(clo_candidate)} "
                                     f"instead. Raw value: {clo_candidate}"
                                 )
                         course_adapter["course_learningoutcome"] = course_learning_outcome_clean
                 else:
-                    log.warning(
+                    logger.warning(
                         f"Cannot process BIRD 'course_learningoutcome'-property for item {item_adapter['sourceId']} "
                         f". Expected a string, but received {type(course_learning_outcome)} instead. "
                         f"Deleting property..."
@@ -586,7 +584,7 @@ class CourseItemPipeline(BasicPipeline):
                     # happy-case
                     pass
                 else:
-                    log.warning(
+                    logger.warning(
                         f"Cannot process BIRD 'course_schedule'-property for item {item_adapter['sourceId']} . "
                         f"Expected a string, but received {type(course_schedule)} instead. "
                         f"Deleting property..."
@@ -600,7 +598,7 @@ class CourseItemPipeline(BasicPipeline):
                     # happy-case
                     pass
                 else:
-                    log.warning(
+                    logger.warning(
                         f"Cannot process BIRD 'course_url_video'-property for item {item_adapter['sourceId']} . "
                         f"Expected a string, but received {type(course_url_video)} instead. "
                         f"Deleting property..."
@@ -616,7 +614,7 @@ class CourseItemPipeline(BasicPipeline):
                     #  (and which type is expected) -> implement a type-check!
                     course_workload: str = course_adapter["course_workload"]
                     if course_workload:
-                        log.error(
+                        logger.error(
                             f"Cannot process BIRD 'course_workload'-property: this field is not implemented yet! "
                             f"(Please update the 'CourseItemPipeline' (pipelines.py) and es_connector.py!)"
                         )
@@ -742,7 +740,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 # we expect that some thumbnail URLs will be wrong, outdated or already offline, which is why we catch
                 # the most common Exceptions while trying to dwonload the image.
             except twisted.internet.error.TCPTimedOutError:
-                log.warning(
+                logger.warning(
                     f"Thumbnail download of URL {url} failed due to TCPTimedOutError. "
                     f"(You might see this error if the image is unavailable under that specific URL.) "
                     f"Falling back to website screenshot."
@@ -750,17 +748,17 @@ class ProcessThumbnailPipeline(BasicPipeline):
                 del item["thumbnail"]
                 return await self.process_item(raw_item, spider)
             except twisted.internet.error.DNSLookupError:
-                log.warning(
+                logger.warning(
                     f"Thumbnail download of URL {url} failed due to DNSLookupError. "
                     f"(The webserver might be offline.) Falling back to website screenshot."
                 )
                 del item["thumbnail"]
                 return await self.process_item(raw_item, spider)
             time_end: datetime = datetime.datetime.now()
-            log.debug(f"Loading thumbnail from {url} took {time_end - time_start} (incl. awaiting).")
-            log.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
+            logger.debug(f"Loading thumbnail from {url} took {time_end - time_start} (incl. awaiting).")
+            logger.debug(f"Thumbnail-URL-Cache: {self.download_thumbnail_url.cache_info()} after trying to query {url} ")
             if thumbnail_response.status != 200:
-                log.debug(
+                logger.debug(
                     f"Thumbnail-Pipeline received an unexpected response (status: {thumbnail_response.status}) "
                     f"from {url} (-> resolved URL: {thumbnail_response.url}"
                 )
@@ -782,7 +780,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         # only set the response if thumbnail retrieval was successful!
                     elif _mimetype == "application/octet-stream":
                         # ToDo: special handling for 'application/octet-stream' necessary?
-                        log.debug(
+                        logger.debug(
                             f"Thumbnail URL of MIME-Type 'image/...' expected, "
                             f"but received '{_mimetype}' instead. "
                             f"(If thumbnail conversion throws unexpected errors further down the line, "
@@ -790,7 +788,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         )
                         response = thumbnail_response
                     else:
-                        log.warning(
+                        logger.warning(
                             f"Thumbnail URL {url} does not seem to be an image! "
                             f"Header contained Content-Type '{_mimetype}' instead. "
                             f"(Falling back to screenshot)"
@@ -798,7 +796,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         del item["thumbnail"]
                         return await self.process_item(raw_item, spider)
                 except KeyError:
-                    log.warning(
+                    logger.warning(
                         f"Thumbnail URL response did not contain a Content-Type / MIME-Type! "
                         f"Thumbnail URL queried: {url} "
                         f"-> resolved URL: {thumbnail_response.url} "
@@ -830,21 +828,21 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     spider.crawler.engine.download(request_splash)
                 )
                 if splash_response and splash_response.status != 200:
-                    log.debug(
+                    logger.debug(
                         f"SPLASH could not handle the requested website. "
                         f"(Splash returned HTTP Status {splash_response.status} for {target_url} !)"
                     )
                     _splash_success = False
                     # ToDo (optional): more granular Error-Handling for unsupported URLs?
                     if splash_response.status == 415:
-                        log.debug(
+                        logger.debug(
                             f"SPLASH (HTTP Status {splash_response.status} -> Unsupported Media Type): "
                             f"Could not render target url {target_url}"
                         )
                 elif splash_response:
                     response: scrapy.http.Response = splash_response
                 else:
-                    log.debug(f"SPLASH returned HTTP Status {splash_response.status} for {target_url} ")
+                    logger.debug(f"SPLASH returned HTTP Status {splash_response.status} for {target_url} ")
 
             playwright_websocket_endpoint: str | None = env.get("PLAYWRIGHT_WS_ENDPOINT")
             if (
@@ -870,7 +868,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     screenshot_bytes: bytes | None = playwright_dict.get("screenshot_bytes")
                 except AttributeError:
                     screenshot_bytes = None
-                    log.debug(
+                    logger.debug(
                         f"Failed fallback #1: taking a website-screenshot of URL " f"{target_url} wasn't possible!"
                     )
                     if (
@@ -883,7 +881,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         # while the second URL might point towards the webpage of said podcast episode
                         target_url_2nd: str = lom_technical_location[1]
                         if target_url_2nd and isinstance(target_url_2nd, str):
-                            log.debug(
+                            logger.debug(
                                 f"Second URL in LOM Technical Location detected. "
                                 f"Trying to take a website-screenshot of {lom_technical_location[1]} (fallback #2)..."
                             )
@@ -894,7 +892,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                                 screenshot_bytes: bytes | None = playwright_dict.get("screenshot_bytes")
                             except AttributeError:
                                 screenshot_bytes = None
-                                log.warning(
+                                logger.warning(
                                     f"Failed fallback #2: taking a website-screenshot of URL "
                                     f"{target_url_2nd} wasn't possible!"
                                 )
@@ -903,12 +901,12 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     self.create_thumbnails_from_image_bytes(img, item, settings_crawler)
             else:
                 if settings_crawler.get("DISABLE_SPLASH") is False:
-                    log.warning(
+                    logger.warning(
                         "No thumbnail provided (and .env variable 'SPLASH_URL' was not configured for screenshots!)"
                     )
         if response is None:
             if settings_crawler.get("DISABLE_SPLASH") is False:
-                log.error(
+                logger.error(
                     "Neither thumbnail or technical.location (and technical.format) provided! "
                     "Please provide at least one of them"
                 )
@@ -937,7 +935,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                     except PIL.UnidentifiedImageError:
                         # this error can be observed when a website serves broken / malformed images
                         if url:
-                            log.warning(
+                            logger.warning(
                                 f"Thumbnail download of image file {url} failed: image file could not be identified "
                                 f"(Image might be broken or corrupt). Falling back to website-screenshot."
                             )
@@ -949,7 +947,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         # If such an error is thrown, the image object won't be available.
                         # Therefore, we need to fall back to a website screenshot.
                         absolute_pixel_limit_in_mp = (self.pixel_limit * 2) / 1000000
-                        log.warning(
+                        logger.warning(
                             f"Thumbnail download of {url} triggered a 'PIL.Image.DecompressionBombError'! "
                             f"The image either exceeds the max size of {absolute_pixel_limit_in_mp} "
                             f"megapixels or might have been a DoS attempt. "
@@ -959,7 +957,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
                         return await self.process_item(raw_item, spider)
             except Exception as e:
                 if url is not None:
-                    log.warning(f"Could not read thumbnail at {url}: {str(e)} (falling back to screenshot)")
+                    logger.warning(f"Could not read thumbnail at {url}: {str(e)} (falling back to screenshot)")
                     raise e
                 if "thumbnail" in item:
                     del item["thumbnail"]
@@ -1015,7 +1013,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
             response: Deferred | Future = await maybe_deferred_to_future(spider.crawler.engine.download(request))
             return response
         except ValueError:
-            log.debug(f"Thumbnail-Pipeline received an invalid URL: {url}")
+            logger.debug(f"Thumbnail-Pipeline received an invalid URL: {url}")
 
     # override the project settings with the given ones from the current spider
     # see PR 56 for details
@@ -1077,7 +1075,7 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
     def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
         if "hash" not in item:
-            log.error(
+            logger.error(
                 "The spider did not provide a hash on the base object. "
                 "The hash is required to detect changes on an element. "
                 "(You should use the last modified date or something similar, "
@@ -1087,13 +1085,13 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
 
         # @TODO: May this can be done only once?
         if self.find_source(spider) is None:
-            log.info("create new source " + spider.name)
+            logger.info("create new source " + spider.name)
             self.create_source(spider)
 
         db_item = self.find_item(item["sourceId"], spider)
         if db_item:
             if item["hash"] != db_item[1]:
-                log.debug(
+                logger.debug(
                     f"EduSharingCheckPipeline: hash has changed. Continuing pipelines for item {item['sourceId']}"
                 )
             else:
@@ -1101,13 +1099,13 @@ class EduSharingCheckPipeline(EduSharing, BasicPipeline):
                     "EDU_SHARING_FORCE_UPDATE" in spider.custom_settings
                     and spider.custom_settings["EDU_SHARING_FORCE_UPDATE"]
                 ):
-                    log.debug(
+                    logger.debug(
                         f"EduSharingCheckPipeline: hash unchanged for item {item['sourceId']}, "
                         f"but detected active 'force item update'-setting (resetVersion / forceUpdate). "
                         f"Continuing pipelines ..."
                     )
                 else:
-                    log.debug(f"EduSharingCheckPipeline: hash unchanged, skipping item {item['sourceId']}")
+                    logger.debug(f"EduSharingCheckPipeline: hash unchanged, skipping item {item['sourceId']}")
                     # self.update(item['sourceId'], spider)
                     # for tests, we update everything for now
                     # activate this later
@@ -1128,7 +1126,7 @@ class RobotsTxtPipeline(BasicPipeline):
             if isinstance(_ai_allowed, bool):
                 return item
             else:
-                log.warning(f"Wrong type for BaseItem.ai_allow_usage detected: "
+                logger.warning(f"Wrong type for BaseItem.ai_allow_usage detected: "
                             f"Expected a 'bool'-value, but received type {type(_ai_allowed)} .")
         else:
             # default behavior: the pipeline should fill up the "ai_allow_usage"-field for every item
@@ -1209,7 +1207,7 @@ class EduSharingTypeValidationPipeline(BasicPipeline):
                             elif identifier and isinstance(identifier, str):
                                 _identifier_strings.append(identifier)
                             else:
-                                log.warning(f"LOM General identifier {identifier} is not a valid identifier. "
+                                logger.warning(f"LOM General identifier {identifier} is not a valid identifier. "
                                             f"(Expected type str, but received {type(identifier)})")
                         lom_general["identifier"] = _identifier_strings
             if "technical" in item_adapter["lom"]:
@@ -1308,7 +1306,7 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         self.counter = 0
 
     def open_spider(self, spider):
-        logging.debug(
+        logger.debug(
             "Entering EduSharingStorePipeline...\n"
             "Checking if 'crawler source template' ('Quellendatensatz-Template') should be used "
             "(see: 'EDU_SHARING_SOURCE_TEMPLATE_ENABLED' .env setting)..."
@@ -1325,18 +1323,18 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
             whitelisted_properties: dict | None = est_helper.get_whitelisted_metadata_properties()
             if whitelisted_properties:
                 setattr(spider, "edu_sharing_source_template_whitelist", whitelisted_properties)
-                logging.debug(
+                logger.debug(
                     f"Edu-sharing source template retrieval was successful. "
                     f"The following metadata properties will be whitelisted for all items:\n"
                     f"{whitelisted_properties}"
                 )
             else:
-                logging.error(
+                logger.error(
                     f"Edu-Sharing Source Template retrieval failed. "
                     f"(Does a 'Quellendatensatz' exist in the edu-sharing repository for this spider?)"
                 )
         else:
-            log.debug(f"Edu-Sharing Source Template feature is NOT ENABLED. Continuing EduSharingStorePipeline...")
+            logger.debug(f"Edu-Sharing Source Template feature is NOT ENABLED. Continuing EduSharingStorePipeline...")
 
     async def process_item(self, raw_item, spider):
         item = ItemAdapter(raw_item)
@@ -1345,14 +1343,14 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
             title = str(item["lom"]["general"]["title"])
         entryUUID = EduSharing.build_uuid(item["response"]["url"] if "url" in item["response"] else item["hash"])
         self.insert_item(spider, entryUUID, item)
-        log.info("item " + entryUUID + " inserted/updated")
+        logger.info("item " + entryUUID + " inserted/updated")
 
         # @TODO: We may need to handle Collections
         # if 'collection' in item:
         #    for collection in item['collection']:
         # if dbItem:
         #     entryUUID = dbItem[0]
-        #     logging.info('Updating item ' + title + ' (' + entryUUID + ')')
+        #     logger.info('Updating item ' + title + ' (' + entryUUID + ')')
         #     self.curr.execute("""UPDATE "references_metadata" SET last_seen = now(), last_updated = now(), hash = %s, data = %s WHERE source = %s AND source_id = %s""", (
         #         item['hash'], # hash
         #         json,
@@ -1363,9 +1361,9 @@ class EduSharingStorePipeline(EduSharing, BasicPipeline):
         #     entryUUID = self.buildUUID(item['response']['url'])
         #     if 'uuid' in item:
         #         entryUUID = item['uuid']
-        #     logging.info('Creating item ' + title + ' (' + entryUUID + ')')
+        #     logger.info('Creating item ' + title + ' (' + entryUUID + ')')
         #     if self.uuidExists(entryUUID):
-        #         logging.warn('Possible duplicate detected for ' + entryUUID)
+        #         logger.warn('Possible duplicate detected for ' + entryUUID)
         #     else:
         #         self.curr.execute("""INSERT INTO "references" VALUES (%s,true,now())""", (
         #             entryUUID,
@@ -1385,7 +1383,7 @@ class DummyPipeline(BasicPipeline):
 
     # class Printer:
     #     def write(self, byte_str: bytes) -> None:
-    #         logging.debug(byte_str.decode("utf-8"))
+    #         logger.debug(byte_str.decode("utf-8"))
 
     # def open_spider(self, spider):
     #     self.exporter = JsonItemExporter(
@@ -1417,7 +1415,7 @@ class DummyPipeline(BasicPipeline):
     #     self.exporter.finish_exporting()
 
     def process_item(self, item, spider):
-        log.info("DRY RUN scraped {}".format(item["response"]["url"]))
+        logger.info("DRY RUN scraped {}".format(item["response"]["url"]))
         # self.exporter.export_item(item)
         return item
 
@@ -1425,7 +1423,7 @@ class DummyPipeline(BasicPipeline):
 # example pipeline which simply outputs the item in the log
 class ExampleLoggingPipeline(BasicPipeline):
     def process_item(self, item, spider):
-        log.info(item)
+        logger.info(item)
         # self.exporter.export_item(item)
         return item
 
@@ -1560,7 +1558,7 @@ class LisumPipeline(BasicPipeline):
                             case _:
                                 # due to having the 'custom'-field as a (raw) list of all eafCodes, this mainly serves
                                 # the purpose of reminding us if a 'discipline'-value couldn't be mapped to Lisum
-                                log.debug(
+                                logger.debug(
                                     f"LisumPipeline failed to map from eafCode {discipline_eaf_code} "
                                     f"to its corresponding 'ccm:taxonid' short-handle. Trying Fallback..."
                                 )
@@ -1576,7 +1574,7 @@ class LisumPipeline(BasicPipeline):
                                 discipline_eafcodes.add("2600103")  # Körperpflege
                         if eaf_code_digits_only_regex.search(discipline_eaf_code):
                             # each numerical eafCode must have a length of (minimum) 3 digits to be considered valid
-                            log.debug(
+                            logger.debug(
                                 f"LisumPipeline: Writing eafCode {discipline_eaf_code} to buffer. (Wil be "
                                 f"used later for 'ccm:taxonentry')."
                             )
@@ -1584,7 +1582,7 @@ class LisumPipeline(BasicPipeline):
                                 # making sure to only save eafCodes that are part of the standard eafsys.txt
                                 discipline_eafcodes.add(discipline_eaf_code)
                             else:
-                                log.debug(
+                                logger.debug(
                                     f"LisumPipeline: eafCode {discipline_eaf_code} is not part of 'EAF "
                                     f"Sachgebietssystematik' (see: eafsys.txt), therefore skipping this "
                                     f"value."
@@ -1593,13 +1591,13 @@ class LisumPipeline(BasicPipeline):
                             # our 'discipline.ttl'-vocab holds custom keys (e.g. 'niederdeutsch', 'oeh04010') which
                             # shouldn't be saved into 'ccm:taxonentry' (since they are not part of the regular
                             # "EAF Sachgebietssystematik"
-                            log.debug(
+                            logger.debug(
                                 f"LisumPipeline eafCode fallback for {discipline_eaf_code} to "
                                 f"'ccm:taxonentry' was not possible. Only eafCodes with a minimum length "
                                 f"of 3+ digits are valid. (Please confirm if the provided value is part of "
                                 f"the 'EAF Sachgebietssystematik' (see: eafsys.txt))"
                             )
-                log.debug(
+                logger.debug(
                     f"LisumPipeline: Mapping discipline values from \n {discipline_list} \n to "
                     f"LisumPipeline: discipline_lisum_keys \n {discipline_lisum_keys}"
                 )
@@ -1623,7 +1621,7 @@ class LisumPipeline(BasicPipeline):
                                 )
                                 educational_context_lisum_keys.add(educational_context_w3id_key)
                             case _:
-                                log.debug(
+                                logger.debug(
                                     f"LisumPipeline: educationalContext {educational_context_w3id_key} "
                                     f"not found in mapping table."
                                 )
@@ -1712,14 +1710,14 @@ class LisumPipeline(BasicPipeline):
                             taxon_set = set(taxon_entries)
                             taxon_set.update(discipline_eafcodes)
                             taxon_entries = list(taxon_set)
-                            log.debug(f"LisumPipeline: Saving eafCodes {taxon_entries} to 'ccm:taxonentry'.")
+                            logger.debug(f"LisumPipeline: Saving eafCodes {taxon_entries} to 'ccm:taxonentry'.")
                             base_item_adapter["custom"]["ccm:taxonentry"] = taxon_entries
                 else:
                     # oeh_spider typically won't have neither the 'custom'-field nor the 'ccm:taxonentry'-field
                     # Therefore we have to create and fill it with the eafCodes that we gathered from our
                     # 'discipline'-vocabulary-keys.
                     discipline_eafcodes_list = list(discipline_eafcodes)
-                    log.debug(f"LisumPipeline: Saving eafCodes {discipline_eafcodes_list} to 'ccm:taxonentry'.")
+                    logger.debug(f"LisumPipeline: Saving eafCodes {discipline_eafcodes_list} to 'ccm:taxonentry'.")
                     base_item_adapter.update({"custom": {"ccm:taxonentry": discipline_eafcodes_list}})
                     base_item_adapter["custom"]["ccm:taxonentry"] = discipline_eafcodes_list
         return item
