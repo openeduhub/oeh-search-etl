@@ -1,4 +1,3 @@
-import logging
 from collections.abc import Generator, Iterable
 from datetime import datetime
 from typing import Any
@@ -7,6 +6,7 @@ import dateutil.relativedelta
 import scrapy.selector.unified
 import w3lib.html
 from bs4 import BeautifulSoup
+from loguru import logger
 from scrapy import Request
 from scrapy.spiders import XMLFeedSpider
 
@@ -246,7 +246,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             material_url = kwargs["kwargs"]["metadata_dict"]["url"]
             return material_url
         except KeyError:
-            logging.error("'getId'-method could not retrieve metadata_dict['url']. Falling back to 'response.url'")
+            logger.error("'getId'-method could not retrieve metadata_dict['url']. Falling back to 'response.url'")
             return None
 
     def getHash(self, response=None, **kwargs) -> str:
@@ -262,7 +262,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 except KeyError:
                     pass
             else:
-                logging.error(
+                logger.error(
                     "Could not create 'hash' for item. (Failed to retrieve 'metadata_dict' in kwargs of "
                     "getHash()-method.) Falling back to datetime.now() hash."
                 )
@@ -590,12 +590,12 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                         # "Handwerk-macht-Schule"-learning-objects by hand)
                         # ToDo: revert this workaround in the next version of the crawler
                         #  (after the "Herkunft des Inhalts"-topic has been resolved)
-                        logging.info(
+                        logger.info(
                             f"Temporarily skipping {material_url} from crawling (due to Team4-decision on 2023-08-10)."
                         )
                         pass
                     elif "pubertaet.lehrer-online.de" in material_url and "pubertaet" in skip_portal_setting:
-                        logging.info(
+                        logger.info(
                             f"Temporarily skipping {material_url} due to chosen '.env'-Setting for 'LO_SKIP_PORTAL'."
                         )
                         pass
@@ -610,7 +610,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                     )
         else:
             # if no material_url is provided, we cannot crawl anything, therefore skip the item
-            logging.debug(
+            logger.debug(
                 f"Lehrer-Online API returned a node without a 'material_url'-value. (The title of the node "
                 f"was '{title_raw}'."
             )
@@ -620,7 +620,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         try:
             metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
         except KeyError as ke:
-            logging.error("getUri()-method could not access 'metadata_dict'.")
+            logger.error("getUri()-method could not access 'metadata_dict'.")
             raise ke
         return metadata_dict["url"]
 
@@ -628,7 +628,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         try:
             metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
         except KeyError as ke:
-            logging.error("getUUID()-method could not access 'metadata_dict'.")
+            logger.error("getUUID()-method could not access 'metadata_dict'.")
             raise ke
         return EduSharing.build_uuid(self.getUri(response, kwargs={"metadata_dict": metadata_dict}))
 
@@ -640,24 +640,24 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             hash_str: str = self.getHash(response, kwargs={"metadata_dict": metadata_dict})
             uuid_str: str = self.getUUID(response, kwargs={"metadata_dict": metadata_dict})
         except KeyError as ke:
-            logging.error("hasChanged()-method could not access 'metadata_dict'.")
+            logger.error("hasChanged()-method could not access 'metadata_dict'.")
             raise ke
         if self.forceUpdate:
             return True
         if self.uuid:
             if uuid_str == self.uuid:
-                logging.info(f"matching requested id: {self.uuid}")
+                logger.info(f"matching requested id: {self.uuid}")
                 return True
             return False
         if self.remoteId:
             if identifier == self.remoteId:
-                logging.info(f"matching requested id: {self.remoteId}")
+                logger.info(f"matching requested id: {self.remoteId}")
                 return True
             return False
         db = EduSharing().find_item(identifier, self)
         changed = db is None or db[1] != hash_str
         if not changed:
-            logging.info(f"Item {identifier} (uuid: {db[0]}) has not changed")
+            logger.info(f"Item {identifier} (uuid: {db[0]}) has not changed")
         return changed
 
     def check_if_item_should_be_dropped(self, response, metadata_dict: dict) -> bool:
@@ -677,12 +677,13 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             _origin_folder_name: str = metadata_dict["origin_folder_name"]
             if _origin_folder_name and isinstance(_origin_folder_name, str) and "premium_only" in _origin_folder_name:
                 # drop premium-only items by default
+                logger.info(f"Skipping entry {identifier_url} because it's a premium-only item.")
                 drop_item_flag = True
                 return drop_item_flag
         except KeyError:
             pass
         if self.shouldImport(response) is False:
-            logging.debug(f"Skipping entry {identifier_url} because shouldImport() returned false")
+            logger.debug(f"Skipping entry {identifier_url} because shouldImport() returned false")
             drop_item_flag = True
         if (
             identifier_url is not None
