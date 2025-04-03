@@ -83,7 +83,7 @@ def prepare_playwright_local_storage() -> dict:
 class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     name = "lehreronline_spider"
     friendlyName = "Lehrer-Online"
-    version = "0.0.9"  # last update: 2025-04-02
+    version = "0.1.0"  # last update: 2025-04-03
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -351,9 +351,17 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             metadata_dict.update({"thumbnail_url": thumbnail_url})
 
         keyword_list: list = selector.xpath("schlagwort/text()").getall()
-        if keyword_list:
-            metadata_dict.update({"keywords": keyword_list})
-        # self.logger.info(f"the keywords are: {keyword_list}")
+        _keyword_set: set[str] = set()
+        if keyword_list and isinstance(keyword_list, list):
+            # Keywords from Lehrer-Online might contain leading or trailing whitespaces,
+            # which need to be stripped. Otherwise, we wouldn't be able to hit our vocabs reliably.
+            for keyword in keyword_list:
+                if keyword and isinstance(keyword, str):
+                    _keyword: str = keyword.strip()
+                    if _keyword:
+                        _keyword_set.add(_keyword)
+        if _keyword_set:
+            metadata_dict.update({"keywords": list(_keyword_set)})
 
         with_costs_string: str = selector.xpath("kostenpflichtig/text()").get()
         # with_costs_string can be either "ja" or "nein"
@@ -806,8 +814,12 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             license_url = metadata_dict.get("license_url")
             license_loader.add_value("url", license_url)
         elif "license_description" in metadata_dict:
-            license_description = metadata_dict.get("license_description")
-            if license_description == "Frei nutzbares Material":
+            license_description: str = metadata_dict.get("license_description")
+            if (
+                license_description
+                and isinstance(license_description, str)
+                and "Frei nutzbares Material" in license_description
+            ):
                 license_loader.add_value("internal", Constants.LICENSE_CUSTOM)
                 # just in case the license-description changes over time, we're gathering the description from the DOM
                 license_title: str = response.xpath('//div[@class="license-title"]/text()').get()
