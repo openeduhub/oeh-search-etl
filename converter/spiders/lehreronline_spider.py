@@ -80,10 +80,49 @@ def prepare_playwright_local_storage() -> dict:
     return lehrer_online_local_storage
 
 
+def split_and_clean_up_list_of_strings(list_of_strings: list[str]) -> list[str] | None:
+    # The API of Lehrer-Online provides messy metadata which needs to be cleaned up before we can work with it.
+    # Some common <schlagwort>-element examples:
+    #     <![CDATA[Ammonit; Solnhofener Plattenkalk]]>
+    #     <![CDATA[Agglomeration; Brooklyn; Einwanderer; Harlem; Multikulturell; Stadtviertel; DUMBO; Stadtbezirk]]>
+    #     <![CDATA[ Sekundarstufe 1]]>
+    _cleaned_set = set()
+    if list_of_strings and isinstance(list_of_strings, list):
+        for _item in list_of_strings:
+            # ToDo: check if ; is in the string
+            if ";" in _item:
+                _sub_items: list[str] = _item.split(";")
+                for _sub_item in _sub_items:
+                    # strip trailing / leading whitespaces from the string
+                    _sub_item: str = _sub_item.strip()
+                    if _sub_item:
+                        # only add valid strings to the set.
+                        _cleaned_set.add(_sub_item)
+            # strip trailing / leading whitespaces
+            if _item and isinstance(_item, str):
+                _item: str = _item.strip()
+                if _item:
+                    # there might be empty strings after stripping the whitespaces
+                    _cleaned_set.add(_item)
+    elif not list_of_strings and isinstance(list_of_strings, list):
+        # this case happens when the list is empty
+        # logger.debug(f"Received an empty list: {list_of_strings}")
+        pass
+    else:
+        logger.warning(
+            f"Wrong input type detected: expected a list[str] object, but received {type(list_of_strings)}: "
+            f"{list_of_strings} "
+        )
+    if _cleaned_set:
+        _cleaned_list: list[str] = list(_cleaned_set)
+        _cleaned_list.sort()
+        return _cleaned_list
+
+
 class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     name = "lehreronline_spider"
     friendlyName = "Lehrer-Online"
-    version = "0.1.0"  # last update: 2025-04-03
+    version = "0.1.1"  # last update: 2025-04-03
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -351,17 +390,12 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             metadata_dict.update({"thumbnail_url": thumbnail_url})
 
         keyword_list: list = selector.xpath("schlagwort/text()").getall()
-        _keyword_set: set[str] = set()
         if keyword_list and isinstance(keyword_list, list):
             # Keywords from Lehrer-Online might contain leading or trailing whitespaces,
             # which need to be stripped. Otherwise, we wouldn't be able to hit our vocabs reliably.
-            for keyword in keyword_list:
-                if keyword and isinstance(keyword, str):
-                    _keyword: str = keyword.strip()
-                    if _keyword:
-                        _keyword_set.add(_keyword)
-        if _keyword_set:
-            metadata_dict.update({"keywords": list(_keyword_set)})
+            keyword_list: list[str] | None = split_and_clean_up_list_of_strings(list_of_strings=keyword_list)
+            if keyword_list:
+                metadata_dict.update({"keywords": keyword_list})
 
         with_costs_string: str = selector.xpath("kostenpflichtig/text()").get()
         # with_costs_string can be either "ja" or "nein"
@@ -420,18 +454,26 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
 
         # <fach> can either be completely empty or there can be several <fach>-elements within a <datensatz>
         disciplines_or_additional_keywords: list = selector.xpath("fach/text()").getall()
+        disciplines_or_additional_keywords: list[str] | None = split_and_clean_up_list_of_strings(
+            list_of_strings=disciplines_or_additional_keywords
+        )
         individual_disciplines_or_keywords = set()
-        for potential_discipline_or_keyword in disciplines_or_additional_keywords:
-            # to make mapping more precise, we're separating strings like "Politik / WiSo / SoWi / Wirtschaft" into its
-            # individual parts
-            if " / " in potential_discipline_or_keyword:
-                disciplines_or_keywords_separated = potential_discipline_or_keyword.split(" / ")
-                for each_string in disciplines_or_keywords_separated:
-                    each_string_stripped = each_string.strip()
-                    individual_disciplines_or_keywords.add(each_string_stripped)
-            else:
-                individual_disciplines_or_keywords.add(potential_discipline_or_keyword)
+        if disciplines_or_additional_keywords and isinstance(disciplines_or_additional_keywords, list):
+            for potential_discipline_or_keyword in disciplines_or_additional_keywords:
+                # to make mapping more precise, we're separating strings like "Politik / WiSo / SoWi / Wirtschaft"
+                # into its individual parts
+                if potential_discipline_or_keyword and " / " in potential_discipline_or_keyword:
+                    disciplines_or_keywords_separated: list[str] = potential_discipline_or_keyword.split(" / ")
+                    for each_string in disciplines_or_keywords_separated:
+                        each_string_stripped = each_string.strip()
+                        if each_string_stripped:
+                            individual_disciplines_or_keywords.add(each_string_stripped)
+                else:
+                    individual_disciplines_or_keywords.add(potential_discipline_or_keyword)
         disciplines_or_additional_keywords = list(individual_disciplines_or_keywords)
+        disciplines_or_additional_keywords = split_and_clean_up_list_of_strings(
+            list_of_strings=disciplines_or_additional_keywords
+        )
 
         disciplines_mapped = set()
         additional_keywords_from_disciplines = set()
@@ -510,6 +552,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
 
         lrt_raw = selector.xpath("lernressourcentyp/text()").getall()
         # there can be SEVERAL "lernressourcentyp"-elements per item
+        lrt_raw: list[str] | None = split_and_clean_up_list_of_strings(list_of_strings=lrt_raw)
         if lrt_raw:
             additional_keywords_from_lo_lrt = set()
             for lrt_possible_value in lrt_raw:
