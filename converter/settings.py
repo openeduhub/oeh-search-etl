@@ -1,3 +1,5 @@
+import json
+
 from loguru import logger
 from scrapy.utils.log import configure_logging
 
@@ -63,7 +65,7 @@ THUMBNAIL_MAX_SIZE = (
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-# USER_AGENT = 'converter_search_idx (+http://www.yourdomain.com)'
+USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
@@ -102,6 +104,15 @@ DOWNLOAD_DELAY = 0
 # DOWNLOADER_MIDDLEWARES = {
 #    'converter.middlewares.OerScrapyDownloaderMiddleware': 543,
 # }
+
+# "scrapy-playwright"-related settings (see: https://github.com/scrapy-plugins/scrapy-playwright)
+DOWNLOAD_HANDLERS = {
+    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+}
+_playwright_launch_options: str = json.dumps({"stealth": "true"})
+PLAYWRIGHT_CDP_URL = f"{env.get('PLAYWRIGHT_WS_ENDPOINT')}/chrome?blockAds=true&launch={_playwright_launch_options}"
+PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 90 * 1000  # 90 seconds
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
