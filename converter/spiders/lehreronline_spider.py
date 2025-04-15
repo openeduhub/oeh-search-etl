@@ -122,7 +122,7 @@ def split_and_clean_up_list_of_strings(list_of_strings: list[str]) -> list[str] 
 class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     name = "lehreronline_spider"
     friendlyName = "Lehrer-Online"
-    version = "0.1.1"  # last update: 2025-04-03
+    version = "0.1.2"  # last update: 2025-04-15
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -233,8 +233,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         "Deutsch / Kommunikation / Lesen & Schreiben": "120",
         "Ernährung und Gesundheit": ["04006", "260"],  # Ernährung und Hauswirtschaft; Gesundheit
         "Ernährung & Gesundheit": ["04006", "260"],  # Ernährung und Hauswirtschaft; Gesundheit
-        "Ernährung & Gesundheit / Gesundheitsschutz / Pflege, Therapie, Medizin": ["04006", "260"],
-        # Ernährung und Hauswirtschaft; Gesundheit
+        "Ernährung & Gesundheit / Gesundheitsschutz / Pflege, Therapie, Medizin": ["260"],  # Gesundheit
         "Fächerübergreifend": "720",  # Allgemein
         "Fächerübergreifender Unterricht": "720",  # Allgemein
         "Geographie / Jahreszeiten": "220",  # Geografie
@@ -254,15 +253,15 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         "Orga / Bürowirtschaft": ["020", "04013"],  # Arbeitslehre; Wirtschaft und Verwaltung
         "Pädagogik": "44007",  # Sozialpädagogik
         "Physik / Astronomie": ["460", "46014"],  # Physik, Astronomie
-        "Politik / WiSo / SoWi": ["480", "44007", "700"],  # Politik; Wirtschaftskunde; Sozialkunde
+        "Politik / WiSo / SoWi": ["480", "48005", "700"],  # Politik; Gesellschaftskunde; Wirtschaftskunde
         # "Polnisch": "",  # ToDo: doesn't exist in our discipline vocab (yet)
         "Rechnungswesen": ["020", "04013"],  # Arbeitslehre; Wirtschaft und Verwaltung
         "Religion / Ethik": ["520", "160"],  # Religion; Ethik
         "Sport und Bewegung": "600",  # Sport
         "Sport / Bewegung": "600",  # Sport
-        "SoWi": ["44007", "700"],  # Sozialkunde; Wirtschaftskunde
+        "SoWi": ["48005", "700"],  # Gesellschaftskunde; Wirtschaftskunde
         "Technik / Sache & Technik": "04003",  # MINT
-        "WiSo": ["700", "44007"],  # Wirtschaftskunde; Sozialkunde
+        "WiSo": ["700", "48005"],  # Wirtschaftskunde; Gesellschaftskunde
         "Wirtschaftslehre": "700",  # Wirtschaftskunde
     }
 
@@ -733,6 +732,16 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 return drop_item_flag
         except KeyError:
             pass
+        try:
+            _material_type: str = metadata_dict["material_type_raw"]
+            # as suggested by Maike & Jan (Rohdatenprüfung 2024-03), none of the "Cartoon"-Items should be crawled
+            # since they're considered not useful / meaningful enough on their own
+            if _material_type and isinstance(_material_type, str) and "Cartoon" in _material_type:
+                logger.info(f"Skipping entry {identifier_url} because it's a 'Cartoon'-item.")
+                drop_item_flag = True
+                return drop_item_flag
+        except KeyError:
+            pass
         if self.shouldImport(response) is False:
             logger.debug(f"Skipping entry {identifier_url} because shouldImport() returned false")
             drop_item_flag = True
@@ -782,6 +791,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             general.add_value("keyword", metadata_dict.get("keywords"))
         if "description_long" in metadata_dict:
             general.add_value("description", metadata_dict.get("description_long"))
+            base.add_value("fulltext", metadata_dict.get("description_long"))
         elif "description_short" in metadata_dict:
             general.add_value("description", metadata_dict.get("description_short"))
         if "language" in metadata_dict:
