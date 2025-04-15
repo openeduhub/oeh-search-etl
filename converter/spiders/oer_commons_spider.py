@@ -7,8 +7,10 @@ from typing import Any
 
 import dateparser
 import scrapy
+import trafilatura
 from bs4 import BeautifulSoup
 from loguru import logger
+from playwright.async_api import Page
 from scrapy import Request
 from scrapy.http import Response
 
@@ -30,7 +32,7 @@ from converter.items import (
 from converter.spiders.base_classes import LomBase
 from converter.util.directories import get_project_root
 from converter.util.license_mapper import LicenseMapper
-from converter.web_tools import WebEngine, WebTools
+from converter.web_tools import WebEngine
 
 
 @dataclass
@@ -239,23 +241,28 @@ MAPPING_SUBJECTS_TO_HOCHSCHULFAECHERSYSTEMATIK: dict = {
 class OERCommonsSpider(scrapy.Spider, LomBase):
     name = "oer_commons_spider"
     friendlyName = "OER Commons"
-    version = "0.0.1"
+    version = "0.0.2"  # last update: 2025-04-15
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 0.5,
+        # "CONCURRENT_REQUESTS_PER_DOMAIN": 2,
+        "AUTOTHROTTLE_START_DELAY": 5,
         "WEB_TOOLS": WebEngine.Playwright,
+        "USER_AGENT": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/134.0.0.0 Safari/537.36",
     }
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
-    # ToDo: figure out if specific cookies / headers might solve the "403"-response problem
-
     def start_requests(self) -> Iterable[Request]:
-        # dummy request to WLO since OERCommons.org always returns a 403 response
         yield scrapy.Request(
-            url="https://wirlernenonline.de",
+            url="https://oercommons.org",
             callback=self.read_oer_commons_csv_and_clean_up_items,
+            meta={
+                "playwright": True,
+            },
         )
 
     async def read_oer_commons_csv_and_clean_up_items(self, response: scrapy.http.Response):
@@ -432,8 +439,18 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
 
                 _cleaned_items.append(cleaned_item)
                 # ToDo: remove _cleaned_items list after debugging to save RAM?
-                final_item = await self.parse(cleaned_item=cleaned_item)
-                yield final_item
+                # final_item = await self.parse(cleaned_item=cleaned_item)
+                # yield final_item
+                yield scrapy.Request(
+                    url=url_clean,
+                    callback=self.parse,
+                    cb_kwargs={"cleaned_item": cleaned_item},
+                    meta={
+                        "playwright": True,
+                        "playwright_include_page": True,
+                    },
+                    errback=self.errback_close_page,
+                )
         logger.debug(f"Total amount of CSV items (after clean up): {len(_cleaned_items)}")
 
     def getId(self, response=None, cleaned_item: OERCommonsCleanedItem = None) -> str | None:
@@ -508,8 +525,20 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
             return drop_item_flag
         return drop_item_flag
 
-    async def parse(self, response: Response = None, http_requests_enabled: bool = False, **kwargs: Any) -> Any:
+    async def errback_close_page(self, failure):
+        # close the Playwright Page object in case of exceptions (to mitigate open tabs causing the spider to freeze)
+        page: Page = failure.request.meta["playwright_page"]
+        await page.close()
+
+    async def parse(self, response: Response, **kwargs: Any) -> Any:
         _cleaned_item: OERCommonsCleanedItem = kwargs.get("cleaned_item")
+        _page: Page | None = None  # the playwright Page object (if available)
+        # see: https://github.com/scrapy-plugins/scrapy-playwright?tab=readme-ov-file#playwright_page
+        try:
+            _page: Page = response.meta["playwright_page"]
+        except KeyError:
+            logger.debug(f"Playwright Page object was not available for {response.url}")
+            pass
 
         # to minimize the amount of HTTP requests caused by our crawler, we check first if the item needs to be dropped
         _drop_item: bool = self.check_if_item_should_be_dropped(response=response, cleaned_item=_cleaned_item)
@@ -526,31 +555,25 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
         _hash: str | None = self.getHash(response=response, cleaned_item=_cleaned_item)
         base_itemloader.add_value("hash", _hash)
 
-        # author metadata is only available in the "Details"-Tab of a OERCommons item
+        # author metadata is only available in the "Details"-Tab of an OERCommons item
         # and consists of one single author name string
         _author_name: str | None = None
         _author_url: str | None = None
-        playwright_dict: dict | None = None
         html_body = None
-        html_text = None
-        screenshot_bytes = None
+        if _page:
+            html_body = await _page.content()
+            if html_body and isinstance(html_body, bytes):
+                trafilatura_text: str | None = trafilatura.extract(html_body)
+                if trafilatura_text:
+                    base_itemloader.add_value("fulltext", trafilatura_text)
+            screenshot_bytes = await _page.screenshot()
+            if screenshot_bytes:
+                base_itemloader.add_value("screenshot_bytes", screenshot_bytes)
 
-        if http_requests_enabled:
-            # ToDo: as soon as playwright fires its requests too fast, the website will throw a 403 response
-            #  - workaround: rate-throttle manually?
-            #  - workaround: try out the scrapy-playwright middleware to force playwright requests
-            #    to adhere to the scrapy scheduler?
-            playwright_dict: dict = await WebTools.getUrlData(url=_source_id, engine=WebEngine.Playwright)
-            html_body = playwright_dict.get("html")
-            screenshot_bytes = playwright_dict.get("screenshot_bytes")
-            html_text = playwright_dict.get("text")
-            selector_playwright: scrapy.Selector = scrapy.Selector(text=html_body)
-            _author_name: str | None = selector_playwright.xpath(
-                '//dt[contains(text(),"Author:")]/following-sibling::dd/a/text()'
-            ).get()
-            _author_url: str | None = selector_playwright.xpath(
-                '//dt[contains(text(),"Author:")]/following-sibling::dd/a/@href'
-            ).get()
+        _author_name: str | None = response.xpath(
+            '//dt[contains(text(),"Author:")]/following-sibling::dd/a/text()'
+        ).get()
+        _author_url: str | None = response.xpath('//dt[contains(text(),"Author:")]/following-sibling::dd/a/@href').get()
 
         lom_base_itemloader: LomBaseItemloader = LomBaseItemloader()
 
@@ -712,10 +735,8 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
         response_itemloader.add_value("url", _source_id)
         if html_body:
             response_itemloader.replace_value("html", html_body)
-        if html_text:
-            response_itemloader.replace_value("text", html_text)
-        if screenshot_bytes:
-            base_itemloader.replace_value("screenshot_bytes", screenshot_bytes)
+        if response.text:
+            response_itemloader.replace_value("text", response.text)
 
         lom_base_itemloader.add_value("general", lom_general_itemloader.load_item())
         lom_base_itemloader.add_value("technical", lom_technical_itemloader.load_item())
