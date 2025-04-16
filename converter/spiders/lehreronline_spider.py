@@ -122,7 +122,7 @@ def split_and_clean_up_list_of_strings(list_of_strings: list[str]) -> list[str] 
 class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     name = "lehreronline_spider"
     friendlyName = "Lehrer-Online"
-    version = "0.1.2"  # last update: 2025-04-15
+    version = "0.1.3"  # last update: 2025-04-16
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
@@ -231,8 +231,8 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         "Chemie / Natur & Umwelt": ["100", "640"],  # Chemie; Umwelterziehung
         "DaF / DaZ": "28002",  # Deutsch als Zweitsprache
         "Deutsch / Kommunikation / Lesen & Schreiben": "120",
-        "Ernährung und Gesundheit": ["04006", "260"],  # Ernährung und Hauswirtschaft; Gesundheit
-        "Ernährung & Gesundheit": ["04006", "260"],  # Ernährung und Hauswirtschaft; Gesundheit
+        "Ernährung und Gesundheit": ["260"],  # Gesundheit
+        "Ernährung & Gesundheit": ["260"],  # Gesundheit
         "Ernährung & Gesundheit / Gesundheitsschutz / Pflege, Therapie, Medizin": ["260"],  # Gesundheit
         "Fächerübergreifend": "720",  # Allgemein
         "Fächerübergreifender Unterricht": "720",  # Allgemein
