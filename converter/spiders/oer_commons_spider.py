@@ -454,10 +454,12 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
         logger.debug(f"Total amount of CSV items (after clean up): {len(_cleaned_items)}")
 
     def getId(self, response=None, cleaned_item: OERCommonsCleanedItem = None) -> str | None:
-        if cleaned_item.url and isinstance(cleaned_item.url, str):
+        if response.url and isinstance(response.url, str):
+            return response.url
+        elif cleaned_item.url and isinstance(cleaned_item.url, str):
             return cleaned_item.url
         else:
-            logger.warning(f"getId() failed because the item didn't contain a URL: {cleaned_item}")
+            logger.error(f"getId() failed because the item didn't contain a URL: {cleaned_item}")
 
     def getHash(self, response=None, cleaned_item: OERCommonsCleanedItem = None) -> str | None:
         if cleaned_item.date_created and isinstance(cleaned_item.date_created, str):
@@ -545,7 +547,7 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
         if _drop_item:
             return
 
-        _source_id: str | None = self.getId(response=None, cleaned_item=_cleaned_item)
+        _source_id: str | None = self.getId(response=response, cleaned_item=_cleaned_item)
         if not _source_id:
             # drop item if the item has no URL
             return
