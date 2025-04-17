@@ -81,11 +81,11 @@ class Valuespaces:
             if "en" in key["prefLabel"]:
                 names += [key["prefLabel"]["en"]]
         if "altLabel" in key:
-            names += key["altLabel"]["de"] if "de" in key["altLabel"] else []
-            names += key["altLabel"]["en"] if "en" in key["altLabel"] else []
+            names += key["altLabel"].get("de", [])
+            names += key["altLabel"].get("en", [])
         if "note" in key:
-            names += key["note"]["de"] if "de" in key["note"] else []
-            names += key["note"]["en"] if "en" in key["note"] else []
+            names += key["note"].get("de", [])
+            names += key["note"].get("en", [])
 
         names = list(set(map(lambda x: x.strip(), names)))
         return names
