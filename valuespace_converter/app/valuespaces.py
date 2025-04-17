@@ -10,6 +10,7 @@ class Valuespaces:
         "educationalContext",
         "hochschulfaechersystematik",
         "intendedEndUserRole",
+        "kldb",
         "languageLevel",
         "learningResourceType",
         "new_lrt",
