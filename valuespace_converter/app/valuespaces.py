@@ -51,28 +51,28 @@ class Valuespaces:
         return result
 
     @staticmethod
-    def findKey(valuespaceId: str, id: str, valuespace=None):
+    def find_key(valuespace_id: str, id: str, valuespace=None):
         if not valuespace:
-            valuespace = Valuespaces.data[valuespaceId]
+            valuespace = Valuespaces.data[valuespace_id]
         for key in valuespace:
             if key["id"] == id:
                 return key
             if "narrower" in key:
-                found = Valuespaces.findKey(valuespaceId, id, key["narrower"])
+                found = Valuespaces.find_key(valuespace_id, id, key["narrower"])
                 if found:
                     return found
         return None
 
-    def initTree(self, tree):
+    def init_tree(self, tree):
         # ToDo: this method appears to be dead code that hasn't been used anywhere.
         for t in tree:
-            names = self.getNames(t)
+            names = self.get_names(t)
             # t['words'] = list(map(lambda x: nlp(x)[0], names))
             t["words"] = names
             if "narrower" in t:
-                self.initTree(t["narrower"])
+                self.init_tree(t["narrower"])
 
-    def getNames(self, key):
+    def get_names(self, key):
         # ToDo: this method appears to be dead code that hasn't been used anywhere.
         names = []
         if "prefLabel" in key:
