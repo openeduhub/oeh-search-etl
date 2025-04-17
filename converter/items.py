@@ -1,4 +1,3 @@
-
 # Define here the models for your scraped items
 #
 # See documentation in:
@@ -61,8 +60,8 @@ class LomGeneralItem(Item):
 
 class LomLifecycleItem(Item):
     """
-    Depending on the ``role``-value that is chosen for a LomLifecycleItem, values are written to a VCARD-string and mapped
-    to either one of these corresponding edu-sharing properties:
+    Depending on the ``role``-value that is chosen for a LomLifecycleItem,
+    values are written to a VCARD-string and mapped to either one of these corresponding edu-sharing properties:
 
     - ``ccm:lifecyclecontributer_publisher``              (``role``-value = ``publisher``)
     - ``ccm:lifecyclecontributer_author``                 (``role``-value = ``author``)
@@ -298,8 +297,8 @@ class LicenseItem(Item):
     """An author freetext string. (Basically, how the author should be named in case this is a 'CC-BY'-license.
     Corresponding edu-sharing property: ``ccm:author_freetext``"""
     description = Field()
-    """A custom, free-text license description. Will only be used if the ``internal``-attribute (see: constants.py) is set 
-    to ``CUSTOM``.
+    """A custom, free-text license description. 
+    Will only be used if the ``internal``-attribute (see: constants.py) is set to ``CUSTOM``.
     Corresponding edu-sharing property: ``cclom:rights_description``"""
     expirationDate = Field()
     """A date at which any content license expires and the content shouldn't be delivered anymore.
@@ -312,7 +311,9 @@ class LicenseItem(Item):
     Corresponding edu-sharing property: ``ccm:oer``"""
     url = Field()
     """Expects a URL (type: ``str``) to a license description.
-    Gets mapped to two corresponding edu-sharing properties: ``ccm:commonlicense_key`` & ``ccm:commonlicense_version``"""
+    Gets mapped to two corresponding edu-sharing properties: 
+    ``ccm:commonlicense_key`` and ``ccm:commonlicense_version``
+    """
 
 
 class PermissionItem(Item):
@@ -439,7 +440,9 @@ class BaseItem(Item):
     """This item is only used by the ``ProcessValuespacePipeline`` and holds the "raw" data which were given to the 
     valuespaces. Please DO NOT use it within normal crawlers"""
     screenshot_bytes = Field()
-    """``screenshot_bytes`` is a (temporary) field that gets deleted after the thumbnail pipeline processed its byte-data"""
+    """
+    ``screenshot_bytes`` is a (temporary) field that gets deleted after the thumbnail pipeline processed its byte-data
+    """
 
 
 class BaseItemLoader(ItemLoader):
