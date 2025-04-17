@@ -16,7 +16,7 @@ def replace_processor(value):
         return value
 
 
-class JoinMultivalues(object):
+class JoinMultivalues:
     def __init__(self, separator=" "):
         self.separator = separator
 
