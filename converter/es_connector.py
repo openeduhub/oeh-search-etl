@@ -554,6 +554,7 @@ class EduSharing:
             "fskRating": "ccm:fskRating",
             "hochschulfaechersystematik": "ccm:taxonid",
             "intendedEndUserRole": "ccm:educationalintendedenduserrole",
+            "kldb": "ccm:oeh_profession_group",
             "languageLevel": "ccm:oeh_languageLevel",
             "learningResourceType": "ccm:educationallearningresourcetype",
             "new_lrt": "ccm:oeh_lrt",

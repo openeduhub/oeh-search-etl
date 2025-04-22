@@ -268,6 +268,10 @@ class ValuespaceItem(Item):
     """Corresponding edu-sharing property: ``ccm:taxonid``"""
     intendedEndUserRole = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: ``ccm:educationalintendedenduserrole``"""
+    kldb = Field(output_processor=JoinMultivalues())
+    """Klassifikation der Berufe (KldB)
+    Corresponding edu-sharing property: ``ccm:oeh_profession_group``"""
+    # see: https://statistik.arbeitsagentur.de/DE/Navigation/Grundlagen/Klassifikationen/Klassifikation-der-Berufe/KldB2010-Fassung2020/Systematik-Verzeichnisse/Systematik-Verzeichnisse-Nav.html
     languageLevel = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: ``ccm:oeh_languageLevel``"""
     learningResourceType = Field(output_processor=JoinMultivalues())
