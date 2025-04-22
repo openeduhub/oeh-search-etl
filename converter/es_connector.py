@@ -140,6 +140,9 @@ class EduSharing:
                 group=spider.name,
                 group_by=group_by,
                 reset_version=EduSharing.resetVersion,
+                resolve_node=False,
+                # if the "resolve_node"-Parameter is not set, it defaults to True.
+                # disabling it explicitly shaves off about 10 to 20 percent of the HTTP response time.
             )
         except ApiException as e:
             # ToDo:
