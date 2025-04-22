@@ -8,25 +8,59 @@ from protego import Protego
 from tldextract.tldextract import ExtractResult
 
 AI_USER_AGENTS: list[str] = [
+    "AI2Bot",
+    "Ai2Bot-Dolma",
+    "Amazonbot",
     "anthropic-ai",
-    "Claude-Web",
+    "Applebot",
     "Applebot-Extended",
+    "Brightbot 1.0",
     "Bytespider",
+    "Claude-Web",
     "CCBot",
     "ChatGPT-User",
+    "Claude-Web",
+    "ClaudeBot",
     "cohere-ai",
+    "cohere-training-data-crawler",
+    "Crawlspace",
     "Diffbot",
+    "DuckAssistBot",
     "FacebookBot",
-    "GoogleOther",
+    "FriendlyCrawler",
     "Google-Extended",
+    "GoogleOther",
     "GPTBot",
+    "iaskspider/2.0",
+    "ICC-Crawler",
     "ImagesiftBot",
-    "PerplexityBot",
-    "OmigiliBot",
+    "img2dataset",
+    "ISSCyberRiskCrawler",
+    "Kangaroo Bot",
+    "Meta-ExternalAgent",
+    "Meta-ExternalFetcher",
+    "OAI-SearchBot",
+    "omgili",
+    "omgilibot",
     "Omigili",
+    "OmigiliBot",
+    "PanguBot",
+    "PerplexityBot",
+    "PetalBot",
+    "SemrushBot-OCOB",
+    "SemrushBot-SWA",
+    "Sidetrade indexer bot",
+    "Timpibot",
+    "VelenPublicWebCrawler",
+    "Webzio-Extended",
+    "YouBot",
 ]
-# this non-exhaustive list of known (AI) web crawlers is used to check if the robots.txt file explicitly allows or forbids AI usage
-# for reference: https://www.foundationwebdev.com/2023/11/which-web-crawlers-are-associated-with-ai-crawlers/
+# this non-exhaustive list of known (AI) web crawlers is used to check
+# if the robots.txt file explicitly allows or forbids AI usage.
+# for reference, see:
+# https://www.foundationwebdev.com/2023/11/which-web-crawlers-are-associated-with-ai-crawlers/
+# https://darkvisitors.com/agents
+# https://github.com/ai-robots-txt/ai.robots.txt
 # ToDo: the list of known AI user agents could be refactored into a SkoHub Vocab
 
 
@@ -36,14 +70,13 @@ def fetch_robots_txt(url: str) -> str | None:
     Fetch the robots.txt file from the given URL.
 
     :param url: URL string pointing towards a ``robots.txt``-file.
-    :return: The file content of the ``robots.txt``-file as a ``str``, otherwise returns ``None`` if the HTTP ``GET``-request failed.
+    :return: The file content of the ``robots.txt``-file as a ``str``,
+        otherwise returns ``None`` if the HTTP ``GET``-request failed.
     """
     response: requests.Response = requests.get(url=url)
     if response.status_code != 200:
         logger.warning(
-            f"Could not fetch robots.txt from {url} . "
-            f"Response code: {response.status_code} "
-            f"Reason: {response.reason}"
+            f"Could not fetch robots.txt from {url} . Response code: {response.status_code} Reason: {response.reason}"
         )
         return None
     else:
@@ -56,7 +89,8 @@ def _remove_wildcard_user_agent_from_robots_txt(robots_txt: str) -> str:
     Remove the wildcard user agent part of a string from the given ``robots.txt``-string.
 
     :param robots_txt: text content of a ``robots.txt``-file
-    :return: ``robots.txt``-file content without the wildcard user agent. If no wildcard user agent was found, return the original string without alterations.
+    :return: ``robots.txt``-file content without the wildcard user agent.
+        If no wildcard user agent was found, return the original string without alterations.
     """
     # the user agent directive can appear in different forms and spellings
     # (e.g. "user agent:", "useragent:", "user-agent:", "User-agent:" etc.)
@@ -95,7 +129,8 @@ def _check_protego_object_against_list_of_known_ai_user_agents(protego_object: P
 
     :param protego_object: ``Protego``-object holding ``robots.txt``-information
     :param url: URL to be checked against a list of known AI user agents
-    :return: Returns ``True`` if the given ``url`` is allowed to be scraped by AI user agents. If the ``robots.txt``-file forbids AI scrapers, returns ``False``.
+    :return: Returns ``True`` if the given ``url`` is allowed to be scraped by AI user agents.
+        If the ``robots.txt``-file forbids AI scrapers, returns ``False``.
     """
     if url is None:
         raise ValueError("url cannot be None. (Please provide a valid URL string!)")
@@ -116,13 +151,15 @@ def _check_protego_object_against_list_of_known_ai_user_agents(protego_object: P
         return ai_usage_allowed
 
 
-def is_ai_usage_allowed(url: str, robots_txt: str = None) -> bool:
+def is_ai_usage_allowed(url: str, robots_txt: str = None) -> bool | None:
     """
     Check if the given ``url`` is allowed to be scraped by AI user agents.
 
     :param url: URL to be checked against a list of known AI user agents
-    :param robots_txt: string value of a ``robots.txt`` file. If no ``robots.txt``-string is provided, fallback to HTTP Request: ``https://<fully_qualified_domain_name>/robots.txt``
-    :return: Returns ``True`` if the given ``url`` is allowed to be scraped by AI user agents. If the URL target forbids any of the known AI scrapers, returns ``False``.
+    :param robots_txt: string value of a ``robots.txt`` file.
+        If no ``robots.txt``-string is provided, fallback to HTTP Request: ``https://<fully_qualified_domain_name>/robots.txt``
+    :return: Returns ``True`` if the given ``url`` is allowed to be scraped by AI user agents.
+        If the URL target forbids any of the known AI scrapers, returns ``False``.
     """
     if robots_txt is None:
         # Fallback:

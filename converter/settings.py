@@ -1,11 +1,7 @@
-# -*- coding: utf-8 -*-
-import logging
-from pathlib import Path  # python3 only
-
-import scrapy
+from loguru import logger
+from scrapy.utils.log import configure_logging
 
 import converter.env as env
-from scrapy.utils.log import configure_logging
 
 # Scrapy settings for project
 #
@@ -35,7 +31,8 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 
 # Default behaviour for regular crawlers of non-license-controlled content
 # When set True, every item will have GROUP_EVERYONE attached in edu-sharing
-# When set False, no permissions are set at all, which can be helpful if you want to control them later (e.g. via inherition)
+# When set False, no permissions are set at all,
+# which can be helpful if you want to control them later (e.g. via inheritance)
 DEFAULT_PUBLIC_STATE = False
 
 # Splash (Web Thumbnailer)
@@ -45,7 +42,9 @@ SPLASH_URL = (
 )
 SPLASH_WAIT = 2  # seconds to let the page load
 SPLASH_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/80.0.3987.163 Safari/537.36"
 }  # use chrome to not create warnings on pages
 
 # edu-sharing config
@@ -146,7 +145,7 @@ ITEM_PIPELINES = {
 # (Caution: This setting drops items if they cannot be clearly identified as OER materials!)
 oer_filter_enabled = env.get_bool("OER_FILTER", allow_null=True, default=False)
 if oer_filter_enabled:
-    logging.info("OER-Filter Pipeline is ENABLED! Only OER-compatible items will be stored!")
+    logger.info("OER-Filter Pipeline is ENABLED! Only OER-compatible items will be stored!")
     ITEM_PIPELINES.update(
         {
             "converter.pipelines.OERFilterPipeline": 295,
@@ -158,7 +157,7 @@ if oer_filter_enabled:
 ADDITIONAL_PIPELINES = env.get("CUSTOM_PIPELINES", True)
 if ADDITIONAL_PIPELINES:
     for pipe in map(lambda p: p.split(":"), ADDITIONAL_PIPELINES.split(",")):
-        logging.info("Enabling custom pipeline: " + pipe[0])
+        logger.info("Enabling custom pipeline: " + pipe[0])
         ITEM_PIPELINES[pipe[0]] = int(pipe[1])
 
 # Enable and configure the AutoThrottle extension (disabled by default)

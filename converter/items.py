@@ -267,7 +267,7 @@ class ValuespaceItem(Item):
     fskRating = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: ``ccm:fskRating``"""
     hochschulfaechersystematik = Field(output_processor=JoinMultivalues())
-    """Corresponding edu-sharing property: ``ccm:oeh_taxonid_university``"""
+    """Corresponding edu-sharing property: ``ccm:taxonid``"""
     intendedEndUserRole = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: ``ccm:educationalintendedenduserrole``"""
     languageLevel = Field(output_processor=JoinMultivalues())
