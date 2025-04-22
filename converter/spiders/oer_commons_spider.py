@@ -57,9 +57,13 @@ class OERCommonsCleanedItem:
 def strip_html_from_text(raw_string: str) -> str | None:
     if raw_string and isinstance(raw_string, str):
         raw_soup = BeautifulSoup(raw_string, "html.parser")
-        if raw_soup:
-            clean_string: str = raw_soup.get_text()
+        clean_string: str = raw_soup.get_text()
+        if clean_string:
+            # only return a string if the result is valid (e.g. do not return empty strings)
             return clean_string
+        else:
+            logger.debug(f"Failed to return a valid, clean string for the provided input:\n{raw_string}")
+            return None
     else:
         return None
 
@@ -460,6 +464,7 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
             return cleaned_item.url
         else:
             logger.error(f"getId() failed because the item didn't contain a URL: {cleaned_item}")
+            return None
 
     def getHash(self, response=None, cleaned_item: OERCommonsCleanedItem = None) -> str | None:
         if cleaned_item.date_created and isinstance(cleaned_item.date_created, str):
@@ -731,7 +736,7 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
             if _mapped_license:
                 license_itemloader.add_value("internal", _mapped_license)
 
-        permission_itemloader: PermissionItemLoader = PermissionItemLoader()
+        permission_itemloader: PermissionItemLoader = self.getPermissions(response)
 
         response_itemloader: ResponseItemLoader = ResponseItemLoader()
         response_itemloader.add_value("url", _source_id)
