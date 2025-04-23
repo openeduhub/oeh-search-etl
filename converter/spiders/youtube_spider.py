@@ -1,12 +1,12 @@
 import csv
 import json
-import logging
 import os
 import re
 from collections.abc import Generator
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
+from loguru import logger
 from scrapy.http import Request, Response
 from scrapy.spiders import Spider
 
@@ -23,8 +23,8 @@ from converter.items import (
     ResponseItemLoader,
     ValuespaceItemLoader,
 )
-
-from .base_classes import CSVBase, LomBase
+from converter.spiders.base_classes import CSVBase, LomBase
+from converter.util.directories import get_project_root
 
 # TODO: Find suitable target field for channel/playlist information:
 #   - Title (channel title included as organization in lifecycle-author)
@@ -64,10 +64,8 @@ class YoutubeSpider(Spider):
     name = "youtube_spider"
     friendlyName = "Youtube"
     url = "https://www.youtube.com/"
-    version = "0.2.3"  # last update: 2022-04-10
-    custom_settings = {
-        "ROBOTSTXT_OBEY": False
-    }
+    version = "0.2.4"  # last update: 2025-04-23
+    custom_settings = {"ROBOTSTXT_OBEY": False}
 
     @staticmethod
     def get_video_url(item: dict) -> str:
@@ -88,8 +86,24 @@ class YoutubeSpider(Spider):
         csv_file_path = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "..", "csv", filename))
         with open(csv_file_path, newline="", encoding="utf-8") as csv_file:
             reader = csv.DictReader(csv_file)
-            for row in reader:
+            for row in reader:  # type: dict
                 yield row
+
+    @staticmethod
+    def get_specific_csv_rows(filename: str, lower_bound: int, upper_bound: int) -> Generator[dict]:
+        _csv_file_path = f"{get_project_root()}/csv/{filename}"
+        logger.info(f"Reading {_csv_file_path} from row {lower_bound} to {upper_bound} ...")
+        with open(_csv_file_path, newline="", encoding="utf-8") as csv_file:
+            reader = csv.DictReader(csv_file)
+            # ToDo: python's csv reader counts from 0
+            #  but typical CSV readers like Google Docs or VS Code count from 1
+            for i, row in enumerate(reader, start=2):
+                # since most human-focused tools for displaying CSVs count the rows from 1,
+                # we're doing the same to minimize the opportunities for bad input.
+                if lower_bound <= i <= upper_bound:
+                    # yield only the rows that were specified in the .env setting
+                    logger.debug(f"Retrieved row {i}: {row}")
+                    yield row
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -97,19 +111,58 @@ class YoutubeSpider(Spider):
 
     def start_requests(self):
         if env.get("YOUTUBE_API_KEY", False) == "":
-            logging.error("YOUTUBE_API_KEY is required for youtube_spider. Please check your '.env'-settings!")
+            self.logger.error("YOUTUBE_API_KEY is required for youtube_spider. Please check your '.env'-settings!")
             return
         if env.get(key="YOUTUBE_LIMITED_CRAWL_URL", allow_null=True, default=None) == "":
             # If no value is set, this serves as a reminder that you can disable the '.env'-variable altogether
-            logging.debug(
+            self.logger.debug(
                 "The '.env'-variable 'YOUTUBE_LIMITED_CRAWL_URL' was detected, but no URL was set. \n"
                 "If you meant to start a LIMITED crawl, please check your '.env'-file and restart the "
                 "crawler. The crawler is now commencing with a COMPLETE crawl according to the "
                 "'csv/youtube.csv'-table."
             )
-        if env.get(key="YOUTUBE_LIMITED_CRAWL_URL", allow_null=True, default=None):
+        # Limit the crawling process to specific lines from the CSV file:
+        _limit_csv_rows_setting: str = env.get(key="YOUTUBE_LIMIT_CRAWL_TO_CSV_ROWS", allow_null=True, default=None)
+        if _limit_csv_rows_setting and isinstance(_limit_csv_rows_setting, str):
+            self.logger.info(
+                f"Detected 'YOUTUBE_LIMIT_CRAWL_TO_CSV_ROWS' setting: {_limit_csv_rows_setting}\n"
+                f"Parsing lower and upper bounds next..."
+            )
+            if "-" in _limit_csv_rows_setting:
+                _csv_limit_pattern = re.compile(r"""(?P<lower_bound>\d+)\s*-\s*(?P<upper_bound>\d+)""")
+                _csv_limit_match: re.Match = _csv_limit_pattern.search(_limit_csv_rows_setting)
+                if _csv_limit_match:
+                    _csv_limit_dict = _csv_limit_match.groupdict()
+                    _lower_bound: int = int(_csv_limit_dict.get("lower_bound"))
+                    _upper_bound: int = int(_csv_limit_dict.get("upper_bound"))
+                    if _lower_bound and _upper_bound:
+                        for row in self.get_specific_csv_rows(
+                            filename="youtube.csv",
+                            lower_bound=_lower_bound,
+                            upper_bound=_upper_bound,
+                        ):
+                            _request = self.request_row(row)
+                            yield _request
+                    else:
+                        self.logger.error(
+                            f"Cannot limit crawl to specific CSV rows since both bounds must be valid, but aren't. "
+                            f"lowwer bound: {_lower_bound} - upper bound: {_upper_bound}"
+                        )
+                else:
+                    self.logger.error(
+                        f"Could not limit crawl to specific CSV rows due to invalid input. "
+                        f"Expected a string of this pattern: '<lower bound>-<upper bound>', "
+                        f"but got '{_limit_csv_rows_setting}' ."
+                    )
+            else:
+                self.logger.error(
+                    "If you want to limit the crawl to specific rows of the CSV file, "
+                    "please provide a string of this pattern: '<lower bound>-<upper bound>' !"
+                )
+        # limit the crawling process to one URL within the CSV file:
+        elif env.get(key="YOUTUBE_LIMITED_CRAWL_URL", allow_null=True, default=None):
             # the OPTIONAL .env parameter is used to crawl from a SINGULAR URL ONLY
-            logging.debug(
+            self.logger.debug(
                 "'.env'-variable 'YOUTUBE_LIMITED_CRAWL_URL' recognized. LIMITED crawling mode activated!\n"
                 "(This mode WILL NOT crawl the complete 'csv/youtube.csv'-file, but only a SINGLE YouTube "
                 "channel or playlist!)\n"
@@ -118,7 +171,7 @@ class YoutubeSpider(Spider):
             )
             singular_crawl_target_url: str = env.get(key="YOUTUBE_LIMITED_CRAWL_URL", default=None)
             if singular_crawl_target_url:
-                logging.debug(
+                self.logger.debug(
                     f"'.env'-variable 'YOUTUBE_LIMITED_CRAWL_URL' is set to: {singular_crawl_target_url} \n"
                     f"Searching for {singular_crawl_target_url} within 'csv/youtube.csv' for metadata values."
                 )
@@ -129,7 +182,7 @@ class YoutubeSpider(Spider):
                         #  can point to the same channel or playlist. Providing some leniency by resolving an URL to
                         #  the "real" target might provide some Quality of Life while using this feature.
                         match_found = True
-                        logging.debug(
+                        self.logger.debug(
                             f"Match found in 'csv/youtube.csv' for {singular_crawl_target_url}! Commencing "
                             f"SINGULAR crawl process."
                         )
@@ -139,7 +192,7 @@ class YoutubeSpider(Spider):
                             yield request
                             break
                 if match_found is False:
-                    logging.error(
+                    self.logger.error(
                         f"Could not find a match for {singular_crawl_target_url} within 'csv/youtube.csv'. "
                         f"Please confirm that the EXACT specified URL can be found in a row of the CSV and "
                         f"restart the crawler."
@@ -348,7 +401,9 @@ class YoutubeLomLoader(LomBase):
         thumbnail = (
             thumbnails["maxres"]
             if "maxres" in thumbnails
-            else thumbnails["standard"] if "standard" in thumbnails else thumbnails["high"]
+            else thumbnails["standard"]
+            if "standard" in thumbnails
+            else thumbnails["high"]
         )
         return thumbnail["url"]
 
@@ -396,7 +451,7 @@ class YoutubeLomLoader(LomBase):
         technical.add_value("duration", response.meta["item"]["contentDetails"]["duration"])
         return technical
 
-    def getLOMEducational(self, response = None) -> LomEducationalItemLoader:
+    def getLOMEducational(self, response=None) -> LomEducationalItemLoader:
         educational = LomBase.getLOMEducational(self, response)
         tar = items.LomAgeRangeItemLoader()
         tar.add_value("fromRange", self.parse_csv_field(response.meta["row"][CSVBase.COLUMN_TYPICAL_AGE_RANGE_FROM]))
@@ -429,7 +484,7 @@ class YoutubeLomLoader(LomBase):
             license_loader.replace_value("internal", Constants.LICENSE_CUSTOM)
             license_loader.add_value("description", "Youtube-Standardlizenz")
         else:
-            logging.warning(f"Youtube element {self.getId(response)} has no license")
+            logger.warning(f"Youtube element {self.getId(response)} has no license")
         return license_loader
 
     def getValuespaces(self, response: Response) -> ValuespaceItemLoader:
