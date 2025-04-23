@@ -170,7 +170,7 @@ class YoutubeSpider(Spider):
             #     - https://www.youtube.com/<custom channel name>
             yt_url_pattern = re.compile(
                 r"""youtube.com/"""
-                r"""((?P<handle_url>@?[a-zA-Z._-]{3,30}$)"""
+                r"""((?P<handle_url>@?[\w.·-]{3,30}$)"""
                 r"""|playlist\?list=(?P<playlist_id>[\w_-]+$)"""
                 r"""|c/(?P<custom_url>[\w_-]+)(/featured)?/$"""
                 r"""|channel/(?P<channel_id>[\w_-]+)(?:/featured)?$)"""
