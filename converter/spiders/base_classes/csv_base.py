@@ -67,18 +67,18 @@ class CSVBase(LomBase):
             data.append(self.transform(row))
         return data
 
-    def getUri(self, response) -> str:
+    def getUri(self, response=None) -> str:
         return response.meta["row"][CSVBase.COLUMN_URL]["text"]
 
-    def getId(self, response) -> str:
+    def getId(self, response=None) -> str:
         return response.meta["row"][CSVBase.COLUMN_URL]["text"]
 
-    def getHash(self, response) -> str:
+    def getHash(self, response=None) -> str:
         m = hashlib.md5()
         m.update(str(response.meta["row"]).encode("utf-8"))
         return m.hexdigest() + self.version
 
-    def getBase(self, response) -> BaseItemLoader:
+    def getBase(self, response=None) -> BaseItemLoader:
         base: BaseItemLoader = LomBase.getBase(self, response)
         base.add_value(
             "thumbnail", response.meta["row"][CSVBase.COLUMN_THUMBNAIL]["text"]
@@ -89,7 +89,7 @@ class CSVBase(LomBase):
         base.replace_value("type", response.meta["row"][CSVBase.COLUMN_TYPE]["text"])
         return base
 
-    def getLOMGeneral(self, response) -> LomGeneralItemloader:
+    def getLOMGeneral(self, response=None) -> LomGeneralItemloader:
         general: LomGeneralItemloader = LomBase.getLOMGeneral(self, response)
         general.add_value("title", response.meta["row"][CSVBase.COLUMN_TITLE]["text"])
         general.replace_value(
@@ -103,7 +103,7 @@ class CSVBase(LomBase):
         )
         return general
 
-    def getLicense(self, response) -> LicenseItemLoader:
+    def getLicense(self, response=None) -> LicenseItemLoader:
         license: LicenseItemLoader = LomBase.getLicense(self, response)
         # add as url + internal to support both data formats
         license.add_value("url", response.meta["row"][CSVBase.COLUMN_LICENSE]["text"])
@@ -112,7 +112,7 @@ class CSVBase(LomBase):
         )
         return license
 
-    def getLOMEducational(self, response) -> LomEducationalItemLoader:
+    def getLOMEducational(self, response=None) -> LomEducationalItemLoader:
         educational: LomEducationalItemLoader = LomBase.getLOMEducational(self, response)
         tar = LomAgeRangeItemLoader()
         tar.add_value(
@@ -125,7 +125,7 @@ class CSVBase(LomBase):
         educational.add_value("typicalAgeRange", tar.load_item())
         return educational
 
-    def getLOMTechnical(self, response) -> LomTechnicalItemLoader:
+    def getLOMTechnical(self, response=None) -> LomTechnicalItemLoader:
         technical: LomTechnicalItemLoader = LomBase.getLOMTechnical(self, response)
         technical.add_value(
             "location", response.meta["row"][CSVBase.COLUMN_URL]["text"]
