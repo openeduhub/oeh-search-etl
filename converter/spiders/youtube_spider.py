@@ -12,8 +12,8 @@ from scrapy.spiders import Spider
 import converter.env as env
 import converter.items as items
 from converter.constants import Constants
-from .base_classes import LomBase, CSVBase
 
+from .base_classes import CSVBase, LomBase
 
 # TODO: Find suitable target field for channel/playlist information:
 #   - Title (channel title included as organization in lifecycle-author)
