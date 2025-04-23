@@ -54,7 +54,7 @@ class CSVBase(LomBase):
             i += 1
         return transformed
 
-    def readCSV(self, csv, skipLines=1):
+    def read_csv(self, csv, skip_lines=1):
         data = []
         i = 0
         for row in csv:
@@ -62,7 +62,7 @@ class CSVBase(LomBase):
                 self.mappings = row
                 continue
             i += 1
-            if i < skipLines:
+            if i < skip_lines:
                 continue
             data.append(self.transform(row))
         return data
