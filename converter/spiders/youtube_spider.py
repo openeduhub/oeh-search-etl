@@ -463,4 +463,9 @@ class YoutubeLomLoader(LomBase):
                 valuespaces.add_value("fskRating", "16")
             if fsk_rating_yt == "fsk18":
                 valuespaces.add_value("fskRating", "18")
+        _kldb = self.parse_csv_field(row["KldB (4-stellig)"])
+        if _kldb:
+            # profession-related videos are tagged with a list of 4-digit "KldB"-values
+            # (these values must exist in the "kldb"-/"klassifizierung der Berufe"-Vocab)
+            valuespaces.add_value("kldb", _kldb)
         return valuespaces
