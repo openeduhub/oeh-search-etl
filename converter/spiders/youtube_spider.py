@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import re
-from typing import Generator
+from collections.abc import Generator
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from scrapy.http import Request, Response
