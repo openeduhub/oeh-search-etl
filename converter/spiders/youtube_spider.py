@@ -73,7 +73,7 @@ class YoutubeSpider(Spider):
         return urlunparse(url_parts)
 
     @staticmethod
-    def get_csv_rows(filename: str) -> Generator[dict, None, None]:
+    def get_csv_rows(filename: str) -> Generator[dict]:
         csv_file_path = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "..", "csv", filename))
         with open(csv_file_path, newline="", encoding="utf-8") as csv_file:
             reader = csv.DictReader(csv_file)
