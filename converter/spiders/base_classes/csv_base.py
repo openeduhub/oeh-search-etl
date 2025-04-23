@@ -32,6 +32,7 @@ class CSVBase(LomBase):
     COLUMN_LANGUAGE = "language"
     COLUMN_COLLECTION = "collection"
     COLUMN_LICENSE = "license"
+    COLUMN_KLDB = "KldB (4-stellig)"
     mappings = None
 
     def transform(self, row):
@@ -144,4 +145,9 @@ class CSVBase(LomBase):
             "learningResourceType",
             response.meta["row"][CSVBase.COLUMN_LEARNING_RESOURCE_TYPE]["list"],
         )
+        if response.meta["row"][CSVBase.COLUMN_KLDB]["list"]:
+            valuespaces.add_value(
+                "kldb",
+                response.meta["row"][CSVBase.COLUMN_KLDB]["list"],
+            )
         return valuespaces
