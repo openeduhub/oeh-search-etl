@@ -417,7 +417,7 @@ class YoutubeLomLoader(LomBase):
 
     def get_channel_url(self, response: Response) -> str:
         channel_id = response.meta["item"]["snippet"]["channelId"]
-        return "https://www.youtube.com/channel/{}".format(channel_id)
+        return f"https://www.youtube.com/channel/{channel_id}"
 
     def getLicense(self, response: Response) -> LicenseItemLoader:
         license_loader = LomBase.getLicense(self, response)
@@ -429,7 +429,7 @@ class YoutubeLomLoader(LomBase):
             license_loader.replace_value("internal", Constants.LICENSE_CUSTOM)
             license_loader.add_value("description", "Youtube-Standardlizenz")
         else:
-            logging.warning("Youtube element {} has no license".format(self.getId()))
+            logging.warning(f"Youtube element {self.getId(response)} has no license")
         return license_loader
 
     def getValuespaces(self, response: Response) -> ValuespaceItemLoader:
