@@ -36,8 +36,7 @@ class CSVBase(LomBase):
 
     def transform(self, row):
         transformed = {}
-        i = 0
-        for key in row:
+        for i, key in enumerate(row):
             transformed[self.mappings[i]] = {
                 "text": key.strip(),
                 "list": list(map(lambda x: x.strip(), key.split(";"))),
@@ -51,7 +50,6 @@ class CSVBase(LomBase):
                 == 0
             ):
                 transformed[self.mappings[i]]["list"] = None
-            i += 1
         return transformed
 
     def read_csv(self, csv, skip_lines=1):
