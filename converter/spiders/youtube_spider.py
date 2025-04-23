@@ -326,16 +326,16 @@ class YoutubeLomLoader(LomBase):
         self.version = version
         super().__init__(**kwargs)
 
-    def getId(self, response: Response) -> str:
+    def getId(self, response: Response = None) -> str:
         return YoutubeSpider.get_video_url(response.meta["item"])
 
-    def getHash(self, response: Response) -> str:
+    def getHash(self, response: Response = None) -> str:
         return self.version + response.meta["item"]["snippet"]["publishedAt"]
 
-    async def mapResponse(self, response) -> ResponseItemLoader:
+    async def mapResponse(self, response, fetchData=False) -> ResponseItemLoader:
         return await LomBase.mapResponse(self, response, False)
 
-    def getBase(self, response: Response) -> BaseItemLoader:
+    def getBase(self, response: Response = None) -> BaseItemLoader:
         base = LomBase.getBase(self, response)
         base.add_value("origin", response.meta["row"]["sourceTitle"].strip())
         base.add_value("lastModified", response.meta["item"]["snippet"]["publishedAt"])
@@ -372,7 +372,7 @@ class YoutubeLomLoader(LomBase):
             )
         return fulltext
 
-    def getLOMGeneral(self, response: Response) -> LomGeneralItemloader:
+    def getLOMGeneral(self, response: Response = None) -> LomGeneralItemloader:
         general = LomBase.getLOMGeneral(self, response)
         general.add_value("title", response.meta["item"]["snippet"]["title"])
         general.add_value("description", self.get_description(response))
@@ -389,14 +389,14 @@ class YoutubeLomLoader(LomBase):
             or response.meta["playlist"]["snippet"]["title"]
         )
 
-    def getLOMTechnical(self, response: Response) -> LomTechnicalItemLoader:
+    def getLOMTechnical(self, response: Response = None) -> LomTechnicalItemLoader:
         technical = LomBase.getLOMTechnical(self, response)
         technical.add_value("format", "text/html")
         technical.add_value("location", YoutubeSpider.get_video_url(response.meta["item"]))
         technical.add_value("duration", response.meta["item"]["contentDetails"]["duration"])
         return technical
 
-    def getLOMEducational(self, response) -> LomEducationalItemLoader:
+    def getLOMEducational(self, response = None) -> LomEducationalItemLoader:
         educational = LomBase.getLOMEducational(self, response)
         tar = items.LomAgeRangeItemLoader()
         tar.add_value("fromRange", self.parse_csv_field(response.meta["row"][CSVBase.COLUMN_TYPICAL_AGE_RANGE_FROM]))
@@ -404,7 +404,7 @@ class YoutubeLomLoader(LomBase):
         educational.add_value("typicalAgeRange", tar.load_item())
         return educational
 
-    def getLOMLifecycle(self, response: Response) -> Generator[LomLifecycleItemloader, Any]:
+    def getLOMLifecycle(self, response: Response = None) -> Generator[LomLifecycleItemloader, Any]:
         lifecycle = LomBase.getLOMLifecycle(self, response)
         lifecycle.add_value("role", "author")
         lifecycle.add_value("organization", response.meta["item"]["snippet"]["channelTitle"])
@@ -419,7 +419,7 @@ class YoutubeLomLoader(LomBase):
         channel_id = response.meta["item"]["snippet"]["channelId"]
         return f"https://www.youtube.com/channel/{channel_id}"
 
-    def getLicense(self, response: Response) -> LicenseItemLoader:
+    def getLicense(self, response: Response = None) -> LicenseItemLoader:
         license_loader = LomBase.getLicense(self, response)
         # there are only two possible values according to https://developers.google.com/youtube/v3/docs/videos:
         #   "youtube", "creativeCommon"
