@@ -58,7 +58,7 @@ class CSVBase(LomBase):
         data = []
         i = 0
         for row in csv:
-            if self.mappings == None:
+            if self.mappings is None:
                 self.mappings = row
                 continue
             i += 1
