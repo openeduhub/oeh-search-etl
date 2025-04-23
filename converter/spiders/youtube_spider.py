@@ -4,6 +4,7 @@ import logging
 import os
 import re
 from collections.abc import Generator
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from scrapy.http import Request, Response
@@ -12,6 +13,16 @@ from scrapy.spiders import Spider
 import converter.env as env
 import converter.items as items
 from converter.constants import Constants
+from converter.items import (
+    BaseItemLoader,
+    LicenseItemLoader,
+    LomEducationalItemLoader,
+    LomGeneralItemloader,
+    LomLifecycleItemloader,
+    LomTechnicalItemLoader,
+    ResponseItemLoader,
+    ValuespaceItemLoader,
+)
 
 from .base_classes import CSVBase, LomBase
 
@@ -141,7 +152,7 @@ class YoutubeSpider(Spider):
                 if request is not None:
                     yield request
 
-    def request_row(self, row: dict) -> Request:
+    def request_row(self, row: dict) -> Request | None:
         if row["url"].startswith("https://www.youtube.com"):
             # There can be several types of YouTube URLs which might require different query parameters in
             # subsequent requests.
@@ -187,17 +198,21 @@ class YoutubeSpider(Spider):
                         f"Please update the .csv entry for {row['url']} to point towards a valid "
                         f"YouTube handle instead."
                     )
+                    return None
                     # We cannot query custom-URLs reliably anymore -> these need to be converted by hand:
                     # 1) open the custom URL in your browser
                     # 2) click on "Home" or "Videos"
                     # 3) Copypaste the URL which should now be in the format "https://www.youtube.com/@<YT_Handle>" to
                     #    the YouTube table (Google Docs) and export it to csv/youtube.csv
+                return None
             else:
                 self.logger.debug(
                     f"Failed to RegEx parse URL {row['url']} . "
                     f"(Please check if the RegEx URL pattern needs an update in the "
                     f"'request_row()'-method!)"
                 )
+                return None
+        return None
 
     def request_channel(self, channel_id: str, meta: dict) -> Request:
         part = ["snippet", "contentDetails", "statistics"]
@@ -299,11 +314,12 @@ class YoutubeLomLoader(LomBase):
     #     `uploads` playlist, which provides only a generated title.
 
     @staticmethod
-    def parse_csv_field(field: str) -> list[str]:
+    def parse_csv_field(field: str) -> list[str] | None:
         """Parse semicolon-separated string."""
         values = [value.strip() for value in field.split(";") if value.strip()]
         if len(values):
             return values
+        return None
 
     def __init__(self, name, version, **kwargs):
         self.name = name
@@ -316,10 +332,10 @@ class YoutubeLomLoader(LomBase):
     def getHash(self, response: Response) -> str:
         return self.version + response.meta["item"]["snippet"]["publishedAt"]
 
-    async def mapResponse(self, response) -> items.ResponseItemLoader:
+    async def mapResponse(self, response) -> ResponseItemLoader:
         return await LomBase.mapResponse(self, response, False)
 
-    def getBase(self, response: Response) -> items.BaseItemLoader:
+    def getBase(self, response: Response) -> BaseItemLoader:
         base = LomBase.getBase(self, response)
         base.add_value("origin", response.meta["row"]["sourceTitle"].strip())
         base.add_value("lastModified", response.meta["item"]["snippet"]["publishedAt"])
@@ -356,7 +372,7 @@ class YoutubeLomLoader(LomBase):
             )
         return fulltext
 
-    def getLOMGeneral(self, response: Response) -> items.LomGeneralItemloader:
+    def getLOMGeneral(self, response: Response) -> LomGeneralItemloader:
         general = LomBase.getLOMGeneral(self, response)
         general.add_value("title", response.meta["item"]["snippet"]["title"])
         general.add_value("description", self.get_description(response))
@@ -373,14 +389,14 @@ class YoutubeLomLoader(LomBase):
             or response.meta["playlist"]["snippet"]["title"]
         )
 
-    def getLOMTechnical(self, response: Response) -> items.LomTechnicalItemLoader:
+    def getLOMTechnical(self, response: Response) -> LomTechnicalItemLoader:
         technical = LomBase.getLOMTechnical(self, response)
         technical.add_value("format", "text/html")
         technical.add_value("location", YoutubeSpider.get_video_url(response.meta["item"]))
         technical.add_value("duration", response.meta["item"]["contentDetails"]["duration"])
         return technical
 
-    def getLOMEducational(self, response):
+    def getLOMEducational(self, response) -> LomEducationalItemLoader:
         educational = LomBase.getLOMEducational(self, response)
         tar = items.LomAgeRangeItemLoader()
         tar.add_value("fromRange", self.parse_csv_field(response.meta["row"][CSVBase.COLUMN_TYPICAL_AGE_RANGE_FROM]))
@@ -388,7 +404,7 @@ class YoutubeLomLoader(LomBase):
         educational.add_value("typicalAgeRange", tar.load_item())
         return educational
 
-    def getLOMLifecycle(self, response: Response) -> items.LomLifecycleItemloader:
+    def getLOMLifecycle(self, response: Response) -> Generator[LomLifecycleItemloader, Any]:
         lifecycle = LomBase.getLOMLifecycle(self, response)
         lifecycle.add_value("role", "author")
         lifecycle.add_value("organization", response.meta["item"]["snippet"]["channelTitle"])
@@ -403,7 +419,7 @@ class YoutubeLomLoader(LomBase):
         channel_id = response.meta["item"]["snippet"]["channelId"]
         return "https://www.youtube.com/channel/{}".format(channel_id)
 
-    def getLicense(self, response: Response) -> items.LicenseItemLoader:
+    def getLicense(self, response: Response) -> LicenseItemLoader:
         license_loader = LomBase.getLicense(self, response)
         # there are only two possible values according to https://developers.google.com/youtube/v3/docs/videos:
         #   "youtube", "creativeCommon"
@@ -416,7 +432,7 @@ class YoutubeLomLoader(LomBase):
             logging.warning("Youtube element {} has no license".format(self.getId()))
         return license_loader
 
-    def getValuespaces(self, response: Response) -> items.ValuespaceItemLoader:
+    def getValuespaces(self, response: Response) -> ValuespaceItemLoader:
         valuespaces = LomBase.getValuespaces(self, response)
         row = response.meta["row"]
         valuespaces.add_value(
