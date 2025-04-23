@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import re
-from typing import Generator, List
+from typing import Generator
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from scrapy.http import Request, Response
@@ -267,7 +267,7 @@ class YoutubeSpider(Spider):
             request_url = YoutubeSpider.update_url_query(response.url, {"pageToken": body["nextPageToken"]})
             yield response.follow(request_url, meta=response.meta, callback=self.parse_playlist_items)
 
-    def request_videos(self, ids: List[str], meta: dict):
+    def request_videos(self, ids: list[str], meta: dict):
         part = ["snippet", "status", "contentDetails"]
         # see: https://developers.google.com/youtube/v3/docs/videos
         request_url = "https://www.googleapis.com/youtube/v3/videos" + "?part={}&id={}&key={}".format(
@@ -299,7 +299,7 @@ class YoutubeLomLoader(LomBase):
     #     `uploads` playlist, which provides only a generated title.
 
     @staticmethod
-    def parse_csv_field(field: str) -> List[str]:
+    def parse_csv_field(field: str) -> list[str]:
         """Parse semicolon-separated string."""
         values = [value.strip() for value in field.split(";") if value.strip()]
         if len(values):
