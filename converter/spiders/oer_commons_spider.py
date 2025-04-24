@@ -245,13 +245,13 @@ MAPPING_SUBJECTS_TO_HOCHSCHULFAECHERSYSTEMATIK: dict = {
 class OERCommonsSpider(scrapy.Spider, LomBase):
     name = "oer_commons_spider"
     friendlyName = "OER Commons"
-    version = "0.0.2"  # last update: 2025-04-15
+    version = "0.0.2"  # last update: 2025-04-24
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 0.5,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 2,
         # "CONCURRENT_REQUESTS_PER_DOMAIN": 2,
-        "AUTOTHROTTLE_START_DELAY": 5,
+        "AUTOTHROTTLE_START_DELAY": 3,
         "WEB_TOOLS": WebEngine.Playwright,
         "USER_AGENT": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/134.0.0.0 Safari/537.36",
