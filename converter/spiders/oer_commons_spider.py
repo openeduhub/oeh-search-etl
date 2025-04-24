@@ -31,6 +31,7 @@ from converter.items import (
 )
 from converter.spiders.base_classes import LomBase
 from converter.util.directories import get_project_root
+from converter.util.fake_user_agent import generate_random_user_agent
 from converter.util.license_mapper import LicenseMapper
 from converter.web_tools import WebEngine
 
@@ -253,8 +254,7 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
         # "CONCURRENT_REQUESTS_PER_DOMAIN": 2,
         "AUTOTHROTTLE_START_DELAY": 3,
         "WEB_TOOLS": WebEngine.Playwright,
-        "USER_AGENT": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/134.0.0.0 Safari/537.36",
+        "USER_AGENT": generate_random_user_agent(),
     }
 
     def __init__(self, **kwargs):

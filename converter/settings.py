@@ -4,6 +4,7 @@ from loguru import logger
 from scrapy.utils.log import configure_logging
 
 import converter.env as env
+from converter.util.fake_user_agent import generate_random_user_agent
 
 # Scrapy settings for project
 #
@@ -44,9 +45,7 @@ SPLASH_URL = (
 )
 SPLASH_WAIT = 2  # seconds to let the page load
 SPLASH_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/80.0.3987.163 Safari/537.36"
+    "User-Agent": generate_random_user_agent()
 }  # use chrome to not create warnings on pages
 
 # edu-sharing config
@@ -65,7 +64,7 @@ THUMBNAIL_MAX_SIZE = (
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+USER_AGENT = generate_random_user_agent()
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
