@@ -1,7 +1,10 @@
+import json
+
 from loguru import logger
 from scrapy.utils.log import configure_logging
 
 import converter.env as env
+from converter.util.fake_user_agent import generate_random_user_agent
 
 # Scrapy settings for project
 #
@@ -42,9 +45,7 @@ SPLASH_URL = (
 )
 SPLASH_WAIT = 2  # seconds to let the page load
 SPLASH_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/80.0.3987.163 Safari/537.36"
+    "User-Agent": generate_random_user_agent()
 }  # use chrome to not create warnings on pages
 
 # edu-sharing config
@@ -63,7 +64,7 @@ THUMBNAIL_MAX_SIZE = (
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-# USER_AGENT = 'converter_search_idx (+http://www.yourdomain.com)'
+USER_AGENT = generate_random_user_agent()
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
@@ -102,6 +103,15 @@ DOWNLOAD_DELAY = 0
 # DOWNLOADER_MIDDLEWARES = {
 #    'converter.middlewares.OerScrapyDownloaderMiddleware': 543,
 # }
+
+# "scrapy-playwright"-related settings (see: https://github.com/scrapy-plugins/scrapy-playwright)
+DOWNLOAD_HANDLERS = {
+    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+}
+_playwright_launch_options: str = json.dumps({"stealth": "true"})
+PLAYWRIGHT_CDP_URL = f"{env.get('PLAYWRIGHT_WS_ENDPOINT')}/chrome?blockAds=true&launch={_playwright_launch_options}"
+PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 90 * 1000  # 90 seconds
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
