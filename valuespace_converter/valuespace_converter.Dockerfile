@@ -1,4 +1,4 @@
-FROM python:3.11.6-alpine as base
+FROM python:3.13-alpine as base
 
 COPY app/requirements.txt /requirements.txt
 

@@ -1290,7 +1290,7 @@ class CSVStorePipeline(BasicPipeline, PipelineWithPerSpiderMethods):
             else:
                 return None
         if tokens[0] == "valuespaces":
-            return list(map(lambda x: Valuespaces.findKey(tokens[1], x)["prefLabel"]["de"], container))
+            return list(map(lambda x: Valuespaces.find_key(tokens[1], x)["prefLabel"]["de"], container))
         return container
 
     def close_spider(self, spider):
