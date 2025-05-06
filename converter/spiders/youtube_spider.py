@@ -54,11 +54,11 @@ from converter.util.directories import get_project_root
 
 class YoutubeSpider(Spider):
     """
-    Parse a CSV file with YouTube channels and playlists and crawl them.
+    Parse a CSV file with YouTube channels and playlists to crawl them.
 
-    The CSV file was manually exported from
-    https://docs.google.com/spreadsheets/d/1VsGyb4mrbzq45qIGVt-j6_ut4_VGJPRA39oBhi5SxGk to
-    `csv/youtube.csv`.
+    The CSV file was manually exported from a Google Sheet
+    (see: ``#WLO_Team4_Quellen-Erschließung``: ``YouTube Channel``)
+    to ``csv/youtube.csv``.
     """
 
     name = "youtube_spider"
