@@ -120,7 +120,7 @@ class FilterSparsePipeline(BasicPipeline):
         item = ItemAdapter(raw_item)
         try:
             if "title" not in item["lom"]["general"]:
-                raise DropItem("Entry {} has no title location".format(item["sourceId"]))
+                raise DropItem(f"Entry {item['sourceId']} has no title.")
         except KeyError:
             raise DropItem(f"Item {item} has no lom.technical.location")
         try:
@@ -406,7 +406,7 @@ def determine_duration_and_convert_to_seconds(time_raw: str | int | float, item_
             else:
                 logger.warning(
                     f"Encountered unhandled edge-case in '{item_field_name}': "
-                    f"Expected ISO-8601 duration string, but received {time_raw} instead."
+                    f"Expected ISO-8601 duration string, but received '{time_raw}' instead."
                 )
         if "." in time_raw and time_raw.count(".") == 1:
             # duration strings might come with float precision (e.g. "600.0" for 10 Minutes)
