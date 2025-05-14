@@ -1,7 +1,7 @@
 import datetime
 import json
 import re
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -43,33 +43,57 @@ class ZebisXMLItem:
     Holds the cleaned-up (and if necessary: separated) values which were parsed from each XML <record> element.
     """
 
-    # ToDo: DocStrings
     oai_identifier: str = None
+    """XML <record/header/identifier> value. Contains an OAI identifier string."""
     datestamp: str = None
+    """XML <record/header/datestamp> value. Contains the lastModified datetime."""
     dc_audience: list[str] = None
+    """XML <record/metadata/dc/audience> value. 
+    Contains multiple values describing the class level ("7. Klasse") 
+    or educational context ("Kindergarten") of an item."""
     dc_creator: str = None
+    """XML <record/metadata/dc/creator> value. Contains a contributor's name (person or organization). 
+    The zebis frontend describes this person as "Erfasser/in des Materials"."""
     dc_contributor: str = None
+    """XML <record/metadata/dc/contributor> value. Contains a contributor's name (person or organization)."""
     dc_date: str = None
+    """XML <record/metadata/dc/date> value. Contains the publication date."""
     dc_description: str = None
+    """XML <record/metadata/dc/description> value. Contains a description of the item."""
     dc_identifier: list[str] = None
+    """XML <record/metadata/dc/identifier> value. Contains multiple URLs. 
+    The first URL should always be the item's URL, while the second URL points toward a thumbnail URL."""
     dc_identifier_url: str = None
+    """Stores the first URL from <dc:identifier>, which is the item's URL."""
     dc_identifier_thumbnail_url: str = None
+    """Stores the second URL from <dc:identifier>, which points towards the thumbnail."""
     dc_language: str = None
+    """XML <record/metadata/dc/language> value. Contains a 3-char language code."""
     dc_publisher: str = None
+    """XML <record/metadata/dc/publisher> value. Contains a publisher name (organization or person)."""
     dc_rights: str = None
+    """XML <record/metadata/dc/rights> value. Contains a string describing the item's license."""
     dc_subject: list[str] = None
+    """XML <record/metadata/dc/subject> value. Contains a list of subjects, 
+    which are predominantly keywords relating to the item, 
+    but also contain values that can be mapped to disciplines."""
     dc_title: str = None
+    """XML <record/metadata/dc/title> value. Contains a title of the item."""
     dc_type: list[str] = None
+    """XML <record/metadata/dc/type> value. Describes the item's type (e.g. "Webseite" or "Arbeitsblatt")."""
 
 
 class ZebisSpider(XMLFeedSpider, LomBase):
     name = "zebis_spider"
     friendlyName = "Zebis"
     start_urls = ["https://www.zebis.ch/export/oai"]
-    version = "0.0.1"
+    version = "0.0.2"  # last update: 2025-05-14
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
+        # "AUTOTHROTTLE_TARGET_CONCURRENCY": 0.75,
+        # "CONCURRENT_REQUESTS_PER_DOMAIN": 4,
+        # "DOWNLOAD_DELAY": 2.0,
         # "ROBOTSTXT_OBEY": False,
         "HTTPCACHE_ENABLED": False,
         "HTTPCACHE_EXPIRATION_SECS": 3600,
@@ -90,14 +114,14 @@ class ZebisSpider(XMLFeedSpider, LomBase):
     DEBUG_SUBJECTS: set[str] = set()
     DEBUG_TYPES: set[str] = set()
 
-    # mapping from Zebis <dc:audience> to educationalContext Vocab values
+    # mapping from Zebis <dc:audience> to "educationalContext"-Vocab values
     MAPPING_AUDIENCE_TO_EDUCATIONAL_CONTEXT: dict = {
         "1. Zyklus": ["elementarbereich", "grundschule"],
         "2. Zyklus": ["grundschule", "sekundarstufe_1"],
         "3. Zyklus": ["sekundarstufe_1"],
         "Kindergarten": ["elementarbereich"],
     }
-    # mapping from Zebis <dc:type> to new_lrt Vocab values
+    # mapping from Zebis <dc:type> to "new_lrt"-Vocab values
     MAPPING_DC_TYPE_TO_NEW_LRT: dict = {
         "Animation": ["2e67ce4e-49ce-468b-bd94-96a74e4832aa"],  # Animation
         "App": ["e5ed8ec2-2c7e-4f46-aba9-e67148ef6656"],  # Lern-App
@@ -118,6 +142,45 @@ class ZebisSpider(XMLFeedSpider, LomBase):
         "Video": ["7a6e9608-2554-4981-95dc-47ab9ba924de"],  # "Video (Material)"
         "Webseite": ["d8c3ef03-b3ab-4a5e-bcc9-5a546fefa2e9"],  # Webseite
         "Zeitschrift / Zeitung": ["0cef3ce9-e106-47ae-836a-48f9ed04384e"],  # "Dokumente und textbasierte Inhalte"
+    }
+    # mapping from <dc:subject> to "discipline"-Vocab:
+    # as long as all "Fachbereich"-values (see right sidebar: https://www.zebis.ch/unterrichtsmaterial) are covered,
+    # most disciplines should be matched within the pipeline / es_connector.
+    MAPPING_DC_SUBJECT_TO_DISCIPLINE: dict = {
+        "BNE": ["64018"],  # Nachhaltigkeit
+        "Berufsbildung": ["040"],  # Berufliche Bildung
+        "Berufskunde": ["040"],  # Berufliche Bildung
+        "Berufliche Orientierung": ["040"],  # Berufliche Bildung
+        "Bewegung und Sport": ["600"],  # Sport
+        "Bildnerisches Gestalten": ["060"],  # Kunst
+        "Deutschunterricht": ["120"],  # Deutsch
+        "Ethik, Religionen, Gemeinschaft": ["160", "520"],  # Ethik ; Religion
+        "Frühenglisch": ["20001"],  # Englisch
+        "Frühfranzösisch": ["20002"],  # Französisch
+        "Interkulturelles Lernen": ["340"],  # Interkulturelle Bildung
+        "Medien und Informatik": ["900", "320"],  # Medienbildung; Informatik
+        "Medien & Informatik": ["900", "320"],  # Medienbildung; Informatik
+        "Medien im Alltag": ["900"],  # Medienbildung
+        "Medienpädagogik": ["900"],  # Medienbildung
+        "Metallbearbeitung": ["04011"],  # Metalltechnik
+        "Metallwerken": ["04011"],  # Metalltechnik
+        "Natur, Mensch, Gesellschaft": ["28010"],  # Sachunterricht
+        "Natur und Technik": ["28010", "080", "100", "460"],  # Sachunterricht; Biologie; Chemie; Physik
+        # Sex-related subjects must be manually mapped because they're covered in "Natur, Mensch, Gesellschaft",
+        # but mapping that "Fachbereich" directly to Sexualkunde would lead to too many false mappings
+        "Sex": ["560"],  # Sexualerziehung
+        "Sexting": ["560"],  # Sexualerziehung
+        "Sextortion": ["560"],  # Sexualerziehung
+        "Sexualität": ["560"],  # Sexualerziehung
+        "Sexualpädagogik": ["560"],  # Sexualerziehung
+        "Textiles Gestalten": ["04012"],  # Textiltechnik und Bekleidung
+        "Textiles und Technisches Gestalten": ["04012", "50005", "060", "28010"],
+        # "TTG" cannot be mapped to one specific discipline. It's roughly equivalent to:
+        # Textiltechnik und Bekleidung; Werken; Kunst; Sachunterricht
+        "Velofahren": ["660"],  # Verkehrserziehung
+        "Verkehrsregeln": ["660"],  # Verkehrserziehung
+        "Verkehrssicherheit": ["660"],  # Verkehrserziehung
+        "Wirtschaft, Arbeit, Haushalt": ["700", "020", "50001"],  # Wirtschaftskunde; Arbeitslehre; Hauswirtschaft
     }
 
     # ToDo:
@@ -151,6 +214,7 @@ class ZebisSpider(XMLFeedSpider, LomBase):
             )
 
     def close(self, reason: str) -> Deferred[None] | None:
+        # Debug setting: if enabled, dumps the range of values to the specified .json file within "oeh-search-etl/logs/"
         if self.debug_range_of_values:
             _root: Path = get_project_root()
             _zebis_values: dict = {}
@@ -177,8 +241,13 @@ class ZebisSpider(XMLFeedSpider, LomBase):
                     _zebis_values.update({"dc_type": _type_values})
                 json.dump(_zebis_values, file_writer, indent=4)
 
-    def parse_oai_pmh_xml(self, response: Response):
-        # ToDo: DocString
+    def parse_oai_pmh_xml(self, response: Response) -> Generator[Any]:
+        """
+        Iterate over the OAI-PMH XML file and yield a request to each <record>.
+
+        :param response: Zebis XML API response
+        :return: scrapy.Request or None
+        """
         xml_body: str = response.text
         xml_selector: Selector = Selector(text=xml_body, type="xml")
         xml_selector.remove_namespaces()
@@ -208,6 +277,13 @@ class ZebisSpider(XMLFeedSpider, LomBase):
             return None
 
     def parse_node(self, response: Response, selector: Selector) -> Any:
+        """
+        Parse each <record> element and clean up each property before yielding a request to the ``parse()``-method.
+
+        :param response: Zebis OAI-PMH XML API response
+        :param selector: ``scrapy.Selector``-object
+        :return: ``scrapy.Request`` or ``None``
+        """
         # each <record> contains a
         # <header> with the following elements:
         # <identifier>          -> sourceId / LOM General identifier
@@ -699,8 +775,23 @@ class ZebisSpider(XMLFeedSpider, LomBase):
         # seem to be account-restricted due to regional license restrictions.
 
         if cleaned_record.dc_subject and isinstance(cleaned_record.dc_subject, list):
-            # ToDo: check if some values need to be mapped individually
-            vs_itemloader.add_value("discipline", cleaned_record.dc_subject)
+            # the <dc:subject> range of values contains over 2500 strings.
+            # most values are considered keywords,
+            # but Swiss "Fachbereich"-values need to be mapped manually to their German equivalents
+            # since the terminology is too different from our German vocab values most of the time.
+            _discipline_set: set[str] = set()
+            for _subject in cleaned_record.dc_subject:
+                if _subject and isinstance(_subject, str):
+                    if _subject in self.MAPPING_DC_SUBJECT_TO_DISCIPLINE:
+                        _mapped_discipline: list[str] = self.MAPPING_DC_SUBJECT_TO_DISCIPLINE.get(_subject)
+                        if _mapped_discipline:
+                            _discipline_set.update(_mapped_discipline)
+                    elif _subject:
+                        _discipline_set.add(_subject)
+            if _discipline_set:
+                _discipline_list: list[str] = list(_discipline_set)
+                _discipline_list.sort()
+                vs_itemloader.add_value("discipline", _discipline_list)
 
         if cleaned_record.dc_audience and isinstance(cleaned_record.dc_audience, list):
             mapped_educational_context_set: set[str] | None = set()
