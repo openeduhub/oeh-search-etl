@@ -87,7 +87,7 @@ class ZebisSpider(XMLFeedSpider, LomBase):
     name = "zebis_spider"
     friendlyName = "Zebis"
     start_urls = ["https://www.zebis.ch/export/oai"]
-    version = "0.0.2"  # last update: 2025-05-14
+    version = "0.0.3"  # last update: 2025-05-15
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -183,10 +183,23 @@ class ZebisSpider(XMLFeedSpider, LomBase):
         "Wirtschaft, Arbeit, Haushalt": ["700", "020", "50001"],  # Wirtschaftskunde; Arbeitslehre; Hauswirtschaft
     }
 
-    # ToDo:
-    #  - figure out how to bypass zebis bot protection:
-    #    - the API endpoint is protected by Cloudflare and returns a 403 response for anything but a real browser.
-    #    - GET requests via requests/Scrapy/playwright get intercepted by Cloudflare's "Just a moment..."-page
+    # ATTENTION:
+    # The zebis.ch website, including the API endpoint (!!!), is protected by Cloudflare.
+    # This means that zebis returns a 403 response for anything but a (perceived/alleged) real browser! In particular:
+    # - ``requests.get()``-calls will fail with a 403 response!
+    # - ``scrapy.Request``-calls will fail with a 403 response!
+    # - ``playwright``-Requests via our Thumbnail Pipeline will fail with a 403 response
+    #   or the HTTP request will get intercepted by Cloudflare's "Just a moment... confirming that you're human"-page!
+    # WORKAROUND:
+    # This crawler currently only works in conjunction with the ``scrapy-playwright``-plugin
+    # (see: https://github.com/scrapy-plugins/scrapy-playwright)
+    # which also brings one particular problem: The crawler log will contain ``asyncio``-related Errors that can only
+    # be solved upstream. In the crawler logs you will see (at random times) one particular error stacktrace:
+    # "[asyncio] ERROR: Task was destroyed but it is pending!" pointing towards ``ScrapyPlaywrightDownloadHandler`` in
+    # its stacktrace, which itself points towards ``pyee/asyncio``.
+    # While it is safe to ignore this error, future dependency updates will (hopefully) get rid of this loud behavior.
+    # For further reference:
+    # - https://github.com/scrapy-plugins/scrapy-playwright/issues/188
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -649,6 +662,17 @@ class ZebisSpider(XMLFeedSpider, LomBase):
                 _age_min: int | None = min(_class_values) + 5
                 _age_max: int | None = max(_class_values) + 5
 
+                if _age_min and _age_max:
+                    lom_age_range_itemloader: LomAgeRangeItemLoader = LomAgeRangeItemLoader()
+                    lom_age_range_itemloader.add_value("fromRange", _age_min)
+                    lom_age_range_itemloader.add_value("toRange", _age_max)
+                    lom_educational_itemloader.add_value("typicalAgeRange", lom_age_range_itemloader.load_item())
+            elif _class_values and isinstance(_class_values, list) and len(_class_values) == 1:
+                # if there was only one class value provided (e.g. "7. Klasse"),
+                # we assume that the singular classlevel value is our lower bound:
+                _age_min: int | None = min(_class_values) + 5
+                # since edu-sharing requires a range for this property, we assume that the upper bound is +1:
+                _age_max: int = _age_min + 1
                 if _age_min and _age_max:
                     lom_age_range_itemloader: LomAgeRangeItemLoader = LomAgeRangeItemLoader()
                     lom_age_range_itemloader.add_value("fromRange", _age_min)
