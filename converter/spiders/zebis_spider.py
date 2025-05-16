@@ -87,7 +87,7 @@ class ZebisSpider(XMLFeedSpider, LomBase):
     name = "zebis_spider"
     friendlyName = "Zebis"
     start_urls = ["https://www.zebis.ch/export/oai"]
-    version = "0.0.3"  # last update: 2025-05-15
+    version = "0.0.4"  # last update: 2025-05-16
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -820,6 +820,20 @@ class ZebisSpider(XMLFeedSpider, LomBase):
         if cleaned_record.dc_audience and isinstance(cleaned_record.dc_audience, list):
             mapped_educational_context_set: set[str] | None = set()
             for _audience in cleaned_record.dc_audience:  # type: str
+                # noinspection PyUnreachableCode
+                match _audience:
+                    # ^^^^^^^^^^ pycharm complains about unreachable code, which is a PyCharm bug
+                    # that should be fixed in pyCharm 2025.2.
+                    # see:
+                    # https://youtrack.jetbrains.com/issue/PY-81186/Incorrect-lint-for-match-with-case-This-code-is-unreachable
+                    # https://youtrack.jetbrains.com/issue/PY-80762/match-statement-giving-false-positive-on-unreachable-code-inspection
+                    case "1. Klasse" | "2. Klasse" | "3. Klasse" | "4. Klasse":
+                        mapped_educational_context_set.add("grundschule")
+                    case "5. Klasse" | "6. Klasse" | "7. Klasse" | "8. Klasse" | "9. Klasse":
+                        mapped_educational_context_set.add("sekundarstufe_1")
+                    case _:
+                        # there can be other values like "kindergarten", which are covered by the mapping table
+                        pass
                 if _audience in self.MAPPING_AUDIENCE_TO_EDUCATIONAL_CONTEXT:
                     # one <dc:audience> maps to several educationalContext values
                     _audience_mapped: list[str] = self.MAPPING_AUDIENCE_TO_EDUCATIONAL_CONTEXT.get(_audience)
