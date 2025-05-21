@@ -64,7 +64,7 @@ class YoutubeSpider(Spider):
     name = "youtube_spider"
     friendlyName = "Youtube"
     url = "https://www.youtube.com/"
-    version = "0.2.4"  # last update: 2025-04-23
+    version = "0.2.5"  # last update: 2025-05-21
     custom_settings = {"ROBOTSTXT_OBEY": False}
 
     @staticmethod
@@ -490,10 +490,9 @@ class YoutubeLomLoader(LomBase):
     def getValuespaces(self, response: Response) -> ValuespaceItemLoader:
         valuespaces = LomBase.getValuespaces(self, response)
         row = response.meta["row"]
-        valuespaces.add_value(
-            "learningResourceType",
-            self.parse_csv_field(row["learningResourceType"]),
-        )
+        new_lrt_from_csv: list[str] | None = self.parse_csv_field(row["new_lrt"])
+        if new_lrt_from_csv:
+            valuespaces.replace_value("new_lrt", new_lrt_from_csv)
         valuespaces.add_value("discipline", self.parse_csv_field(row["discipline"]))
         valuespaces.add_value(
             "intendedEndUserRole",
