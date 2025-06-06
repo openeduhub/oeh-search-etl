@@ -11,7 +11,6 @@ class LanguageMapper:
     def __init__(self, languages: list[str] = None):
         self.languages = languages
 
-
     @staticmethod
     def _normalize_string_to_language_code(raw_string: str) -> str | None:
         """
@@ -72,7 +71,9 @@ class LanguageMapper:
         if self.languages and isinstance(self.languages, str):
             # since every step from here on expects a list of strings, typecasting to list[str] provides some minor
             # Quality of Life
-            logger.debug(f"LanguageMapper was instantiated with a string, converting to Type list[str]...")
+            logger.debug(
+                "LanguageMapper was instantiated with a string, converting to Type list[str]..."
+            )  # noqa: F541
             self.languages: list[str] = [self.languages]
 
         if self.languages and isinstance(self.languages, list):

@@ -1,8 +1,13 @@
-import logging
+from collections.abc import Generator, Iterable
 from datetime import datetime
+from typing import Any
 
+import dateutil.relativedelta
 import scrapy.selector.unified
 import w3lib.html
+from bs4 import BeautifulSoup
+from loguru import logger
+from scrapy import Request
 from scrapy.spiders import XMLFeedSpider
 
 from converter import env
@@ -10,31 +15,121 @@ from converter.constants import Constants
 from converter.es_connector import EduSharing
 from converter.items import (
     BaseItemLoader,
-    LomBaseItemloader,
-    LomGeneralItemloader,
-    LomTechnicalItemLoader,
-    LomLifecycleItemloader,
-    LomEducationalItemLoader,
-    ValuespaceItemLoader,
     LicenseItemLoader,
+    LomBaseItemloader,
+    LomEducationalItemLoader,
+    LomGeneralItemloader,
+    LomLifecycleItemloader,
+    LomTechnicalItemLoader,
     ResponseItemLoader,
+    ValuespaceItemLoader,
 )
 from converter.spiders.base_classes import LomBase
+from converter.web_tools import WebEngine
+
+
+def prepare_playwright_local_storage() -> dict:
+    # Lehrer-Online uses the "sgalinski Cookie Consent" TYPO3 extension to display a cookie consent banner:
+    # see: https://extensions.typo3.org/extension/sg_cookie_optin
+    now = datetime.now()
+    next_year = now + dateutil.relativedelta.relativedelta(years=1)
+    timestamp_next_year: int = int(next_year.timestamp())
+    # apparently, the TYPO3 cookie extension does not like it when float values are submitted,
+    # which is why we typecast the float to int before saving the timestamps within the respective "expires"-attributes
+    lehrer_online_local_storage: dict = {
+        "cookies": [
+            {
+                "name": "cookie_optin",
+                "value": "essential:1|iframes:0",
+                "domain": "www.lehrer-online.de",
+                "path": "/",
+                "secure": True,
+                "sameSite": "None",
+                "expires": timestamp_next_year,
+            },
+            {
+                "name": "Lehrer-Online_Popup-Banner",
+                "value": "akzeptiert",
+                "domain": "www.lehrer-online.de",
+                "path": "/",
+                "expires": timestamp_next_year,
+            },
+        ],
+        "origins": [
+            {
+                "origin": "https://www.lehrer-online.de",
+                "localStorage": [
+                    {
+                        "name": "SgCookieOptin.lastPreferences",
+                        "value": "{"
+                        f'"timestamp":{timestamp_next_year},'
+                        '"cookieValue":"essential:1|iframes:0",'
+                        '"isAll":false,"version":1,"identifier":1,'
+                        '"uuid":"9c4dfa36-ac19-469d-84b7-e9156ca201fb"'
+                        "}",
+                    }
+                ],
+            }
+        ],
+    }
+    # ToDo: dynamically retrieve the localStorage state upon crawler bootup
+    #  - step 1: implement method to click "only necessary cookies" once during init
+    #  - step 2: read BrowserContext storage_state
+    #  - step 3: save storage_state to spider's custom_settings
+    #  - step 4: replace this (hard-coded) forged localStorage state
+    return lehrer_online_local_storage
+
+
+def split_and_clean_up_list_of_strings(list_of_strings: list[str]) -> list[str] | None:
+    # The API of Lehrer-Online provides messy metadata which needs to be cleaned up before we can work with it.
+    # Some common <schlagwort>-element examples:
+    #     <![CDATA[Ammonit; Solnhofener Plattenkalk]]>
+    #     <![CDATA[Agglomeration; Brooklyn; Einwanderer; Harlem; Multikulturell; Stadtviertel; DUMBO; Stadtbezirk]]>
+    #     <![CDATA[ Sekundarstufe 1]]>
+    _cleaned_set = set()
+    if list_of_strings and isinstance(list_of_strings, list):
+        for _item in list_of_strings:
+            # ToDo: check if ; is in the string
+            if ";" in _item:
+                _sub_items: list[str] = _item.split(";")
+                for _sub_item in _sub_items:
+                    # strip trailing / leading whitespaces from the string
+                    _sub_item: str = _sub_item.strip()
+                    if _sub_item:
+                        # only add valid strings to the set.
+                        _cleaned_set.add(_sub_item)
+            # strip trailing / leading whitespaces
+            if _item and isinstance(_item, str):
+                _item: str = _item.strip()
+                if _item:
+                    # there might be empty strings after stripping the whitespaces
+                    _cleaned_set.add(_item)
+    elif not list_of_strings and isinstance(list_of_strings, list):
+        # this case happens when the list is empty
+        # logger.debug(f"Received an empty list: {list_of_strings}")
+        pass
+    else:
+        logger.warning(
+            f"Wrong input type detected: expected a list[str] object, but received {type(list_of_strings)}: "
+            f"{list_of_strings} "
+        )
+    if _cleaned_set:
+        _cleaned_list: list[str] = list(_cleaned_set)
+        _cleaned_list.sort()
+        return _cleaned_list
 
 
 class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     name = "lehreronline_spider"
     friendlyName = "Lehrer-Online"
-    start_urls = [
-        "https://www.lehrer-online.de/?type=3030&limit=10000"
-        # the limit parameter controls the amount of results PER CATEGORY (NOT the total amount of results)
-        # API response with a "limit"-value set to 10.000 might take more than 90s (17.7 MB, 5912 URLs to crawl)
-    ]
-    version = "0.0.7"  # last update: 2023-08-10
+    version = "0.1.3"  # last update: 2025-04-16
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
+        "WEB_TOOLS": WebEngine.Playwright,
+        "PLAYWRIGHT_ADBLOCKER": True,
+        "PLAYWRIGHT_STORAGE_STATE": prepare_playwright_local_storage(),
         # "DUPEFILTER_DEBUG": True
     }
     iterator = "iternodes"
@@ -92,6 +187,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
     }
 
     MAPPING_MATERIAL_TYPE_TO_NEW_LRT = {
+        "Bildungsnachricht": "dc5763ab-6f47-4aa3-9ff3-1303efbeef6e",  # "Nachrichten und Neuigkeiten
         "Blog": "5204fc81-5dac-4cc4-a28b-aad5c241fa19",  # "Webblog (dynamisch)"
         "Cartoon": "667f5063-70b9-400c-b1f7-7702ec9487f1",  # "Cartoon, Comic"
         "Dossier": "7381f17f-50a6-4ce1-b3a0-9d85a482eec0",  # "Unterrichtsplanung"
@@ -104,9 +200,12 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         "Kopiervorlage": "6a15628c-0e59-43e3-9fc5-9a7f7fa261c4",  # "Skript, Handout und Handreichung"
         "News": "dc5763ab-6f47-4aa3-9ff3-1303efbeef6e",  # "Nachrichten und Neuigkeiten"
         "Rechtsfall": "dc5763ab-6f47-4aa3-9ff3-1303efbeef6e",  # "Nachrichten und Neuigkeiten"
+        "Schulrechtsfall": "dc5763ab-6f47-4aa3-9ff3-1303efbeef6e",  # "Nachrichten und Neuigkeiten"
         # ToDo: could this be mapped to either "Fachliche News", "Alltags News" or "Pädagogische News"?
+        "Themendossier": "7381f17f-50a6-4ce1-b3a0-9d85a482eec0",  # "Unterrichtsplanung"
         "Unterrichtseinheit": "ef58097d-c1de-4e6a-b4da-6f10e3716d3d",  # "Unterrichtseinheit"
         "Videos": "7a6e9608-2554-4981-95dc-47ab9ba924de",  # "Video (Material)"
+        "Witze & Cartoons": "667f5063-70b9-400c-b1f7-7702ec9487f1",  # "Cartoon, Comic"
     }
 
     MAPPING_RIGHTS_TO_URLS = {
@@ -120,48 +219,96 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         "CC-by-sa": Constants.LICENSE_CC_BY_SA_30,
         "CC-by-sa 4.0": Constants.LICENSE_CC_BY_SA_40,
     }
-
+    # "Fach"-values can be retrieved from the dropdown menu within the search bar at lehrer-online.de
     MAPPING_FACH_TO_DISCIPLINES = {
-        "Arbeitsschutz und Arbeitssicherheit": "Arbeitssicherheit",
-        "Berufs- und Arbeitswelt": "Arbeitslehre",
-        "Berufsvorbereitung, Berufsalltag, Arbeitsrecht": "Arbeitslehre",
-        "Ernährung und Gesundheit": ["Ernährung und Hauswirtschaft", "Gesundheit"],
-        "Fächerübergreifender Unterricht": "Allgemein",
-        "Geschichte, Politik und Gesellschaftswissenschaften": ["Geschichte", "Politik", "Gesellschaftskunde"],
-        "Gesundheit und Gesundheitsschutz": "Gesundheit",
-        "Informationstechnik": "Informatik",
-        "Klima, Umwelt, Nachhaltigkeit": "Nachhaltigkeit",
-        "MINT: Mathematik, Informatik, Naturwissenschaften und Technik": "MINT",
-        "Natur und Umwelt": ["Environmental education", "Homeland lessons"],  # Umwelterziehung, Sachunterricht
-        "Religion und Ethik": ["Religion", "Ethik"],
-        "Sport und Bewegung": "Sport",
-        "SoWi": ["Social education", "Economics"],
-        "WiSo": ["Economics", "Social education"],
-        "Wirtschaftslehre": "Economics",
+        "Arbeitsschutz / Arbeitssicherheit": "04014",  # Arbeitssicherheit
+        "Berufs- und Arbeitswelt": "020",  # Arbeitslehre
+        "Berufsvorbereitung, Berufsalltag, Arbeitsrecht": "020",  # Arbeitslehre
+        "Berufsvorbereitung /Berufsalltag / Arbeitsrecht": "020",  # Arbeitslehre
+        # sic! "/Berufsalltag" is a typo in LO's "Fach"-values
+        "Biologie / Ernährung und Gesundheit / Natur und Umwelt": ["080", "04006", "260"],
+        # Biologie; Ernährung und Hauswirtschaft; Gesundheit
+        "Chemie / Natur & Umwelt": ["100", "640"],  # Chemie; Umwelterziehung
+        "DaF / DaZ": "28002",  # Deutsch als Zweitsprache
+        "Deutsch / Kommunikation / Lesen & Schreiben": "120",
+        "Ernährung und Gesundheit": ["260"],  # Gesundheit
+        "Ernährung & Gesundheit": ["260"],  # Gesundheit
+        "Ernährung & Gesundheit / Gesundheitsschutz / Pflege, Therapie, Medizin": ["260"],  # Gesundheit
+        "Fächerübergreifend": "720",  # Allgemein
+        "Fächerübergreifender Unterricht": "720",  # Allgemein
+        "Geographie / Jahreszeiten": "220",  # Geografie
+        "Geschichte / Früher & Heute": "240",  # Geschichte
+        "Geschichte, Politik und Gesellschaftswissenschaften": ["240", "480", "48005"],
+        # Geschichte; Politik; Gesellschaftskunde
+        "Gesundheit und Gesundheitsschutz": "260",  # Gesundheit
+        "Gesundheitsbildung": "260",  # Gesundheit
+        # "Ich und meine Welt": "",  # ToDo: cannot be mapped
+        "Informationstechnik": "320",
+        "Informatik / Wirtschaftsinformatik / Computer, Internet & Co.": ["320", "700"],  # Informatik; Wirtschaftskunde
+        "Klima, Umwelt, Nachhaltigkeit": "64018",  # Nachhaltigkeit
+        "Kunst / Kultur": ["060", "340"],  # Kunst; Interkulturelle Bildung
+        "Mathematik / Rechnen & Logik": "Mathematik",
+        "MINT: Mathematik, Informatik, Naturwissenschaften und Technik": "04003",  # MINT
+        "Natur und Umwelt": ["640", "28010"],  # Umwelterziehung; Sachunterricht
+        "Orga / Bürowirtschaft": ["020", "04013"],  # Arbeitslehre; Wirtschaft und Verwaltung
+        "Pädagogik": "44007",  # Sozialpädagogik
+        "Physik / Astronomie": ["460", "46014"],  # Physik, Astronomie
+        "Politik / WiSo / SoWi": ["480", "48005", "700"],  # Politik; Gesellschaftskunde; Wirtschaftskunde
+        # "Polnisch": "",  # ToDo: doesn't exist in our discipline vocab (yet)
+        "Rechnungswesen": ["020", "04013"],  # Arbeitslehre; Wirtschaft und Verwaltung
+        "Religion / Ethik": ["520", "160"],  # Religion; Ethik
+        "Sport und Bewegung": "600",  # Sport
+        "Sport / Bewegung": "600",  # Sport
+        "SoWi": ["48005", "700"],  # Gesellschaftskunde; Wirtschaftskunde
+        "Technik / Sache & Technik": "04003",  # MINT
+        "WiSo": ["700", "48005"],  # Wirtschaftskunde; Gesellschaftskunde
+        "Wirtschaftslehre": "700",  # Wirtschaftskunde
     }
 
-    def getId(self, response=None, **kwargs) -> str:
+    def __init__(self, **kwargs):
+        LomBase.__init__(self, **kwargs)
+
+    def start_requests(self) -> Iterable[Request]:
+        _start_urls: list[str] = ["https://www.lehrer-online.de/?type=3030&limit=10000"]
+        # the limit parameter controls the number of results PER CATEGORY (NOT the total number of results)
+        # API response with a "limit"-value set to 10.000 might take more than 90s (17.7 MB, 5912 URLs to crawl)
+        for url in _start_urls:
+            # scrapy's autothrottle would slow down all requests within the first few minutes
+            # due to the slow response of the initial API request
+            yield Request(url, meta={"autothrottle_dont_adjust_delay": True})
+
+    def getId(self, response=None, **kwargs) -> Any | None:
         # By the time we call this method, there is no usable 'response.url' available (the URL would point to the API
         # for each item), which is why we need to use the metadata dictionary from the API Response here.
         try:
             material_url = kwargs["kwargs"]["metadata_dict"]["url"]
             return material_url
         except KeyError:
-            logging.error(f"'getId'-method could not retrieve metadata_dict['url']. Falling back to 'response.url'")
+            logger.error("'getId'-method could not retrieve metadata_dict['url']. Falling back to 'response.url'")
+            return None
 
     def getHash(self, response=None, **kwargs) -> str:
+        _hash_fallback: str = datetime.now().isoformat()
         if "kwargs" in kwargs:
             if "metadata_dict" in kwargs["kwargs"]:
-                metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
-                hash_value: str = f"{metadata_dict.get('date_published')}v{self.version}"
-                return hash_value
+                try:
+                    # preferably use the publication date for hashing the item
+                    metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
+                    _date_published: str | None = metadata_dict.get("date_published")
+                    hash_value: str = f"{_date_published}v{self.version}"
+                    return hash_value
+                except KeyError:
+                    pass
             else:
-                logging.error(
-                    f"Could not create 'hash' for item. (Failed to retrieve 'metadata_dict' in kwargs of "
-                    f"getHash()-method.)"
+                logger.error(
+                    "Could not create 'hash' for item. (Failed to retrieve 'metadata_dict' in kwargs of "
+                    "getHash()-method.) Falling back to datetime.now() hash."
                 )
+        # if no publication date was available, the current datetime is used for hashing
+        hash_value: str = f"{_hash_fallback}v{self.version}"
+        return hash_value
 
-    def parse_node(self, response, selector: scrapy.selector.unified.Selector) -> scrapy.Request:
+    def parse_node(self, response, selector: scrapy.selector.unified.Selector) -> Generator[Request, Any]:
         """
         Parses the Lehrer-Online API for individual <datensatz>-nodes and yields URLs found within <url_ressource>-tags
         to the parse()-method. Additionally, this method builds a "cleaned up" metadata_dict that gets handed over
@@ -215,18 +362,25 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             metadata_dict.update({"title": title_raw})
 
         in_language: str = selector.xpath("sprache/text()").get()
-        if in_language:
-            if in_language == "Deutsch":
-                metadata_dict.update({"language": "de"})
+        if in_language and in_language == "Deutsch":
+            metadata_dict.update({"language": "de"})
 
         description_short: str = selector.xpath("beschreibung/text()").get()
         if description_short:
+            # the description string contains HTML elements which need to be stripped
+            description_short_soup = BeautifulSoup(description_short, "html.parser")
+            description_short = description_short_soup.get_text()
+            if description_short and isinstance(description_short, str):
+                description_short = description_short.strip()
             metadata_dict.update({"description_short": description_short})
 
         description_long: str = selector.xpath("beschreibung_lang/text()").get()
         if description_long:
-            description_long = w3lib.html.replace_tags(description_long)
-            description_long = w3lib.html.replace_entities(description_long)
+            # the long description contains HTML elements which need to be stripped
+            description_long_soup = BeautifulSoup(description_long, "html.parser")
+            description_long = description_long_soup.get_text()
+            if description_long and isinstance(description_long, str):
+                description_long = description_long.strip()
             metadata_dict.update({"description_long": description_long})
 
         thumbnail_url: str = selector.xpath("bild_url/text()").get()
@@ -235,9 +389,12 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             metadata_dict.update({"thumbnail_url": thumbnail_url})
 
         keyword_list: list = selector.xpath("schlagwort/text()").getall()
-        if keyword_list:
-            metadata_dict.update({"keywords": keyword_list})
-        # self.logger.info(f"the keywords are: {keyword_list}")
+        if keyword_list and isinstance(keyword_list, list):
+            # Keywords from Lehrer-Online might contain leading or trailing whitespaces,
+            # which need to be stripped. Otherwise, we wouldn't be able to hit our vocabs reliably.
+            keyword_list: list[str] | None = split_and_clean_up_list_of_strings(list_of_strings=keyword_list)
+            if keyword_list:
+                metadata_dict.update({"keywords": keyword_list})
 
         with_costs_string: str = selector.xpath("kostenpflichtig/text()").get()
         # with_costs_string can be either "ja" or "nein"
@@ -287,9 +444,6 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 date_published_datetime: datetime = datetime.strptime(date_published, "%Y-%m-%d")
                 date_published = date_published_datetime.isoformat()
                 metadata_dict.update({"date_published": date_published})
-            else:
-                # since date_published is used for our hash, we need this fallback in case it isn't available in the API
-                metadata_dict.update({"date_published": datetime.now().isoformat()})
 
         # ToDo: there is a <verfallsdatum>-Element, that is (in the API) currently empty 100% of the time, check again
         #  during the next crawler-update if this data is available in the API by then
@@ -299,18 +453,26 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
 
         # <fach> can either be completely empty or there can be several <fach>-elements within a <datensatz>
         disciplines_or_additional_keywords: list = selector.xpath("fach/text()").getall()
+        disciplines_or_additional_keywords: list[str] | None = split_and_clean_up_list_of_strings(
+            list_of_strings=disciplines_or_additional_keywords
+        )
         individual_disciplines_or_keywords = set()
-        for potential_discipline_or_keyword in disciplines_or_additional_keywords:
-            # to make mapping more precise, we're separating strings like "Politik / WiSo / SoWi / Wirtschaft" into its
-            # individual parts
-            if " / " in potential_discipline_or_keyword:
-                disciplines_or_keywords_separated = potential_discipline_or_keyword.split(" / ")
-                for each_string in disciplines_or_keywords_separated:
-                    each_string_stripped = each_string.strip()
-                    individual_disciplines_or_keywords.add(each_string_stripped)
-            else:
-                individual_disciplines_or_keywords.add(potential_discipline_or_keyword)
+        if disciplines_or_additional_keywords and isinstance(disciplines_or_additional_keywords, list):
+            for potential_discipline_or_keyword in disciplines_or_additional_keywords:
+                # to make mapping more precise, we're separating strings like "Politik / WiSo / SoWi / Wirtschaft"
+                # into its individual parts
+                if potential_discipline_or_keyword and " / " in potential_discipline_or_keyword:
+                    disciplines_or_keywords_separated: list[str] = potential_discipline_or_keyword.split(" / ")
+                    for each_string in disciplines_or_keywords_separated:
+                        each_string_stripped = each_string.strip()
+                        if each_string_stripped:
+                            individual_disciplines_or_keywords.add(each_string_stripped)
+                else:
+                    individual_disciplines_or_keywords.add(potential_discipline_or_keyword)
         disciplines_or_additional_keywords = list(individual_disciplines_or_keywords)
+        disciplines_or_additional_keywords = split_and_clean_up_list_of_strings(
+            list_of_strings=disciplines_or_additional_keywords
+        )
 
         disciplines_mapped = set()
         additional_keywords_from_disciplines = set()
@@ -319,7 +481,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                 if potential_discipline_item in self.MAPPING_FACH_TO_DISCIPLINES:
                     # since not every "fach"-value is the same as our discipline-vocabs, mapping is necessary
                     discipline = self.MAPPING_FACH_TO_DISCIPLINES.get(potential_discipline_item)
-                    if type(discipline) is list:
+                    if isinstance(discipline, list):
                         disciplines_mapped.update(discipline)
                     else:
                         disciplines_mapped.add(discipline)
@@ -359,7 +521,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             educational_context = list()
             # we need to map some values to our educationalContext vocabulary
             for edu_context_item in educational_context_cleaned_up:
-                if edu_context_item in self.MAPPING_EDU_CONTEXT.keys():
+                if edu_context_item in self.MAPPING_EDU_CONTEXT:
                     edu_context_temp = self.MAPPING_EDU_CONTEXT.get(edu_context_item)
                     educational_context.append(edu_context_temp)
                 else:
@@ -389,6 +551,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
 
         lrt_raw = selector.xpath("lernressourcentyp/text()").getall()
         # there can be SEVERAL "lernressourcentyp"-elements per item
+        lrt_raw: list[str] | None = split_and_clean_up_list_of_strings(list_of_strings=lrt_raw)
         if lrt_raw:
             additional_keywords_from_lo_lrt = set()
             for lrt_possible_value in lrt_raw:
@@ -477,15 +640,13 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                         # "Handwerk-macht-Schule"-learning-objects by hand)
                         # ToDo: revert this workaround in the next version of the crawler
                         #  (after the "Herkunft des Inhalts"-topic has been resolved)
-                        logging.info(
-                            f"Temporarily skipping {material_url} from crawling (due to Team4-decision on "
-                            f"2023-08-10)."
+                        logger.info(
+                            f"Temporarily skipping {material_url} from crawling (due to Team4-decision on 2023-08-10)."
                         )
                         pass
                     elif "pubertaet.lehrer-online.de" in material_url and "pubertaet" in skip_portal_setting:
-                        logging.info(
-                            f"Temporarily skipping {material_url} due to chosen '.env'-Setting for "
-                            f"'LO_SKIP_PORTAL'."
+                        logger.info(
+                            f"Temporarily skipping {material_url} due to chosen '.env'-Setting for 'LO_SKIP_PORTAL'."
                         )
                         pass
                     else:
@@ -499,15 +660,17 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
                     )
         else:
             # if no material_url is provided, we cannot crawl anything, therefore skip the item
-            logging.debug(f"Lehrer-Online API returned a node without a 'material_url'-value. (The title of the node "
-                          f"was '{title_raw}'.")
+            logger.debug(
+                f"Lehrer-Online API returned a node without a 'material_url'-value. (The title of the node "
+                f"was '{title_raw}'."
+            )
             pass
 
     def getUri(self, response=None, **kwargs) -> str:
         try:
             metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
         except KeyError as ke:
-            logging.error("getUri()-method could not access 'metadata_dict'.")
+            logger.error("getUri()-method could not access 'metadata_dict'.")
             raise ke
         return metadata_dict["url"]
 
@@ -515,7 +678,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         try:
             metadata_dict: dict = kwargs["kwargs"]["metadata_dict"]
         except KeyError as ke:
-            logging.error("getUUID()-method could not access 'metadata_dict'.")
+            logger.error("getUUID()-method could not access 'metadata_dict'.")
             raise ke
         return EduSharing.build_uuid(self.getUri(response, kwargs={"metadata_dict": metadata_dict}))
 
@@ -527,24 +690,24 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             hash_str: str = self.getHash(response, kwargs={"metadata_dict": metadata_dict})
             uuid_str: str = self.getUUID(response, kwargs={"metadata_dict": metadata_dict})
         except KeyError as ke:
-            logging.error("hasChanged()-method could not access 'metadata_dict'.")
+            logger.error("hasChanged()-method could not access 'metadata_dict'.")
             raise ke
         if self.forceUpdate:
             return True
         if self.uuid:
             if uuid_str == self.uuid:
-                logging.info(f"matching requested id: {self.uuid}")
+                logger.info(f"matching requested id: {self.uuid}")
                 return True
             return False
         if self.remoteId:
             if identifier == self.remoteId:
-                logging.info(f"matching requested id: {self.remoteId}")
+                logger.info(f"matching requested id: {self.remoteId}")
                 return True
             return False
         db = EduSharing().find_item(identifier, self)
         changed = db is None or db[1] != hash_str
         if not changed:
-            logging.info(f"Item {identifier} (uuid: {db[0]}) has not changed")
+            logger.info(f"Item {identifier} (uuid: {db[0]}) has not changed")
         return changed
 
     def check_if_item_should_be_dropped(self, response, metadata_dict: dict) -> bool:
@@ -560,15 +723,37 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         drop_item_flag: bool = False  # by default, we assume that all items should be crawled
         identifier_url: str = self.getId(response, kwargs={"metadata_dict": metadata_dict})
         hash_str: str = self.getHash(response, kwargs={"metadata_dict": metadata_dict})
-        if self.shouldImport(response) is False:
-            logging.debug(f"Skipping entry {identifier_url} because shouldImport() returned false")
-            drop_item_flag = True
-        if identifier_url is not None and hash_str is not None:
-            if not self.hasChanged(response, kwargs={"metadata_dict": metadata_dict}):
+        try:
+            _origin_folder_name: str = metadata_dict["origin_folder_name"]
+            if _origin_folder_name and isinstance(_origin_folder_name, str) and "premium_only" in _origin_folder_name:
+                # drop premium-only items by default
+                logger.info(f"Skipping entry {identifier_url} because it's a premium-only item.")
                 drop_item_flag = True
+                return drop_item_flag
+        except KeyError:
+            pass
+        try:
+            _material_type: str = metadata_dict["material_type_raw"]
+            # as suggested by Maike & Jan (Rohdatenprüfung 2024-03), none of the "Cartoon"-Items should be crawled
+            # since they're considered not useful / meaningful enough on their own
+            if _material_type and isinstance(_material_type, str) and "Cartoon" in _material_type:
+                logger.info(f"Skipping entry {identifier_url} because it's a 'Cartoon'-item.")
+                drop_item_flag = True
+                return drop_item_flag
+        except KeyError:
+            pass
+        if self.shouldImport(response) is False:
+            logger.debug(f"Skipping entry {identifier_url} because shouldImport() returned false")
+            drop_item_flag = True
+        if (
+            identifier_url is not None
+            and hash_str is not None
+            and not self.hasChanged(response, kwargs={"metadata_dict": metadata_dict})
+        ):
+            drop_item_flag = True
         return drop_item_flag
 
-    def parse(self, response: scrapy.http.Response, **kwargs) -> BaseItemLoader:
+    def parse(self, response: scrapy.http.Response, **kwargs) -> Generator[Any]:
         """
         Uses the metadata_dict that was built in parse_node() and extracts additional metadata from the DOM itself to
         create and fill a BaseItem with the gathered metadata.
@@ -606,6 +791,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             general.add_value("keyword", metadata_dict.get("keywords"))
         if "description_long" in metadata_dict:
             general.add_value("description", metadata_dict.get("description_long"))
+            base.add_value("fulltext", metadata_dict.get("description_long"))
         elif "description_short" in metadata_dict:
             general.add_value("description", metadata_dict.get("description_short"))
         if "language" in metadata_dict:
@@ -659,6 +845,11 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             vs.add_value("discipline", metadata_dict.get("discipline"))
         if "educational_context" in metadata_dict:
             vs.add_value("educationalContext", metadata_dict.get("educational_context"))
+        if "keywords" in metadata_dict:
+            # There are several items where Lehrer-Online doesn't provide metadata for educationalContext,
+            # but keeps the values we are looking for in their keywords instead.
+            # Throwing those keywords against our metadata vocab should result in some additional hits.
+            vs.add_value("educationalContext", metadata_dict.get("keywords"))
         if "intended_end_user" in metadata_dict:
             vs.add_value("intendedEndUserRole", metadata_dict.get("intended_end_user"))
             vs.add_value("intendedEndUserRole", "teacher")  # ToDo: remove this hard-coded value as soon
@@ -676,14 +867,18 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
             license_url = metadata_dict.get("license_url")
             license_loader.add_value("url", license_url)
         elif "license_description" in metadata_dict:
-            license_description = metadata_dict.get("license_description")
-            if license_description == "Frei nutzbares Material":
+            license_description: str = metadata_dict.get("license_description")
+            if (
+                license_description
+                and isinstance(license_description, str)
+                and "Frei nutzbares Material" in license_description
+            ):
                 license_loader.add_value("internal", Constants.LICENSE_CUSTOM)
                 # just in case the license-description changes over time, we're gathering the description from the DOM
                 license_title: str = response.xpath('//div[@class="license-title"]/text()').get()
                 license_text: str = response.xpath('//div[@class="license-text"]/text()').get()
                 if license_text and license_title:
-                    license_full_desc: str = license_text.join(license_title)
+                    license_full_desc: str = f"{license_title}\n{license_text}"
                     license_loader.add_value("description", license_full_desc)
                 else:
                     license_loader.add_value("description", license_description)
@@ -695,6 +890,7 @@ class LehrerOnlineSpider(XMLFeedSpider, LomBase):
         # if "expiration_date" in metadata_dict:
         #     # ToDo: activate gathering of expiration_date once the data is available in the API
         #     #  - make sure that the dateparser correctly recognizes the date
+        #     # as of 2025-04-02 the field is still 100% empty (by Lehrer-Online)
         #     expiration_date = metadata_dict.get("expiration_date")
         #     license_loader.add_value('expirationDate', expiration_date)
         base.add_value("license", license_loader.load_item())

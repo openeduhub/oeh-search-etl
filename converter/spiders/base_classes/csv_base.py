@@ -1,6 +1,17 @@
-from converter.items import *
-from .lom_base import LomBase
 import hashlib
+
+from converter.items import (
+    BaseItemLoader,
+    LicenseItemLoader,
+    LomAgeRangeItemLoader,
+    LomEducationalItemLoader,
+    LomGeneralItemloader,
+    LomTechnicalItemLoader,
+    ValuespaceItemLoader,
+)
+
+from .lom_base import LomBase
+
 
 # rss crawler with a list of entries to crawl and map
 class CSVBase(LomBase):
@@ -21,12 +32,12 @@ class CSVBase(LomBase):
     COLUMN_LANGUAGE = "language"
     COLUMN_COLLECTION = "collection"
     COLUMN_LICENSE = "license"
+    COLUMN_KLDB = "KldB (4-stellig)"
     mappings = None
 
     def transform(self, row):
         transformed = {}
-        i = 0
-        for key in row:
+        for i, key in enumerate(row):
             transformed[self.mappings[i]] = {
                 "text": key.strip(),
                 "list": list(map(lambda x: x.strip(), key.split(";"))),
@@ -40,35 +51,34 @@ class CSVBase(LomBase):
                 == 0
             ):
                 transformed[self.mappings[i]]["list"] = None
-            i += 1
         return transformed
 
-    def readCSV(self, csv, skipLines=1):
+    def read_csv(self, csv, skip_lines=1):
         data = []
         i = 0
         for row in csv:
-            if self.mappings == None:
+            if self.mappings is None:
                 self.mappings = row
                 continue
             i += 1
-            if i < skipLines:
+            if i < skip_lines:
                 continue
             data.append(self.transform(row))
         return data
 
-    def getUri(self, response):
+    def getUri(self, response=None) -> str:
         return response.meta["row"][CSVBase.COLUMN_URL]["text"]
 
-    def getId(self, response):
+    def getId(self, response=None) -> str:
         return response.meta["row"][CSVBase.COLUMN_URL]["text"]
 
-    def getHash(self, response):
+    def getHash(self, response=None) -> str:
         m = hashlib.md5()
         m.update(str(response.meta["row"]).encode("utf-8"))
         return m.hexdigest() + self.version
 
-    def getBase(self, response):
-        base = LomBase.getBase(self, response)
+    def getBase(self, response=None) -> BaseItemLoader:
+        base: BaseItemLoader = LomBase.getBase(self, response)
         base.add_value(
             "thumbnail", response.meta["row"][CSVBase.COLUMN_THUMBNAIL]["text"]
         )
@@ -78,8 +88,8 @@ class CSVBase(LomBase):
         base.replace_value("type", response.meta["row"][CSVBase.COLUMN_TYPE]["text"])
         return base
 
-    def getLOMGeneral(self, response):
-        general = LomBase.getLOMGeneral(self, response)
+    def getLOMGeneral(self, response=None) -> LomGeneralItemloader:
+        general: LomGeneralItemloader = LomBase.getLOMGeneral(self, response)
         general.add_value("title", response.meta["row"][CSVBase.COLUMN_TITLE]["text"])
         general.replace_value(
             "language", response.meta["row"][CSVBase.COLUMN_LANGUAGE]["text"]
@@ -92,8 +102,8 @@ class CSVBase(LomBase):
         )
         return general
 
-    def getLicense(self, response):
-        license = LomBase.getLicense(self, response)
+    def getLicense(self, response=None) -> LicenseItemLoader:
+        license: LicenseItemLoader = LomBase.getLicense(self, response)
         # add as url + internal to support both data formats
         license.add_value("url", response.meta["row"][CSVBase.COLUMN_LICENSE]["text"])
         license.add_value(
@@ -101,8 +111,8 @@ class CSVBase(LomBase):
         )
         return license
 
-    def getLOMEducational(self, response):
-        educational = LomBase.getLOMEducational(self, response)
+    def getLOMEducational(self, response=None) -> LomEducationalItemLoader:
+        educational: LomEducationalItemLoader = LomBase.getLOMEducational(self, response)
         tar = LomAgeRangeItemLoader()
         tar.add_value(
             "fromRange",
@@ -114,16 +124,16 @@ class CSVBase(LomBase):
         educational.add_value("typicalAgeRange", tar.load_item())
         return educational
 
-    def getLOMTechnical(self, response):
-        technical = LomBase.getLOMTechnical(self, response)
+    def getLOMTechnical(self, response=None) -> LomTechnicalItemLoader:
+        technical: LomTechnicalItemLoader = LomBase.getLOMTechnical(self, response)
         technical.add_value(
             "location", response.meta["row"][CSVBase.COLUMN_URL]["text"]
         )
         technical.add_value("format", "text/html")
         return technical
 
-    def getValuespaces(self, response):
-        valuespaces = LomBase.getValuespaces(self, response)
+    def getValuespaces(self, response) -> ValuespaceItemLoader:
+        valuespaces: ValuespaceItemLoader = LomBase.getValuespaces(self, response)
         valuespaces.add_value(
             "educationalContext",
             response.meta["row"][CSVBase.COLUMN_EDUCATIONAL_CONTEXT]["list"],
@@ -135,4 +145,9 @@ class CSVBase(LomBase):
             "learningResourceType",
             response.meta["row"][CSVBase.COLUMN_LEARNING_RESOURCE_TYPE]["list"],
         )
+        if response.meta["row"][CSVBase.COLUMN_KLDB]["list"]:
+            valuespaces.add_value(
+                "kldb",
+                response.meta["row"][CSVBase.COLUMN_KLDB]["list"],
+            )
         return valuespaces

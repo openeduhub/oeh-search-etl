@@ -1,30 +1,37 @@
 import json
 
 import jmespath
+import scrapy
 import trafilatura
 
 from converter.items import (
-    LomTechnicalItem,
     LicenseItem,
     LomGeneralItem,
-    ValuespaceItem,
     LomGeneralItemloader,
+    LomTechnicalItem,
+    ValuespaceItem,
     ValuespaceItemLoader,
 )
-from .base_classes import MediaWikiBase
-import scrapy
 
 from ..constants import Constants
 from ..web_tools import WebEngine
+from .base_classes import MediaWikiBase
 
 
 class ZUMDeutschLernenSpider(MediaWikiBase, scrapy.Spider):
     name = "zum_deutschlernen_spider"
     friendlyName = "ZUM-Deutsch-Lernen"
     url = "https://deutsch-lernen.zum.de/"
-    version = "0.1.5"  # last update: 2023-08-29
+    version = "0.1.5"  # last update: 2025-01-24
     license = Constants.LICENSE_CC_BY_40
-    custom_settings = {"WEB_TOOLS": WebEngine.Playwright, "AUTOTHROTTLE_ENABLED": True, "AUTOTHROTTLE_DEBUG": True}
+    playwright_cookies: list[dict] = [{"name": "deutsch_lernencookiewarning_dismissed", "value": "true"}]
+    custom_settings = {
+        "WEB_TOOLS": WebEngine.Playwright,
+        "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_DEBUG": True,
+        "PLAYWRIGHT_COOKIES": playwright_cookies,
+        "PLAYWRIGHT_ADBLOCKER": True,
+    }
 
     def __init__(self, **kwargs):
         MediaWikiBase.__init__(self, **kwargs)
@@ -42,19 +49,19 @@ class ZUMDeutschLernenSpider(MediaWikiBase, scrapy.Spider):
         category_list: list[str] = jmes_categories.search(response.meta["item"])
         # the API sometimes returns unusable descriptions like "START_WIDGET87710400b0e5c411-0END_WIDGET" (and carries
         # the same string in the header)
-        descriptions_collected: list[str] = general_loader.get_collected_values('description')
+        descriptions_collected: list[str] = general_loader.get_collected_values("description")
         if descriptions_collected and type(descriptions_collected) is list:
             description_str: str = descriptions_collected[0]
             if description_str.startswith("START_WIDGET"):
                 # this will typically be the case for H5P materials which carry almost no useful metadata
-                urls_collected: list[str] = self.getLOMTechnical(response=response).get_collected_values('location')
+                urls_collected: list[str] = self.getLOMTechnical(response=response).get_collected_values("location")
                 if urls_collected and type(urls_collected) is list:
                     # making sure that we actually fetch the main urL, then extract the fulltext with trafilatura
                     item_url: str = urls_collected[0]
                     downloaded: str = trafilatura.fetch_url(item_url)
                     trafilatura_text: str = trafilatura.extract(downloaded)
                     if trafilatura_text:
-                        general_loader.replace_value('description', trafilatura_text)
+                        general_loader.replace_value("description", trafilatura_text)
 
         general_loader.replace_value("keyword", category_list)
         # ToDo (later): clean up matched Vocab values from keywords, so they don't appear in both fields?
@@ -67,7 +74,7 @@ class ZUMDeutschLernenSpider(MediaWikiBase, scrapy.Spider):
         vs_loader.add_value("discipline", "120")  # Deutsch
         jmes_categories = jmespath.compile('parse.categories[]."*"')
         category_list: list[str] = jmes_categories.search(response.meta["item"])
-        vs_loader.add_value('languageLevel', category_list)
+        vs_loader.add_value("languageLevel", category_list)
         return vs_loader
 
     # ToDo: The methods below are (most probably) code-artifacts from (unfinished) Scrapy contracts, and aren't

@@ -6,10 +6,11 @@ from enum import Enum
 import html2text
 import httpx
 import trafilatura
-from converter import env
 from loguru import logger
 from playwright.async_api import async_playwright
 from scrapy.utils.project import get_project_settings
+
+from converter import env
 
 logging.getLogger("trafilatura").setLevel(logging.INFO)  # trafilatura is quite spammy
 
@@ -77,7 +78,9 @@ class WebTools:
     # configuration accordingly! (e.g., by increasing the MAX_CONCURRENT_SESSIONS and MAX_QUEUE_LENGTH configuration
     # settings, see: https://www.browserless.io/docs/docker)
     _playwright_cookies: list[dict] = list()
-    _playwright_adblocker: bool = False
+    _playwright_adblocker: bool = True
+    _playwright_stealth: bool = True
+    _playwright_storage_state: dict = None
 
     @classmethod
     async def __safely_get_splash_response(cls, url: str):
@@ -127,18 +130,26 @@ class WebTools:
         else:
             logger.debug(f"URL {url} does not appear to be a string value. WebTools REQUIRE an URL string.")
             return False
+        return False
 
     @classmethod
-    async def getUrlData(cls, url: str,
-                         engine: WebEngine = WebEngine.Playwright,
-                         adblock: bool = None,
-                         cookies: list[dict] = None):
+    async def getUrlData(
+        cls,
+        url: str,
+        engine: WebEngine = WebEngine.Playwright,
+        adblock: bool = True,
+        cookies: list[dict] = None,
+        stealth: bool = True,
+        storage_state: dict = None,
+    ):
         """
         Sends an HTTP request through one of the (dockerized) headless browsers for JavaScript-enabled HTML rendering.
-        @param url: the to-be-rendered URL
-        @param engine: the WebEngine of choice (either "Splash" or "Playwright")
-        @param adblock: (playwright only!) block ads for this HTTP Request (via uBlock Origin) if set to True
-        @param cookies: (playwright only!) a list of cookies (type: list[dict]) that shall be transmitted during the
+        :param url: the to-be-rendered URL
+        :param engine: the WebEngine of choice (either "Splash" or "Playwright")
+        :param adblock: (playwright only!) block ads for this HTTP Request (via uBlock Origin) if set to True
+        :param cookies: (playwright only!) a list of cookies (type: list[dict]) that shall be transmitted during the
+        :param stealth: (playwright only!) enables the "browserless"-stealth-mode to reduce bot detection
+        :param storage_state: (playwright only!) a dictionary to initialize the BrowserContext with
         HTTP request
         @return:
         """
@@ -159,6 +170,10 @@ class WebTools:
         if adblock:
             # controls if the built-in adblocker of "browserless" should be enabled for Playwright
             cls._playwright_adblocker = adblock
+        if stealth:
+            cls._playwright_stealth = stealth
+        if storage_state:
+            cls._playwright_storage_state = storage_state
         if engine == WebEngine.Splash:
             return await cls.__safely_get_splash_response(url)
         elif engine == WebEngine.Playwright:
@@ -166,7 +181,7 @@ class WebTools:
         raise Exception("Invalid engine")
 
     @staticmethod
-    async def __getUrlDataPlaywright(url: str):
+    async def __getUrlDataPlaywright(url: str) -> dict:
         playwright_dict = await WebTools.fetchDataPlaywright(url)
         html: str = playwright_dict.get("content")
         screenshot_bytes: bytes = playwright_dict.get("screenshot_bytes")
@@ -177,14 +192,10 @@ class WebTools:
             if trafilatura_text:
                 # trafilatura text extraction is (in general) more precise than html2Text, so we'll use it if available
                 fulltext = trafilatura_text
-        return {"html": html,
-                "text": fulltext,
-                "cookies": None,
-                "har": None,
-                "screenshot_bytes": screenshot_bytes}
+        return {"html": html, "text": fulltext, "cookies": None, "har": None, "screenshot_bytes": screenshot_bytes}
 
     @staticmethod
-    async def __getUrlDataSplash(url: str):
+    async def __getUrlDataSplash(url: str) -> dict:
         settings = get_project_settings()
         # html = None
         if settings.get("SPLASH_URL") and not url.endswith(".pdf") and not url.endswith(".docx"):
@@ -202,18 +213,15 @@ class WebTools:
                         "har": 1,
                         "response_body": 1,
                     },
-                    timeout=30
+                    timeout=30,
                 )
                 data = result.content.decode("UTF-8")
                 j = json.loads(data)
-                html = j['html'] if 'html' in j else ''
+                html = j.get("html", "")
                 text = html
-                text += '\n'.join(list(map(lambda x: x["html"], j["childFrames"]))) if 'childFrames' in j else ''
+                text += "\n".join(list(map(lambda x: x["html"], j["childFrames"]))) if "childFrames" in j else ""
                 cookies = dict(result.cookies)
-                return {"html": html,
-                        "text": WebTools.html2Text(text),
-                        "cookies": cookies,
-                        "har": json.dumps(j["har"])}
+                return {"html": html, "text": WebTools.html2Text(text), "cookies": cookies, "har": json.dumps(j["har"])}
         else:
             return {"html": None, "text": None, "cookies": None, "har": None}
 
@@ -222,20 +230,36 @@ class WebTools:
         # relevant docs for this implementation: https://hub.docker.com/r/browserless/chrome#playwright and
         # https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp
         async with async_playwright() as p:
-            ws_cdp_endpoint = f"{env.get("PLAYWRIGHT_WS_ENDPOINT")}/chrome/playwright"
+            ws_cdp_endpoint = f"{env.get('PLAYWRIGHT_WS_ENDPOINT')}/chrome"
+            _launch_options: dict = {}
             if cls._playwright_adblocker:
                 # advertisements pollute the HTML body and obstruct website screenshots, which is why we try to block
                 # them from rendering via the built-in adblocker (uBlock Origin) of the browserless docker image.
                 # see: https://docs.browserless.io/chrome-flags/#blocking-ads
                 ws_cdp_endpoint = f"{ws_cdp_endpoint}?blockAds=true"
-            browser = await p.chromium.connect(ws_endpoint=ws_cdp_endpoint)
-            browser_context = await browser.new_context()
+            else:
+                ws_cdp_endpoint = f"{ws_cdp_endpoint}?blockAds=false"
+            if cls._playwright_stealth:
+                # the browserless "stealth"-mode hides common fingerprint markers to reduce bot-detection
+                # see: https://docs.browserless.io/baas/chrome-flags#stealth-mode
+                _launch_options.update({"stealth": True})
+                _launch_options_str: str = json.dumps(_launch_options)
+                ws_cdp_endpoint = f"{ws_cdp_endpoint}&launch={_launch_options_str}"
+            browser = await p.chromium.connect_over_cdp(endpoint_url=ws_cdp_endpoint)
+            if cls._playwright_storage_state:
+                # create a new tab with a predetermined storage state
+                # (e.g.: when both "cookies" and "localStorage" are necessary to hide a cookie consent banner
+                # or other popups)
+                # see: https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-storage-state
+                browser_context = await browser.new_context(storage_state=cls._playwright_storage_state)
+            else:
+                browser_context = await browser.new_context()
             if cls._playwright_cookies:
                 # Some websites may require setting specific cookies to render properly
                 # (e.g., to skip or close annoying cookie banners).
                 # Playwright supports passing cookies to requests
                 # see: https://playwright.dev/python/docs/api/class-browsercontext#browser-context-add-cookies
-                logger.debug(f"Preparing cookies for Playwright HTTP request...")
+                logger.debug("Preparing cookies for Playwright HTTP request...")
                 prepared_cookies: list[dict] = list()
                 for cookie_object in cls._playwright_cookies:
                     if isinstance(cookie_object, dict):
@@ -243,17 +267,38 @@ class WebTools:
                         # Each cookie must have the following (REQUIRED) properties:
                         # "name" (type: str), "value" (type: str) and "url" (type: str)
                         if "name" in cookie_object and "value" in cookie_object:
+                            # required cookie attributes: name / value
                             cookie = {
                                 "name": cookie_object["name"],
                                 "value": cookie_object["value"],
-                                "url": url
                             }
+                            if "domain" in cookie_object and "path" in cookie_object:
+                                # playwright requires a domain and path pair or an url
+                                cookie.update({"domain": cookie_object["domain"]})
+                                cookie.update({"path": cookie_object["path"]})
+                            else:
+                                # default case: use the current URL if no explicit domain and path was set for a cookie
+                                cookie.update({"url": url})
+                            # --- optional cookie attributes ---
+                            if "expires" in cookie_object:
+                                cookie.update({"expires": cookie_object["expires"]})
+                            if "httpOnly" in cookie_object:
+                                cookie.update({"httpOnly": cookie_object["httpOnly"]})
+                            if "secure" in cookie_object:
+                                cookie.update({"secure": cookie_object["secure"]})
+                            if "sameSite" in cookie_object:
+                                # can be either "Strict", "Lax" or "None"
+                                # reminder: if the sameSite cookie attribute is set,
+                                # the "secure"-attribute is required!
+                                cookie.update({"sameSite": cookie_object["sameSite"]})
                             prepared_cookies.append(cookie)
                         else:
-                            logger.warning(f"Cannot set custom cookie for Playwright (headless browser) request due to "
-                                        f"missing properties: 'name' and 'value' are REQUIRED attributes "
-                                        f"within a cookie object (type: dict)! "
-                                        f"Discarding cookie: {cookie_object}")
+                            logger.warning(
+                                f"Cannot set custom cookie for Playwright (headless browser) request due to "
+                                f"missing properties: 'name' and 'value' are REQUIRED attributes "
+                                f"within a cookie object (type: dict)! "
+                                f"Discarding cookie: {cookie_object}"
+                            )
                 if prepared_cookies and isinstance(prepared_cookies, list):
                     await browser_context.add_cookies(cookies=prepared_cookies)
             page = await browser_context.new_page()
@@ -266,10 +311,7 @@ class WebTools:
             #  if we are able to replicate the Splash response with all its fields,
             #  we could save traffic/requests that are currently still being handled by Splash
             #  see: https://playwright.dev/python/docs/api/class-browsercontext#browser-context-cookies
-            return {
-                "content": content,
-                "screenshot_bytes": screenshot_bytes
-            }
+            return {"content": content, "screenshot_bytes": screenshot_bytes}
 
     @staticmethod
     def html2Text(html: str):

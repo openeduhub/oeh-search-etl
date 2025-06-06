@@ -1,47 +1,57 @@
 from loguru import logger
 from scrapy import settings
+from scrapy.utils.project import get_project_settings
 
 from converter.constants import Constants
 from converter.es_connector import EduSharing
-from converter.items import *
-from converter.web_tools import *
+from converter.items import (
+    BaseItemLoader,
+    LomBaseItemloader,
+    LomClassificationItemLoader,
+    LomGeneralItemloader,
+    LomEducationalItemLoader,
+    LomLifecycleItemloader,
+    LomTechnicalItemLoader,
+    ResponseItemLoader,
+    ValuespaceItemLoader,
+    LicenseItemLoader,
+    PermissionItemLoader,
+)
+from converter.web_tools import WebEngine, WebTools
 
 
 class LomBase:
     name = None
     friendlyName = "LOM Based spider"
     ranking = 1
-    version = (
-        "1.0"  # you can override this locally and use it for your getHash() function
-    )
+    version = "1.0"  # you can override this locally and use it for your getHash() function
 
     uuid = None
     remoteId = None
     forceUpdate = False
 
     # you can specify custom settings which will later influence the behaviour of the pipelines for your crawler
-    custom_settings = settings.BaseSettings({
-        # web tools to use, relevant for screenshots/thumbnails
-        "WEB_TOOLS": WebEngine.Playwright,
-    }, 'spider')
+    custom_settings = settings.BaseSettings(
+        {
+            # web tools to use, relevant for screenshots/thumbnails
+            "WEB_TOOLS": WebEngine.Playwright,
+        },
+        "spider",
+    )
 
     def __init__(self, **kwargs):
         if self.name is None:
-            raise NotImplementedError(f'{self.__class__.__name__}.name is not defined on crawler')
+            raise NotImplementedError(f"{self.__class__.__name__}.name is not defined on crawler")
         if "uuid" in kwargs:
             self.uuid = kwargs["uuid"]
         if "remoteId" in kwargs:
             self.remoteId = kwargs["remoteId"]
         if "cleanrun" in kwargs and kwargs["cleanrun"] == "true":
-            logger.info(
-                f"cleanrun requested, will force update for crawler {self.name}"
-            )
+            logger.info(f"cleanrun requested, will force update for crawler {self.name}")
             # EduSharing().deleteAll(self)
             self.forceUpdate = True
         if "resetVersion" in kwargs and kwargs["resetVersion"] == "true":
-            logger.info(
-                f"resetVersion requested, will force update + reset versions for crawler {self.name}"
-            )
+            logger.info(f"resetVersion requested, will force update + reset versions for crawler {self.name}")
             # populate the custom_settings so we can read the value more comfortably
             # when an item passes through the pipeline
             self.custom_settings.update({"EDU_SHARING_FORCE_UPDATE": True})
@@ -51,11 +61,11 @@ class LomBase:
 
     # override to improve performance and automatically handling id
     def getId(self, response=None) -> str:
-        raise NotImplementedError(f'{self.__class__.__name__}.getId callback is not defined')
+        raise NotImplementedError(f"{self.__class__.__name__}.getId callback is not defined")
 
     # override to improve performance and automatically handling hash
     def getHash(self, response=None) -> str:
-        raise NotImplementedError(f'{self.__class__.__name__}.getHash callback is not defined')
+        raise NotImplementedError(f"{self.__class__.__name__}.getHash callback is not defined")
 
     # return the unique uri for the entry
     def getUri(self, response=None) -> str:
@@ -89,9 +99,7 @@ class LomBase:
 
     async def parse(self, response):
         if self.shouldImport(response) is False:
-            logger.debug(
-                "Skipping entry {} because shouldImport() returned false".format(str(self.getId(response)))
-            )
+            logger.debug("Skipping entry {} because shouldImport() returned false".format(str(self.getId(response))))
             return None
         if self.getId(response) is not None and self.getHash(response) is not None:
             if not self.hasChanged(response):
@@ -139,7 +147,7 @@ class LomBase:
     def getValuespaces(self, response):
         valuespaces = ValuespaceItemLoader(response=response)
         # we assume that content is imported. Please use replace_value if you import something different
-        valuespaces.add_value('new_lrt', Constants.NEW_LRT_MATERIAL)
+        valuespaces.add_value("new_lrt", Constants.NEW_LRT_MATERIAL)
         return valuespaces
 
     def getLOM(self, response) -> LomBaseItemloader:

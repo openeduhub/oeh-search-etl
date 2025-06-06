@@ -11,8 +11,9 @@ import requests
 import scrapy
 import trafilatura
 
-from converter.items import BaseItemLoader, LomGeneralItemloader, LomTechnicalItemLoader, LicenseItemLoader
+from converter.items import BaseItemLoader, LicenseItemLoader, LomGeneralItemloader, LomTechnicalItemLoader
 from converter.spiders.base_classes.meta_base import SpiderBase
+
 from .lom_base import LomBase
 
 
@@ -199,8 +200,10 @@ class MediaWikiBase(LomBase, metaclass=SpiderBase):
         return await super().parse(response)
 
     def getId(self, response=None):
-        data = response.meta["item"]
-        return jmes_pageid.search(data)
+        _id: int = response.meta["item"]
+        _id = jmes_pageid.search(_id)
+        # edu-sharing expects a string
+        return str(_id)
 
     def getHash(self, response=None):
         return str(jmes_revid.search(response.meta["item"])) + self.version

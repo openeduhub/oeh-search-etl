@@ -1,7 +1,8 @@
 import re
 
-from converter.constants import Constants
 from loguru import logger
+
+from converter.constants import Constants
 
 
 class LicenseMapper:
@@ -15,7 +16,6 @@ class LicenseMapper:
             3) If 'internal'-result is None:
             Use this information to set 'internal' to 'CUSTOM' and save the string as a custom license description.
     """
-
 
     cc_pattern = re.compile(
         r"(?<=c{2}.)(?P<CC_TYPE>by(.[acdns]{2}){0,3})"
@@ -117,7 +117,7 @@ class LicenseMapper:
                     return "CC_0"
                 if public_domain:
                     logger.debug(
-                        f"Licensemapper: Fallback to 'license.internal' for '{license_string}' successful: "
+                        f"LicenseMapper: Fallback to 'license.internal' for '{license_string}' successful: "
                         f"Public Domain "
                     )
                     return "PDM"

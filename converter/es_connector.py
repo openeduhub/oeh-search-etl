@@ -4,7 +4,6 @@ import pprint
 import time
 import uuid
 from enum import Enum
-from typing import List, Optional
 
 import requests
 import vobject
@@ -51,7 +50,7 @@ class ESApiClient(ApiClient):
     COOKIE_REBUILD_THRESHOLD = 60 * 5
     lastRequestTime = 0
 
-    def deserialize(self, response_text: str, response_type: str, content_type: Optional[str]):
+    def deserialize(self, response_text: str, response_type: str, content_type: str | None):
         """Deserializes response into an object.
 
         :param response_text: RESTResponse object to be deserialized.
@@ -76,7 +75,7 @@ class ESApiClient(ApiClient):
 
     def __getattribute__(self, name):
         attr = object.__getattribute__(self, name)
-        if hasattr(attr, "__call__"):
+        if callable(attr):
 
             def newfunc(*args, **kwargs):
                 if time.time() - ESApiClient.lastRequestTime > ESApiClient.COOKIE_REBUILD_THRESHOLD:
@@ -106,7 +105,7 @@ class EduSharing:
     iamApi: IAMV1Api
     mediacenterApi: MEDIACENTERV1Api
     nodeApi: NODEV1Api
-    groupCache: List[str]
+    groupCache: list[str]
     enabled: bool
     r_session: requests.Session = requests.Session()
     # see: https://requests.readthedocs.io/en/latest/user/advanced/#session-objects
@@ -141,6 +140,9 @@ class EduSharing:
                 group=spider.name,
                 group_by=group_by,
                 reset_version=EduSharing.resetVersion,
+                resolve_node=False,
+                # if the "resolve_node"-Parameter is not set, it defaults to True.
+                # disabling it explicitly shaves off about 10 to 20 percent of the HTTP response time.
             )
         except ApiException as e:
             # ToDo:
@@ -167,7 +169,7 @@ class EduSharing:
             raise e
         return response["node"]
 
-    def set_node_text(self, uuid, item) -> bool:
+    def set_node_text(self, uuid, item) -> bool | None:
         if "fulltext" in item:
             response = self.r_session.post(
                 url=f"{get_project_settings().get("EDU_SHARING_BASE_URL")}"
@@ -217,7 +219,7 @@ class EduSharing:
         else:
             return False
 
-    def set_node_preview(self, uuid, item) -> bool:
+    def set_node_preview(self, uuid, item) -> bool | None:
         if "thumbnail" in item:
             key = "large" if "large" in item["thumbnail"] else "small" if "small" in item["thumbnail"] else None
             if key:
@@ -395,7 +397,7 @@ class EduSharing:
         if hasattr(spider, "edu_sharing_source_template_whitelist"):
             # check if there were whitelisted metadata properties in the edu-sharing source template
             # (= "Quellen-Datensatz"-Template) that need to be attached to all items
-            whitelisted_properties: dict = getattr(spider, "edu_sharing_source_template_whitelist")
+            whitelisted_properties: dict = spider.edu_sharing_source_template_whitelist
             if whitelisted_properties:
                 # if whitelisted properties exist, we re-use the 'custom' field in our data model (if possible).
                 # by inserting the whitelisted metadata properties early in the program flow, they should automatically
@@ -408,7 +410,7 @@ class EduSharing:
                         custom.update(whitelisted_properties)
                         item["custom"] = custom
                 else:
-                    # otherwise create the 'BaseItem.custom'-field
+                    # otherwise, create the 'BaseItem.custom'-field
                     item["custom"] = whitelisted_properties
 
         # map custom fields directly into the edu-sharing properties:
@@ -446,32 +448,30 @@ class EduSharing:
             for person in item["lom"]["lifecycle"]:
                 if "role" not in person:
                     continue
-                if not person["role"].lower() in EduSharingConstants.LIFECYCLE_ROLES_MAPPING:
+                if person["role"].lower() not in EduSharingConstants.LIFECYCLE_ROLES_MAPPING:
                     logger.warning(
-                        "The lifecycle role "
-                        + person["role"]
-                        + " is currently not supported by the edu-sharing connector"
+                        f"The lifecycle role {person['role']} is currently not supported by the edu-sharing connector"
                     )
                     continue
                 mapping = EduSharingConstants.LIFECYCLE_ROLES_MAPPING[person["role"].lower()]
                 # convert to a vcard string
-                first_name = person["firstName"] if "firstName" in person else ""
-                last_name = person["lastName"] if "lastName" in person else ""
-                title: str = person["title"] if "title" in person else ""
-                organization = person["organization"] if "organization" in person else ""
-                url = person["url"] if "url" in person else ""
-                email = person["email"] if "email" in person else ""
-                date = person["date"] if "date" in person else None
-                id_gnd: str = person["id_gnd"] if "id_gnd" in person else ""
-                id_orcid: str = person["id_orcid"] if "id_orcid" in person else ""
-                id_ror: str = person["id_ror"] if "id_ror" in person else ""
-                id_wikidata: str = person["id_wikidata"] if "id_wikidata" in person else ""
-                address_city: str = person["address_city"] if "address_city" in person else ""
-                address_country: str = person["address_country"] if "address_country" in person else ""
-                address_postal_code: str = person["address_postal_code"] if "address_postal_code" in person else ""
-                address_region: str = person["address_region"] if "address_region" in person else ""
-                address_street: str = person["address_street"] if "address_street" in person else ""
-                address_type: str = person["address_type"] if "address_type" in person else ""
+                first_name = person.get("firstName", "")
+                last_name = person.get("lastName", "")
+                title: str = person.get("title", "")
+                organization = person.get("organization", "")
+                url = person.get("url", "")
+                email = person.get("email", "")
+                date = person.get("date", None)
+                id_gnd: str = person.get("id_gnd", "")
+                id_orcid: str = person.get("id_orcid", "")
+                id_ror: str = person.get("id_ror", "")
+                id_wikidata: str = person.get("id_wikidata", "")
+                address_city: str = person.get("address_city", "")
+                address_country: str = person.get("address_country", "")
+                address_postal_code: str = person.get("address_postal_code", "")
+                address_region: str = person.get("address_region", "")
+                address_street: str = person.get("address_street", "")
+                address_type: str = person.get("address_type", "")
                 # create the vCard object first, then add attributes on-demand / if available
                 vcard = vobject.vCard()
                 vcard.add("n").value = vobject.vcard.Name(family=last_name, given=first_name)
@@ -495,9 +495,12 @@ class EduSharing:
                         # if we transfer learning objects via "oeh_spdier"
                         # or if a crawler sets the type manually
                         rfc2426_valid_address_types = ["dom", "intl", "postal", "parcel", "home", "work", "pref"]
-                        if address_type and isinstance(address_type, str):
-                            if address_type in rfc2426_valid_address_types:
-                                vcard.adr.type_param = address_type
+                        if (
+                            address_type
+                            and isinstance(address_type, str)
+                            and address_type in rfc2426_valid_address_types
+                        ):
+                            vcard.adr.type_param = address_type
                         if address_type and isinstance(address_type, list):
                             address_type_clean: list[str] | None = None
                             for at_item in address_type:
@@ -549,8 +552,9 @@ class EduSharing:
             "discipline": "ccm:taxonid",
             "educationalContext": "ccm:educationalcontext",
             "fskRating": "ccm:fskRating",
-            "hochschulfaechersystematik": "ccm:oeh_taxonid_university",
+            "hochschulfaechersystematik": "ccm:taxonid",
             "intendedEndUserRole": "ccm:educationalintendedenduserrole",
+            "kldb": "ccm:oeh_profession_group",
             "languageLevel": "ccm:oeh_languageLevel",
             "learningResourceType": "ccm:educationallearningresourcetype",
             "new_lrt": "ccm:oeh_lrt",
@@ -559,8 +563,36 @@ class EduSharing:
             "sourceContentType": "ccm:sourceContentType",
             "toolCategory": "ccm:toolCategory",
         }
+        # As of 2025-03-24 the "discipline"- and "hochschulfaechersystematik"-vocab values
+        # need to be stored in the same edu-sharing property (``ccm:taxonid``).
+        _disciplines_and_hochschulfaecher: set = set()
         for key in item["valuespaces"]:
-            spaces[valuespace_mapping[key]] = item["valuespaces"][key]
+            match key:
+                case "conditionsOfAccess":
+                    spaces[valuespace_mapping[key]] = item["valuespaces"][key]
+                    # if a conditionsOfAccess value is available, also set the equivalent "ccm:oeh_quality_login"-value
+                    _conditions_of_access: list[str] | None = spaces[valuespace_mapping[key]]
+                    if _conditions_of_access and isinstance(_conditions_of_access, list):
+                        # conditionsOfAccess is expected to have exactly one value (since the vocab works like an enum)
+                        _coa_value: str = _conditions_of_access[0]
+                        if _coa_value and isinstance(_coa_value, str):
+                            if _coa_value.endswith("/no_login"):
+                                # edu-sharing frontend: "Ohne Login zugänglich"
+                                spaces["ccm:oeh_quality_login"] = ["1"]
+                            elif _coa_value.endswith("/login") or _coa_value.endswith("/login_for_additional_features"):
+                                # edu-sharing frontend: "Zugang nur mit Login"
+                                spaces["ccm:oeh_quality_login"] = ["0"]
+                case "discipline":
+                    _disciplines_and_hochschulfaecher.update(item["valuespaces"][key])
+                case "hochschulfaechersystematik":
+                    _disciplines_and_hochschulfaecher.update(item["valuespaces"][key])
+                case _:
+                    # default case
+                    spaces[valuespace_mapping[key]] = item["valuespaces"][key]
+        if _disciplines_and_hochschulfaecher:
+            # if either discipline or hochschulfaechersystematik values are present, save them to ``ccm:taxonid``
+            spaces["ccm:taxonid"] = list(_disciplines_and_hochschulfaecher)
+
         # add raw values if the api supports it
         if EduSharing.version["major"] >= 1 and EduSharing.version["minor"] >= 1:
             for key in item["valuespaces_raw"]:
@@ -590,12 +622,11 @@ class EduSharing:
                     tlt_in_ms: int = int(tlt) * 1000
                     spaces["cclom:typicallearningtime"] = tlt_in_ms
 
-        if "ai_allow_usage" in item:
-            # this property is automatically filled by the RobotsTxtPipeline
-            if isinstance(item["ai_allow_usage"], bool):
-                _ai_allow_usage: bool = item["ai_allow_usage"]
-                # the edu-sharing API client expects the value to be of type string
-                spaces["ccm:ai_allow_usage"] = str(_ai_allow_usage)
+        if "ai_allow_usage" in item and isinstance(item["ai_allow_usage"], bool):
+            # The "ai_allow_usage"-property is automatically filled by the RobotsTxtPipeline.
+            _ai_allow_usage: bool = item["ai_allow_usage"]
+            # The edu-sharing API client expects the value to be of type string
+            spaces["ccm:ai_allow_usage"] = str(_ai_allow_usage)
 
         if "course" in item:
             if "course_availability_from" in item["course"]:
@@ -646,9 +677,10 @@ class EduSharing:
             logger.debug("Using default metadataset")
 
         for key in spaces:
-            if type(spaces[key]) is tuple:
+            if isinstance(spaces[key], tuple):
                 spaces[key] = list([x for y in spaces[key] for x in y])
-            if not type(spaces[key]) is list:
+            if not isinstance(spaces[key], list):
+                # values are expected to be wrapped in a list
                 spaces[key] = [spaces[key]]
 
         logger.debug(f"Transformed item:\n{pprint.pformat(spaces)}")
@@ -697,7 +729,10 @@ class EduSharing:
             if public is True:
                 if "groups" in item["permissions"] or "mediacenters" in item["permissions"]:
                     logger.error(
-                        "Invalid state detected: Permissions public is set to true but groups or mediacenters are also set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!"
+                        "Invalid state detected: Permissions public is set to true "
+                        "but groups or mediacenters are also set. "
+                        "Please use either public = true without groups/mediacenters "
+                        "or public = false and set group/mediacenters. No permissions will be set!"
                     )
                     return
                 permissions["permissions"].append(
@@ -715,8 +750,11 @@ class EduSharing:
             else:
                 # Makes not much sense, may no permissions at all should be set
                 # if not 'groups' in item['permissions'] and not 'mediacenters' in item['permissions']:
-                #    logger.error('Invalid state detected: Permissions public is set to false but neither groups or mediacenters are set. Please use either public = true without groups/mediacenters or public = false and set group/mediacenters. No permissions will be set!')
-                #    return
+                # logger.error('Invalid state detected: Permissions public is set to false but neither groups '
+                #              'or mediacenters are set. '
+                #              'Please use either public = true without groups/mediacenters '
+                #              'or public = false and set group/mediacenters. No permissions will be set!')
+                # return
                 merged_groups = []
                 if "groups" in item["permissions"]:
                     if "autoCreateGroups" in item["permissions"] and item["permissions"]["autoCreateGroups"] is True:
@@ -762,7 +800,8 @@ class EduSharing:
                     )
             if not self.set_permissions(uuid, permissions):
                 logger.error(
-                    "Failed to set permissions, please check that the given groups/mediacenters are existing in the repository or set the autoCreate mode to true"
+                    "Failed to set permissions, please check that the given groups/mediacenters are existing "
+                    "in the repository or set the autoCreate mode to true"
                 )
                 logger.error(item["permissions"])
 
@@ -838,16 +877,19 @@ class EduSharing:
                     # if about["services"] is an empty list (instead of the expected list[dict]),
                     # we're falling back to the about["version"]-dict that might look like this:
                     # {'major': 1, 'minor': 1, 'renderservice': '9.0', 'repository': '9.0'}
-                    logger.info(f"Failed to retrieve BULK v1 API version from edu-sharing during APi client init: "
-                             f"about['services'] was empty (expected: list[dict]). Using about['version'] fallback...")
+                    logger.info(
+                        "Failed to retrieve BULK v1 API version from edu-sharing during APi client init: "
+                        "about['services'] was empty (expected: list[dict]). "
+                        "Using about['version'] fallback..."
+                    )
                     EduSharing.version = about["version"]
                 version_str: str = f"{EduSharing.version['major']}.{EduSharing.version['minor']}"
                 if (
                     EduSharing.version["major"] != 1
                     or EduSharing.version["minor"] < 0
-                    or EduSharing.version["minor"] > 1
+                    or EduSharing.version["minor"] > 2
                 ):
-                    raise Exception(f"Given repository API version is unsupported: " + version_str)
+                    raise Exception(f"Given repository API version is unsupported: {version_str}")
                 else:
                     logger.info("Detected edu-sharing bulk api with version " + version_str)
                 if env.get_bool("EDU_SHARING_PERMISSION_CONTROL", False, True) is True:
@@ -857,7 +899,7 @@ class EduSharing:
                             EduSharing.iamApi.search_groups(EduSharingConstants.HOME, "", max_items=1000000)["groups"],
                         )
                     )
-                    logger.debug("Built up edu-sharing group cache: {}".format(EduSharing.groupCache))
+                    logger.debug(f"Built up edu-sharing group cache: {EduSharing.groupCache}")
                     return
                 else:
                     return

@@ -29,7 +29,7 @@ class WirLernenOnlineGSheetSpider(Spider, CSVBase, LomBase):
         yield Request(url=self.url, callback=self.parse)
 
     def parse(self, response):
-        rows = self.readCSV(
+        rows = self.read_csv(
             csv.reader(StringIO(response.body.decode("UTF-8")), delimiter=","), 2
         )
         for row in rows:

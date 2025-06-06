@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 # Define here the models for your scraped items
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/items.html
 
 from itemloaders.processors import TakeFirst
-from scrapy.item import Item, Field
+from scrapy.item import Field, Item
 from scrapy.loader import ItemLoader
 from w3lib.html import remove_tags, replace_escape_chars
 
@@ -18,7 +16,7 @@ def replace_processor(value):
         return value
 
 
-class JoinMultivalues(object):
+class JoinMultivalues:
     def __init__(self, separator=" "):
         self.separator = separator
 
@@ -62,8 +60,8 @@ class LomGeneralItem(Item):
 
 class LomLifecycleItem(Item):
     """
-    Depending on the ``role``-value that is chosen for a LomLifecycleItem, values are written to a VCARD-string and mapped
-    to either one of these corresponding edu-sharing properties:
+    Depending on the ``role``-value that is chosen for a LomLifecycleItem,
+    values are written to a VCARD-string and mapped to either one of these corresponding edu-sharing properties:
 
     - ``ccm:lifecyclecontributer_publisher``              (``role``-value = ``publisher``)
     - ``ccm:lifecyclecontributer_author``                 (``role``-value = ``author``)
@@ -267,9 +265,13 @@ class ValuespaceItem(Item):
     fskRating = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: ``ccm:fskRating``"""
     hochschulfaechersystematik = Field(output_processor=JoinMultivalues())
-    """Corresponding edu-sharing property: ``ccm:oeh_taxonid_university``"""
+    """Corresponding edu-sharing property: ``ccm:taxonid``"""
     intendedEndUserRole = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: ``ccm:educationalintendedenduserrole``"""
+    kldb = Field(output_processor=JoinMultivalues())
+    """Klassifikation der Berufe (KldB)
+    Corresponding edu-sharing property: ``ccm:oeh_profession_group``"""
+    # see: https://statistik.arbeitsagentur.de/DE/Navigation/Grundlagen/Klassifikationen/Klassifikation-der-Berufe/KldB2010-Fassung2020/Systematik-Verzeichnisse/Systematik-Verzeichnisse-Nav.html
     languageLevel = Field(output_processor=JoinMultivalues())
     """Corresponding edu-sharing property: ``ccm:oeh_languageLevel``"""
     learningResourceType = Field(output_processor=JoinMultivalues())
@@ -299,8 +301,8 @@ class LicenseItem(Item):
     """An author freetext string. (Basically, how the author should be named in case this is a 'CC-BY'-license.
     Corresponding edu-sharing property: ``ccm:author_freetext``"""
     description = Field()
-    """A custom, free-text license description. Will only be used if the ``internal``-attribute (see: constants.py) is set 
-    to ``CUSTOM``.
+    """A custom, free-text license description. 
+    Will only be used if the ``internal``-attribute (see: constants.py) is set to ``CUSTOM``.
     Corresponding edu-sharing property: ``cclom:rights_description``"""
     expirationDate = Field()
     """A date at which any content license expires and the content shouldn't be delivered anymore.
@@ -313,7 +315,9 @@ class LicenseItem(Item):
     Corresponding edu-sharing property: ``ccm:oer``"""
     url = Field()
     """Expects a URL (type: ``str``) to a license description.
-    Gets mapped to two corresponding edu-sharing properties: ``ccm:commonlicense_key`` & ``ccm:commonlicense_version``"""
+    Gets mapped to two corresponding edu-sharing properties: 
+    ``ccm:commonlicense_key`` and ``ccm:commonlicense_version``
+    """
 
 
 class PermissionItem(Item):
@@ -440,7 +444,9 @@ class BaseItem(Item):
     """This item is only used by the ``ProcessValuespacePipeline`` and holds the "raw" data which were given to the 
     valuespaces. Please DO NOT use it within normal crawlers"""
     screenshot_bytes = Field()
-    """``screenshot_bytes`` is a (temporary) field that gets deleted after the thumbnail pipeline processed its byte-data"""
+    """
+    ``screenshot_bytes`` is a (temporary) field that gets deleted after the thumbnail pipeline processed its byte-data
+    """
 
 
 class BaseItemLoader(ItemLoader):

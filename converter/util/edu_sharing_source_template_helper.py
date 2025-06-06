@@ -1,9 +1,9 @@
-import logging
 from pprint import pp
 
 import requests
-from converter import env
 from loguru import logger
+
+from converter import env
 
 
 class EduSharingSourceTemplateHelper:
@@ -74,8 +74,8 @@ class EduSharingSourceTemplateHelper:
             self._set_edu_sharing_url(edu_sharing_base_url_from_dot_env)
         else:
             logger.info(
-                f"Could not read '.env'-Setting 'EDU_SHARING_BASE_URL'. Please check your '.env'-file! "
-                f"(For additional help, see: oeh-search-etl/converter/.env.example )."
+                "Could not read '.env'-Setting 'EDU_SHARING_BASE_URL'. Please check your '.env'-file! "
+                "(For additional help, see: oeh-search-etl/converter/.env.example )."
             )
             pass
 
@@ -110,8 +110,8 @@ class EduSharingSourceTemplateHelper:
             return payload
         else:
             logger.error(
-                f"Cannot build query payload without valid crawler_name. Please make sure that you instantiate "
-                f"EduSharingTemplateHelper with a valid 'crawler_name'-parameter!"
+                "Cannot build query payload without valid crawler_name. Please make sure that you instantiate "
+                "EduSharingTemplateHelper with a valid 'crawler_name'-parameter!"
             )
             return None
 
@@ -141,8 +141,8 @@ class EduSharingSourceTemplateHelper:
                 pagination_count = pagination["count"]
             except KeyError:
                 logger.error(
-                    f"Missing 'pagination'-object in edu-sharing response. "
-                    f"Aborting EduSharingSourceTemplateHelper process..."
+                    "Missing 'pagination'-object in edu-sharing response. "
+                    "Aborting EduSharingSourceTemplateHelper process..."
                 )
                 raise KeyError
 
@@ -265,8 +265,8 @@ class EduSharingSourceTemplateHelper:
         est_enabled: bool = env.get_bool(key="EDU_SHARING_SOURCE_TEMPLATE_ENABLED", allow_null=True, default=None)
         if est_enabled:
             logger.info(
-                f".env setting 'EDU_SHARING_SOURCE_TEMPLATE_ENABLED' is ACTIVE. Trying to retrieve whitelisted "
-                f"properties..."
+                ".env setting 'EDU_SHARING_SOURCE_TEMPLATE_ENABLED' is ACTIVE. Trying to retrieve whitelisted "
+                "properties..."
             )
             self._payload = self._build_payload()
             if self._payload:
