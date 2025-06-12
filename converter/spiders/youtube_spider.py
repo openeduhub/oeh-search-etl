@@ -259,7 +259,7 @@ class YoutubeSpider(Spider):
                     #    the YouTube table (Google Docs) and export it to csv/youtube.csv
                 return None
             else:
-                self.logger.debug(
+                self.logger.warning(
                     f"Failed to RegEx parse URL {row['url']} . "
                     f"(Please check if the RegEx URL pattern needs an update in the "
                     f"'request_row()'-method!)"
