@@ -87,7 +87,7 @@ class ZebisSpider(XMLFeedSpider, LomBase):
     name = "zebis_spider"
     friendlyName = "Zebis"
     start_urls = ["https://www.zebis.ch/export/oai"]
-    version = "0.0.4"  # last update: 2025-05-16
+    version = "0.0.5"  # last update: 2025-06-17
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -599,7 +599,6 @@ class ZebisSpider(XMLFeedSpider, LomBase):
         return changed
 
     def parse(self, response: Response, **kwargs: Any) -> Any:
-        self.logger.debug(f"Current item in parse: {response.url}")  # ToDo: remove after debugging
         cleaned_record: ZebisXMLItem = kwargs.get("cleaned_record")
         if not cleaned_record:
             self.logger.error(f"Could not access XML metadata <record> for item {response.url}. Skipping item...")
@@ -622,7 +621,6 @@ class ZebisSpider(XMLFeedSpider, LomBase):
 
         base_itemloader: BaseItemLoader = BaseItemLoader()
         # TODO: fill "base"-keys with values for
-        #  - origin             optional    (only necessary if items need to be sorted into a specific sub-folder)
         #  - ai_allow_usage     optional    (filled automatically by the ``RobotsTxtPipeline`` and expects a boolean)
         #                                   indicates if an item is allowed to be used in AI training.
         base_itemloader.add_value("sourceId", self.getId(response=response, cleaned_record=cleaned_record))
@@ -643,40 +641,68 @@ class ZebisSpider(XMLFeedSpider, LomBase):
             # - educational context values ("Kindergarten")
             _class_level_pattern: re.Pattern = re.compile(r"""(?P<class_level>\d{1,2}).\s*Klasse""")
             # this RegEx looks for all strings containing "<digit>. Klasse"
-            _class_values: list[int] | None = list()
+            _class_level_values: list[int] | None = []
+            _age_values: list[int] | None = []
             for _audience_item in cleaned_record.dc_audience:
+                # noinspection PyUnreachableCode
+                match _audience_item:
+                    # matching (Swiss) educationalContext terms to age ranges:
+                    case "Kindergarten":
+                        _age_values.extend([3, 6])
+                    case "1. Zyklus":
+                        # for reference: https://www.lehrplan21.ch/konzept
+                        # "Der erste Zyklus umfasst Kindergarten und die ersten beiden Schuljahre der Primarstufe"
+                        _age_values.extend([4, 8])
+                    case "2. Zyklus":
+                        # "Der 2. Zyklus umfasst das 3. bis 6 Schuljahr der Primarstufe"
+                        _age_values.extend([8, 11])
+                    case "3. Zyklus":
+                        # "Der 3. Zyklus umfasst die drei Schuljahre der Sekundarstufe I."
+                        # this means class levels 7 to 9
+                        _age_values.extend([12, 14])
+                    case _:
+                        pass
+                # extracting "class level"-values from the provided "x. Klasse"-string:
                 _class_match: re.Match = _class_level_pattern.search(_audience_item)
                 if _class_match:
                     _class_value: str = _class_match.group("class_level")
                     if _class_value and _class_value.isdigit():
                         # typecast the string to int before adding it to the list
-                        _class_values.append(int(_class_value))
+                        _class_level_values.append(int(_class_value))
 
-            if _class_values and isinstance(_class_values, list) and len(_class_values) >= 2:
+            if _class_level_values and isinstance(_class_level_values, list) and len(_class_level_values) >= 2:
                 # determine the typicalAgeRange by using the formula
                 # <class_level> + 5 = <typical age for that class level>
                 # example conversions:
                 # input: "1. Klasse" -> 6 years old
                 # input: "7. Klasse" -> 12 years old
-
-                _age_min: int | None = min(_class_values) + 5
-                _age_max: int | None = max(_class_values) + 5
-
-                if _age_min and _age_max:
+                _age_min_derived_from_class_level: int | None = min(_class_level_values) + 5
+                _age_max_derived_from_class_level: int | None = max(_class_level_values) + 5
+                if _age_min_derived_from_class_level and _age_max_derived_from_class_level:
+                    _age_values.extend([_age_min_derived_from_class_level, _age_max_derived_from_class_level])
+            elif _class_level_values and isinstance(_class_level_values, list) and len(_class_level_values) == 1:
+                # if there was only one class value provided (e.g. "7. Klasse"),
+                # we assume that the singular classlevel value is our lower bound:
+                _age_min_derived_from_class_level: int | None = min(_class_level_values) + 5
+                # since edu-sharing requires a range for this property, we assume that the upper bound is +1:
+                _age_max_derived_from_class_level: int = _age_min_derived_from_class_level + 1
+                if _age_min_derived_from_class_level and _age_max_derived_from_class_level:
+                    _age_values.extend([_age_min_derived_from_class_level, _age_max_derived_from_class_level])
+            if _age_values and isinstance(_age_values, list):
+                _age_min: int | None = min(_age_values)
+                _age_max: int | None = max(_age_values)
+                if len(_age_values) >= 2:
+                    # happy case: there's a minimum and maximum age value
                     lom_age_range_itemloader: LomAgeRangeItemLoader = LomAgeRangeItemLoader()
                     lom_age_range_itemloader.add_value("fromRange", _age_min)
                     lom_age_range_itemloader.add_value("toRange", _age_max)
                     lom_educational_itemloader.add_value("typicalAgeRange", lom_age_range_itemloader.load_item())
-            elif _class_values and isinstance(_class_values, list) and len(_class_values) == 1:
-                # if there was only one class value provided (e.g. "7. Klasse"),
-                # we assume that the singular classlevel value is our lower bound:
-                _age_min: int | None = min(_class_values) + 5
-                # since edu-sharing requires a range for this property, we assume that the upper bound is +1:
-                _age_max: int = _age_min + 1
-                if _age_min and _age_max:
+                elif len(_age_values) == 1:
+                    # edge-case: when only one age was provided, we assume it's the lower bound
                     lom_age_range_itemloader: LomAgeRangeItemLoader = LomAgeRangeItemLoader()
                     lom_age_range_itemloader.add_value("fromRange", _age_min)
-                    lom_age_range_itemloader.add_value("toRange", _age_max)
+                    _age_max_workaround: int = _age_min + 1
+                    lom_age_range_itemloader.add_value("toRange", _age_max_workaround)
                     lom_educational_itemloader.add_value("typicalAgeRange", lom_age_range_itemloader.load_item())
 
         lom_general_itemloader: LomGeneralItemloader = LomGeneralItemloader()
@@ -776,11 +802,17 @@ class ZebisSpider(XMLFeedSpider, LomBase):
 
         vs_itemloader: ValuespaceItemLoader = ValuespaceItemLoader()
 
+        # Zebis.ch - "Thema" might contain values that can be mapped to discipline / new_lrt:
+        # example: https://www.zebis.ch/unterrichtsmaterial/die-geschichte-von-baschi-mit-den-langen-ohren
+        _zebis_topics: list[str] | None = response.xpath(
+            '//following-sibling::div[contains(text(), "Thema")]/../div[@class="field__items"]//a/text()'
+        ).getall()
+
         # by default, every item is considered a learning material
         vs_itemloader.add_value("new_lrt", Constants.NEW_LRT_MATERIAL)
-        if cleaned_record.dc_type and isinstance(cleaned_record.dc_type, str):
+        if cleaned_record.dc_type and isinstance(cleaned_record.dc_type, list):
             # <dc:type> -> new_lrt mapping
-            _new_lrt_set: set[str] | None = None
+            _new_lrt_set: set[str] = set()
             for _dc_type_value in cleaned_record.dc_type:
                 if _dc_type_value in self.MAPPING_DC_TYPE_TO_NEW_LRT:
                     _mapped_new_lrt: list[str] = self.MAPPING_DC_TYPE_TO_NEW_LRT.get(_dc_type_value)
@@ -789,7 +821,8 @@ class ZebisSpider(XMLFeedSpider, LomBase):
             if _new_lrt_set:
                 _new_lrt_list: list[str] = list(_new_lrt_set)
                 _new_lrt_list.sort()
-                vs_itemloader.add_value("new_lrt", _new_lrt_list)
+                # replace the default value ("Material") with more precise mappings
+                vs_itemloader.replace_value("new_lrt", _new_lrt_list)
 
         vs_itemloader.add_value("containsAdvertisement", "no")
         # zebis doesn't serve ads on their platform (confirmed by looking at random samples on 2025-05-13)
@@ -798,12 +831,20 @@ class ZebisSpider(XMLFeedSpider, LomBase):
         # only a subset of items ("Orientierungshilfen" / "Lingualevel")
         # seem to be account-restricted due to regional license restrictions.
 
+        _discipline_set: set[str] = set()
+        if _zebis_topics and isinstance(_zebis_topics, list):
+            # Zebis.ch "Thema" provides a string that can help us map DaZ more precisely
+            # (especially when no "tags" containing any of the known DaZ mappings were present)
+            for _topic in _zebis_topics:  # type: str
+                if _topic and isinstance(_topic, str):
+                    _topic = _topic.strip()
+                    if "Deutsch als Zweitsprache" in _topic:
+                        _discipline_set.add("28002")
         if cleaned_record.dc_subject and isinstance(cleaned_record.dc_subject, list):
             # the <dc:subject> range of values contains over 2500 strings.
             # most values are considered keywords,
             # but Swiss "Fachbereich"-values need to be mapped manually to their German equivalents
             # since the terminology is too different from our German vocab values most of the time.
-            _discipline_set: set[str] = set()
             for _subject in cleaned_record.dc_subject:
                 if _subject and isinstance(_subject, str):
                     if _subject in self.MAPPING_DC_SUBJECT_TO_DISCIPLINE:
