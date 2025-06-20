@@ -58,7 +58,8 @@ class OERCommonsCleanedItem:
 def strip_html_from_text(raw_string: str) -> str | None:
     if raw_string and isinstance(raw_string, str):
         raw_soup = BeautifulSoup(raw_string, "html.parser")
-        clean_string: str = raw_soup.get_text(separator=" ", strip=True)
+        clean_string: str = raw_soup.get_text(separator=" ", strip=True)  # noqa
+        # pyCharm complains about unexpected arguments, even though the arguments are supported by bs4 v4.13.4
         if clean_string:
             # only return a string if the result is valid (e.g. do not return empty strings)
             return clean_string
@@ -94,17 +95,29 @@ def clean_and_split_up_string(raw_string: str, separator: str = "|") -> list[str
         return None
 
 
+# this mapping table contains values from mthe CSV and from the "Education Level" table
+# see: https://oercommons.org/search (-> "filter by" sidebar)
 MAPPING_GRADE_SUBLEVELS_TO_EDU_CONTEXT: dict = {
     "adult-education": "erwachsenenbildung",
+    "Adult Education": "erwachsenenbildung",
     "career-technical": "berufliche_bildung",
+    "Career / Technical": "berufliche_bildung",
     "college-upper-division": "hochschule",
+    "College / Upper Division": "hochschule",
     "community-college-lower-division": "hochschule",
+    "Community College / Lower Division": "hochschule",
     "graduate-professional": "hochschule",
+    "Graduate / Professional": "hochschule",
     "high-school": "sekundarstufe_2",
+    "High School": "sekundarstufe_2",
     "lower-primary": "grundschule",
+    "Lower Primary": "grundschule",
     "middle-school": "sekundarstufe_1",
+    "Middle School": "sekundarstufe_1",
     "preschool": "elementarbereich",
+    "Preschool": "elementarbereich",
     "upper-primary": "grundschule",
+    "Upper Primary": "grundschule",
 }
 
 MAPPING_EDU_USE_TO_EDU_CONTEXT: dict = {
@@ -140,7 +153,7 @@ MAPPING_MATERIAL_TYPES_TO_NEW_LRT: dict = {
     "Simulation": "2e4157ad-e29a-4f10-b4e6-370e0fd59d26",  # Simulation
     "Student Guide": "776652a6-de35-4d2f-817e-6130dd2fa248",  # "Handbuch, Dokumentation und Regularien"
     "Syllabus": "c9fb123f-bd85-4e6e-80c0-96629ece7248",  # "Studien-/Ausbildungsordnung"
-    "Teaching/Learning Strategy": "94222751-6c90-4623-9c7e-09e21d885599",  # "Strategie, Aktionsplan"
+    "Teaching/Learning Strategy": "94222751-6c90-4623-9c7e-09e21d885599",  # "Unterrichtsidee"
     "Textbook": "a5897142-bf57-4cd0-bcd9-7d0f1932e87a",  # "Lehrbuch und Grundlagenwerk (auch E-Book)"
     "Unit of Study": "ef58097d-c1de-4e6a-b4da-6f10e3716d3d",  # "Unterrichtseinheit und -sequenz"
 }
@@ -251,7 +264,7 @@ MAPPING_SUBJECTS_TO_HOCHSCHULFAECHERSYSTEMATIK: dict = {
 class OERCommonsSpider(scrapy.Spider, LomBase):
     name = "oer_commons_spider"
     friendlyName = "OER Commons"
-    version = "0.0.3"  # last update: 2025-06-19
+    version = "0.0.4"  # last update: 2025-06-20
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -675,6 +688,16 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
                     _educational_context_mapped.add(MAPPING_EDU_USE_TO_EDU_CONTEXT.get(edu_use_item))
                 if edu_use_item == "assessment":
                     _new_lrt_mapped.add(edu_use_item)
+        # since the CSV is incomplete, we need to scrape the "Level:"-values from the DOM as well
+        _levels_scraped: str = response.xpath(
+            "//dt[contains(text(),'Level:')]/following-sibling::dd/text()"
+        ).get()
+        if _levels_scraped and isinstance(_levels_scraped, str):
+            _level_list: list[str] | None = clean_and_split_up_string(raw_string=_levels_scraped, separator=",")
+            if _level_list:
+                for _level_item in _level_list:
+                    if _level_item in MAPPING_GRADE_SUBLEVELS_TO_EDU_CONTEXT:
+                        _educational_context_mapped.add(MAPPING_GRADE_SUBLEVELS_TO_EDU_CONTEXT.get(_level_item))
         if _cleaned_item.grade_sublevels and isinstance(_cleaned_item.grade_sublevels, list):
             for grade_item in _cleaned_item.grade_sublevels:
                 if grade_item in MAPPING_GRADE_SUBLEVELS_TO_EDU_CONTEXT:
@@ -694,8 +717,22 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
                     # if the OER Commons value doesn't differ from our vocab
                     valuespace_itemloader.add_value("intendedEndUserRole", primary_user_item)
 
+        # MATERIAL TYPE values are mapped to either new_lrt or saved as keywords (if mapping wasn't possible)
+        _material_types_clean: set = set()
+        _material_types_scraped: str | None = response.xpath(
+            "//dt[contains(text(),'Material Type:')]/following-sibling::dd/text()"
+        ).get()
+        # the scraped material type string will be comma-separated
+        if _material_types_scraped and isinstance(_material_types_scraped, str):
+            _mt_list: list[str] = clean_and_split_up_string(raw_string=_material_types_scraped, separator=",")
+            if _mt_list:
+                _material_types_clean.update(_mt_list)
         if _cleaned_item.material_types and isinstance(_cleaned_item.material_types, list):
-            for material_type_item in _cleaned_item.material_types:
+            # add the CSV values to the set with the scraped values
+            _material_types_clean.update(_cleaned_item.material_types)
+        if _material_types_clean:
+            _material_types_combined: list[str] = list(_material_types_clean)
+            for material_type_item in _material_types_combined:
                 if material_type_item in MAPPING_MATERIAL_TYPES_TO_NEW_LRT:
                     # save mapped value to new_lrt if possible
                     valuespace_itemloader.add_value(
