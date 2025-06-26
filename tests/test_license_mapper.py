@@ -73,7 +73,16 @@ class TestLicenseMapper:
             ("Frei nutzbares Material", None),
             (" ", None),
             ("", None),
-            ("Creative Commons (CC) CC0 gemeinfrei (public domain - no rights reserved)", "CC_0")
+            ("Creative Commons (CC) CC0 gemeinfrei (public domain - no rights reserved)", "CC_0"),
+            # Zebis.ch examples:
+            ("CC BY (Namensnennung)", "CC_BY"),
+            ("CC BY-NC (Namensnennung - nicht kommerziell)", "CC_BY_NC"),
+            ("CC BY-NC-ND (Namensnennung - nicht kommerziell - keine Bearbeitung)", "CC_BY_NC_ND"),
+            ("CC BY-NC-SA (Namensnennung - nicht kommerziell - Weitergabe unter gleichen Bedingungen)", "CC_BY_NC_SA"),
+            ("CC BY-ND (Namensnennung - keine Bearbeitung)", "CC_BY_ND"),
+            ("CC BY-SA (Namensnennung - Weitergabe unter gleichen Bedingungen)", "CC_BY_SA"),
+            ("Keine Einschränkung", None),
+            ("Nicht definiert", None),
         ],
     )
     def test_get_license_internal_key(self, test_input, expected_result):

@@ -58,7 +58,8 @@ class OERCommonsCleanedItem:
 def strip_html_from_text(raw_string: str) -> str | None:
     if raw_string and isinstance(raw_string, str):
         raw_soup = BeautifulSoup(raw_string, "html.parser")
-        clean_string: str = raw_soup.get_text()
+        clean_string: str = raw_soup.get_text(separator=" ", strip=True)  # noqa
+        # pyCharm complains about unexpected arguments, even though the arguments are supported by bs4 v4.13.4
         if clean_string:
             # only return a string if the result is valid (e.g. do not return empty strings)
             return clean_string
@@ -74,33 +75,54 @@ def clean_and_split_up_string(raw_string: str, separator: str = "|") -> list[str
     if raw_string and isinstance(raw_string, str):
         # strip whitespace first
         raw_string = raw_string.strip()
-        # individual items are separated by "|"
-        items: list[str] = raw_string.split(sep=separator)
-        for item in items:
-            item = item.strip()
-            if item:
-                clean_list.append(item)
-        return clean_list
+        # individual items are most commonly separated by "|"
+        if separator in raw_string:
+            items: list[str] = raw_string.split(sep=separator)
+            for item in items:
+                item = item.strip()
+                if item:
+                    clean_list.append(item)
+            return clean_list
+        else:
+            # sad case: if no separator was found, we'll return the singular string wrapped in a list
+            return [raw_string]
     else:
+        logger.debug(
+            f"Couldn't split up the provided input into individual strings because of unhandled input type. "
+            f"Expected a string, but received {type(raw_string)}. "
+            f"Provided value: {raw_string}"
+        )
         return None
 
 
+# this mapping table contains values from mthe CSV and from the "Education Level" table
+# see: https://oercommons.org/search (-> "filter by" sidebar)
 MAPPING_GRADE_SUBLEVELS_TO_EDU_CONTEXT: dict = {
     "adult-education": "erwachsenenbildung",
+    "Adult Education": "erwachsenenbildung",
     "career-technical": "berufliche_bildung",
+    "Career / Technical": "berufliche_bildung",
     "college-upper-division": "hochschule",
+    "College / Upper Division": "hochschule",
     "community-college-lower-division": "hochschule",
+    "Community College / Lower Division": "hochschule",
     "graduate-professional": "hochschule",
+    "Graduate / Professional": "hochschule",
     "high-school": "sekundarstufe_2",
+    "High School": "sekundarstufe_2",
     "lower-primary": "grundschule",
+    "Lower Primary": "grundschule",
     "middle-school": "sekundarstufe_1",
+    "Middle School": "sekundarstufe_1",
     "preschool": "elementarbereich",
+    "Preschool": "elementarbereich",
     "upper-primary": "grundschule",
+    "Upper Primary": "grundschule",
 }
 
 MAPPING_EDU_USE_TO_EDU_CONTEXT: dict = {
     # "assessment": "",  # ToDo: no mapping possible since this value doesn't translate to educationalContext
-    "curriculum-instruction": "",
+    # "curriculum-instruction": "",  # ToDo: no mapping possible
     "informal-education": "informelles_lernen",
     "other": "informelles_lernen",
     "professional-development": "fortbildung",
@@ -109,10 +131,6 @@ MAPPING_EDU_USE_TO_EDU_CONTEXT: dict = {
 MAPPING_PRIMARY_USERS_TO_INTENDED_ENDUSER_ROLE: dict = {
     "administrator": "manager",
     "librarian": "manager",
-    # "other": "",  # no mapping necessary
-    # "parent": "",  # no mapping necessary
-    # "student": "",  # no mapping necessary
-    # "teacher": "",  # no mapping necessary
 }
 
 MAPPING_MATERIAL_TYPES_TO_NEW_LRT: dict = {
@@ -135,7 +153,7 @@ MAPPING_MATERIAL_TYPES_TO_NEW_LRT: dict = {
     "Simulation": "2e4157ad-e29a-4f10-b4e6-370e0fd59d26",  # Simulation
     "Student Guide": "776652a6-de35-4d2f-817e-6130dd2fa248",  # "Handbuch, Dokumentation und Regularien"
     "Syllabus": "c9fb123f-bd85-4e6e-80c0-96629ece7248",  # "Studien-/Ausbildungsordnung"
-    "Teaching/Learning Strategy": "94222751-6c90-4623-9c7e-09e21d885599",  # "Strategie, Aktionsplan"
+    "Teaching/Learning Strategy": "94222751-6c90-4623-9c7e-09e21d885599",  # "Unterrichtsidee"
     "Textbook": "a5897142-bf57-4cd0-bcd9-7d0f1932e87a",  # "Lehrbuch und Grundlagenwerk (auch E-Book)"
     "Unit of Study": "ef58097d-c1de-4e6a-b4da-6f10e3716d3d",  # "Unterrichtseinheit und -sequenz"
 }
@@ -246,7 +264,7 @@ MAPPING_SUBJECTS_TO_HOCHSCHULFAECHERSYSTEMATIK: dict = {
 class OERCommonsSpider(scrapy.Spider, LomBase):
     name = "oer_commons_spider"
     friendlyName = "OER Commons"
-    version = "0.0.2"  # last update: 2025-04-24
+    version = "0.0.4"  # last update: 2025-06-20
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "AUTOTHROTTLE_DEBUG": True,
@@ -472,7 +490,6 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
             return _hash
         else:
             logger.warning(f"getHash() failed because the item didn't contain a date: {cleaned_item}")
-            # ToDo: decide if we want to use a fallback to datetime.now() or drop the item altogether
             _hash: str = f"{datetime.datetime.now().isoformat()}v{self.version}"
             return _hash
 
@@ -564,8 +581,8 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
 
         # author metadata is only available in the "Details"-Tab of an OERCommons item
         # and consists of one single author name string
-        _author_name: str | None = None
-        _author_url: str | None = None
+        _author_names: str | None = None
+        _author_urls: str | None = None
         html_body = None
         if _page:
             html_body = await _page.content()
@@ -577,10 +594,14 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
             if screenshot_bytes:
                 base_itemloader.add_value("screenshot_bytes", screenshot_bytes)
 
-        _author_name: str | None = response.xpath(
+        # some items have multiple authors mentioned in the info box on the right,
+        # e.g.: https://oercommons.org/courseware/lesson/116317/overview
+        _author_names: list[str] | None = response.xpath(
             '//dt[contains(text(),"Author:")]/following-sibling::dd/a/text()'
-        ).get()
-        _author_url: str | None = response.xpath('//dt[contains(text(),"Author:")]/following-sibling::dd/a/@href').get()
+        ).getall()
+        _author_urls: list[str] | None = response.xpath(
+            '//dt[contains(text(),"Author:")]/following-sibling::dd/a/@href'
+        ).getall()
 
         lom_base_itemloader: LomBaseItemloader = LomBaseItemloader()
 
@@ -606,23 +627,32 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
                 lifecycle_provider_itemloader.add_value("date", _cleaned_item.date_created)
             lom_base_itemloader.add_value("lifecycle", lifecycle_provider_itemloader.load_item())
 
-        if _author_name and isinstance(_author_name, str):
-            lifecycle_author_itemloader: LomLifecycleItemloader = LomLifecycleItemloader()
-            lifecycle_author_itemloader.add_value("role", "author")
-            # split author name by firstName / lastname:
-            author_split: list[str] = _author_name.split(sep=" ", maxsplit=1)
-            if author_split and len(author_split) == 2:
-                # typically the author's first and last name is separated by a whitespace
-                lifecycle_author_itemloader.add_value("firstName", author_split[0])
-                lifecycle_author_itemloader.add_value("lastName", author_split[1])
-            else:
-                # if splitting the name isn't possible, fallback to saving the whole name in one field
-                lifecycle_author_itemloader.add_value("firstName", _author_name)
-            if _author_url:
-                lifecycle_author_itemloader.add_value("url", _author_url)
-            if _cleaned_item.date_created and isinstance(_cleaned_item.date_created, str):
-                lifecycle_author_itemloader.add_value("date", _cleaned_item.date_created)
-            lom_base_itemloader.add_value("lifecycle", lifecycle_author_itemloader.load_item())
+        # LOM Lifecycle author metadata:
+        if _author_names and _author_urls:
+            _zipped_authors_and_urls = zip(_author_names, _author_urls, strict=False)
+            # we expect each author to have its own profile page at OER Commons
+            _authors_and_urls: list[tuple] = list(_zipped_authors_and_urls)
+            if _authors_and_urls:
+                for _author_name, _author_url in _authors_and_urls:
+                    if _author_name and isinstance(_author_name, str):
+                        lifecycle_author_itemloader: LomLifecycleItemloader = LomLifecycleItemloader()
+                        lifecycle_author_itemloader.add_value("role", "author")
+                        # split author name by firstName / lastname:
+                        author_split: list[str] = _author_name.split(sep=" ", maxsplit=1)
+                        if author_split and len(author_split) == 2:
+                            # since we cannot cover each edge case individually
+                            # (there are persons with multiple names, organizations with multiple nouns etc.)
+                            # we assume that the whitespace separates an author's first and last name
+                            lifecycle_author_itemloader.add_value("firstName", author_split[0])
+                            lifecycle_author_itemloader.add_value("lastName", author_split[1])
+                        else:
+                            # if splitting the name isn't possible, fallback to saving the whole name in one field
+                            lifecycle_author_itemloader.add_value("firstName", _author_name)
+                        if _author_url:
+                            lifecycle_author_itemloader.add_value("url", _author_url)
+                        if _cleaned_item.date_created and isinstance(_cleaned_item.date_created, str):
+                            lifecycle_author_itemloader.add_value("date", _cleaned_item.date_created)
+                        lom_base_itemloader.add_value("lifecycle", lifecycle_author_itemloader.load_item())
 
         # hard-coded OERCommons.org metadata:
         lifecycle_publisher_itemloader: LomLifecycleItemloader = LomLifecycleItemloader()
@@ -658,6 +688,16 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
                     _educational_context_mapped.add(MAPPING_EDU_USE_TO_EDU_CONTEXT.get(edu_use_item))
                 if edu_use_item == "assessment":
                     _new_lrt_mapped.add(edu_use_item)
+        # since the CSV is incomplete, we need to scrape the "Level:"-values from the DOM as well
+        _levels_scraped: str = response.xpath(
+            "//dt[contains(text(),'Level:')]/following-sibling::dd/text()"
+        ).get()
+        if _levels_scraped and isinstance(_levels_scraped, str):
+            _level_list: list[str] | None = clean_and_split_up_string(raw_string=_levels_scraped, separator=",")
+            if _level_list:
+                for _level_item in _level_list:
+                    if _level_item in MAPPING_GRADE_SUBLEVELS_TO_EDU_CONTEXT:
+                        _educational_context_mapped.add(MAPPING_GRADE_SUBLEVELS_TO_EDU_CONTEXT.get(_level_item))
         if _cleaned_item.grade_sublevels and isinstance(_cleaned_item.grade_sublevels, list):
             for grade_item in _cleaned_item.grade_sublevels:
                 if grade_item in MAPPING_GRADE_SUBLEVELS_TO_EDU_CONTEXT:
@@ -677,8 +717,22 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
                     # if the OER Commons value doesn't differ from our vocab
                     valuespace_itemloader.add_value("intendedEndUserRole", primary_user_item)
 
+        # MATERIAL TYPE values are mapped to either new_lrt or saved as keywords (if mapping wasn't possible)
+        _material_types_clean: set = set()
+        _material_types_scraped: str | None = response.xpath(
+            "//dt[contains(text(),'Material Type:')]/following-sibling::dd/text()"
+        ).get()
+        # the scraped material type string will be comma-separated
+        if _material_types_scraped and isinstance(_material_types_scraped, str):
+            _mt_list: list[str] = clean_and_split_up_string(raw_string=_material_types_scraped, separator=",")
+            if _mt_list:
+                _material_types_clean.update(_mt_list)
         if _cleaned_item.material_types and isinstance(_cleaned_item.material_types, list):
-            for material_type_item in _cleaned_item.material_types:
+            # add the CSV values to the set with the scraped values
+            _material_types_clean.update(_cleaned_item.material_types)
+        if _material_types_clean:
+            _material_types_combined: list[str] = list(_material_types_clean)
+            for material_type_item in _material_types_combined:
                 if material_type_item in MAPPING_MATERIAL_TYPES_TO_NEW_LRT:
                     # save mapped value to new_lrt if possible
                     valuespace_itemloader.add_value(
@@ -712,20 +766,25 @@ class OERCommonsSpider(scrapy.Spider, LomBase):
             hochschulfaecher.sort()
             valuespace_itemloader.add_value("hochschulfaechersystematik", hochschulfaecher)
 
+        # the imported tags from the .csv are incomplete, which is why we need to check the DOM as well
+        _tags: list[str] | None = response.xpath('//li[@class="tag-instance keyword"]/a/text()').getall()
         # merge keywords
         _keyword_set: set[str] = set()
         if _cleaned_item.keywords and isinstance(_cleaned_item.keywords, list):
             _keyword_set.update(_cleaned_item.keywords)
         if _subjects_as_additional_keywords:
             _keyword_set.update(_subjects_as_additional_keywords)
+        if _tags and isinstance(_tags, list):
+            _keyword_set.update(_tags)
         if _keyword_set:
             keywords: list[str] = list(_keyword_set)
             keywords.sort()
             lom_general_itemloader.add_value("keyword", keywords)
 
         license_itemloader: LicenseItemLoader = LicenseItemLoader()
-        if _author_name and isinstance(_author_name, str):
-            license_itemloader.add_value("author", _author_name)
+        if _author_names and isinstance(_author_names, list):
+            _authors_combined: str = ", ".join(_author_names)
+            license_itemloader.add_value("author", _authors_combined)
         if _cleaned_item.license_url and isinstance(_cleaned_item.license_url, str):
             _mapped_license_url: str = LicenseMapper().get_license_url(license_string=_cleaned_item.license_url)
             license_itemloader.add_value("url", _mapped_license_url)
