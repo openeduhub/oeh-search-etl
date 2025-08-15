@@ -1013,7 +1013,7 @@ class ProcessThumbnailPipeline(BasicPipeline):
             request = scrapy.Request(url=url, callback=NO_CALLBACK, priority=1)
             # Thumbnail downloads will be executed with a slightly higher priority (default: 0), so there's less delay
             # between metadata processing and thumbnail retrieval steps in the pipelines
-            response: Deferred | Future = await maybe_deferred_to_future(spider.crawler.engine.download(request))
+            response: scrapy.http.Response = await maybe_deferred_to_future(spider.crawler.engine.download(request))
             return response
         except ValueError:
             logger.debug(f"Thumbnail-Pipeline received an invalid URL: {url}")
@@ -1030,8 +1030,8 @@ class ProcessThumbnailPipeline(BasicPipeline):
             small_copy = image.copy()
             large_copy = image.copy()
             # Pillow modifies the image object in place -> remember to use the correct copy
-            small_copy.thumbnail(size=(250, 250))
-            large_copy.thumbnail(size=(800, 800))
+            small_copy.thumbnail(size=(600, 600))
+            large_copy.thumbnail(size=(1200, 1200))
             # ToDo:
             #  Rework settings.py thumbnail config to retrieve values as width & height instead of sum(int)
             small_copy.save(small_buffer, format="PNG")
