@@ -6,17 +6,18 @@ import w3lib.html
 from scrapy import Selector
 
 from converter.items import (
-    LomTechnicalItem,
     LicenseItem,
+    LomAgeRangeItemLoader,
+    LomEducationalItemLoader,
     LomGeneralItemloader,
+    LomTechnicalItem,
     ValuespaceItem,
     ValuespaceItemLoader,
-    LomEducationalItemLoader,
-    LomAgeRangeItemLoader,
 )
-from .base_classes.mediawiki_base import MediaWikiBase, jmes_pageids, jmes_title, jmes_links, jmes_continue
+
 from ..constants import Constants
 from ..web_tools import WebEngine
+from .base_classes.mediawiki_base import MediaWikiBase, jmes_continue, jmes_links, jmes_pageids, jmes_title
 
 
 class ZUMKlexikonSpider(MediaWikiBase, scrapy.Spider):
@@ -99,6 +100,9 @@ class ZUMKlexikonSpider(MediaWikiBase, scrapy.Spider):
                     vs_loader.add_value("discipline", "080")
                 if "politik und gesellschaft" in category:
                     vs_loader.add_value("discipline", "480")
+        # Sommercamp 2025: Jessi requested (on 2025-08-22) that all items should be "interdisciplinary"
+        vs_loader.add_value("discipline", "720")
+
         # ToDo: Jugendschutz - "unauffällig" -> ('ccm:oeh_quality_protection_of_minjors': 0)
         #  - we would need to implement 'oeh_quality_...'-aspects into the data model first
         #  (places that need to be touched for these (breaking?) changes: 'items.py', 'es_connector' ...?)
