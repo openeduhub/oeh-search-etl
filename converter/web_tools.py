@@ -7,7 +7,7 @@ import html2text
 import httpx
 import trafilatura
 from loguru import logger
-from playwright.async_api import async_playwright
+from playwright.async_api import ViewportSize, async_playwright
 from scrapy.utils.project import get_project_settings
 
 from converter import env
@@ -246,14 +246,24 @@ class WebTools:
                 _launch_options_str: str = json.dumps(_launch_options)
                 ws_cdp_endpoint = f"{ws_cdp_endpoint}&launch={_launch_options_str}"
             browser = await p.chromium.connect_over_cdp(endpoint_url=ws_cdp_endpoint)
+            # to view a (significant) part of the website, we emulate being a user with a FHD display (for now).
+            # emulating a QHD display with several device_scaling_factor settings always showed too much white space
+            # at the edges of the screen (sadly, most websites are designed for FHD screens).
+            _viewport_size: ViewportSize = {
+                "width": 1920,
+                "height": 1080,
+            }
             if cls._playwright_storage_state:
                 # create a new tab with a predetermined storage state
                 # (e.g.: when both "cookies" and "localStorage" are necessary to hide a cookie consent banner
                 # or other popups)
                 # see: https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-storage-state
-                browser_context = await browser.new_context(storage_state=cls._playwright_storage_state)
+                browser_context = await browser.new_context(
+                    storage_state=cls._playwright_storage_state,
+                    viewport=_viewport_size,
+                )
             else:
-                browser_context = await browser.new_context()
+                browser_context = await browser.new_context(viewport=_viewport_size, device_scale_factor=2)
             if cls._playwright_cookies:
                 # Some websites may require setting specific cookies to render properly
                 # (e.g., to skip or close annoying cookie banners).

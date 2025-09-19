@@ -225,15 +225,19 @@ class EduSharing:
             if key:
                 files = {"image": base64.b64decode(item["thumbnail"][key])}
                 response = self.r_session.post(
-                    url=f"{get_project_settings().get("EDU_SHARING_BASE_URL")}"
-                        f"rest/node/v1/nodes/-home-/{uuid}"
-                        f"/preview?mimetype={item["thumbnail"]["mimetype"]}",
+                    url=f"{get_project_settings().get('EDU_SHARING_BASE_URL')}"
+                    f"rest/node/v1/nodes/-home-/{uuid}"
+                    f"/preview?mimetype={item['thumbnail']['mimetype']}",
                     headers=self.get_headers(None),
                     files=files,
                 )
                 return response.status_code == 200
+            else:
+                logger.warning(f"Item {uuid} did not contain a valid thumbnail. ('small' and 'large' keys missing.)")
+                return None
         else:
             logger.warning("No thumbnail provided for " + uuid)
+            return None
 
     def map_license(self, spaces, license):
         if "url" in license:
