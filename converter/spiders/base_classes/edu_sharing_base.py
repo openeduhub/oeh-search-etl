@@ -24,6 +24,7 @@ class EduSharingBase(Spider, LomBase):
     # the mds to use for the search request
     mdsId = "-default-"
     # searchId to import from, if empty, whole repository will be fetched
+    # multiple comma-separated searchIds are crawled one after another (OR-linked)
     importSearchId = ''
 
     def __init__(self, **kwargs):
@@ -32,14 +33,20 @@ class EduSharingBase(Spider, LomBase):
 
         if importSearchId:
             self.importSearchId = importSearchId
-            self.logger.info("Importing only data based on the search query: {}".format(self.importSearchId))
+        self.importSearchIds = [
+            search_id.strip() for search_id in (self.importSearchId or "").split(",") if search_id.strip()
+        ]
+        # node ids already processed, so nodes matching multiple searches are only imported once
+        self.processedNodeIds = set()
+        if self.importSearchIds:
+            self.logger.info("Importing only data based on the search queries: {}".format(self.importSearchIds))
 
-    def buildUrl(self, offset=0):
-        if self.importSearchId:
+    def buildUrl(self, offset=0, searchIndex=0):
+        if self.importSearchIds:
             return (
                 self.apiUrl
                 + self.savedSearchUrl
-                + self.importSearchId
+                + self.importSearchIds[searchIndex]
                 + "?contentType=FILES&propertyFilter=-all-"
                 + "&maxItems=" + str(self.maxItems) + "&skipCount=" + str(offset)
                 + "&sortProperties=cm%3Acreated&sortAscending=true"
@@ -54,14 +61,15 @@ class EduSharingBase(Spider, LomBase):
             + "&sortProperties=cm%3Acreated&sortAscending=true"
         )
 
-    def search(self, offset=0):
+    def search(self, offset=0, searchIndex=0):
         criteria = []
         if "queriesV2" in self.searchUrl:
             criteria = [({"property": "ngsearchword", "values": [self.searchToken]} )]
         data = {}
-        if self.importSearchId:
+        if self.importSearchIds:
             return JsonRequest(
-                url=self.buildUrl(offset)
+                url=self.buildUrl(offset, searchIndex),
+                meta={"searchIndex": searchIndex},
             )
 
         # criterias only required for regular endpoint
@@ -86,13 +94,27 @@ class EduSharingBase(Spider, LomBase):
 
     async def parse(self, response):
         data = json.loads(response.text)
+        searchIndex = response.meta.get("searchIndex", 0)
+        if data["pagination"]["from"] == 0:
+            self.logger.info("Search query {} returned {} nodes in total".format(
+                self.importSearchIds[searchIndex] if self.importSearchIds else "(whole repository)",
+                data["pagination"]["total"],
+            ))
         if len(data["nodes"]) > 0:
             for item in data["nodes"]:
+                nodeId = item["ref"]["id"]
+                if nodeId in self.processedNodeIds:
+                    continue
+                self.processedNodeIds.add(nodeId)
                 copyResponse = response.replace(url=item["content"]["url"])
                 copyResponse.meta["item"] = item
                 if self.hasChanged(copyResponse):
                     yield await LomBase.parse(self, copyResponse)
-            yield self.search(data["pagination"]["from"] + data["pagination"]["count"])
+            yield self.search(data["pagination"]["from"] + data["pagination"]["count"], searchIndex)
+        elif searchIndex + 1 < len(self.importSearchIds):
+            # current search is exhausted, continue with the next one
+            self.logger.info("Continuing with search query: {}".format(self.importSearchIds[searchIndex + 1]))
+            yield self.search(0, searchIndex + 1)
 
     def getBase(self, response):
         base = LomBase.getBase(self, response)

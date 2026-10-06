@@ -45,14 +45,15 @@ class OerBerlinSpider(EduSharingBase):
     then resolves against the OEH vocabularies.
 
     The ``importSearchId`` (saved-search uuid) is supplied at runtime via the
-    ``EDU_SHARING_IMPORT_SEARCH_ID`` env var (handled by ``EduSharingBase``).
+    ``EDU_SHARING_IMPORT_SEARCH_ID`` env var (handled by ``EduSharingBase``). Multiple comma-separated
+    uuids are crawled one after another (OR-linked).
     """
 
     name = "oer_berlin_spider"
     friendlyName = "OER Berlin"
     url = "https://repository.oer-berlin.de/edu-sharing/"
     apiUrl = "https://repository.oer-berlin.de/edu-sharing/rest/"
-    # saved-search uuid to import from; can be overridden at runtime via EDU_SHARING_IMPORT_SEARCH_ID
+    # saved-search uuid(s, comma-separated) to import from; can be overridden via EDU_SHARING_IMPORT_SEARCH_ID
     importSearchId = "c478568d-0945-4ef6-b856-8d0945eef679"
     mdsId = "-default-"
     version = "0.0.4"
