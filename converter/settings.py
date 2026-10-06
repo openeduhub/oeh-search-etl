@@ -29,6 +29,10 @@ configure_logging(settings = {
     "LOG_LEVEL": LOG_LEVEL,
     "LOG_FORMATTER": LOG_FORMATTER
 })
+# loguru's default stderr sink logs everything at DEBUG and ignores LOG_LEVEL -> remove it and only propagate
+# loguru messages to Python's built-in logging (filtered by LOG_LEVEL) via the PropagateHandler
+logger.remove()
+import converter.custom_log_formatter  # noqa: E402,F401 (registers the PropagateHandler)
 
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 

@@ -72,7 +72,7 @@ class LoSaxKeywordMapper:
         'TSP': 'Thematische Schwerpunkte / Themenschwerpunkte'
     }
     # For Debugging:
-    logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
+    # logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s - %(levelname)s - %(message)s')
     pp = pprint.PrettyPrinter(indent=4)
 
     def extract_pdf_metadata(self, pdf_dictionary):
